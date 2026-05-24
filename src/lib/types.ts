@@ -1,0 +1,119 @@
+/**
+ * Tipos de dominio de la app.
+ *
+ * Convención: en la base de datos las columnas son snake_case; en la app
+ * trabajamos siempre con estos tipos en camelCase. El mapeo vive en los
+ * servicios (src/services), no se filtra a la UI.
+ */
+
+/** Áreas de la vida (nichos). Es la taxonomía única que comparten metas y onboarding. */
+export type NicheId =
+  | 'salud'
+  | 'finanzas'
+  | 'carrera'
+  | 'aprendizaje'
+  | 'relaciones'
+  | 'creatividad'
+  | 'bienestar'
+  | 'otra'
+
+/** Modo elegido en el onboarding: una sola meta (enfocado) o varias en paralelo. */
+export type FocusMode = 'single' | 'multi'
+
+export type GoalStatus = 'active' | 'paused' | 'done' | 'archived'
+
+/** De dónde salió un ítem del plan del día. */
+export type TaskSource = 'user' | 'goal' | 'suggested'
+
+export type TaskStatus = 'pending' | 'done' | 'postponed'
+
+/** Frecuencia con la que una meta pide una acción en el plan diario. */
+export type Cadence = 'daily' | 'weekdays' | 'thrice_week' | 'weekly'
+
+/** Perfil del usuario (1:1 con auth.users en Supabase). */
+export interface Profile {
+  id: string
+  focusMode: FocusMode
+  primaryNiche: NicheId | null
+  /** Fecha en que terminó el onboarding; null = todavía no lo completó. */
+  onboardedAt: string | null
+  createdAt: string
+}
+
+export interface Goal {
+  id: string
+  userId: string
+  /** ¿Qué querés lograr? */
+  title: string
+  /** ¿Por qué? — ancla emocional que la app recuerda en momentos de fricción. */
+  why: string | null
+  /** ¿Para cuándo? — ISO date (yyyy-mm-dd) o null si no definió fecha. */
+  targetDate: string | null
+  /** Área de la vida en la que cae. */
+  area: NicheId
+  /** ¿Cómo vas a saber que lo lograste? (criterio observable) */
+  successCriteria: string | null
+  /** Plantilla (Mecanismo F) de la que deriva su estructura y acciones. */
+  templateKey: string
+  /** Índice del hito actual dentro del camino de la plantilla (0 = recién arranca). */
+  currentMilestone: number
+  /** Última revisión guiada de esta meta (ISO), o null si nunca se revisó. */
+  lastReviewedAt: string | null
+  status: GoalStatus
+  createdAt: string
+  completedAt: string | null
+}
+
+/** Un ítem del plan del día. */
+export interface Task {
+  id: string
+  userId: string
+  /** Meta de la que deriva, o null si es una tarea propia del usuario. */
+  goalId: string | null
+  title: string
+  /** Día al que pertenece el ítem (yyyy-mm-dd). */
+  planDate: string
+  source: TaskSource
+  status: TaskStatus
+  createdAt: string
+  doneAt: string | null
+}
+
+/** Plantilla pre-armada por tipo de meta (Mecanismo F). */
+export interface GoalTemplate {
+  key: string
+  /** Etiqueta corta que ve el usuario al elegir tipo de meta. */
+  label: string
+  emoji: string
+  /** Área por defecto que sugiere esta plantilla. */
+  defaultArea: NicheId
+  /** Una línea explicando para qué sirve. */
+  description: string
+  /** Palabras clave para detectar la plantilla desde el título de la meta. */
+  keywords: string[]
+  /** Hitos típicos del camino. */
+  milestones: string[]
+  /** Pool de acciones cortas y concretas para el plan del día. */
+  actions: string[]
+  /** Con qué frecuencia esta meta pide una acción. */
+  cadence: Cadence
+  /** Cada cuántos días se sugiere revisar la meta. */
+  reviewEveryDays: number
+}
+
+/** Un evento de la agenda/calendario del usuario (Sección 4). */
+export interface CalendarEvent {
+  id: string
+  userId: string
+  /** Meta opcional asociada (Sección 4.2). null = evento suelto. */
+  goalId: string | null
+  title: string
+  notes: string | null
+  /** Día del evento (yyyy-mm-dd). */
+  date: string
+  /** Hora de inicio "HH:MM", o null si es de día completo. */
+  startTime: string | null
+  endTime: string | null
+  allDay: boolean
+  createdAt: string
+}
