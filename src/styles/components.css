@@ -1,0 +1,782 @@
+/* ============================================================================
+   Componentes reutilizables del sistema de diseño.
+   Clases semánticas y utilidades. Cada pantalla compone con estas clases.
+   ============================================================================ */
+
+/* ---- Layout: columna central de app ------------------------------------- */
+.app {
+  width: 100%;
+  max-width: var(--app-width);
+  margin: 0 auto;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  position: relative;
+}
+
+/* Contenido scrolleable de cada pantalla; deja lugar para la barra inferior. */
+.screen {
+  flex: 1;
+  padding: calc(var(--safe-top) + var(--s5)) var(--s4)
+    calc(var(--nav-height) + var(--safe-bottom) + var(--s6));
+}
+
+/* Pantallas sin barra inferior (onboarding, wizard, auth) */
+.screen--full {
+  padding-bottom: calc(var(--safe-bottom) + var(--s6));
+  display: flex;
+  flex-direction: column;
+}
+
+.screen__header {
+  margin-bottom: var(--s5);
+}
+
+.screen__title {
+  font-size: var(--fs-2xl);
+}
+
+.screen__subtitle {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  margin-top: var(--s1);
+}
+
+/* ---- Utilidades --------------------------------------------------------- */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap, var(--s3));
+}
+/* Modificadores de separación (evitan setear --gap inline desde TSX). */
+.stack--sm {
+  --gap: var(--s2);
+}
+.stack--lg {
+  --gap: var(--s4);
+}
+.stack--xl {
+  --gap: var(--s6);
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap, var(--s2));
+}
+.row--sm {
+  --gap: var(--s1);
+}
+.row--lg {
+  --gap: var(--s4);
+}
+.row--between {
+  justify-content: space-between;
+}
+.wrap {
+  flex-wrap: wrap;
+}
+.spacer {
+  flex: 1;
+}
+.muted {
+  color: var(--text-muted);
+}
+.faint {
+  color: var(--text-faint);
+}
+.tiny {
+  font-size: var(--fs-xs);
+}
+.small {
+  font-size: var(--fs-sm);
+}
+.center {
+  text-align: center;
+}
+.nowrap-ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- Botones ------------------------------------------------------------ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  padding: 13px 18px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  background: var(--surface-2);
+  color: var(--text);
+  transition: transform 0.06s ease, background 0.15s ease, opacity 0.15s ease;
+  user-select: none;
+  min-height: 48px;
+}
+.btn:active {
+  transform: scale(0.98);
+}
+.btn:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.btn--primary {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.btn--primary:active {
+  background: var(--primary-strong);
+}
+.btn--ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+.btn--subtle {
+  background: var(--surface);
+  color: var(--text-muted);
+}
+.btn--danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.btn--block {
+  width: 100%;
+}
+.btn--sm {
+  min-height: 38px;
+  padding: 8px 12px;
+  font-size: var(--fs-sm);
+  border-radius: var(--radius-sm);
+}
+.btn--link {
+  background: none;
+  border: none;
+  color: var(--primary);
+  min-height: 0;
+  padding: 4px;
+  font-weight: 600;
+}
+
+/* Botón redondo de ícono (volver, cerrar, etc.) */
+.iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  color: var(--text);
+  flex: none;
+}
+.iconbtn:active {
+  transform: scale(0.94);
+}
+
+/* ---- Tarjetas ----------------------------------------------------------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: var(--s5);
+}
+.card--tight {
+  padding: var(--s4);
+  border-radius: var(--radius);
+}
+
+/* ---- Formularios -------------------------------------------------------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+.field__label {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+.field__hint {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+.input,
+.textarea {
+  width: 100%;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 13px 14px;
+  transition: border-color 0.15s ease;
+}
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--text-faint);
+}
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.textarea {
+  resize: vertical;
+  min-height: 84px;
+  line-height: 1.45;
+}
+
+/* ---- Opciones grandes (onboarding / wizard / sugerencias) --------------- */
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  text-align: left;
+  padding: var(--s4);
+  background: var(--surface);
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius);
+  color: var(--text);
+  transition: border-color 0.12s ease, background 0.12s ease, transform 0.06s ease;
+}
+.option:active {
+  transform: scale(0.99);
+}
+.option--selected {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.option__emoji {
+  font-size: 26px;
+  line-height: 1;
+  flex: none;
+  width: 34px;
+  text-align: center;
+}
+.option__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.option__label {
+  font-weight: 600;
+}
+.option__desc {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.option__check {
+  margin-left: auto;
+  color: var(--primary);
+  flex: none;
+}
+
+/* ---- Chips -------------------------------------------------------------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.chip--selected {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--text);
+}
+
+/* ---- Tareas (plan del día) --------------------------------------------- */
+.task {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  padding: var(--s4);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+.task__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.task__title {
+  font-weight: 500;
+  word-break: break-word;
+}
+.task--done .task__title {
+  text-decoration: line-through;
+  color: var(--text-faint);
+}
+.task__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+/* Check redondo */
+.check {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--border);
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  margin-top: 1px;
+}
+.check--done {
+  background: var(--success);
+  border-color: var(--success);
+  color: var(--on-primary);
+}
+
+/* Etiqueta de origen / área */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+/* ---- Tarjeta de meta ---------------------------------------------------- */
+.goal-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s4);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  width: 100%;
+  text-align: left;
+  color: var(--text);
+}
+.goal-card__top {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+.goal-card__emoji {
+  font-size: 24px;
+  flex: none;
+}
+.goal-card__title {
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Barra de progreso */
+.progress {
+  height: 7px;
+  background: var(--bg-elev);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+.progress__bar {
+  height: 100%;
+  background: var(--success);
+  border-radius: var(--radius-pill);
+  transition: width 0.3s ease;
+}
+
+/* ---- Foco de la semana (recomendación continua) ------------------------- */
+.focus-card {
+  background: linear-gradient(135deg, rgba(124, 140, 255, 0.22), rgba(52, 211, 153, 0.14));
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-lg);
+  padding: var(--s5);
+}
+.focus-card__kicker {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+/* ---- Roadmap / "el camino" (hitos como pasos) --------------------------- */
+.roadmap {
+  display: flex;
+  flex-direction: column;
+}
+.roadmap__step {
+  display: flex;
+  gap: var(--s3);
+  align-items: flex-start;
+  position: relative;
+  padding-bottom: var(--s4);
+}
+.roadmap__step:last-child {
+  padding-bottom: 0;
+}
+/* Línea conectora entre nodos */
+.roadmap__step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 13px;
+  top: 26px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--border);
+}
+.roadmap__node {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  z-index: 1;
+}
+.roadmap__label {
+  color: var(--text-muted);
+  padding-top: 3px;
+}
+.roadmap__step--current .roadmap__node {
+  border-color: var(--success);
+  color: var(--success);
+}
+.roadmap__step--current .roadmap__label {
+  color: var(--text);
+  font-weight: 600;
+}
+.roadmap__step--done .roadmap__node {
+  background: var(--success);
+  border-color: var(--success);
+  color: var(--on-primary);
+}
+/* Hito tocable (cuando el camino es interactivo) */
+.roadmap__hit {
+  display: flex;
+  gap: var(--s3);
+  align-items: flex-start;
+  width: 100%;
+  padding: 0;
+  text-align: left;
+  background: none;
+  border: none;
+  color: inherit;
+}
+
+/* ---- Barra inferior ----------------------------------------------------- */
+.bottomnav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  height: calc(var(--nav-height) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: color-mix(in srgb, var(--bg-elev) 92%, transparent);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+}
+.bottomnav__inner {
+  width: 100%;
+  max-width: var(--app-width);
+  margin: 0 auto;
+  display: flex;
+}
+.bottomnav__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  background: none;
+  border: none;
+  padding-top: 8px;
+}
+.bottomnav__item--active {
+  color: var(--primary);
+}
+
+/* ---- Stepper del wizard ------------------------------------------------- */
+.stepper {
+  display: flex;
+  gap: 6px;
+}
+.stepper__dot {
+  height: 4px;
+  flex: 1;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+}
+.stepper__dot--active {
+  background: var(--primary);
+}
+.stepper__dot--done {
+  background: var(--success);
+}
+
+/* ---- Estado vacío ------------------------------------------------------- */
+.empty {
+  text-align: center;
+  padding: var(--s8) var(--s4);
+  color: var(--text-muted);
+}
+.empty__emoji {
+  font-size: 44px;
+  margin-bottom: var(--s3);
+}
+.empty__title {
+  color: var(--text);
+  font-weight: 600;
+  margin-bottom: var(--s1);
+}
+
+/* ---- Alertas / banners -------------------------------------------------- */
+.alert {
+  padding: var(--s3) var(--s4);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+}
+.alert--error {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+/* ---- Spinner ------------------------------------------------------------ */
+.spinner {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  animation: spin 0.7s linear infinite;
+}
+.loading-screen {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 70vh;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- Brand / logo ------------------------------------------------------- */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font-weight: 800;
+  font-size: var(--fs-xl);
+  letter-spacing: -0.02em;
+}
+.brand__mark {
+  color: var(--success);
+  display: inline-flex;
+}
+
+/* ---- Segmento (toggle de vistas / opciones binarias) -------------------- */
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  padding: 3px;
+}
+.seg__btn {
+  padding: 7px 13px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+}
+.seg__btn--active {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+/* ---- Calendario / agenda ------------------------------------------------ */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+}
+.cal-dow {
+  text-align: center;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--text-faint);
+}
+.cal-cell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-top: 7px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1.5px solid transparent;
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.cal-cell--out {
+  background: transparent;
+  color: var(--text-faint);
+  font-weight: 500;
+}
+.cal-cell--today {
+  border-color: var(--border);
+}
+.cal-cell--selected {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.cal-cell__dots {
+  display: flex;
+  gap: 3px;
+  min-height: 5px;
+}
+.cal-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--success);
+}
+.cal-dot--goal {
+  background: var(--primary);
+}
+
+.cal-day {
+  padding-top: var(--s3);
+  border-top: 1px solid var(--border-soft);
+}
+.cal-day:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+.cal-day__label {
+  font-weight: 700;
+  color: var(--text);
+}
+.cal-day__label--today {
+  color: var(--primary);
+}
+
+.ev {
+  display: flex;
+  gap: var(--s3);
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  padding: var(--s3) var(--s4);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  color: var(--text);
+}
+.ev--goal {
+  border-left: 3px solid var(--primary);
+}
+.ev__time {
+  flex: none;
+  min-width: 48px;
+  padding-top: 2px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.ev__title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.iconbtn--sm {
+  width: 34px;
+  height: 34px;
+}
+
+/* ---- Bottom sheet (editor de evento) ------------------------------------ */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.sheet__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 20, 0.6);
+}
+.sheet__panel {
+  position: relative;
+  width: 100%;
+  max-width: var(--app-width);
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: var(--s5) var(--s4) calc(var(--safe-bottom) + var(--s5));
+  box-shadow: var(--shadow);
+  animation: sheet-up 0.18s ease-out;
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(16px);
+    opacity: 0.5;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+select.input {
+  appearance: none;
+  -webkit-appearance: none;
+}
