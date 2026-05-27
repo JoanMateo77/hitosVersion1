@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { useAuth } from '@/app/useAuth'
@@ -9,16 +9,21 @@ import { LoadingScreen } from '@/components/LoadingScreen'
 import { AppShell } from '@/components/AppShell'
 import { ConfigNeeded } from '@/screens/ConfigNeeded'
 import { Auth } from '@/screens/Auth'
-import { Onboarding } from '@/screens/Onboarding'
-import { Wizard } from '@/screens/Wizard'
-import { GoalCreated } from '@/screens/GoalCreated'
-import { GoalSuggestions } from '@/screens/GoalSuggestions'
-import { Today } from '@/screens/Today'
-import { Goals } from '@/screens/Goals'
-import { GoalDetail } from '@/screens/GoalDetail'
-import { Calendar } from '@/screens/Calendar'
-import { Review } from '@/screens/Review'
-import { ProfileScreen } from '@/screens/Profile'
+
+// Pantallas cargadas bajo demanda (code-splitting por ruta): bajan el bundle
+// inicial y aceleran el primer render. <Suspense> muestra el loader mientras carga.
+const Onboarding = lazy(() => import('@/screens/Onboarding').then((m) => ({ default: m.Onboarding })))
+const Wizard = lazy(() => import('@/screens/Wizard').then((m) => ({ default: m.Wizard })))
+const GoalCreated = lazy(() => import('@/screens/GoalCreated').then((m) => ({ default: m.GoalCreated })))
+const GoalSuggestions = lazy(() =>
+  import('@/screens/GoalSuggestions').then((m) => ({ default: m.GoalSuggestions })),
+)
+const Review = lazy(() => import('@/screens/Review').then((m) => ({ default: m.Review })))
+const Today = lazy(() => import('@/screens/Today').then((m) => ({ default: m.Today })))
+const Goals = lazy(() => import('@/screens/Goals').then((m) => ({ default: m.Goals })))
+const GoalDetail = lazy(() => import('@/screens/GoalDetail').then((m) => ({ default: m.GoalDetail })))
+const Calendar = lazy(() => import('@/screens/Calendar').then((m) => ({ default: m.Calendar })))
+const ProfileScreen = lazy(() => import('@/screens/Profile').then((m) => ({ default: m.ProfileScreen })))
 
 /**
  * Punto de entrada de la app. Resuelve las capas en orden:
@@ -94,26 +99,28 @@ function ProfiledApp({ userId, email }: { userId: string; email: string }) {
   return (
     <SessionProvider value={{ userId, email, profile, setProfile }}>
       <div className="app">
-        <Routes>
-          <Route
-            path="/onboarding"
-            element={onboarded ? <Navigate to="/" replace /> : <Onboarding />}
-          />
-          <Route element={<RequireOnboarded onboarded={onboarded} />}>
-            <Route path="/meta/nueva" element={<Wizard />} />
-            <Route path="/meta/creada/:goalId" element={<GoalCreated />} />
-            <Route path="/ideas" element={<GoalSuggestions />} />
-            <Route path="/revision" element={<Review />} />
-            <Route element={<AppShell />}>
-              <Route path="/" element={<Today />} />
-              <Route path="/metas" element={<Goals />} />
-              <Route path="/metas/:goalId" element={<GoalDetail />} />
-              <Route path="/calendario" element={<Calendar />} />
-              <Route path="/perfil" element={<ProfileScreen />} />
+        <Suspense fallback={<LoadingScreen />}>
+          <Routes>
+            <Route
+              path="/onboarding"
+              element={onboarded ? <Navigate to="/" replace /> : <Onboarding />}
+            />
+            <Route element={<RequireOnboarded onboarded={onboarded} />}>
+              <Route path="/meta/nueva" element={<Wizard />} />
+              <Route path="/meta/creada/:goalId" element={<GoalCreated />} />
+              <Route path="/ideas" element={<GoalSuggestions />} />
+              <Route path="/revision" element={<Review />} />
+              <Route element={<AppShell />}>
+                <Route path="/" element={<Today />} />
+                <Route path="/metas" element={<Goals />} />
+                <Route path="/metas/:goalId" element={<GoalDetail />} />
+                <Route path="/calendario" element={<Calendar />} />
+                <Route path="/perfil" element={<ProfileScreen />} />
+              </Route>
             </Route>
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </div>
     </SessionProvider>
   )
