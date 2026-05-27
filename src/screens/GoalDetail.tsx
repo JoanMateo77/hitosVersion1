@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import { getGoal, setGoalMilestone, setGoalStatus } from '@/services/goals'
+import { getGoal, setGoalMilestone, setGoalStatus, updateGoal, type GoalEdit } from '@/services/goals'
 import { countDoneByGoal, createGoalTasks } from '@/services/tasks'
 import { minutesByGoalInRange } from '@/services/events'
 import { getTemplate } from '@/domain/templates'
 import { pickAction } from '@/domain/dailyPlan'
-import { getNiche } from '@/domain/niches'
+import { NICHES, getNiche } from '@/domain/niches'
 import { addDays, formatDuration, formatLongDate, relativeDeadline, startOfWeek, todayISO } from '@/lib/date'
-import type { Goal, GoalStatus } from '@/lib/types'
+import type { Goal, GoalStatus, NicheId } from '@/lib/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { Roadmap } from '@/components/Roadmap'
 import { IconBack, IconCheck } from '@/components/icons'
@@ -24,6 +24,7 @@ export function GoalDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -93,6 +94,13 @@ export function GoalDetail() {
     }
   }
 
+  async function saveEdit(edit: GoalEdit) {
+    if (!goal) return
+    const updated = await updateGoal(goal.id, edit)
+    setGoal(updated)
+    setEditing(false)
+  }
+
   if (loading) return <LoadingScreen />
   if (error && !goal) return <LoadingScreen error={error} />
   if (!goal) {
@@ -103,6 +111,18 @@ export function GoalDetail() {
           <div className="empty__emoji">🔍</div>
           <p className="empty__title">No encontramos esa meta</p>
         </div>
+      </div>
+    )
+  }
+
+  if (editing) {
+    return (
+      <div className="screen">
+        <BackButton onClick={() => setEditing(false)} />
+        <header className="screen__header" style={{ marginTop: 'var(--s4)' }}>
+          <h1 className="screen__title">Editar meta</h1>
+        </header>
+        <GoalEditor goal={goal} onCancel={() => setEditing(false)} onSave={saveEdit} />
       </div>
     )
   }
@@ -124,6 +144,13 @@ export function GoalDetail() {
               {goal.status === 'done' ? 'Lograda 🎉' : goal.status === 'paused' ? 'Pausada' : 'Archivada'}
             </span>
           )}
+          <button
+            className="btn btn--ghost btn--sm"
+            style={{ marginLeft: 'auto' }}
+            onClick={() => setEditing(true)}
+          >
+            Editar
+          </button>
         </div>
         <h1 className="screen__title">{goal.title}</h1>
       </header>
@@ -260,6 +287,111 @@ function InfoRow({ label, value }: { label: string; value: string }) {
         {label}
       </span>
       <span style={{ textAlign: 'right' }}>{value}</span>
+    </div>
+  )
+}
+
+/** Formulario para editar los campos de una meta ya creada. */
+function GoalEditor({
+  goal,
+  onCancel,
+  onSave,
+}: {
+  goal: Goal
+  onCancel: () => void
+  onSave: (edit: GoalEdit) => Promise<void>
+}) {
+  const [title, setTitle] = useState(goal.title)
+  const [why, setWhy] = useState(goal.why ?? '')
+  const [targetDate, setTargetDate] = useState(goal.targetDate ?? '')
+  const [area, setArea] = useState<NicheId>(goal.area)
+  const [criteria, setCriteria] = useState(goal.successCriteria ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function submit() {
+    if (!title.trim()) return
+    setSaving(true)
+    setError(null)
+    onSave({
+      title: title.trim(),
+      why: why.trim() || null,
+      targetDate: targetDate || null,
+      area,
+      successCriteria: criteria.trim() || null,
+    }).catch((e: unknown) => {
+      setError(e instanceof Error ? e.message : 'No se pudo guardar. Probá de nuevo.')
+      setSaving(false)
+    })
+  }
+
+  return (
+    <div className="stack stack--lg">
+      <div className="field">
+        <span className="field__label">¿Qué querés lograr?</span>
+        <input
+          className="input"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          maxLength={200}
+        />
+      </div>
+      <div className="field">
+        <span className="field__label">¿Por qué? (opcional)</span>
+        <textarea className="textarea" value={why} onChange={(e) => setWhy(e.target.value)} />
+      </div>
+      <div className="field">
+        <span className="field__label">¿Para cuándo? (opcional)</span>
+        <input
+          className="input"
+          type="date"
+          min={todayISO()}
+          value={targetDate}
+          onChange={(e) => setTargetDate(e.target.value)}
+        />
+        {targetDate && (
+          <button className="btn--link" type="button" onClick={() => setTargetDate('')}>
+            Quitar fecha
+          </button>
+        )}
+      </div>
+      <div className="field">
+        <span className="field__label">Área</span>
+        <div className="row wrap">
+          {NICHES.map((n) => (
+            <button
+              key={n.id}
+              type="button"
+              className={`chip${area === n.id ? ' chip--selected' : ''}`}
+              onClick={() => setArea(n.id)}
+            >
+              {n.emoji} {n.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="field">
+        <span className="field__label">Lo logro cuando… (opcional)</span>
+        <input
+          className="input"
+          value={criteria}
+          onChange={(e) => setCriteria(e.target.value)}
+          maxLength={200}
+        />
+      </div>
+      {error && <div className="alert alert--error">{error}</div>}
+      <div className="stack stack--sm">
+        <button
+          className="btn btn--primary btn--block"
+          disabled={!title.trim() || saving}
+          onClick={submit}
+        >
+          {saving ? 'Guardando…' : 'Guardar cambios'}
+        </button>
+        <button className="btn btn--ghost btn--block" disabled={saving} onClick={onCancel}>
+          Cancelar
+        </button>
+      </div>
     </div>
   )
 }

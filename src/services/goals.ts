@@ -123,3 +123,30 @@ export async function markGoalReviewed(goalId: string): Promise<Goal> {
   if (error) throw new Error(error.message)
   return mapGoal(data as GoalRow)
 }
+
+/** Campos editables de una meta ya creada. */
+export interface GoalEdit {
+  title: string
+  why: string | null
+  targetDate: string | null
+  area: NicheId
+  successCriteria: string | null
+}
+
+/** Edita los campos de una meta existente (no toca estado ni progreso). */
+export async function updateGoal(goalId: string, edit: GoalEdit): Promise<Goal> {
+  const { data, error } = await supabase
+    .from('goals')
+    .update({
+      title: edit.title,
+      why: edit.why,
+      target_date: edit.targetDate,
+      area: edit.area,
+      success_criteria: edit.successCriteria,
+    })
+    .eq('id', goalId)
+    .select('*')
+    .single()
+  if (error) throw new Error(error.message)
+  return mapGoal(data as GoalRow)
+}
