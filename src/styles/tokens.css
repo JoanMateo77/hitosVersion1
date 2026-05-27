@@ -1,41 +1,13 @@
 /* Design tokens — única fuente de verdad de color, espaciado y tipografía.
-   Tema oscuro con acento verde de progreso, acorde a la marca Hito. */
+   Tres temas conmutables vía [data-theme] en <html>: oscuro (default), claro, neón.
+   Lo que NO depende del tema (espaciado, radios, tipografía, layout) vive en :root;
+   el color vive en cada bloque de tema. */
 :root {
-  color-scheme: dark;
-
-  /* Superficies */
-  --bg: #0b1220;
-  --bg-elev: #101a2e;
-  --surface: #16223b;
-  --surface-2: #1d2b48;
-  --border: #2a3a5c;
-  --border-soft: #213050;
-
-  /* Texto */
-  --text: #e9eefb;
-  --text-muted: #9fadc9;
-  --text-faint: #6c7a99;
-
-  /* Marca / estados */
-  --primary: #7c8cff;
-  --primary-strong: #6776ff;
-  --primary-soft: rgba(124, 140, 255, 0.14);
-  --on-primary: #0a0f20;
-  --success: #34d399;
-  --success-soft: rgba(52, 211, 153, 0.16);
-  --danger: #fb7185;
-  --danger-soft: rgba(251, 113, 133, 0.14);
-  --warning: #fbbf24;
-
   /* Radios */
   --radius-sm: 9px;
   --radius: 14px;
   --radius-lg: 22px;
   --radius-pill: 999px;
-
-  /* Sombra */
-  --shadow: 0 10px 34px rgba(2, 6, 20, 0.5);
-  --shadow-sm: 0 4px 14px rgba(2, 6, 20, 0.35);
 
   /* Espaciado (escala de 4) */
   --s1: 4px;
@@ -64,4 +36,99 @@
   /* Áreas seguras (notch / home indicator en iOS) */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Glow: solo el tema neón lo enciende; en los demás no aporta sombra. */
+  --glow: 0 0 0 transparent;
+}
+
+/* ===== Tema OSCURO (default) ============================================= */
+:root,
+[data-theme='oscuro'] {
+  color-scheme: dark;
+
+  --bg: #0b1220;
+  --bg-elev: #101a2e;
+  --surface: #16223b;
+  --surface-2: #1d2b48;
+  --border: #2a3a5c;
+  --border-soft: #213050;
+
+  --text: #e9eefb;
+  --text-muted: #9fadc9;
+  --text-faint: #6c7a99;
+
+  --primary: #7c8cff;
+  --primary-strong: #6776ff;
+  --primary-soft: rgba(124, 140, 255, 0.14);
+  --on-primary: #0a0f20;
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.16);
+  --danger: #fb7185;
+  --danger-soft: rgba(251, 113, 133, 0.14);
+  --warning: #fbbf24;
+
+  --shadow: 0 10px 34px rgba(2, 6, 20, 0.5);
+  --shadow-sm: 0 4px 14px rgba(2, 6, 20, 0.35);
+  --gradient-focus: linear-gradient(135deg, rgba(124, 140, 255, 0.22), rgba(52, 211, 153, 0.14));
+}
+
+/* ===== Tema CLARO ======================================================== */
+[data-theme='claro'] {
+  color-scheme: light;
+
+  --bg: #eef1f8;
+  --bg-elev: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f1f4fb;
+  --border: #d4dbec;
+  --border-soft: #e4e9f4;
+
+  --text: #111a2e;
+  --text-muted: #566378;
+  --text-faint: #8b97ad;
+
+  --primary: #5566f5;
+  --primary-strong: #4453e6;
+  --primary-soft: rgba(85, 102, 245, 0.1);
+  --on-primary: #ffffff;
+  --success: #0ea271;
+  --success-soft: rgba(14, 162, 113, 0.12);
+  --danger: #e23d5a;
+  --danger-soft: rgba(226, 61, 90, 0.1);
+  --warning: #b7791f;
+
+  --shadow: 0 12px 30px rgba(40, 60, 120, 0.12);
+  --shadow-sm: 0 4px 14px rgba(40, 60, 120, 0.1);
+  --gradient-focus: linear-gradient(135deg, rgba(85, 102, 245, 0.12), rgba(14, 162, 113, 0.1));
+}
+
+/* ===== Tema NEÓN ========================================================= */
+[data-theme='neon'] {
+  color-scheme: dark;
+
+  --bg: #05060f;
+  --bg-elev: #0a0c1a;
+  --surface: #0e1126;
+  --surface-2: #151a36;
+  --border: #243056;
+  --border-soft: #1a2138;
+
+  --text: #eafaff;
+  --text-muted: #93a6cf;
+  --text-faint: #5d6e95;
+
+  --primary: #22d3ee;
+  --primary-strong: #06b6d4;
+  --primary-soft: rgba(34, 211, 238, 0.14);
+  --on-primary: #041018;
+  --success: #34f5c5;
+  --success-soft: rgba(52, 245, 197, 0.14);
+  --danger: #ff5c8a;
+  --danger-soft: rgba(255, 92, 138, 0.14);
+  --warning: #fde047;
+
+  --shadow: 0 0 28px rgba(34, 211, 238, 0.22);
+  --shadow-sm: 0 0 16px rgba(34, 211, 238, 0.18);
+  --glow: 0 0 18px rgba(34, 211, 238, 0.45);
+  --gradient-focus: linear-gradient(135deg, rgba(34, 211, 238, 0.2), rgba(52, 245, 197, 0.16));
 }

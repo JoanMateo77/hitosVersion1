@@ -408,7 +408,7 @@
 
 /* ---- Foco de la semana (recomendación continua) ------------------------- */
 .focus-card {
-  background: linear-gradient(135deg, rgba(124, 140, 255, 0.22), rgba(52, 211, 153, 0.14));
+  background: var(--gradient-focus);
   border: 1px solid var(--primary);
   border-radius: var(--radius-lg);
   padding: var(--s5);
@@ -779,4 +779,20 @@
 select.input {
   appearance: none;
   -webkit-appearance: none;
+}
+
+/* ---- Realces del tema neón --------------------------------------------- */
+[data-theme='neon'] .btn--primary,
+[data-theme='neon'] .focus-card,
+[data-theme='neon'] .seg__btn--active {
+  box-shadow: var(--glow);
+}
+[data-theme='neon'] .brand__mark {
+  filter: drop-shadow(0 0 7px var(--primary));
+}
+[data-theme='neon'] .bottomnav__item--active {
+  text-shadow: 0 0 10px var(--primary);
+}
+[data-theme='neon'] .check--done {
+  box-shadow: 0 0 12px var(--success);
 }

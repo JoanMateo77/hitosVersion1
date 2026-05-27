@@ -9,6 +9,16 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <meta name="theme-color" content="#0b1220" />
+    <!-- Aplica el tema guardado antes de pintar, para no parpadear claro/oscuro. -->
+    <script>
+      try {
+        var t = localStorage.getItem('hito-theme') || 'oscuro'
+        document.documentElement.dataset.theme = t
+        var c = { claro: '#eef1f8', oscuro: '#0b1220', neon: '#05060f' }[t]
+        var m = document.querySelector('meta[name="theme-color"]')
+        if (m && c) m.setAttribute('content', c)
+      } catch (e) {}
+    </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

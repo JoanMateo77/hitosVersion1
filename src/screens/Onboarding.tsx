@@ -67,7 +67,7 @@ export function Onboarding() {
           <header>
             <h1 className="screen__title">Bienvenido/a 👋</h1>
             <p className="screen__subtitle">
-              Antes de empezar, dos preguntas para acomodar la app a vos.
+              Dos preguntas rápidas para adaptar Hito a vos.
             </p>
           </header>
           <h2 style={{ fontSize: 'var(--fs-lg)' }}>¿Cómo querés arrancar?</h2>

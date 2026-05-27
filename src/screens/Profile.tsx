@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useSession } from '@/app/session'
 import { signOut } from '@/services/auth'
 import { updateProfilePrefs } from '@/services/profile'
+import { THEMES, useTheme } from '@/app/theme'
 import { NICHES, getNiche } from '@/domain/niches'
 import type { FocusMode, NicheId, Profile } from '@/lib/types'
 
@@ -12,6 +13,7 @@ const FOCUS_LABEL: Record<string, string> = {
 
 export function ProfileScreen() {
   const { userId, email, profile, setProfile } = useSession()
+  const { theme, setTheme } = useTheme()
   const [editing, setEditing] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
 
@@ -38,6 +40,22 @@ export function ProfileScreen() {
         )}
       </header>
 
+      <div className="card stack stack--sm" style={{ marginBottom: 'var(--s4)' }}>
+        <span className="field__label">Apariencia</span>
+        <div className="seg" style={{ alignSelf: 'flex-start' }}>
+          {THEMES.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className={`seg__btn${theme === t.id ? ' seg__btn--active' : ''}`}
+              onClick={() => setTheme(t.id)}
+            >
+              {t.emoji} {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {editing ? (
         <ProfileEditor
           userId={userId}
@@ -53,7 +71,7 @@ export function ProfileScreen() {
         <div className="card stack">
           <InfoRow label="Email" value={email} />
           <InfoRow
-            label="Cómo arrancás"
+            label="Cómo trabajás"
             value={FOCUS_LABEL[profile.focusMode] ?? profile.focusMode}
           />
           {niche && <InfoRow label="Tu foco" value={`${niche.emoji} ${niche.label}`} />}
@@ -67,12 +85,12 @@ export function ProfileScreen() {
           onClick={handleSignOut}
           disabled={signingOut}
         >
-          {signingOut ? 'Cerrando…' : 'Cerrar sesión'}
+          {signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
         </button>
       )}
 
       <p className="faint tiny center" style={{ marginTop: 'var(--s8)' }}>
-        Hito · v0.1 — gratis. Si algún día te sirve de verdad, vas a poder apoyar el proyecto.
+        Hito es gratis. Si algún día te sirve de verdad, vas a poder apoyar el proyecto. 💚
       </p>
     </div>
   )
@@ -104,7 +122,7 @@ function ProfileEditor({
       const updated = await updateProfilePrefs(userId, { focusMode, primaryNiche: niche })
       onSaved(updated)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo guardar.')
+      setError(err instanceof Error ? err.message : 'No se pudo guardar. Probá de nuevo.')
       setSaving(false)
     }
   }
@@ -131,8 +149,8 @@ function ProfileEditor({
         </div>
         <span className="field__hint">
           {focusMode === 'single'
-            ? 'Modo enfocado: tu plan del día prioriza una sola meta por vez.'
-            : 'Multi-meta: tu plan reparte acciones entre todas tus metas activas.'}
+            ? 'Modo enfocado: el plan del día prioriza una sola meta por vez.'
+            : 'Multi-meta: el plan reparte acciones entre todas tus metas activas.'}
         </span>
       </div>
 

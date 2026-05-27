@@ -24,7 +24,7 @@ export function Auth() {
         await signUp(email.trim(), password)
         // Si la confirmación de email está desactivada, el login es inmediato
         // (useAuth detecta la sesión). Si está activada, queda este aviso.
-        setNotice('Cuenta creada. Si tu proyecto pide confirmar el email, revisá tu correo.')
+        setNotice('Listo, tu cuenta está creada. Si te pedimos confirmar el email, revisá tu casilla.')
       } else {
         await signIn(email.trim(), password)
       }
@@ -101,7 +101,7 @@ export function Auth() {
           )}
 
           <button className="btn btn--primary btn--block" type="submit" disabled={loading}>
-            {loading ? 'Un momento…' : isSignup ? 'Crear cuenta' : 'Entrar'}
+            {loading ? (isSignup ? 'Creando cuenta…' : 'Entrando…') : isSignup ? 'Crear cuenta' : 'Entrar'}
           </button>
         </form>
 
