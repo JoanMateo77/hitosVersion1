@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import type { CalendarEvent, Goal } from '@/lib/types'
@@ -22,6 +22,7 @@ import {
 } from '@/lib/date'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { IconBack, IconClose, IconPlus } from '@/components/icons'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 
 type View = 'day' | 'week' | 'month'
 
@@ -338,6 +339,8 @@ function EventEditor({
   const [notes, setNotes] = useState(initial?.notes ?? '')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const panelRef = useRef<HTMLFormElement>(null)
+  useFocusTrap(panelRef, onClose)
 
   const canSave = title.trim().length > 0 && (allDay || startTime.length > 0)
 
@@ -372,7 +375,7 @@ function EventEditor({
   return (
     <div className="sheet" role="dialog" aria-modal="true">
       <div className="sheet__backdrop" onClick={onClose} />
-      <form className="sheet__panel stack stack--lg" onSubmit={handleSubmit}>
+      <form ref={panelRef} className="sheet__panel stack stack--lg" onSubmit={handleSubmit}>
         <div className="row row--between">
           <h2 style={{ fontSize: 'var(--fs-lg)' }}>{initial ? 'Editar evento' : 'Nuevo evento'}</h2>
           <button type="button" className="iconbtn iconbtn--sm" onClick={onClose} aria-label="Cerrar">

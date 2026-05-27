@@ -8,6 +8,7 @@ import { relativeDeadline } from '@/lib/date'
 import type { Goal, GoalStatus } from '@/lib/types'
 import { useAsyncData } from '@/hooks/useAsyncData'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { SkeletonList } from '@/components/Skeleton'
 import { IconPlus } from '@/components/icons'
 
 /** Orden de presentación por estado: lo activo primero. */
@@ -33,7 +34,16 @@ export function Goals() {
     return { goals, counts }
   }, [userId])
 
-  if (loading) return <LoadingScreen />
+  if (loading) {
+    return (
+      <div className="screen">
+        <header className="row row--between screen__header">
+          <h1 className="screen__title">Tus metas</h1>
+        </header>
+        <SkeletonList rows={3} />
+      </div>
+    )
+  }
   if (error || !data) return <LoadingScreen error={error ?? 'No se pudieron cargar tus metas.'} />
 
   const goals = [...data.goals].sort(

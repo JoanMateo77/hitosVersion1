@@ -25,6 +25,7 @@ import {
 import { formatWeekday, todayISO } from '@/lib/date'
 import { TaskItem } from '@/components/TaskItem'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { SkeletonList } from '@/components/Skeleton'
 import { IconPlus, IconSparkles } from '@/components/icons'
 
 export function Today() {
@@ -217,7 +218,17 @@ export function Today() {
     })
   }
 
-  if (loading) return <LoadingScreen />
+  if (loading) {
+    return (
+      <div className="screen">
+        <header className="screen__header">
+          <p className="muted small">{formatWeekday(today)}</p>
+          <h1 className="screen__title">Tu plan de hoy</h1>
+        </header>
+        <SkeletonList rows={4} />
+      </div>
+    )
+  }
   if (error) return <LoadingScreen error={error} />
 
   return (

@@ -796,3 +796,20 @@ select.input {
 [data-theme='neon'] .check--done {
   box-shadow: 0 0 12px var(--success);
 }
+
+/* ---- Skeletons de carga ------------------------------------------------- */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 37%, var(--surface) 63%);
+  background-size: 400% 100%;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
