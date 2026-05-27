@@ -1,5 +1,3 @@
-import { useState } from 'react'
-
 export type Theme = 'claro' | 'oscuro' | 'neon'
 
 const STORAGE_KEY = 'hito-theme'
@@ -41,14 +39,4 @@ export function applyTheme(theme: Theme): void {
   }
   const meta = document.querySelector('meta[name="theme-color"]')
   if (meta) meta.setAttribute('content', THEME_COLOR[theme])
-}
-
-/** Hook para leer y cambiar el tema (claro / oscuro / neón). */
-export function useTheme(): { theme: Theme; setTheme: (t: Theme) => void } {
-  const [theme, setThemeState] = useState<Theme>(readTheme)
-  function setTheme(next: Theme) {
-    setThemeState(next)
-    applyTheme(next)
-  }
-  return { theme, setTheme }
 }

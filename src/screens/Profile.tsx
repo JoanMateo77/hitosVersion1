@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useSession } from '@/app/session'
 import { signOut } from '@/services/auth'
 import { updateProfilePrefs } from '@/services/profile'
-import { THEMES, useTheme } from '@/app/theme'
+import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 import { NICHES, getNiche } from '@/domain/niches'
 import type { FocusMode, NicheId, Profile } from '@/lib/types'
 
@@ -13,7 +13,6 @@ const FOCUS_LABEL: Record<string, string> = {
 
 export function ProfileScreen() {
   const { userId, email, profile, setProfile } = useSession()
-  const { theme, setTheme } = useTheme()
   const [editing, setEditing] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
 
@@ -42,18 +41,7 @@ export function ProfileScreen() {
 
       <div className="card stack stack--sm" style={{ marginBottom: 'var(--s4)' }}>
         <span className="field__label">Apariencia</span>
-        <div className="seg" style={{ alignSelf: 'flex-start' }}>
-          {THEMES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className={`seg__btn${theme === t.id ? ' seg__btn--active' : ''}`}
-              onClick={() => setTheme(t.id)}
-            >
-              {t.emoji} {t.label}
-            </button>
-          ))}
-        </div>
+        <ThemeSwitcher variant="compact" />
       </div>
 
       {editing ? (

@@ -813,3 +813,439 @@ select.input {
     background-position: 0 0;
   }
 }
+
+/* ============================================================================
+   Shell responsivo (solo pantallas con AppShell). Las pantallas de flujo
+   (auth, onboarding, wizard…) siguen usando .app (columna angosta) y no se tocan.
+   ============================================================================ */
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+.shell__content {
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+}
+/* El top bar ya cubre el área segura superior; el contenido no la re-suma. */
+.shell .screen {
+  padding-top: var(--s4);
+}
+
+/* Barra superior (móvil/tablet) */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  height: calc(var(--nav-height) + var(--safe-top));
+  padding: var(--safe-top) var(--s4) 0;
+  background: color-mix(in srgb, var(--bg-elev) 92%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+/* Barra lateral (escritorio): oculta por defecto, se enciende en el breakpoint */
+.sidenav {
+  display: none;
+}
+
+/* Selector de tema, variante apilada (sidebar) */
+.themeswitch {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.themeswitch__btn {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  background: none;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  text-align: left;
+}
+.themeswitch__btn:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+.themeswitch__btn--active {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--text);
+}
+
+/* Switcher en el login (esquina superior derecha) */
+.auth__theme {
+  position: absolute;
+  top: calc(var(--safe-top) + var(--s3));
+  right: var(--s4);
+  z-index: 5;
+}
+
+/* En pantallas muy angostas el control compacto muestra solo el emoji */
+@media (max-width: 380px) {
+  .themeswitch__label {
+    display: none;
+  }
+}
+
+/* ---- Escritorio (≥1024px): sidebar + contenido, sin barras móviles -------- */
+@media (min-width: 1024px) {
+  .app:has(.shell) {
+    max-width: none;
+  }
+  .shell {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .topbar,
+  .bottomnav {
+    display: none;
+  }
+  .sidenav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100vh;
+    width: var(--sidenav-width);
+    flex: none;
+    padding: var(--s6) var(--s4) calc(var(--safe-bottom) + var(--s4));
+    background: var(--bg-elev);
+    border-right: 1px solid var(--border-soft);
+  }
+  .sidenav__brand {
+    font-size: var(--fs-xl);
+    padding: 0 var(--s2) var(--s4);
+  }
+  .sidenav__nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .sidenav__item {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    padding: var(--s3);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    font-weight: 600;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .sidenav__item:hover {
+    background: var(--surface);
+    color: var(--text);
+  }
+  .sidenav__item--active {
+    background: var(--primary-soft);
+    color: var(--primary);
+  }
+  .sidenav__footer {
+    margin-top: auto;
+    padding-top: var(--s4);
+    border-top: 1px solid var(--border-soft);
+  }
+  .shell__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .shell .screen {
+    padding: var(--s8) var(--s6) var(--s10);
+  }
+  /* La hoja del modal de eventos se corre para no quedar bajo la sidebar */
+  .sheet {
+    left: var(--sidenav-width);
+  }
+}
+[data-theme='neon'] .sidenav__item--active {
+  text-shadow: 0 0 10px var(--primary);
+}
+
+/* ============================================================================
+   Pulido visual — jerarquía, elevación, estados táctiles y micro-interacciones.
+   Extiende reglas previas (gana por orden de cascada) y todo deriva de los
+   tokens vía color-mix, así los 3 temas quedan sincronizados.
+   ============================================================================ */
+
+/* Tipografía */
+.screen__title {
+  line-height: var(--lh-tight);
+  letter-spacing: -0.02em;
+}
+.screen__subtitle {
+  font-size: var(--fs-md);
+  line-height: var(--lh-snug);
+  margin-top: var(--s2);
+}
+.screen__header {
+  margin-bottom: var(--s6);
+}
+
+/* Elevación: las tarjetas dejan de ser rectángulos planos */
+.card {
+  box-shadow: var(--shadow-sm);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--text) 4%, transparent),
+    transparent 64px
+  );
+}
+.task,
+.ev,
+.goal-card {
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.12s ease, box-shadow 0.18s ease, border-color 0.15s ease;
+}
+
+/* Estados táctiles (hover solo con puntero; tap depress en todos) */
+@media (hover: hover) {
+  .goal-card:hover,
+  .task:hover,
+  .ev:hover {
+    transform: translateY(-1px);
+    border-color: var(--border);
+    box-shadow: var(--shadow);
+  }
+  .btn--ghost:hover {
+    border-color: var(--text-faint);
+    background: var(--surface);
+  }
+  .btn--subtle:hover {
+    color: var(--text);
+  }
+  .iconbtn:hover {
+    border-color: var(--border);
+    background: var(--surface-2);
+  }
+  .chip:hover:not(.chip--selected) {
+    border-color: var(--text-faint);
+    color: var(--text);
+  }
+  .input:hover,
+  .textarea:hover {
+    border-color: var(--text-faint);
+  }
+}
+.goal-card:active,
+.ev:active {
+  transform: scale(0.99);
+}
+
+/* Tarjeta de meta: emoji en un "token" cuadrado como ancla de la fila */
+.goal-card__emoji {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  font-size: 22px;
+}
+
+/* Botón primario: degradado + sombra de color */
+.btn--primary {
+  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+  border-color: color-mix(in srgb, var(--primary-strong) 60%, transparent);
+  box-shadow:
+    0 4px 14px color-mix(in srgb, var(--primary) 35%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 22%, transparent);
+}
+@media (hover: hover) {
+  .btn--primary:hover {
+    box-shadow:
+      0 6px 20px color-mix(in srgb, var(--primary) 45%, transparent),
+      inset 0 1px 0 color-mix(in srgb, #fff 26%, transparent);
+  }
+}
+.btn--primary:active {
+  background: var(--primary-strong);
+  transform: scale(0.98);
+}
+
+/* Focus-card: el elemento estrella con un bloom de marca por detrás */
+.focus-card {
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm), inset 0 1px 0 color-mix(in srgb, var(--text) 8%, transparent);
+}
+.focus-card::before {
+  content: '';
+  position: absolute;
+  top: -40%;
+  left: -10%;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--primary) 22%, transparent),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+.focus-card > * {
+  position: relative;
+}
+.focus-card__kicker {
+  letter-spacing: 0.08em;
+}
+
+/* Inputs: anillo de foco suave + flecha del select (que hoy no se ve) */
+.input:focus,
+.textarea:focus,
+select.input:focus {
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+select.input {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%239fadc9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 40px;
+}
+
+/* Estado vacío: emoji en un disco de marca + título más fuerte */
+.empty__emoji {
+  width: 76px;
+  height: 76px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-soft);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  font-size: 30px;
+}
+.empty__title {
+  font-size: var(--fs-lg);
+  line-height: var(--lh-snug);
+}
+
+/* Barra de progreso: relleno con degradado de marca */
+.progress {
+  height: 8px;
+  background: var(--surface-2);
+}
+.progress__bar {
+  background: linear-gradient(90deg, var(--primary), var(--success));
+  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Barra inferior: indicador tipo pastilla en el ítem activo */
+.bottomnav__item {
+  position: relative;
+}
+.bottomnav__item--active::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-pill);
+  background: var(--primary-soft);
+  z-index: -1;
+}
+
+/* Completar tarea: pequeño "pop" (respeta prefers-reduced-motion de base.css) */
+.check--done {
+  animation: check-pop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes check-pop {
+  0% {
+    transform: scale(0.8);
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.task--done {
+  opacity: 0.72;
+  transition: opacity 0.2s ease;
+}
+
+/* Foco accesible con halo de marca */
+:focus-visible {
+  box-shadow: 0 0 0 4px var(--primary-soft);
+}
+.btn--primary:focus-visible {
+  outline-color: var(--on-primary);
+  outline-offset: -3px;
+}
+
+/* Tag con hairline (más nítido en claro) */
+.tag {
+  border: 1px solid var(--border-soft);
+}
+
+/* Hero de login / onboarding: wash de marca + wordmark grande con degradado */
+.screen--full {
+  position: relative;
+  isolation: isolate;
+}
+.screen--full::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 45% at 50% 0%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 70%),
+    radial-gradient(45% 35% at 85% 12%, color-mix(in srgb, var(--success) 10%, transparent), transparent 70%);
+}
+.screen--full .brand {
+  font-size: var(--fs-3xl);
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.screen--full .brand__mark {
+  color: var(--primary);
+  -webkit-text-fill-color: var(--primary);
+}
+
+/* Refinamiento NEÓN: la luz sigue a la marca y a lo interactivo, no al texto plano */
+[data-theme='neon'] .card,
+[data-theme='neon'] .task,
+[data-theme='neon'] .ev,
+[data-theme='neon'] .goal-card {
+  box-shadow: var(--neon-rim);
+  border-color: color-mix(in srgb, var(--primary) 12%, var(--border));
+}
+[data-theme='neon'] .btn--primary {
+  box-shadow: var(--glow), 0 4px 16px color-mix(in srgb, var(--primary) 30%, transparent);
+}
+[data-theme='neon'] .focus-card {
+  box-shadow: 0 0 26px color-mix(in srgb, var(--primary) 28%, transparent);
+}
+[data-theme='neon'] .progress__bar {
+  box-shadow: 0 0 10px color-mix(in srgb, var(--success) 60%, transparent);
+}
+[data-theme='neon'] .cal-cell--selected {
+  box-shadow: 0 0 12px color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
+/* Refinamiento CLARO: separar tarjetas por sombra (no solo borde) */
+[data-theme='claro'] .card {
+  box-shadow: var(--shadow);
+}
+[data-theme='claro'] .bottomnav {
+  border-top-color: var(--border);
+}

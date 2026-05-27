@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { signIn, signUp } from '@/services/auth'
 import { IconHito } from '@/components/icons'
+import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 
 type Mode = 'signin' | 'signup'
 
@@ -42,7 +43,10 @@ export function Auth() {
   }
 
   return (
-    <div className="screen screen--full">
+    <div className="screen screen--full" style={{ position: 'relative' }}>
+      <div className="auth__theme">
+        <ThemeSwitcher variant="compact" />
+      </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         <header className="center stack stack--sm" style={{ marginBottom: 'var(--s8)' }}>
           <div className="brand" style={{ justifyContent: 'center', fontSize: 'var(--fs-2xl)' }}>

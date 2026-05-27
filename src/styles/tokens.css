@@ -28,10 +28,18 @@
   --fs-lg: 19px;
   --fs-xl: 24px;
   --fs-2xl: 30px;
+  --fs-3xl: 38px;
+
+  /* Alturas de línea (jerarquía deliberada entre display, subtítulos y cuerpo) */
+  --lh-tight: 1.12;
+  --lh-snug: 1.3;
+  --lh-body: 1.55;
 
   /* Layout: la app vive en una columna angosta, centrada en pantallas grandes */
   --app-width: 560px;
   --nav-height: 64px;
+  --sidenav-width: 248px;
+  --content-width: 720px;
 
   /* Áreas seguras (notch / home indicator en iOS) */
   --safe-top: env(safe-area-inset-top, 0px);
@@ -39,6 +47,9 @@
 
   /* Glow: solo el tema neón lo enciende; en los demás no aporta sombra. */
   --glow: 0 0 0 transparent;
+
+  /* Acento de marca: usa los colores del tema activo (se resuelve al usarse). */
+  --gradient-brand: linear-gradient(135deg, var(--primary), var(--success));
 }
 
 /* ===== Tema OSCURO (default) ============================================= */
@@ -85,7 +96,7 @@
 
   --text: #111a2e;
   --text-muted: #566378;
-  --text-faint: #8b97ad;
+  --text-faint: #6b7890;
 
   --primary: #5566f5;
   --primary-strong: #4453e6;
@@ -129,6 +140,7 @@
 
   --shadow: 0 0 28px rgba(34, 211, 238, 0.22);
   --shadow-sm: 0 0 16px rgba(34, 211, 238, 0.18);
-  --glow: 0 0 18px rgba(34, 211, 238, 0.45);
+  --glow: 0 0 14px color-mix(in srgb, var(--primary) 40%, transparent);
+  --neon-rim: inset 0 0 0 1px color-mix(in srgb, var(--primary) 14%, transparent);
   --gradient-focus: linear-gradient(135deg, rgba(34, 211, 238, 0.2), rgba(52, 245, 197, 0.16));
 }

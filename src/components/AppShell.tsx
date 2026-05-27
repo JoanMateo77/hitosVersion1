@@ -1,12 +1,25 @@
 import { Outlet } from 'react-router-dom'
 import { BottomNav } from '@/components/BottomNav'
+import { SideNav } from '@/components/SideNav'
+import { TopBar } from '@/components/TopBar'
 
-/** Layout de las pantallas con barra inferior (Hoy, Metas, Agenda, Perfil). */
+/**
+ * Layout de las pantallas con navegación (Hoy, Metas, Agenda, Perfil).
+ * - Móvil/tablet (<1024px): top bar fina + contenido + barra inferior.
+ * - Escritorio (≥1024px): barra lateral + contenido con ancho de lectura.
+ * Las tres piezas se renderizan siempre; el CSS decide cuál se muestra.
+ */
 export function AppShell() {
   return (
-    <>
-      <Outlet />
+    <div className="shell">
+      <SideNav />
+      <div className="shell__main">
+        <TopBar />
+        <div className="shell__content">
+          <Outlet />
+        </div>
+      </div>
       <BottomNav />
-    </>
+    </div>
   )
 }
