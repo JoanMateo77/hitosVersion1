@@ -11,7 +11,15 @@ import { addDays, formatDuration, formatLongDate, relativeDeadline, startOfWeek,
 import type { Goal, GoalStatus, NicheId } from '@/lib/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { Roadmap } from '@/components/Roadmap'
-import { IconBack, IconCheck } from '@/components/icons'
+import {
+  IconBack,
+  IconCelebrate,
+  IconCheck,
+  IconClock,
+  IconCompass,
+  IconFlag,
+  IconQuote,
+} from '@/components/icons'
 
 export function GoalDetail() {
   const { goalId } = useParams<{ goalId: string }>()
@@ -108,8 +116,10 @@ export function GoalDetail() {
       <div className="screen">
         <BackButton onClick={() => navigate('/metas')} />
         <div className="empty">
-          <div className="empty__emoji">🔍</div>
-          <p className="empty__title">No encontramos esa meta</p>
+          <IconCompass size={44} className="muted" />
+          <p className="empty__title" style={{ marginTop: 'var(--s4)' }}>
+            No encontramos esa meta
+          </p>
         </div>
       </div>
     )
@@ -158,8 +168,12 @@ export function GoalDetail() {
       <div className="stack stack--lg">
         {goal.why && (
           <div className="focus-card stack stack--sm">
-            <span className="focus-card__kicker">💭 Tu porqué</span>
-            <p>{goal.why}</p>
+            <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
+              <IconQuote size={12} /> Tu porqué
+            </span>
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--fs-lg)', lineHeight: 1.35 }}>
+              {goal.why}
+            </p>
           </div>
         )}
 
@@ -178,13 +192,13 @@ export function GoalDetail() {
             value={`${doneCount} ${doneCount === 1 ? 'acción completada' : 'acciones completadas'}`}
           />
           {weekMinutes > 0 && (
-            <InfoRow label="Esta semana" value={`⏱️ ${formatDuration(weekMinutes)} agendadas`} />
+            <InfoRow label="Esta semana" value={`${formatDuration(weekMinutes)} agendadas`} />
           )}
         </div>
 
         {weekMinutes === 0 && (
-          <p className="faint tiny">
-            ⏱️ Ligá bloques de tu{' '}
+          <p className="faint tiny row row--sm" style={{ alignItems: 'center' }}>
+            <IconClock size={14} /> Ligá bloques de tu{' '}
             <button
               className="btn--link"
               style={{ padding: 0 }}
@@ -222,8 +236,10 @@ export function GoalDetail() {
                 </button>
               ) : (
                 <div className="focus-card stack stack--sm">
-                  <span className="focus-card__kicker">🏁 Recorriste todo el camino</span>
-                  <p className="small">Cumpliste todos los hitos. Si ya está, marcala como lograda 👇</p>
+                  <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
+                    <IconFlag size={12} /> Recorriste todo el camino
+                  </span>
+                  <p className="small">Cumpliste todos los hitos. Si ya está, marcala como lograda abajo.</p>
                 </div>
               )}
               <p className="faint tiny center">Tocá un hito para ajustar dónde estás.</p>
@@ -251,7 +267,9 @@ export function GoalDetail() {
           )}
           {goal.status === 'done' && (
             <div className="focus-card stack stack--sm">
-              <span className="focus-card__kicker">🎉 ¡Meta lograda!</span>
+              <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
+                <IconCelebrate size={14} /> ¡Meta lograda!
+              </span>
               <p className="small">¿Vas por la próxima? Te paso ideas para seguir avanzando.</p>
               <button
                 className="btn btn--primary btn--block"
@@ -334,11 +352,22 @@ function GoalEditor({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={200}
+          autoCapitalize="sentences"
+          autoCorrect="on"
+          enterKeyHint="done"
+          inputMode="text"
         />
       </div>
       <div className="field">
         <span className="field__label">¿Por qué? (opcional)</span>
-        <textarea className="textarea" value={why} onChange={(e) => setWhy(e.target.value)} />
+        <textarea
+          className="textarea"
+          value={why}
+          onChange={(e) => setWhy(e.target.value)}
+          autoCapitalize="sentences"
+          autoCorrect="on"
+          enterKeyHint="enter"
+        />
       </div>
       <div className="field">
         <span className="field__label">¿Para cuándo? (opcional)</span>
@@ -377,6 +406,10 @@ function GoalEditor({
           value={criteria}
           onChange={(e) => setCriteria(e.target.value)}
           maxLength={200}
+          autoCapitalize="sentences"
+          autoCorrect="on"
+          enterKeyHint="done"
+          inputMode="text"
         />
       </div>
       {error && <div className="alert alert--error">{error}</div>}

@@ -7,8 +7,8 @@ import { detectTemplate, getTemplate, templatesForNiche } from '@/domain/templat
 import { pickAction } from '@/domain/dailyPlan'
 import { NICHES, getNiche } from '@/domain/niches'
 import type { NicheId } from '@/lib/types'
-import { todayISO } from '@/lib/date'
-import { IconBack } from '@/components/icons'
+import { formatLongDate, relativeDeadline, todayISO } from '@/lib/date'
+import { IconBack, IconCalendar, IconLightbulb } from '@/components/icons'
 import { OptionRow } from '@/components/OptionRow'
 
 /** Cantidad de pasos del wizard (las 5 preguntas + el tipo de meta). */
@@ -107,14 +107,18 @@ export function Wizard() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && canContinue) next()
               }}
+              autoCapitalize="sentences"
+              autoCorrect="on"
+              enterKeyHint="next"
+              inputMode="text"
             />
             <button
               type="button"
-              className="btn--link"
-              style={{ alignSelf: 'flex-start' }}
+              className="btn--link row row--sm"
+              style={{ alignSelf: 'flex-start', alignItems: 'center' }}
               onClick={() => navigate('/ideas')}
             >
-              💡 No sé qué poner — ver ideas
+              <IconLightbulb size={14} /> No sé qué poner — ver ideas
             </button>
           </Question>
         )}
@@ -150,6 +154,9 @@ export function Wizard() {
               placeholder="Porque…"
               value={why}
               onChange={(e) => setWhy(e.target.value)}
+              autoCapitalize="sentences"
+              autoCorrect="on"
+              enterKeyHint="enter"
             />
           </Question>
         )}
@@ -200,12 +207,18 @@ export function Wizard() {
               value={criteria}
               onChange={(e) => setCriteria(e.target.value)}
               maxLength={200}
+              autoCapitalize="sentences"
+              autoCorrect="on"
+              enterKeyHint="done"
+              inputMode="text"
             />
             <ReviewCard
               title={title}
               templateLabel={getTemplate(templateKey || 'personalizada').label}
               area={area}
               targetDate={targetDate}
+              why={why}
+              criteria={criteria}
             />
           </Question>
         )}
@@ -250,23 +263,50 @@ function ReviewCard({
   templateLabel,
   area,
   targetDate,
+  why,
+  criteria,
 }: {
   title: string
   templateLabel: string
   area: NicheId
   targetDate: string
+  why: string
+  criteria: string
 }) {
+  const cleanWhy = why.trim()
+  const cleanCriteria = criteria.trim()
+  const dateLabel = targetDate
+    ? `${formatLongDate(targetDate)}${relativeDeadline(targetDate) ? ` · ${relativeDeadline(targetDate)}` : ''}`
+    : null
   return (
     <div className="card card--tight stack stack--sm" style={{ marginTop: 'var(--s4)' }}>
-      <span className="faint tiny">Tu meta</span>
-      <strong>{title || '—'}</strong>
+      <span className="kicker">Tu meta</span>
+      <strong style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--fs-xl)' }}>
+        {title || '—'}
+      </strong>
       <div className="row wrap">
         <span className="tag">{templateLabel}</span>
         <span className="tag">
           {getNiche(area).emoji} {getNiche(area).label}
         </span>
-        {targetDate && <span className="tag">📅 {targetDate}</span>}
+        {dateLabel && (
+          <span className="tag">
+            <IconCalendar size={11} /> {dateLabel}
+          </span>
+        )}
       </div>
+      {cleanWhy && (
+        <div className="stack stack--sm">
+          <span className="kicker">Tu porqué</span>
+          <p className="small">{cleanWhy}</p>
+        </div>
+      )}
+      {cleanCriteria && (
+        <div className="stack stack--sm">
+          <span className="kicker">Lo lográs cuando</span>
+          <p className="small">{cleanCriteria}</p>
+        </div>
+      )}
     </div>
   )
 }

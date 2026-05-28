@@ -6,7 +6,7 @@ import { listGoals, markGoalReviewed, setGoalMilestone, setGoalStatus } from '@/
 import { getTemplate } from '@/domain/templates'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { Roadmap } from '@/components/Roadmap'
-import { IconBack, IconCheck } from '@/components/icons'
+import { IconBack, IconCelebrate, IconCheck, IconSprout } from '@/components/icons'
 
 /**
  * Revisión semanal guiada (Sección 6): recorre tus metas activas una por una y
@@ -63,8 +63,10 @@ export function Review() {
       <div className="screen screen--full">
         <Header onClose={() => navigate('/')} />
         <div className="empty" style={{ marginTop: 'var(--s8)' }}>
-          <div className="empty__emoji">🌱</div>
-          <p className="empty__title">No tenés metas activas para revisar</p>
+          <IconSprout size={48} className="muted" />
+          <p className="empty__title" style={{ marginTop: 'var(--s4)' }}>
+            No tenés metas activas para revisar
+          </p>
           <p className="muted">Cuando tengas metas en marcha, las repasamos acá.</p>
         </div>
       </div>
@@ -74,8 +76,11 @@ export function Review() {
   if (!goal) {
     return (
       <div className="screen screen--full">
-        <div className="stack stack--lg center" style={{ flex: 1, justifyContent: 'center' }}>
-          <div style={{ fontSize: 48 }}>🎉</div>
+        <div
+          className="stack stack--lg center"
+          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+        >
+          <IconCelebrate size={56} style={{ color: 'var(--primary)' }} />
           <h1 className="screen__title">Revisión lista</h1>
           <p className="muted">
             Repasaste {total} {total === 1 ? 'meta' : 'metas'}. Así se mantiene el rumbo.

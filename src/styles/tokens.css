@@ -7,6 +7,7 @@
   --radius-sm: 9px;
   --radius: 14px;
   --radius-lg: 22px;
+  --radius-xl: 28px;
   --radius-pill: 999px;
 
   /* Espaciado (escala de 4) */
@@ -18,22 +19,36 @@
   --s6: 24px;
   --s8: 32px;
   --s10: 40px;
+  --s12: 56px;
 
-  /* Tipografía */
-  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
-    'Apple Color Emoji', sans-serif;
+  /* Tipografía — display = Fraunces (humanista, opsz variable), body = Manrope
+     (grotesque moderno, distintivo). Las dos pesadas via Google Fonts en index.html.
+     Stack de respaldo: prioridad a serifas warm para display, sans neutrales para body. */
+  --font-display: 'Fraunces', 'New York', 'Charter', Iowan, Cambria, Georgia, serif;
+  --font: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI Variable', 'SF Pro Text',
+    'Helvetica Neue', system-ui, sans-serif;
+  /* Compatibilidad: algunas reglas viejas referencian sólo --font; lo dejamos correcto. */
+
+  /* Type ramp — saltos musicales, no aritméticos. Body queda en 16 (iOS no zoomea). */
   --fs-xs: 12px;
-  --fs-sm: 14px;
+  --fs-sm: 13px;
   --fs-md: 16px;
-  --fs-lg: 19px;
-  --fs-xl: 24px;
+  --fs-lg: 18px;
+  --fs-xl: 22px;
   --fs-2xl: 30px;
-  --fs-3xl: 38px;
+  --fs-3xl: 44px;
+  --fs-4xl: 60px;
+  --fs-5xl: 80px;
 
-  /* Alturas de línea (jerarquía deliberada entre display, subtítulos y cuerpo) */
-  --lh-tight: 1.12;
+  /* Alturas de línea (display ajustada, cuerpo cómodo) */
+  --lh-tight: 1.04;
+  --lh-display: 1.1;
   --lh-snug: 1.3;
   --lh-body: 1.55;
+
+  /* Tracking (la display usa negativo; el cuerpo y los kickers su propio valor) */
+  --tracking-display: -0.025em;
+  --tracking-kicker: 0.14em;
 
   /* Layout: la app vive en una columna angosta, centrada en pantallas grandes */
   --app-width: 560px;
@@ -41,18 +56,27 @@
   --sidenav-width: 248px;
   --content-width: 720px;
 
-  /* Áreas seguras (notch / home indicator en iOS) */
+  /* Áreas seguras (notch / home indicator / landscape) */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* Curvas de motion: ease-out crispa el feel, spring suma vida en cierres. */
+  --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-ios: cubic-bezier(0.32, 0.72, 0.18, 1);
 
   /* Glow: solo el tema neón lo enciende; en los demás no aporta sombra. */
   --glow: 0 0 0 transparent;
 
   /* Acento de marca: usa los colores del tema activo (se resuelve al usarse). */
-  --gradient-brand: linear-gradient(135deg, var(--primary), var(--success));
+  --gradient-brand: linear-gradient(135deg, var(--primary), var(--primary-strong));
 }
 
-/* ===== Tema OSCURO (default) ============================================= */
+/* ===== Tema OSCURO (default) =============================================
+   Verde mint #34d399 es el primary real (el verde da nombre y carácter a Hito).
+   El violeta queda como --accent para usos secundarios/info, sin pelearle al verde. */
 :root,
 [data-theme='oscuro'] {
   color-scheme: dark;
@@ -61,6 +85,7 @@
   --bg-elev: #101a2e;
   --surface: #16223b;
   --surface-2: #1d2b48;
+  --surface-3: #243557;
   --border: #2a3a5c;
   --border-soft: #213050;
 
@@ -68,52 +93,74 @@
   --text-muted: #9fadc9;
   --text-faint: #6c7a99;
 
-  --primary: #7c8cff;
-  --primary-strong: #6776ff;
-  --primary-soft: rgba(124, 140, 255, 0.14);
-  --on-primary: #0a0f20;
+  --primary: #34d399;
+  --primary-strong: #1cb37c;
+  --primary-soft: rgba(52, 211, 153, 0.14);
+  --on-primary: #04140d;
+
+  --accent: #7c8cff;
+  --accent-soft: rgba(124, 140, 255, 0.14);
+
   --success: #34d399;
   --success-soft: rgba(52, 211, 153, 0.16);
   --danger: #fb7185;
   --danger-soft: rgba(251, 113, 133, 0.14);
   --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.14);
 
-  --shadow: 0 10px 34px rgba(2, 6, 20, 0.5);
-  --shadow-sm: 0 4px 14px rgba(2, 6, 20, 0.35);
-  --gradient-focus: linear-gradient(135deg, rgba(124, 140, 255, 0.22), rgba(52, 211, 153, 0.14));
+  /* Sombras de marca: highlight interno blanco + tinte verde + profundidad real. */
+  --shadow-sm: inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 8px 24px -8px rgba(52, 211, 153, 0.1),
+    0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 16px 48px -12px rgba(52, 211, 153, 0.18),
+    0 6px 18px rgba(0, 0, 0, 0.5);
+  --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(52, 211, 153, 0.22), transparent 60%),
+    radial-gradient(120% 80% at 100% 100%, rgba(124, 140, 255, 0.16), transparent 60%);
 }
 
 /* ===== Tema CLARO ======================================================== */
 [data-theme='claro'] {
   color-scheme: light;
 
-  --bg: #eef1f8;
+  --bg: #f3f6f1;
   --bg-elev: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f1f4fb;
-  --border: #d4dbec;
-  --border-soft: #e4e9f4;
+  --surface-2: #eef3ec;
+  --surface-3: #e3eadf;
+  --border: #cfd9c8;
+  --border-soft: #e1e9dc;
 
-  --text: #111a2e;
-  --text-muted: #566378;
-  --text-faint: #6b7890;
+  --text: #0e1e16;
+  --text-muted: #475a4e;
+  --text-faint: #7c8f80;
 
-  --primary: #5566f5;
-  --primary-strong: #4453e6;
-  --primary-soft: rgba(85, 102, 245, 0.1);
+  --primary: #16a777;
+  --primary-strong: #0e8a5e;
+  --primary-soft: rgba(22, 167, 119, 0.12);
   --on-primary: #ffffff;
-  --success: #0ea271;
-  --success-soft: rgba(14, 162, 113, 0.12);
-  --danger: #e23d5a;
-  --danger-soft: rgba(226, 61, 90, 0.1);
-  --warning: #b7791f;
 
-  --shadow: 0 12px 30px rgba(40, 60, 120, 0.12);
-  --shadow-sm: 0 4px 14px rgba(40, 60, 120, 0.1);
-  --gradient-focus: linear-gradient(135deg, rgba(85, 102, 245, 0.12), rgba(14, 162, 113, 0.1));
+  --accent: #5566f5;
+  --accent-soft: rgba(85, 102, 245, 0.1);
+
+  --success: #16a777;
+  --success-soft: rgba(22, 167, 119, 0.14);
+  --danger: #c2384f;
+  --danger-soft: rgba(194, 56, 79, 0.1);
+  --warning: #a06013;
+  --warning-soft: rgba(160, 96, 19, 0.1);
+
+  --shadow-sm: 0 1px 2px rgba(20, 40, 30, 0.06),
+    0 8px 24px -12px rgba(22, 167, 119, 0.18);
+  --shadow: 0 2px 4px rgba(20, 40, 30, 0.06),
+    0 16px 40px -12px rgba(22, 167, 119, 0.22);
+  --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(22, 167, 119, 0.14), transparent 60%),
+    radial-gradient(120% 80% at 100% 100%, rgba(85, 102, 245, 0.08), transparent 60%);
 }
 
-/* ===== Tema NEÓN ========================================================= */
+/* ===== Tema NEÓN =========================================================
+   Mantiene la familia verde (no salta a cian). El verde encendido manda; el cyan
+   queda como acento secundario para variaciones puntuales. */
 [data-theme='neon'] {
   color-scheme: dark;
 
@@ -121,6 +168,7 @@
   --bg-elev: #0a0c1a;
   --surface: #0e1126;
   --surface-2: #151a36;
+  --surface-3: #1c2347;
   --border: #243056;
   --border-soft: #1a2138;
 
@@ -128,19 +176,27 @@
   --text-muted: #93a6cf;
   --text-faint: #5d6e95;
 
-  --primary: #22d3ee;
-  --primary-strong: #06b6d4;
-  --primary-soft: rgba(34, 211, 238, 0.14);
-  --on-primary: #041018;
+  --primary: #34f5c5;
+  --primary-strong: #14d8a7;
+  --primary-soft: rgba(52, 245, 197, 0.14);
+  --on-primary: #04140d;
+
+  --accent: #22d3ee;
+  --accent-soft: rgba(34, 211, 238, 0.14);
+
   --success: #34f5c5;
   --success-soft: rgba(52, 245, 197, 0.14);
   --danger: #ff5c8a;
   --danger-soft: rgba(255, 92, 138, 0.14);
   --warning: #fde047;
+  --warning-soft: rgba(253, 224, 71, 0.14);
 
-  --shadow: 0 0 28px rgba(34, 211, 238, 0.22);
-  --shadow-sm: 0 0 16px rgba(34, 211, 238, 0.18);
+  --shadow-sm: 0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent),
+    0 0 18px rgba(52, 245, 197, 0.16);
+  --shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent),
+    0 0 32px rgba(52, 245, 197, 0.26);
   --glow: 0 0 14px color-mix(in srgb, var(--primary) 40%, transparent);
   --neon-rim: inset 0 0 0 1px color-mix(in srgb, var(--primary) 14%, transparent);
-  --gradient-focus: linear-gradient(135deg, rgba(34, 211, 238, 0.2), rgba(52, 245, 197, 0.16));
+  --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(52, 245, 197, 0.22), transparent 60%),
+    radial-gradient(120% 80% at 100% 100%, rgba(34, 211, 238, 0.18), transparent 60%);
 }

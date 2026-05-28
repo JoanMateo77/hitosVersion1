@@ -7,6 +7,7 @@ import { todayISO } from '@/lib/date'
 import type { Goal } from '@/lib/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { Roadmap } from '@/components/Roadmap'
+import { IconCelebrate, IconPlay } from '@/components/icons'
 
 /**
  * Momento de pago tras crear una meta: le mostramos AL USUARIO el camino
@@ -42,22 +43,28 @@ export function GoalCreated() {
   return (
     <div className="screen screen--full">
       <div className="stack stack--lg" style={{ flex: 1 }}>
-        <header className="center stack stack--sm" style={{ marginTop: 'var(--s6)' }}>
-          <div style={{ fontSize: 44 }}>🎉</div>
+        <header
+          className="center stack stack--sm"
+          style={{ marginTop: 'var(--s6)', alignItems: 'center' }}
+        >
+          <IconCelebrate size={44} style={{ color: 'var(--primary)' }} />
           <h1 className="screen__title">¡Meta creada!</h1>
           <p className="muted">
             {template.emoji} {goal.title}
           </p>
+          {goal.why && <p className="small muted center">Porque {goal.why}</p>}
         </header>
 
         <div className="card stack">
-          <span className="faint tiny">ASÍ LA VAS A LOGRAR</span>
+          <span className="kicker">Así la vas a lograr</span>
           <Roadmap milestones={template.milestones} currentIndex={goal.currentMilestone} />
         </div>
 
         <div className="focus-card stack stack--sm">
-          <span className="focus-card__kicker">▶ Empezá hoy con</span>
-          <strong style={{ fontSize: 'var(--fs-lg)' }}>{firstAction}</strong>
+          <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
+            <IconPlay size={11} /> Empezá hoy con
+          </span>
+          <strong style={{ fontSize: 'var(--fs-xl)' }}>{firstAction}</strong>
         </div>
       </div>
 

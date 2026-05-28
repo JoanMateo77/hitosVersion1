@@ -21,7 +21,7 @@ import {
   todayISO,
 } from '@/lib/date'
 import { LoadingScreen } from '@/components/LoadingScreen'
-import { IconBack, IconClose, IconPlus } from '@/components/icons'
+import { IconArrowReturn, IconBack, IconClose, IconFlag, IconPlus } from '@/components/icons'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 
 type View = 'day' | 'week' | 'month'
@@ -286,7 +286,9 @@ function DaySection({
         <div className="stack stack--sm">
           {deadlines.map((g) => (
             <button key={`d-${g.id}`} className="ev ev--goal" onClick={() => onGoal(g)}>
-              <span className="ev__time">🎯</span>
+              <span className="ev__time" style={{ display: 'inline-flex', justifyContent: 'flex-start' }}>
+                <IconFlag size={14} className="muted" />
+              </span>
               <span className="ev__title">
                 Meta: {g.title} <span className="faint tiny">· fecha objetivo</span>
               </span>
@@ -301,7 +303,7 @@ function DaySection({
                   {e.title}
                   {goal && (
                     <span className="tag" style={{ marginLeft: 6 }}>
-                      ↳ {goal.title}
+                      <IconArrowReturn size={11} /> {goal.title}
                     </span>
                   )}
                 </span>
@@ -341,6 +343,16 @@ function EventEditor({
   const [err, setErr] = useState<string | null>(null)
   const panelRef = useRef<HTMLFormElement>(null)
   useFocusTrap(panelRef, onClose)
+
+  // Body-lock mientras el sheet está abierto: el fondo no scrollea, no hay leakage
+  // de gestos. Restauramos el estado anterior al cerrar para no pisar usos previos.
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [])
 
   const canSave = title.trim().length > 0 && (allDay || startTime.length > 0)
 
@@ -390,10 +402,15 @@ function EventEditor({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={200}
+          autoCapitalize="sentences"
+          autoCorrect="on"
+          enterKeyHint="next"
+          inputMode="text"
         />
 
         <div className="field">
           <span className="field__label">Cuándo</span>
+          {eventDate && <span className="muted small">{formatWeekday(eventDate)}</span>}
           <input
             className="input"
             type="date"
@@ -461,6 +478,9 @@ function EventEditor({
             placeholder="Detalles, lugar, link… (opcional)"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
+            autoCapitalize="sentences"
+            autoCorrect="on"
+            enterKeyHint="enter"
           />
         </div>
 

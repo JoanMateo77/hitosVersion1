@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { useScrollToTop } from '@/hooks/useScrollToTop'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { useAuth } from '@/app/useAuth'
 import { SessionProvider } from '@/app/session'
@@ -99,6 +100,7 @@ function ProfiledApp({ userId, email }: { userId: string; email: string }) {
   return (
     <SessionProvider value={{ userId, email, profile, setProfile }}>
       <div className="app">
+        <RouteScrollManager />
         <Suspense fallback={<LoadingScreen />}>
           <Routes>
             <Route
@@ -130,4 +132,10 @@ function ProfiledApp({ userId, email }: { userId: string; email: string }) {
 function RequireOnboarded({ onboarded }: { onboarded: boolean }) {
   if (!onboarded) return <Navigate to="/onboarding" replace />
   return <Outlet />
+}
+
+/** Reset de scroll al cambiar de ruta — feel nativo. */
+function RouteScrollManager() {
+  useScrollToTop()
+  return null
 }

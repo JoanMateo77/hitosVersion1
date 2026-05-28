@@ -9,7 +9,7 @@ import type { Goal, GoalStatus } from '@/lib/types'
 import { useAsyncData } from '@/hooks/useAsyncData'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
-import { IconPlus } from '@/components/icons'
+import { IconCalendar, IconGoals, IconPlus } from '@/components/icons'
 
 /** Orden de presentación por estado: lo activo primero. */
 const STATUS_ORDER: Record<GoalStatus, number> = {
@@ -61,8 +61,8 @@ export function Goals() {
 
       {goals.length === 0 ? (
         <div className="empty">
-          <div className="empty__emoji">🎯</div>
-          <p className="empty__title">Todavía no tenés metas</p>
+          <IconGoals size={48} className="muted" />
+          <p className="empty__title" style={{ marginTop: 'var(--s4)' }}>Todavía no tenés metas</p>
           <p className="muted" style={{ marginBottom: 'var(--s4)' }}>
             Mirá ideas para tu foco y adoptá una, o escribí la tuya.
           </p>
@@ -76,7 +76,7 @@ export function Goals() {
           </div>
         </div>
       ) : (
-        <ul className="stack stack--sm">
+        <ul className="goals-grid">
           {goals.map((goal) => (
             <li key={goal.id}>
               <GoalCard
@@ -122,7 +122,11 @@ function GoalCard({
         <span className="tag">
           {niche.emoji} {niche.label}
         </span>
-        {deadline && <span className="faint tiny">📅 {deadline}</span>}
+        {deadline && (
+          <span className="faint tiny row row--sm" style={{ alignItems: 'center', gap: 4 }}>
+            <IconCalendar size={12} /> {deadline}
+          </span>
+        )}
         {doneCount > 0 && (
           <span className="faint tiny">· {doneCount} {doneCount === 1 ? 'acción hecha' : 'acciones hechas'}</span>
         )}

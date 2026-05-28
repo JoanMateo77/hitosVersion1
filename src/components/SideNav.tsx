@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { useSession } from '@/app/session'
 import { IconCalendar, IconGoals, IconHito, IconProfile, IconToday } from '@/components/icons'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 
@@ -9,8 +10,12 @@ const NAV = [
   { to: '/perfil', label: 'Perfil', Icon: IconProfile },
 ] as const
 
-/** Barra lateral (solo escritorio): marca arriba, navegación vertical, tema abajo. */
+/** Barra lateral (solo escritorio): marca + identidad del usuario + navegación + tema. */
 export function SideNav() {
+  const { email, profile } = useSession()
+  const initial = (email.charAt(0) || '·').toUpperCase()
+  const days = daysSince(profile.createdAt)
+
   return (
     <aside className="sidenav" aria-label="Navegación principal">
       <span className="brand sidenav__brand">
@@ -19,6 +24,20 @@ export function SideNav() {
         </span>
         Hito
       </span>
+
+      <div className="sidenav__identity">
+        <span className="sidenav__avatar" aria-hidden="true">
+          {initial}
+        </span>
+        <div className="sidenav__identity-text">
+          <span className="sidenav__email" title={email}>
+            {email}
+          </span>
+          <span className="kicker sidenav__day">
+            Día {days} {days === 1 ? 'en Hito' : 'en Hito'}
+          </span>
+        </div>
+      </div>
 
       <nav className="sidenav__nav">
         {NAV.map(({ to, label, Icon }) => (
@@ -39,4 +58,10 @@ export function SideNav() {
       </div>
     </aside>
   )
+}
+
+function daysSince(createdAtISO: string): number {
+  const start = new Date(createdAtISO).getTime()
+  const diffMs = Date.now() - start
+  return Math.max(1, Math.floor(diffMs / 86_400_000) + 1)
 }

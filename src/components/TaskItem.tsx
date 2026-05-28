@@ -1,20 +1,28 @@
 import { useState } from 'react'
 import type { Task } from '@/lib/types'
-import { IconCheck, IconClose, IconPencil } from '@/components/icons'
+import { IconArrowReturn, IconCheck, IconClose, IconPencil } from '@/components/icons'
 
 interface TaskItemProps {
   task: Task
   /** Título de la meta de origen, si la acción deriva de una meta. */
   goalTitle?: string | null
+  /** Porqué de la meta, anclaje emocional que mostramos junto a la acción. */
+  goalWhy?: string | null
   onToggle: () => void
   onEdit: (title: string) => void
   onRemove: () => void
 }
 
-export function TaskItem({ task, goalTitle, onToggle, onEdit, onRemove }: TaskItemProps) {
+export function TaskItem({ task, goalTitle, goalWhy, onToggle, onEdit, onRemove }: TaskItemProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(task.title)
   const done = task.status === 'done'
+  // Las acciones de meta se "saltan por hoy" (postpone); las propias se borran.
+  const isGoalTask = task.source === 'goal' || task.source === 'suggested'
+  const removeLabel = isGoalTask ? 'Saltar por hoy' : 'Borrar tarea'
+  const removeHint = isGoalTask
+    ? 'La saltás sólo hoy. Mañana vuelve si toca por frecuencia.'
+    : 'Borrar esta tarea.'
 
   function save() {
     const clean = draft.trim()
@@ -39,6 +47,10 @@ export function TaskItem({ task, goalTitle, onToggle, onEdit, onRemove }: TaskIt
             }
           }}
           maxLength={300}
+          autoCapitalize="sentences"
+          autoCorrect="on"
+          enterKeyHint="done"
+          inputMode="text"
         />
         <button className="iconbtn" onClick={save} aria-label="Guardar">
           <IconCheck size={20} />
@@ -62,15 +74,21 @@ export function TaskItem({ task, goalTitle, onToggle, onEdit, onRemove }: TaskIt
         <span className="task__title">{task.title}</span>
         {goalTitle && (
           <span className="task__meta">
-            <span className="tag">↳ {goalTitle}</span>
+            <span className="tag">
+              <IconArrowReturn size={11} />
+              {goalTitle}
+            </span>
           </span>
+        )}
+        {goalWhy && goalWhy.trim() && (
+          <span className="task__why faint tiny">Porque {goalWhy.trim()}</span>
         )}
       </div>
 
       <button className="iconbtn" onClick={() => setEditing(true)} aria-label="Editar">
         <IconPencil size={17} />
       </button>
-      <button className="iconbtn" onClick={onRemove} aria-label="Quitar del plan">
+      <button className="iconbtn" onClick={onRemove} aria-label={removeLabel} title={removeHint}>
         <IconClose size={18} />
       </button>
     </li>

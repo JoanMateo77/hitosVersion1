@@ -47,19 +47,56 @@ export function Auth() {
       <div className="auth__theme">
         <ThemeSwitcher variant="compact" />
       </div>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      {/* Camino decorativo de fondo: una curva atraviesa la pantalla y conecta
+          tres hitos, el último encendido. Es la metáfora del nombre, hecha imagen. */}
+      <svg
+        className="auth__trail"
+        viewBox="0 0 400 720"
+        preserveAspectRatio="xMidYMid slice"
+        aria-hidden="true"
+      >
+        <path
+          d="M -40 580 C 100 540, 140 420, 240 380 S 360 220, 440 140"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeDasharray="2 6"
+          opacity="0.35"
+        />
+        <circle cx="60" cy="560" r="5" fill="currentColor" opacity="0.5" />
+        <circle cx="240" cy="380" r="6" fill="currentColor" opacity="0.6" />
+        <circle cx="430" cy="148" r="11" fill="currentColor" />
+        <circle cx="430" cy="148" r="4" fill="var(--bg)" />
+      </svg>
+
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          position: 'relative',
+          zIndex: 1,
+        }}
+      >
         <header className="center stack stack--sm" style={{ marginBottom: 'var(--s8)' }}>
-          <div className="brand" style={{ justifyContent: 'center', fontSize: 'var(--fs-2xl)' }}>
-            <span className="brand__mark">
-              <IconHito size={26} />
-            </span>
+          <span className="brand__mark auth__brand-mark" style={{ color: 'var(--primary)' }}>
+            <IconHito size={72} />
+          </span>
+          <div
+            className="brand"
+            style={{ justifyContent: 'center', fontSize: 'var(--fs-3xl)', marginTop: 'var(--s2)' }}
+          >
             Hito
           </div>
-          <p className="muted">Un hito por día hacia lo que te proponés.</p>
+          <p className="muted" style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--fs-lg)' }}>
+            Un hito por día hacia lo que te proponés.
+          </p>
         </header>
 
         <form className="stack stack--lg" onSubmit={handleSubmit}>
-          <h1 style={{ fontSize: 'var(--fs-xl)' }}>{isSignup ? 'Creá tu cuenta' : 'Entrá'}</h1>
+          <h1 style={{ fontSize: 'var(--fs-2xl)' }}>{isSignup ? 'Creá tu cuenta' : 'Entrá'}</h1>
 
           <div className="field">
             <label className="field__label" htmlFor="email">
