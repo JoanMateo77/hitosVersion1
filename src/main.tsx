@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from '@/App'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ThemeProvider } from '@/app/ThemeProvider'
+import { ToastProvider } from '@/app/toast'
 
 import '@/styles/tokens.css'
 import '@/styles/base.css'
@@ -16,9 +17,11 @@ createRoot(rootEl).render(
   <StrictMode>
     <ErrorBoundary>
       <ThemeProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <ToastProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </ToastProvider>
       </ThemeProvider>
     </ErrorBoundary>
   </StrictMode>,

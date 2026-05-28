@@ -125,6 +125,25 @@ export async function lastDoneByGoal(userId: string): Promise<Map<string, string
   return last
 }
 
+/** Cuenta acciones completadas de UNA meta en un rango (yyyy-mm-dd inclusive). */
+export async function countDoneByGoalInRange(
+  userId: string,
+  goalId: string,
+  fromISO: string,
+  toISO: string,
+): Promise<number> {
+  const { count, error } = await supabase
+    .from('tasks')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('goal_id', goalId)
+    .eq('status', 'done')
+    .gte('plan_date', fromISO)
+    .lte('plan_date', toISO)
+  if (error) throw new Error(error.message)
+  return count ?? 0
+}
+
 /** Cuenta acciones completadas por meta (para el progreso básico en Metas). */
 export async function countDoneByGoal(userId: string): Promise<Map<string, number>> {
   const { data, error } = await supabase

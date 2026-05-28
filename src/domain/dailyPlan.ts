@@ -35,6 +35,20 @@ function hashString(value: string): number {
   return hash >>> 0
 }
 
+/** Acciones semanales objetivo según la cadencia (denominador del "X de Y esta semana"). */
+export function actionsPerWeek(cadence: Cadence): number {
+  switch (cadence) {
+    case 'daily':
+      return 7
+    case 'weekdays':
+      return 5
+    case 'thrice_week':
+      return 3
+    case 'weekly':
+      return 1
+  }
+}
+
 /** ¿Esta cadencia pide una acción en la fecha dada? */
 export function isDueToday(cadence: Cadence, dateISO: string): boolean {
   const wd = weekday(dateISO)

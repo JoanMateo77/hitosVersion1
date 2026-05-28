@@ -4,6 +4,7 @@ import { useSession } from '@/app/session'
 import type { CalendarEvent, Goal, Task, TaskStatus } from '@/lib/types'
 import { listGoals, markGoalReviewed, setGoalStatus } from '@/services/goals'
 import {
+  countDoneByGoalInRange,
   createGoalTasks,
   createUserTask,
   deleteTask,
@@ -15,6 +16,7 @@ import {
 import { listEventsInRange } from '@/services/events'
 import { compareEvents } from '@/domain/calendar'
 import {
+  actionsPerWeek,
   deriveGoalActions,
   findForgottenGoal,
   goalsDueForReview,
@@ -22,10 +24,12 @@ import {
   planningGoals,
   weeklyFocus,
 } from '@/domain/dailyPlan'
-import { formatWeekday, todayISO } from '@/lib/date'
+import { getTemplate } from '@/domain/templates'
+import { endOfWeek, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
 import { TaskItem } from '@/components/TaskItem'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
+import { Hint } from '@/components/Hint'
 import {
   IconCalendar,
   IconChevronRight,
@@ -37,6 +41,7 @@ import {
   IconStar,
 } from '@/components/icons'
 import { useCheer } from '@/hooks/useCheer'
+import { useToast } from '@/app/toast'
 
 export function Today() {
   const { userId, profile } = useSession()
@@ -54,7 +59,31 @@ export function Today() {
   const [notice, setNotice] = useState<string | null>(null)
   const [newTitle, setNewTitle] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [focusActions, setFocusActions] = useState(0)
+  const [showFocusPicker, setShowFocusPicker] = useState(false)
   const { cheerMessage, cheer } = useCheer()
+  const { toast } = useToast()
+
+  // Override manual del foco semanal: se persiste por semana (key = lunes ISO).
+  // Cuando empieza una semana nueva, el override viejo deja de aplicar.
+  const weekStart = startOfWeek(today)
+  const overrideKey = `hito.focus-override.${weekStart}`
+  const [focusOverride, setFocusOverrideState] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(overrideKey)
+    } catch {
+      return null
+    }
+  })
+  function setFocusOverride(goalId: string | null) {
+    try {
+      if (goalId) localStorage.setItem(overrideKey, goalId)
+      else localStorage.removeItem(overrideKey)
+    } catch {
+      /* ignore */
+    }
+    setFocusOverrideState(goalId)
+  }
 
   // Garantiza que la auto-generación del plan corra una sola vez por día
   // (incluso con el doble-render de StrictMode en desarrollo).
@@ -132,8 +161,33 @@ export function Today() {
   // Modo enfocado con varias metas: avisamos que el plan prioriza una sola.
   const singleMode = profile.focusMode === 'single' && activeGoals.length > 1
 
-  // El "foco de la semana" solo aporta cuando hay varias metas en juego.
-  const focus = activeGoals.length >= 2 ? weeklyFocus(goals, profile.primaryNiche) : null
+  // Foco semanal: override manual > computado por scoring. Mostramos siempre que
+  // haya al menos 1 meta activa (incluido single-mode con 1 sola meta).
+  const computedFocus = activeGoals.length >= 1 ? weeklyFocus(goals, profile.primaryNiche) : null
+  const overrideGoal =
+    focusOverride && activeGoals.find((g) => g.id === focusOverride) ? activeGoals.find((g) => g.id === focusOverride) : null
+  const focus = overrideGoal ?? computedFocus
+  const focusTarget = focus ? actionsPerWeek(getTemplate(focus.templateKey).cadence) : 0
+
+  // Cargar acciones hechas para el foco esta semana. Se recalcula cuando cambia
+  // el foco, el rango de la semana, o cuando termina una tarea (refreshKey).
+  useEffect(() => {
+    let active = true
+    if (!focus) {
+      setFocusActions(0)
+      return
+    }
+    countDoneByGoalInRange(userId, focus.id, weekStart, endOfWeek(today))
+      .then((n) => {
+        if (active) setFocusActions(n)
+      })
+      .catch(() => {
+        /* error no crítico, dejamos el contador en 0 */
+      })
+    return () => {
+      active = false
+    }
+  }, [userId, focus, weekStart, today, refreshKey, tasks])
 
   // Alerta de meta olvidada (5.2): la más estancada, para preguntar amablemente.
   const forgotten = useMemo(
@@ -183,11 +237,12 @@ export function Today() {
       if (task.source === 'user') {
         setTasks((prev) => prev.filter((t) => t.id !== task.id))
         await deleteTask(task.id)
+        toast('Tarea borrada.')
       } else {
         // Las acciones de metas se posponen (no se borran): así no reaparecen hoy.
         patchTask(task.id, { status: 'postponed' })
         await setTaskStatus(task.id, 'postponed')
-        setNotice('Saltada por hoy. Mañana vuelve si toca por frecuencia.')
+        toast('Saltada por hoy. Vuelve si toca por frecuencia.')
       }
     })
   }
@@ -196,6 +251,7 @@ export function Today() {
     void withErrorHandling(async () => {
       const updated = await markGoalReviewed(goal.id)
       setGoals((prev) => prev.map((g) => (g.id === goal.id ? updated : g)))
+      toast('Listo. Te lo recordamos más adelante.')
     })
   }
 
@@ -242,6 +298,7 @@ export function Today() {
     void withErrorHandling(async () => {
       const updated = await setGoalStatus(goal.id, 'paused')
       setGoals((prev) => prev.map((g) => (g.id === goal.id ? updated : g)))
+      toast('Pausada. La retomás cuando quieras.')
     })
   }
 
@@ -271,17 +328,93 @@ export function Today() {
       </header>
 
       {focus && (
-        <button
-          className="focus-card stack stack--sm"
-          style={{ width: '100%', textAlign: 'left', marginBottom: 'var(--s5)' }}
-          onClick={() => navigate(`/metas/${focus.id}`)}
-        >
-          <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
-            <IconStar size={12} /> Foco de la semana
-          </span>
-          <strong style={{ fontSize: 'var(--fs-xl)' }}>{focus.title}</strong>
-          {focus.why && <span className="small muted">Tu porqué: {focus.why}</span>}
-        </button>
+        <div className="focus-card stack stack--sm" style={{ marginBottom: 'var(--s5)' }}>
+          <div className="row row--between" style={{ alignItems: 'center' }}>
+            <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
+              <IconStar size={12} /> Foco de la semana
+            </span>
+            <button
+              type="button"
+              className="btn--link"
+              style={{ padding: 0, fontSize: 'var(--fs-xs)' }}
+              onClick={() => setShowFocusPicker((v) => !v)}
+            >
+              {showFocusPicker ? 'Cerrar' : 'Cambiar'}
+            </button>
+          </div>
+          <button
+            className="focus-card__main"
+            style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}
+            onClick={() => navigate(`/metas/${focus.id}`)}
+          >
+            <strong style={{ fontSize: 'var(--fs-xl)' }}>{focus.title}</strong>
+            {focus.why && (
+              <div className="small muted" style={{ marginTop: 4 }}>
+                Tu porqué: {focus.why}
+              </div>
+            )}
+          </button>
+          {focusTarget > 0 && (
+            <div className="stack stack--sm">
+              <div className="row row--between small">
+                <span className="muted">
+                  Esta semana — <strong>{Math.min(focusActions, focusTarget)}/{focusTarget}</strong>{' '}
+                  {focusTarget === 1 ? 'acción' : 'acciones'}
+                </span>
+                {focusActions >= focusTarget && (
+                  <span className="tag" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                    cumplida
+                  </span>
+                )}
+              </div>
+              <div className="progress">
+                <div
+                  className="progress__bar"
+                  style={{ width: `${Math.min(100, (focusActions / focusTarget) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+          {showFocusPicker && (
+            <div className="stack stack--sm" style={{ marginTop: 'var(--s2)' }}>
+              <span className="kicker">Elegí qué meta priorizar esta semana</span>
+              {activeGoals.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  className={`option${g.id === focus.id ? ' option--selected' : ''}`}
+                  onClick={() => {
+                    setFocusOverride(g.id === computedFocus?.id ? null : g.id)
+                    setShowFocusPicker(false)
+                    toast('Foco actualizado para esta semana.', 'success')
+                  }}
+                >
+                  <span className="option__emoji">{getTemplate(g.templateKey).emoji}</span>
+                  <span className="option__body">
+                    <span className="option__label">{g.title}</span>
+                    {g.id === computedFocus?.id && (
+                      <span className="option__desc">Sugerida por la app</span>
+                    )}
+                  </span>
+                </button>
+              ))}
+              {focusOverride && (
+                <button
+                  type="button"
+                  className="btn--link"
+                  style={{ alignSelf: 'flex-start' }}
+                  onClick={() => {
+                    setFocusOverride(null)
+                    setShowFocusPicker(false)
+                    toast('Volvió a la sugerencia automática.')
+                  }}
+                >
+                  Volver a la sugerencia automática
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {reviewDue.length > 0 && (
@@ -376,6 +509,7 @@ export function Today() {
                 task={task}
                 goalTitle={goal ? goal.title : null}
                 goalWhy={goal ? goal.why : null}
+                isFocus={focus !== null && task.goalId === focus.id}
                 onToggle={() => toggle(task)}
                 onEdit={(title) => editTask(task, title)}
                 onRemove={() => removeTask(task)}
@@ -440,15 +574,25 @@ export function Today() {
       )}
 
       {activeGoals.length > 0 && (
-        <button
-          className="btn btn--ghost btn--block"
-          style={{ marginTop: 'var(--s5)' }}
-          onClick={proposePlan}
-          disabled={generating}
-        >
-          <IconSparkles size={18} />
-          {generating ? 'Armando tu plan…' : 'No sé qué hacer hoy — proponé vos'}
-        </button>
+        <>
+          {visibleTasks.length === 0 && (
+            <div style={{ marginTop: 'var(--s4)' }}>
+              <Hint id="today-propose-2026-05">
+                ¿Día flojo? Tocá <strong>“proponé vos”</strong> y te armo un plan en base a tus
+                metas activas.
+              </Hint>
+            </div>
+          )}
+          <button
+            className="btn btn--ghost btn--block"
+            style={{ marginTop: 'var(--s5)' }}
+            onClick={proposePlan}
+            disabled={generating}
+          >
+            <IconSparkles size={18} />
+            {generating ? 'Armando tu plan…' : 'No sé qué hacer hoy — proponé vos'}
+          </button>
+        </>
       )}
     </div>
   )

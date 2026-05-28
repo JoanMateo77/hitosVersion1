@@ -79,6 +79,11 @@ export function startOfWeek(dateISO: string): string {
   return addDays(dateISO, -dow)
 }
 
+/** Domingo de la semana que contiene la fecha. */
+export function endOfWeek(dateISO: string): string {
+  return addDays(startOfWeek(dateISO), 6)
+}
+
 /** Primer día del mes de la fecha dada (yyyy-mm-01). */
 export function startOfMonth(dateISO: string): string {
   return `${dateISO.slice(0, 7)}-01`

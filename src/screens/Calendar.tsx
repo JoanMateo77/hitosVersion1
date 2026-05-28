@@ -23,6 +23,8 @@ import {
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { IconArrowReturn, IconBack, IconClose, IconFlag, IconPlus } from '@/components/icons'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
+import { useToast } from '@/app/toast'
+import { Hint } from '@/components/Hint'
 
 type View = 'day' | 'week' | 'month'
 
@@ -34,6 +36,7 @@ type View = 'day' | 'week' | 'month'
 export function Calendar() {
   const { userId } = useSession()
   const navigate = useNavigate()
+  const { toast } = useToast()
 
   const [view, setView] = useState<View>('month')
   const [anchor, setAnchor] = useState(todayISO()) // mes / semana de referencia
@@ -119,6 +122,7 @@ export function Calendar() {
 
   async function submitEvent(input: EventInput) {
     const current = editing?.event ?? null
+    const wasLinked = current?.goalId ?? null
     if (current) {
       const updated = await updateEvent(current.id, input)
       setEvents((prev) => prev.map((e) => (e.id === updated.id ? updated : e)))
@@ -127,6 +131,15 @@ export function Calendar() {
       setEvents((prev) => [...prev, created])
     }
     setEditing(null)
+    // Si quedó vinculado a una meta (recién o ya estaba), cerramos el bucle: el
+    // usuario ve cómo el tiempo de su agenda se conecta con lo que se propuso.
+    if (input.goalId && input.goalId !== wasLinked) {
+      const goal = goalById.get(input.goalId)
+      if (goal) toast(`Lo sumamos a “${goal.title}”.`, 'success')
+      else toast('Evento guardado.')
+    } else {
+      toast(current ? 'Evento actualizado.' : 'Evento guardado.')
+    }
   }
 
   async function removeEditingEvent() {
@@ -135,6 +148,7 @@ export function Calendar() {
     await deleteEvent(current.id)
     setEvents((prev) => prev.filter((e) => e.id !== current.id))
     setEditing(null)
+    toast('Evento borrado.')
   }
 
   const headerTitle =
@@ -187,6 +201,16 @@ export function Calendar() {
       {ready && error && (
         <div className="alert alert--error" style={{ marginBottom: 'var(--s4)' }}>
           {error}
+        </div>
+      )}
+
+      {ready && !error && (
+        <div style={{ marginBottom: 'var(--s4)' }}>
+          <Hint id="calendar-uses-2026-05">
+            Acá podés agendar reuniones, bloquear tiempo para una meta, y dejar{' '}
+            <strong>notas</strong> en cada evento. Si lo vinculás a una meta, vemos cuánto tiempo
+            le dedicás por semana.
+          </Hint>
         </div>
       )}
 
@@ -296,14 +320,24 @@ function DaySection({
           ))}
           {events.map((e) => {
             const goal = e.goalId ? goalById.get(e.goalId) : null
+            const notePreview = e.notes ? e.notes.trim().split('\n')[0] : null
             return (
               <button key={e.id} className="ev" onClick={() => onOpen(e)}>
                 <span className="ev__time">{e.allDay ? 'Día' : e.startTime}</span>
-                <span className="ev__title">
-                  {e.title}
-                  {goal && (
-                    <span className="tag" style={{ marginLeft: 6 }}>
-                      <IconArrowReturn size={11} /> {goal.title}
+                <span className="ev__body">
+                  <span className="ev__title">{e.title}</span>
+                  {(goal || notePreview) && (
+                    <span className="ev__meta">
+                      {goal && (
+                        <span className="tag">
+                          <IconArrowReturn size={11} /> {goal.title}
+                        </span>
+                      )}
+                      {notePreview && (
+                        <span className="ev__note" title={e.notes ?? undefined}>
+                          {notePreview}
+                        </span>
+                      )}
                     </span>
                   )}
                 </span>

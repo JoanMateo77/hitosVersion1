@@ -11,6 +11,8 @@ import { addDays, formatDuration, formatLongDate, relativeDeadline, startOfWeek,
 import type { Goal, GoalStatus, NicheId } from '@/lib/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { Roadmap } from '@/components/Roadmap'
+import { Hint } from '@/components/Hint'
+import { useToast } from '@/app/toast'
 import {
   IconBack,
   IconCelebrate,
@@ -25,6 +27,7 @@ export function GoalDetail() {
   const { goalId } = useParams<{ goalId: string }>()
   const { userId } = useSession()
   const navigate = useNavigate()
+  const { toast } = useToast()
 
   const [goal, setGoal] = useState<Goal | null>(null)
   const [doneCount, setDoneCount] = useState(0)
@@ -78,6 +81,13 @@ export function GoalDetail() {
         } catch {
           /* ya había una acción de esta meta hoy */
         }
+        toast('Reactivada. Te sumé una acción para hoy.', 'success')
+      } else if (status === 'paused') {
+        toast('Pausada. La retomás cuando quieras.')
+      } else if (status === 'done') {
+        toast('¡Meta lograda! Bien ahí.', 'success')
+      } else if (status === 'archived') {
+        toast('Archivada.')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo actualizar la meta.')
@@ -90,11 +100,18 @@ export function GoalDetail() {
     if (!goal) return
     const max = getTemplate(goal.templateKey).milestones.length
     const clamped = Math.max(0, Math.min(index, max))
+    const previous = goal.currentMilestone
     setUpdating(true)
     setError(null)
     try {
       const updated = await setGoalMilestone(goal.id, clamped)
       setGoal(updated)
+      // Sólo celebramos cuando AVANZÁS (no al corregir hacia atrás).
+      if (clamped > previous) {
+        const total = getTemplate(updated.templateKey).milestones.length
+        if (clamped >= total) toast('Recorriste todo el camino.', 'success')
+        else toast(`Etapa ${clamped} cumplida.`, 'success')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo actualizar tu avance.')
     } finally {
@@ -107,6 +124,7 @@ export function GoalDetail() {
     const updated = await updateGoal(goal.id, edit)
     setGoal(updated)
     setEditing(false)
+    toast('Meta actualizada.')
   }
 
   if (loading) return <LoadingScreen />
@@ -224,6 +242,13 @@ export function GoalDetail() {
             currentIndex={Math.min(goal.currentMilestone, milestones.length)}
             onSelect={goal.status === 'active' ? updateMilestone : undefined}
           />
+          {goal.status === 'active' && goal.currentMilestone === 0 && (
+            <div style={{ marginTop: 'var(--s4)' }}>
+              <Hint id="goal-milestone-click-2026-05">
+                Tocá un hito del camino para marcarlo cumplido o ajustar dónde estás.
+              </Hint>
+            </div>
+          )}
           {goal.status === 'active' && (
             <div className="stack stack--sm" style={{ marginTop: 'var(--s4)' }}>
               {goal.currentMilestone < milestones.length ? (

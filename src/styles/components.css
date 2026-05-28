@@ -331,6 +331,10 @@
   text-decoration: line-through;
   color: var(--text-faint);
 }
+/* Tarea del foco semanal — borde verde a la izquierda, sin gritar. */
+.task--focus {
+  border-left: 3px solid var(--primary);
+}
 .task__meta {
   display: flex;
   align-items: center;
@@ -920,11 +924,30 @@
   font-weight: 700;
   color: var(--text-muted);
 }
-.ev__title {
+.ev__body {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ev__title {
   font-weight: 500;
   word-break: break-word;
+}
+.ev__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.ev__note {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .iconbtn--sm {
@@ -1201,6 +1224,114 @@ select.input {
 .auth__brand-mark {
   display: inline-flex;
   filter: drop-shadow(0 0 24px color-mix(in srgb, var(--primary) 30%, transparent));
+}
+
+/* En mobile, el hero está oculto — la marca vive en el header del form. */
+.auth-hero {
+  display: none;
+}
+.auth-form-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+.auth-form__brand {
+  margin-bottom: var(--s8);
+  align-items: center;
+}
+.auth-form-card {
+  position: relative;
+}
+.auth-form__title {
+  font-size: var(--fs-2xl);
+}
+
+/* Desktop ≥1024px: split editorial 50/50.
+   La marca grande pasa al hero izquierdo, el form se aísla en una card limpia
+   a la derecha. La curva del camino vive expresiva sólo en el hero. */
+@media (min-width: 1024px) {
+  /* La columna .app deja de constreñir el Auth en pantallas anchas. */
+  .app:has(.auth-screen) {
+    max-width: none;
+  }
+  .auth-screen {
+    display: grid;
+    grid-template-columns: minmax(420px, 1.05fr) minmax(420px, 1fr);
+    gap: var(--s10);
+    align-items: center;
+    padding: var(--s10) var(--s10) var(--s10) var(--s12);
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+  .auth__trail {
+    /* La curva se contiene al cuadrante izquierdo y se hace más expresiva. */
+    inset: auto auto 0 0;
+    width: 55%;
+    height: 90%;
+    opacity: 1;
+  }
+  .auth-hero {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-self: center;
+    max-width: 640px;
+    z-index: 1;
+    position: relative;
+  }
+  .auth-hero__mark {
+    margin-bottom: var(--s5);
+  }
+  .auth-hero__brand {
+    font-size: var(--fs-5xl);
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    margin-bottom: var(--s6);
+  }
+  .auth-hero__headline {
+    font-family: var(--font-display);
+    font-size: clamp(40px, 4vw, 56px);
+    font-weight: 500;
+    letter-spacing: var(--tracking-display);
+    line-height: 1.05;
+    margin-bottom: var(--s5);
+    color: var(--text);
+  }
+  .auth-hero__lede {
+    font-size: var(--fs-lg);
+    color: var(--text-muted);
+    line-height: 1.5;
+    max-width: 460px;
+  }
+  /* El form se aísla visualmente con su propia card. La marca compacta arriba se
+     oculta — la identidad vive en el hero. */
+  .auth-form-wrap {
+    justify-content: center;
+    justify-self: center;
+    width: 100%;
+    max-width: 480px;
+  }
+  .auth-form__brand {
+    display: none;
+  }
+  .auth-form-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-xl);
+    padding: var(--s10) var(--s8);
+    box-shadow: var(--shadow);
+  }
+  /* El theme switcher queda en la esquina superior derecha (ya lo cubre .auth__theme). */
+}
+
+@media (min-width: 1440px) {
+  .auth-screen {
+    padding: var(--s12);
+    gap: var(--s12);
+  }
 }
 
 /* En pantallas muy angostas el control compacto muestra solo el emoji */
@@ -1606,6 +1737,107 @@ select.input {
 }
 [data-theme='claro'] .bottomnav {
   border-top-color: var(--border);
+}
+
+/* ---- Hint — explicación contextual de primera vez --------------------- */
+.hint {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+}
+.hint__icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--primary);
+}
+.hint__body {
+  flex: 1;
+  min-width: 0;
+}
+.hint__close {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-pill);
+  color: var(--text-faint);
+  margin: -4px -8px -4px 0;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.hint__close:hover {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--text);
+}
+
+/* ---- Toast — feedback operativo efímero ------------------------------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  /* Sobre el BottomNav móvil + safe area home indicator. */
+  bottom: calc(var(--nav-height) + var(--safe-bottom) + var(--s4));
+  transform: translateX(-50%);
+  z-index: 100;
+  max-width: min(440px, calc(100vw - var(--s5) * 2));
+  padding: var(--s3) var(--s4);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow);
+  animation: toast-in 280ms var(--ease-out);
+  pointer-events: none;
+}
+.toast--success {
+  background: color-mix(in srgb, var(--primary) 14%, var(--surface));
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+}
+.toast--warning {
+  background: color-mix(in srgb, var(--warning) 14%, var(--surface));
+  border-color: color-mix(in srgb, var(--warning) 40%, transparent);
+  color: var(--text);
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+@media (min-width: 1024px) {
+  /* Desktop: sin BottomNav, toast pegado a la esquina inferior derecha. */
+  .toast {
+    left: auto;
+    right: var(--s6);
+    bottom: var(--s6);
+    transform: none;
+  }
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
 
 /* ---- Cheer: micro-celebración efímera --------------------------------- */

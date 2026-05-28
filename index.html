@@ -17,14 +17,16 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <!-- Theme-color declarativo por scheme: el status bar acierta antes de que el script corra. -->
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#eef1f8" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b1220" />
-    <!-- Aplica el tema guardado antes de pintar, para no parpadear claro/oscuro. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f0e6" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#05060f" />
+    <!-- Aplica el tema guardado antes de pintar, para no parpadear claro/neón.
+         Default = "claro" paper warm; usuarios con tema "oscuro" viejo caen a claro. -->
     <script>
       try {
-        var t = localStorage.getItem('hito-theme') || 'oscuro'
+        var raw = localStorage.getItem('hito-theme')
+        var t = (raw === 'claro' || raw === 'neon') ? raw : 'claro'
         document.documentElement.dataset.theme = t
-        var c = { claro: '#eef1f8', oscuro: '#0b1220', neon: '#05060f' }[t]
+        var c = { claro: '#f5f0e6', neon: '#05060f' }[t]
         var metas = document.querySelectorAll('meta[name="theme-color"]')
         if (c) metas.forEach(function (m) { m.setAttribute('content', c) })
       } catch (e) {}

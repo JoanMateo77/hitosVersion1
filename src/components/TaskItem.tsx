@@ -8,12 +8,22 @@ interface TaskItemProps {
   goalTitle?: string | null
   /** Porqué de la meta, anclaje emocional que mostramos junto a la acción. */
   goalWhy?: string | null
+  /** True si la tarea pertenece al foco de la semana — borde verde a la izquierda. */
+  isFocus?: boolean
   onToggle: () => void
   onEdit: (title: string) => void
   onRemove: () => void
 }
 
-export function TaskItem({ task, goalTitle, goalWhy, onToggle, onEdit, onRemove }: TaskItemProps) {
+export function TaskItem({
+  task,
+  goalTitle,
+  goalWhy,
+  isFocus,
+  onToggle,
+  onEdit,
+  onRemove,
+}: TaskItemProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(task.title)
   const done = task.status === 'done'
@@ -60,7 +70,7 @@ export function TaskItem({ task, goalTitle, goalWhy, onToggle, onEdit, onRemove 
   }
 
   return (
-    <li className={`task${done ? ' task--done' : ''}`}>
+    <li className={`task${done ? ' task--done' : ''}${isFocus ? ' task--focus' : ''}`}>
       <button
         className={`check${done ? ' check--done' : ''}`}
         onClick={onToggle}

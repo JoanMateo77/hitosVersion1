@@ -5,6 +5,7 @@ import type { Goal } from '@/lib/types'
 import { listGoals, markGoalReviewed, setGoalMilestone, setGoalStatus } from '@/services/goals'
 import { getTemplate } from '@/domain/templates'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { useToast } from '@/app/toast'
 import { Roadmap } from '@/components/Roadmap'
 import { IconBack, IconCelebrate, IconCheck, IconSprout } from '@/components/icons'
 
@@ -17,6 +18,7 @@ import { IconBack, IconCelebrate, IconCheck, IconSprout } from '@/components/ico
 export function Review() {
   const { userId } = useSession()
   const navigate = useNavigate()
+  const { toast } = useToast()
 
   const [goals, setGoals] = useState<Goal[]>([])
   const [index, setIndex] = useState(0)
@@ -130,7 +132,12 @@ export function Review() {
         <button
           className="btn btn--primary btn--block"
           disabled={working}
-          onClick={() => act(() => markGoalReviewed(goal.id))}
+          onClick={() =>
+            act(async () => {
+              await markGoalReviewed(goal.id)
+              toast('Revisada. Seguimos.', 'success')
+            })
+          }
         >
           <IconCheck size={18} /> Sigo con esto
         </button>
@@ -142,6 +149,7 @@ export function Review() {
               act(async () => {
                 await setGoalMilestone(goal.id, stage + 1)
                 await markGoalReviewed(goal.id)
+                toast('Etapa cumplida. Bien ahí.', 'success')
               })
             }
           >
@@ -151,7 +159,12 @@ export function Review() {
         <button
           className="btn btn--subtle btn--block"
           disabled={working}
-          onClick={() => act(() => setGoalStatus(goal.id, 'paused'))}
+          onClick={() =>
+            act(async () => {
+              await setGoalStatus(goal.id, 'paused')
+              toast('Pausada. La retomás cuando quieras.')
+            })
+          }
         >
           Pausar esta meta
         </button>

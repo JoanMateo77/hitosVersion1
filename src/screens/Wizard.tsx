@@ -10,6 +10,7 @@ import type { NicheId } from '@/lib/types'
 import { formatLongDate, relativeDeadline, todayISO } from '@/lib/date'
 import { IconBack, IconCalendar, IconLightbulb } from '@/components/icons'
 import { OptionRow } from '@/components/OptionRow'
+import { Hint } from '@/components/Hint'
 
 /** Cantidad de pasos del wizard (las 5 preguntas + el tipo de meta). */
 const STEPS = 6
@@ -158,6 +159,10 @@ export function Wizard() {
               autoCorrect="on"
               enterKeyHint="enter"
             />
+            <Hint id="wizard-why-2026-05">
+              Lo escribís una vez y lo vas a ver bajo cada tarea derivada de esta meta. Tu ancla
+              cuando aflojás.
+            </Hint>
           </Question>
         )}
 

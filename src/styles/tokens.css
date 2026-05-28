@@ -74,88 +74,47 @@
   --gradient-brand: linear-gradient(135deg, var(--primary), var(--primary-strong));
 }
 
-/* ===== Tema OSCURO (default) =============================================
-   Verde mint #34d399 es el primary real (el verde da nombre y carácter a Hito).
-   El violeta queda como --accent para usos secundarios/info, sin pelearle al verde. */
+/* ===== Tema CLARO (default) ==============================================
+   Paleta "paper warm": un fondo cálido tipo papel envejecido (no blanco quemado),
+   cards apenas más claras para destacar sin gritar, primary verde forest #16a777.
+   La idea: leer durante una hora sin sentir que la pantalla te empuja. */
 :root,
-[data-theme='oscuro'] {
-  color-scheme: dark;
-
-  --bg: #0b1220;
-  --bg-elev: #101a2e;
-  --surface: #16223b;
-  --surface-2: #1d2b48;
-  --surface-3: #243557;
-  --border: #2a3a5c;
-  --border-soft: #213050;
-
-  --text: #e9eefb;
-  --text-muted: #9fadc9;
-  --text-faint: #6c7a99;
-
-  --primary: #34d399;
-  --primary-strong: #1cb37c;
-  --primary-soft: rgba(52, 211, 153, 0.14);
-  --on-primary: #04140d;
-
-  --accent: #7c8cff;
-  --accent-soft: rgba(124, 140, 255, 0.14);
-
-  --success: #34d399;
-  --success-soft: rgba(52, 211, 153, 0.16);
-  --danger: #fb7185;
-  --danger-soft: rgba(251, 113, 133, 0.14);
-  --warning: #fbbf24;
-  --warning-soft: rgba(251, 191, 36, 0.14);
-
-  /* Sombras de marca: highlight interno blanco + tinte verde + profundidad real. */
-  --shadow-sm: inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 8px 24px -8px rgba(52, 211, 153, 0.1),
-    0 2px 6px rgba(0, 0, 0, 0.4);
-  --shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 16px 48px -12px rgba(52, 211, 153, 0.18),
-    0 6px 18px rgba(0, 0, 0, 0.5);
-  --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(52, 211, 153, 0.22), transparent 60%),
-    radial-gradient(120% 80% at 100% 100%, rgba(124, 140, 255, 0.16), transparent 60%);
-}
-
-/* ===== Tema CLARO ======================================================== */
 [data-theme='claro'] {
   color-scheme: light;
 
-  --bg: #f3f6f1;
-  --bg-elev: #ffffff;
-  --surface: #ffffff;
-  --surface-2: #eef3ec;
-  --surface-3: #e3eadf;
-  --border: #cfd9c8;
-  --border-soft: #e1e9dc;
+  --bg: #f5f0e6;
+  --bg-elev: #fbf8f1;
+  --surface: #fbf8f1;
+  --surface-2: #ece6d6;
+  --surface-3: #e0d8c4;
+  --border: #ccc2a9;
+  --border-soft: #ddd5c0;
 
-  --text: #0e1e16;
-  --text-muted: #475a4e;
-  --text-faint: #7c8f80;
+  --text: #1c241a;
+  --text-muted: #4f5947;
+  --text-faint: #7e8773;
 
   --primary: #16a777;
   --primary-strong: #0e8a5e;
   --primary-soft: rgba(22, 167, 119, 0.12);
   --on-primary: #ffffff;
 
-  --accent: #5566f5;
-  --accent-soft: rgba(85, 102, 245, 0.1);
+  --accent: #936b3f;
+  --accent-soft: rgba(147, 107, 63, 0.12);
 
   --success: #16a777;
   --success-soft: rgba(22, 167, 119, 0.14);
-  --danger: #c2384f;
-  --danger-soft: rgba(194, 56, 79, 0.1);
+  --danger: #b73a4b;
+  --danger-soft: rgba(183, 58, 75, 0.1);
   --warning: #a06013;
   --warning-soft: rgba(160, 96, 19, 0.1);
 
-  --shadow-sm: 0 1px 2px rgba(20, 40, 30, 0.06),
-    0 8px 24px -12px rgba(22, 167, 119, 0.18);
-  --shadow: 0 2px 4px rgba(20, 40, 30, 0.06),
-    0 16px 40px -12px rgba(22, 167, 119, 0.22);
+  --shadow-sm: 0 1px 2px rgba(60, 50, 30, 0.06),
+    0 6px 18px -10px rgba(22, 167, 119, 0.18);
+  --shadow: 0 2px 4px rgba(60, 50, 30, 0.08),
+    0 14px 36px -12px rgba(22, 167, 119, 0.2);
   --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(22, 167, 119, 0.14), transparent 60%),
-    radial-gradient(120% 80% at 100% 100%, rgba(85, 102, 245, 0.08), transparent 60%);
+    radial-gradient(120% 80% at 100% 100%, rgba(147, 107, 63, 0.1), transparent 60%);
 }
 
 /* ===== Tema NEÓN =========================================================
