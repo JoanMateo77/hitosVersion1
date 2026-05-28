@@ -80,7 +80,7 @@ export function Wizard() {
   const isLast = step === STEPS - 1
 
   return (
-    <div className="screen screen--full">
+    <div className="screen screen--full flow-screen">
       <div className="row" style={{ marginBottom: 'var(--s4)' }}>
         <button className="iconbtn" onClick={goBack} aria-label="Volver">
           <IconBack />

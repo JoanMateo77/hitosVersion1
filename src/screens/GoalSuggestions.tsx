@@ -60,7 +60,7 @@ export function GoalSuggestions() {
   }
 
   return (
-    <div className="screen screen--full">
+    <div className="screen screen--full flow-screen flow-screen--wide">
       <button className="iconbtn" onClick={() => navigate('/')} aria-label="Volver">
         <IconBack />
       </button>
@@ -73,7 +73,7 @@ export function GoalSuggestions() {
         </p>
       </header>
 
-      <div className="stack stack--sm" style={{ flex: 1 }}>
+      <div className="stack stack--sm suggestions-grid" style={{ flex: 1 }}>
         {suggestions.map((seed) => {
           const template = getTemplate(seed.templateKey)
           return (

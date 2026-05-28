@@ -183,99 +183,102 @@ export function GoalDetail() {
         <h1 className="screen__title">{goal.title}</h1>
       </header>
 
-      <div className="stack stack--lg">
-        {goal.why && (
-          <div className="focus-card stack stack--sm">
-            <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
-              <IconQuote size={12} /> Tu porqué
-            </span>
-            <p style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--fs-lg)', lineHeight: 1.35 }}>
-              {goal.why}
-            </p>
-          </div>
-        )}
+      <div className="detail-grid">
+        <div className="detail-grid__main stack stack--lg">
+          {goal.why && (
+            <div className="focus-card stack stack--sm">
+              <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
+                <IconQuote size={12} /> Tu porqué
+              </span>
+              <p style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--fs-lg)', lineHeight: 1.35 }}>
+                {goal.why}
+              </p>
+            </div>
+          )}
 
-        <div className="card stack">
-          <InfoRow label="Área" value={`${niche.emoji} ${niche.label}`} />
-          <InfoRow label="Tipo" value={template.label} />
-          {goal.targetDate && (
-            <InfoRow
-              label="Para cuándo"
-              value={`${formatLongDate(goal.targetDate)}${deadline ? ` · ${deadline}` : ''}`}
+          <div>
+            <div className="row row--between" style={{ marginBottom: 'var(--s3)' }}>
+              <h2 style={{ fontSize: 'var(--fs-lg)' }}>El camino</h2>
+              <span className="tag">
+                {goal.currentMilestone >= milestones.length
+                  ? 'Camino completo'
+                  : `Etapa ${goal.currentMilestone + 1} de ${milestones.length}`}
+              </span>
+            </div>
+            <Roadmap
+              milestones={milestones}
+              currentIndex={Math.min(goal.currentMilestone, milestones.length)}
+              onSelect={goal.status === 'active' ? updateMilestone : undefined}
             />
-          )}
-          {goal.successCriteria && <InfoRow label="Lo logro cuando" value={goal.successCriteria} />}
-          <InfoRow
-            label="Avance"
-            value={`${doneCount} ${doneCount === 1 ? 'acción completada' : 'acciones completadas'}`}
-          />
-          {weekMinutes > 0 && (
-            <InfoRow label="Esta semana" value={`${formatDuration(weekMinutes)} agendadas`} />
-          )}
-        </div>
-
-        {weekMinutes === 0 && (
-          <p className="faint tiny row row--sm" style={{ alignItems: 'center' }}>
-            <IconClock size={14} /> Ligá bloques de tu{' '}
-            <button
-              className="btn--link"
-              style={{ padding: 0 }}
-              onClick={() => navigate('/calendario')}
-            >
-              agenda
-            </button>{' '}
-            a esta meta y vas a ver acá cuánto tiempo le dedicás por semana.
-          </p>
-        )}
-
-        <div>
-          <div className="row row--between" style={{ marginBottom: 'var(--s3)' }}>
-            <h2 style={{ fontSize: 'var(--fs-lg)' }}>El camino</h2>
-            <span className="tag">
-              {goal.currentMilestone >= milestones.length
-                ? 'Camino completo'
-                : `Etapa ${goal.currentMilestone + 1} de ${milestones.length}`}
-            </span>
+            {goal.status === 'active' && goal.currentMilestone === 0 && (
+              <div style={{ marginTop: 'var(--s4)' }}>
+                <Hint id="goal-milestone-click-2026-05">
+                  Tocá un hito del camino para marcarlo cumplido o ajustar dónde estás.
+                </Hint>
+              </div>
+            )}
+            {goal.status === 'active' && (
+              <div className="stack stack--sm" style={{ marginTop: 'var(--s4)' }}>
+                {goal.currentMilestone < milestones.length ? (
+                  <button
+                    className="btn btn--ghost btn--block"
+                    disabled={updating}
+                    onClick={() => updateMilestone(goal.currentMilestone + 1)}
+                  >
+                    <IconCheck size={18} /> Completé esta etapa
+                  </button>
+                ) : (
+                  <div className="focus-card stack stack--sm">
+                    <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
+                      <IconFlag size={12} /> Recorriste todo el camino
+                    </span>
+                    <p className="small">Cumpliste todos los hitos. Si ya está, marcala como lograda abajo.</p>
+                  </div>
+                )}
+                <p className="faint tiny center">Tocá un hito para ajustar dónde estás.</p>
+              </div>
+            )}
           </div>
-          <Roadmap
-            milestones={milestones}
-            currentIndex={Math.min(goal.currentMilestone, milestones.length)}
-            onSelect={goal.status === 'active' ? updateMilestone : undefined}
-          />
-          {goal.status === 'active' && goal.currentMilestone === 0 && (
-            <div style={{ marginTop: 'var(--s4)' }}>
-              <Hint id="goal-milestone-click-2026-05">
-                Tocá un hito del camino para marcarlo cumplido o ajustar dónde estás.
-              </Hint>
-            </div>
-          )}
-          {goal.status === 'active' && (
-            <div className="stack stack--sm" style={{ marginTop: 'var(--s4)' }}>
-              {goal.currentMilestone < milestones.length ? (
-                <button
-                  className="btn btn--ghost btn--block"
-                  disabled={updating}
-                  onClick={() => updateMilestone(goal.currentMilestone + 1)}
-                >
-                  <IconCheck size={18} /> Completé esta etapa
-                </button>
-              ) : (
-                <div className="focus-card stack stack--sm">
-                  <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
-                    <IconFlag size={12} /> Recorriste todo el camino
-                  </span>
-                  <p className="small">Cumpliste todos los hitos. Si ya está, marcala como lograda abajo.</p>
-                </div>
-              )}
-              <p className="faint tiny center">Tocá un hito para ajustar dónde estás.</p>
-            </div>
-          )}
         </div>
 
-        {error && <div className="alert alert--error">{error}</div>}
+        <div className="detail-grid__side stack stack--lg">
+          <div className="card stack">
+            <InfoRow label="Área" value={`${niche.emoji} ${niche.label}`} />
+            <InfoRow label="Tipo" value={template.label} />
+            {goal.targetDate && (
+              <InfoRow
+                label="Para cuándo"
+                value={`${formatLongDate(goal.targetDate)}${deadline ? ` · ${deadline}` : ''}`}
+              />
+            )}
+            {goal.successCriteria && <InfoRow label="Lo logro cuando" value={goal.successCriteria} />}
+            <InfoRow
+              label="Avance"
+              value={`${doneCount} ${doneCount === 1 ? 'acción completada' : 'acciones completadas'}`}
+            />
+            {weekMinutes > 0 && (
+              <InfoRow label="Esta semana" value={`${formatDuration(weekMinutes)} agendadas`} />
+            )}
+          </div>
 
-        <div className="stack stack--sm">
-          {goal.status === 'active' && (
+          {weekMinutes === 0 && (
+            <p className="faint tiny row row--sm" style={{ alignItems: 'center' }}>
+              <IconClock size={14} /> Ligá bloques de tu{' '}
+              <button
+                className="btn--link"
+                style={{ padding: 0 }}
+                onClick={() => navigate('/calendario')}
+              >
+                agenda
+              </button>{' '}
+              a esta meta y vas a ver acá cuánto tiempo le dedicás por semana.
+            </p>
+          )}
+
+          {error && <div className="alert alert--error">{error}</div>}
+
+          <div className="stack stack--sm">
+            {goal.status === 'active' && (
             <>
               <button className="btn btn--primary btn--block" disabled={updating} onClick={() => changeStatus('done')}>
                 Marcar como lograda 🎉
@@ -309,6 +312,7 @@ export function GoalDetail() {
               Reactivar
             </button>
           )}
+          </div>
         </div>
       </div>
     </div>

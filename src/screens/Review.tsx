@@ -62,7 +62,7 @@ export function Review() {
 
   if (total === 0) {
     return (
-      <div className="screen screen--full">
+      <div className="screen screen--full flow-screen">
         <Header onClose={() => navigate('/')} />
         <div className="empty" style={{ marginTop: 'var(--s8)' }}>
           <IconSprout size={48} className="muted" />
@@ -77,7 +77,7 @@ export function Review() {
 
   if (!goal) {
     return (
-      <div className="screen screen--full">
+      <div className="screen screen--full flow-screen">
         <div
           className="stack stack--lg center"
           style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
@@ -101,7 +101,7 @@ export function Review() {
   const canAdvance = stage < milestones.length
 
   return (
-    <div className="screen screen--full">
+    <div className="screen screen--full flow-screen">
       <Header onClose={() => navigate('/')} />
 
       <p className="faint small" style={{ marginTop: 'var(--s4)' }}>

@@ -41,7 +41,7 @@ export function GoalCreated() {
   const firstAction = pickAction(goal, todayISO())
 
   return (
-    <div className="screen screen--full">
+    <div className="screen screen--full flow-screen">
       <div className="stack stack--lg" style={{ flex: 1 }}>
         <header
           className="center stack stack--sm"

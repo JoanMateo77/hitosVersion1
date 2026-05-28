@@ -59,7 +59,7 @@ export function Onboarding() {
   }
 
   return (
-    <div className="screen screen--full">
+    <div className="screen screen--full flow-screen">
       <Stepper step={step} />
 
       {step === 'focus' && (
