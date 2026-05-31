@@ -4,7 +4,7 @@ import { listGoals } from '@/services/goals'
 import { countDoneByGoal } from '@/services/tasks'
 import { getTemplate } from '@/domain/templates'
 import { getNiche } from '@/domain/niches'
-import { isGoalClosed } from '@/domain/goals'
+import { clampedStage, isGoalClosed, isPathComplete } from '@/domain/goals'
 import { relativeDeadline } from '@/lib/date'
 import type { Goal, GoalStatus } from '@/lib/types'
 import { useAsyncData } from '@/hooks/useAsyncData'
@@ -104,11 +104,14 @@ function GoalCard({
 }) {
   const template = getTemplate(goal.templateKey)
   const niche = getNiche(goal.area)
-  const deadline = isGoalClosed(goal.status) ? null : relativeDeadline(goal.targetDate)
+  const milestones = template.milestones
+  const stage = clampedStage(goal.currentMilestone, milestones.length)
+  const pathComplete = isPathComplete(goal.currentMilestone, milestones.length)
+  // No mostramos deadline (ni "vencida") en metas cerradas NI con el camino completo.
+  const deadline =
+    isGoalClosed(goal.status) || pathComplete ? null : relativeDeadline(goal.targetDate)
   const badge = STATUS_BADGE[goal.status]
   const dimmed = isGoalClosed(goal.status)
-  const milestones = template.milestones
-  const stage = Math.min(goal.currentMilestone, milestones.length)
   const showProgress =
     (goal.status === 'active' || goal.status === 'paused') && milestones.length > 1
 
@@ -141,7 +144,7 @@ function GoalCard({
             />
           </div>
           <span className="faint tiny">
-            {stage >= milestones.length
+            {pathComplete
               ? 'Camino completo'
               : `Etapa ${stage + 1} de ${milestones.length}`}
           </span>

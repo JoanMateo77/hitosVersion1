@@ -5,6 +5,7 @@ import type { Goal } from '@/lib/types'
 import { listGoals, markGoalReviewed, setGoalMilestone, setGoalStatus } from '@/services/goals'
 import { getTemplate } from '@/domain/templates'
 import { goalsDueForReview } from '@/domain/dailyPlan'
+import { clampedStage } from '@/domain/goals'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { useToast } from '@/app/toast'
 import { Roadmap } from '@/components/Roadmap'
@@ -98,7 +99,7 @@ export function Review() {
 
   const template = getTemplate(goal.templateKey)
   const milestones = template.milestones
-  const stage = Math.min(goal.currentMilestone, milestones.length)
+  const stage = clampedStage(goal.currentMilestone, milestones.length)
   const canAdvance = stage < milestones.length
 
   return (
@@ -142,19 +143,50 @@ export function Review() {
         >
           <IconCheck size={18} /> Sigo con esto
         </button>
-        {canAdvance && (
+        {canAdvance ? (
+          stage + 1 >= milestones.length ? (
+            <button
+              className="btn btn--ghost btn--block"
+              disabled={working}
+              onClick={() =>
+                act(async () => {
+                  // Completar la última etapa cierra el ciclo: camino completo + meta lograda.
+                  await setGoalMilestone(goal.id, milestones.length)
+                  await setGoalStatus(goal.id, 'done')
+                  toast('¡Meta lograda! Recorriste todo el camino. 🎉', 'success')
+                })
+              }
+            >
+              Logré la meta 🎉
+            </button>
+          ) : (
+            <button
+              className="btn btn--ghost btn--block"
+              disabled={working}
+              onClick={() =>
+                act(async () => {
+                  await setGoalMilestone(goal.id, stage + 1)
+                  await markGoalReviewed(goal.id)
+                  toast('Etapa cumplida. Bien ahí.', 'success')
+                })
+              }
+            >
+              Avancé de etapa 🎯
+            </button>
+          )
+        ) : (
           <button
             className="btn btn--ghost btn--block"
             disabled={working}
             onClick={() =>
               act(async () => {
-                await setGoalMilestone(goal.id, stage + 1)
-                await markGoalReviewed(goal.id)
-                toast('Etapa cumplida. Bien ahí.', 'success')
+                // Camino ya completo pero la meta seguía activa: cerramos el ciclo.
+                await setGoalStatus(goal.id, 'done')
+                toast('¡Meta lograda! 🎉', 'success')
               })
             }
           >
-            Avancé de etapa 🎯
+            Marcar como lograda 🎉
           </button>
         )}
         <button

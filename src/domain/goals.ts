@@ -10,3 +10,18 @@ import type { GoalStatus } from '@/lib/types'
 export function isGoalClosed(status: GoalStatus): boolean {
   return status === 'done' || status === 'archived'
 }
+
+/**
+ * Etapa actual acotada al rango [0, milestoneCount]. Evita que un
+ * currentMilestone fuera de rango pinte el roadmap en una posición inválida.
+ * Centraliza el `Math.min(currentMilestone, length)` que repetían Review,
+ * GoalDetail y Goals.
+ */
+export function clampedStage(currentMilestone: number, milestoneCount: number): number {
+  return Math.max(0, Math.min(currentMilestone, milestoneCount))
+}
+
+/** ¿La meta ya recorrió todos sus hitos (camino completo)? */
+export function isPathComplete(currentMilestone: number, milestoneCount: number): boolean {
+  return currentMilestone >= milestoneCount
+}
