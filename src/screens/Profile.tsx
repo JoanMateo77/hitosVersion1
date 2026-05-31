@@ -15,15 +15,20 @@ export function ProfileScreen() {
   const { userId, email, profile, setProfile } = useSession()
   const [editing, setEditing] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
+  const [signOutError, setSignOutError] = useState<string | null>(null)
 
   const niche = profile.primaryNiche ? getNiche(profile.primaryNiche) : null
 
   async function handleSignOut() {
     setSigningOut(true)
+    setSignOutError(null)
     try {
       await signOut()
       // useAuth detecta el cambio de sesión y App vuelve al login.
-    } catch {
+    } catch (err) {
+      setSignOutError(
+        err instanceof Error ? err.message : 'No se pudo cerrar sesión. Probá de nuevo.',
+      )
       setSigningOut(false)
     }
   }
@@ -75,6 +80,11 @@ export function ProfileScreen() {
         >
           {signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
         </button>
+      )}
+      {signOutError && (
+        <div className="alert alert--error" role="alert" style={{ marginTop: 'var(--s3)' }}>
+          {signOutError}
+        </div>
       )}
 
       <p className="faint tiny center" style={{ marginTop: 'var(--s8)' }}>

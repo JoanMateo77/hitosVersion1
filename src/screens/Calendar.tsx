@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import type { CalendarEvent, Goal } from '@/lib/types'
 import { listGoals } from '@/services/goals'
@@ -38,9 +38,13 @@ export function Calendar() {
   const navigate = useNavigate()
   const { toast } = useToast()
 
-  const [view, setView] = useState<View>('month')
-  const [anchor, setAnchor] = useState(todayISO()) // mes / semana de referencia
-  const [selected, setSelected] = useState(todayISO()) // día activo
+  const [params] = useSearchParams()
+  // ?d=YYYY-MM-DD (p. ej. al tocar un evento en Today) abre ese día directo.
+  const dParam = params.get('d')
+  const initialDate = dParam && /^\d{4}-\d{2}-\d{2}$/.test(dParam) ? dParam : null
+  const [view, setView] = useState<View>(initialDate ? 'day' : 'month')
+  const [anchor, setAnchor] = useState(initialDate ?? todayISO()) // mes / semana de referencia
+  const [selected, setSelected] = useState(initialDate ?? todayISO()) // día activo
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [goals, setGoals] = useState<Goal[]>([])
   const [ready, setReady] = useState(false)
@@ -389,7 +393,12 @@ function EventEditor({
     }
   }, [])
 
-  const canSave = title.trim().length > 0 && (allDay || startTime.length > 0)
+  // Con horario, si hay fin debe ser posterior al inicio (comparación lexicográfica
+  // = cronológica para HH:MM con cero a la izquierda).
+  const timeRangeInvalid =
+    !allDay && startTime.length > 0 && endTime.length > 0 && endTime <= startTime
+  const canSave =
+    title.trim().length > 0 && (allDay || startTime.length > 0) && !timeRangeInvalid
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -471,23 +480,30 @@ function EventEditor({
             </button>
           </div>
           {!allDay && (
-            <div className="row">
-              <input
-                className="input"
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                aria-label="Hora de inicio"
-              />
-              <span className="faint">a</span>
-              <input
-                className="input"
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                aria-label="Hora de fin"
-              />
-            </div>
+            <>
+              <div className="row">
+                <input
+                  className="input"
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  aria-label="Hora de inicio"
+                />
+                <span className="faint">a</span>
+                <input
+                  className="input"
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  aria-label="Hora de fin"
+                />
+              </div>
+              {timeRangeInvalid && (
+                <p className="alert alert--error" role="alert" style={{ marginTop: 'var(--s2)' }}>
+                  La hora de fin tiene que ser posterior a la de inicio.
+                </p>
+              )}
+            </>
           )}
         </div>
 

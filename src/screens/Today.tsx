@@ -488,7 +488,12 @@ export function Today() {
             </button>
           </div>
           {todayEvents.map((e) => (
-            <button key={e.id} className="ev" onClick={() => navigate('/calendario')}>
+            <button
+              key={e.id}
+              className="ev"
+              aria-label={`Ver "${e.title}" en la agenda`}
+              onClick={() => navigate(`/calendario?d=${e.date}`)}
+            >
               <span className="ev__time">{e.allDay ? 'Día' : e.startTime}</span>
               <span className="ev__title">{e.title}</span>
             </button>
