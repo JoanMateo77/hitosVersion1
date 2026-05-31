@@ -10,6 +10,8 @@
 
 **Fuente:** `docs/superpowers/specs/2026-05-29-arreglos-auditoria-design.md` (§A, §B) y `AUDITORIA.md`.
 
+> **🛡️ Endurecido al 31/05 (verificación multi-agente: grounding + calidad).** Cada tarea lleva un bloque `✅ Verificado` con: anchors re-anclados **por texto** (resisten el drift de líneas), hazards a preservar, coordinación entre tareas que tocan el mismo archivo, y mejoras de calidad que pasaron un crítico anti-gold-plating. **Regla de oro para el ejecutor: anclá por texto/símbolo, no por número de línea** — varias tareas corren la numeración de archivos compartidos (`GoalDetail.tsx`: T3/T11/T13/T14 · `Wizard.tsx`: T4/T9/T15 · `Profile.tsx`: T5/T16 · `Auth.tsx`: T2/T17). Los `git add` de los 3 commits se verificaron contra el árbol real; el conteo de tests base es 41.
+
 ## Falsos positivos verificados (NO se tocan)
 - **`aria-current` en NavLink:** `react-router@7.15.1` ya aplica `aria-current="page"` al link activo automáticamente (`NavLink` default `ariaCurrentProp="page"`). No se agrega nada en SideNav/BottomNav.
 
@@ -18,6 +20,12 @@
 ## COMMIT 1 — `fix(a11y): landmark, skip-link, live regions, labels y toggles`
 
 ### Task 1: Landmark `<main>` + skip-link en el shell
+
+> **✅ Verificado al 31/05 + calidad**
+> - **Anchor:** `export function AppShell()` (estructura real coincide con el snippet).
+> - **⚠ Preservar:** aplicar el cambio **editando solo el JSX del `return`** — NO pegar el snippet como reemplazo de archivo: conservar los imports (líneas 1-4) y el JSDoc (6-11) que el snippet omite, o se rompe el build.
+> - **Calidad (must):** en el CSS del skip-link usar `color: var(--on-primary)` (no `--bg`; `--on-primary` es el token de contraste ya usado por `.btn--primary`). Agregar al `:focus-visible` del skip-link `outline-color: var(--on-primary); outline-offset: -3px` — si no, el ring global `var(--primary)` queda invisible sobre el fondo primary (mismo fix que `.btn--primary:focus-visible`).
+> - **nice:** NO agregar `@media prefers-reduced-motion` propio (`base.css:169` ya lo cubre global); mantener `:focus-visible` (no `:focus`).
 
 **Files:**
 - Modify: `src/components/AppShell.tsx`
@@ -67,6 +75,12 @@ export function AppShell() {
 
 ### Task 2: `role`/`aria-live` en contenedores de error y aviso
 
+> **✅ Verificado al 31/05 + calidad**
+> - **Anchors:** `Auth.tsx:143-148`, `GoalSuggestions.tsx:92`, `Review.tsx:128`, `Today.tsx:545-549` — todos exactos.
+> - **⚠ Preservar:** al reescribir el bloque `notice` de Auth conservar `style={{ background: 'var(--success-soft)', color: 'var(--success)' }}`; en Today conservar `style={{ marginTop: 'var(--s3)' }}`.
+> - **Calidad (must):** el aviso `role="status"` debe llevar también `aria-live="polite"` (es el patrón del resto del codebase).
+> - **nice:** NO agregar `aria-live="assertive"` al error — `role="alert"` ya lo implica.
+
 **Files:**
 - Modify: `src/screens/Auth.tsx:143-148`
 - Modify: `src/screens/GoalSuggestions.tsx:92`
@@ -103,6 +117,11 @@ export function AppShell() {
 - [ ] **Step 5: Verificar** — `npm run typecheck`. Manual con lector de pantalla: forzar un error de login y confirmar que se anuncia.
 
 ### Task 3: Labels asociadas en el editor de GoalDetail
+
+> **✅ Verificado al 31/05 + calidad**
+> - **Anchor (corregido):** `function GoalEditor(...)` + el primer label `'¿Qué querés lograr?'`. **NO usar líneas 375-443** — `GoalEditor` arranca en 342 y T11/T13/T14 (mismo archivo) corren la numeración. Anclar por texto.
+> - **⚠ Preservar:** el wrapper `<div className="stack stack--lg">`, el bloque `{error && ...}` y los botones Guardar/Cancelar (que el snippet omite); la función `submit()` y los `useState`; el botón "Quitar fecha".
+> - **Calidad (must):** ids con prefijo de sección (`edit-*`) para evitar colisiones, **sin** `useId` (instancia única; contra la convención de ids estáticos del repo). El grupo de chips de Área usa `aria-labelledby` (correcto) — preservarlo, no homogeneizar a `aria-label`. **NO** extraer un componente `<Field>` (los 5 controles difieren; abstraerlos es gold-plating).
 
 **Files:**
 - Modify: `src/screens/GoalDetail.tsx:375-443` (componente `GoalEditor`)
@@ -154,6 +173,13 @@ export function AppShell() {
 
 ### Task 4: Labels accesibles en el Wizard
 
+> **✅ Verificado al 31/05 + calidad**
+> - **Anchor:** `{step === 0 && (<Question title="¿Qué querés lograr?"` (anclar por paso, no por línea).
+> - **⚠ Preservar:** al agregar `aria-label`/`role=group` NO perder los atributos existentes de cada control (`autoFocus`, `enterKeyHint`, `autoCapitalize`, `maxLength`, `inputMode`, `onKeyDown`) ni el `key`/`onClick`/`className` de los chips.
+> - **Calidad (must):** confirmar que los chips de Área llevan `aria-pressed`.
+> - **nice:** opción de asociar con el `<h1>` visible vía `aria-labelledby` en vez de duplicar el texto. *(Mantener `aria-label` string también es válido — es el patrón real del codebase, ThemeSwitcher.)*
+> - **Coordinación:** `Wizard.tsx` lo tocan también T15 (estado) y T9 (catch de `submit`).
+
 **Files:**
 - Modify: `src/screens/Wizard.tsx` (inputs de los pasos 0, 2, 4, 5)
 
@@ -181,6 +207,11 @@ Paso 4 (área), envolver los chips:
 - [ ] **Step 2: Verificar** — `npm run typecheck`. Manual: navegar el wizard con teclado y confirmar que cada campo se anuncia con su pregunta.
 
 ### Task 5: `aria-pressed`/`role=group` en toggles de Profile y Calendar
+
+> **✅ Verificado al 31/05 + calidad**
+> - **Anchors:** Profile segmented `'¿Cómo querés trabajar?'` (~121) y chips `'Tu foco principal'` (~146); Calendar `:189-197` y `:455-468`.
+> - **Calidad (must):** usar `role="group"` + `aria-label` (patrón real del codebase, ThemeSwitcher), **no** `aria-labelledby` con id nuevo. Marcar el emoji del chip `aria-hidden`. En Calendar **editar in-place** los `.map` existentes (sin reescribir, sin perder `key`); derivar `aria-pressed` de `allDay`/`!allDay` sin tocar los inputs date/time vecinos.
+> - **⚠ Coordinación con T16 (mismo bloque de chips):** el snippet de Step 2 **borra silenciosamente** el `.filter((n) => n.id !== 'otra')`. Eso es responsabilidad de **T16**. En T5 **PRESERVAR el `.filter`** y el contenido real del `field__hint` (la ternaria, no el placeholder). El borrado del filter se hace una sola vez, en T16.
 
 **Files:**
 - Modify: `src/screens/Profile.tsx:120-159`
@@ -229,6 +260,12 @@ Paso 4 (área), envolver los chips:
 - [ ] **Step 4: Verificar** — `npm run typecheck`. Manual: con lector de pantalla, cada toggle anuncia su estado presionado.
 
 ### Task 6: Deshabilitar filas y `aria-busy` al adoptar en GoalSuggestions
+
+> **✅ Verificado al 31/05 + calidad**
+> - **Anchor:** `export function OptionRow`.
+> - **⚠ Preservar:** el JSX interno del `<button>` que el snippet abrevia con `{/* …resto igual… */}`; el `map` envolvente de `GoalSuggestions` (77-79).
+> - **Calidad (must):** mantener `disabled` y `busy` como props **independientes** (no derivar una de otra) — es el diseño reusable correcto (3 pantallas lo usan). La simplificación del `onClick` (quitar el guard `if(adopting===null)`) es segura: `disabled` ya bloquea el click.
+> - **nice:** `aria-busy` en un botón `disabled` casi no lo anuncian las AT; el estado real lo da el texto "Creando…".
 
 **Files:**
 - Modify: `src/components/OptionRow.tsx`
@@ -300,6 +337,11 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ### Task 8: Revisión semanal usa `goalsDueForReview`
 
+> **✅ Verificado al 31/05 + calidad**
+> - **Anchor:** poner el import junto al de `@/domain/dailyPlan` (no pegado al de servicios, línea 5).
+> - **⚠ Preservar:** íntegros el `.catch` (37-41) y el `return` de cleanup (42-44) del `useEffect`.
+> - **Calidad (must):** `goalsDueForReview(goals, now?)` ya filtra `status==='active'` internamente → llamarla con **un solo arg** `goalsDueForReview(gs)` (igual que Today.tsx) y no duplicar el filtro. Corregir el copy del empty-state: ya no es "no tenés metas activas" sino "nada para revisar hoy".
+
 **Files:**
 - Modify: `src/screens/Review.tsx:5,32-34`
 
@@ -323,6 +365,12 @@ listGoals(userId)
 - [ ] **Step 3: Verificar** — `npm run typecheck`. Manual: si el banner de Today dice "N metas para revisar", Review recorre exactamente N (no todas las activas).
 
 ### Task 9: Distinguir error duplicado vs. real (no tragarse fallos)
+
+> **✅ Verificado al 31/05 + calidad**
+> - **Anchor:** `export function isUniqueViolation`; `errors.ts` no existe aún (net-new, correcto).
+> - **⚠ Preservar:** el catch real de Wizard es `} catch { ... }` **sin binding** → al pasar a `catch (err)` agregar el import `isUniqueViolation`. Agregar el import en **ambas** pantallas (el snippet lo dice en prosa, no en código).
+> - **Calidad (must):** agregar un test con la **forma real** que lanza `createGoalTasks`: `Object.assign(new Error('...'), { code: '23505' })`. Agregar el test negativo de un mensaje *parecido* que NO debe matchear. **NO** extraer un helper compartido para los dos catches (3 líneas no justifican abstracción + acopla archivos que tocan T4/T6/T15).
+> - **nice:** unificar el comentario del catch en ambas pantallas; ordenar imports del test (`describe, expect, it`).
 
 **Files:**
 - Create: `src/lib/errors.ts`
@@ -406,6 +454,11 @@ try {
 
 ### Task 10: Rollback de mutaciones optimistas en Today
 
+> **✅ Verificado al 31/05 + calidad**
+> - **Anchor:** `async function withErrorHandling(fn: () => Promise<void>)`.
+> - **⚠ Preservar:** `toggle`/`editTask` se reescriben enteras → conservar el bloque de `cheer`/conteos (≈215-221) y el `patchTask` optimista; conservar `setActionError(null)` y el mensaje de fallback exacto. La nueva firma afecta las OTRAS llamadas (`removeTask`, `acceptForgotten`, `addTask`…) — siguen compilando (2º param opcional), no tocarlas.
+> - **Calidad (nice):** nombrar el 2º parámetro `rollback` en vez de `onError` (intención, no mecanismo).
+
 **Files:**
 - Modify: `src/screens/Today.tsx:202-233`
 
@@ -467,6 +520,11 @@ function editTask(task: Task, title: string) {
 
 ### Task 11: Tiempo por meta honesto (no prometer lo que no se cuenta)
 
+> **✅ Verificado al 31/05 + calidad**
+> - **Anchor:** string único `'Ligá bloques'` / `{weekMinutes === 0 && (` (no por línea — T3/T13 corren la numeración).
+> - **⚠ Preservar:** el `InfoRow` vecino `{weekMinutes > 0 && ...}` y el `{error && ...}` que el snippet no muestra. El único cambio real es el `<strong>con horario</strong>`.
+> - **Calidad (must):** que el copy sea honesto — el dato son bloques **agendados**, no "dedicados". *(Descartado por scope-creep: aria-label, guard `!loading`, casts sobre `weekMinutes`.)*
+
 **Files:**
 - Modify: `src/screens/GoalDetail.tsx:264-276` (el hint de "Esta semana")
 
@@ -490,6 +548,10 @@ function editTask(task: Task, title: string) {
 
 ### Task 12: Commit del Tier 1 data
 
+> **✅ Verificado al 31/05**
+> - **Orden:** el `git add` incluye `src/lib/errors.ts` y `errors.test.ts` — se **crean en T9** (mismo COMMIT 2), así que existen al llegar acá. Sólo fallaría si se ejecuta fuera de orden.
+> - **Conteo:** 44 tests (41 + 3). Con los tests extra de calidad de T9 (forma real + negativo) serían 45-46 — ajustar el número esperado al real tras correr la suite.
+
 - [ ] **Step 1: Suite completa** — `npm run typecheck && npm run test && npm run build`. Esperado: verde, 44 tests (41 + 3 nuevos).
 - [ ] **Step 2: Commit.**
 
@@ -507,6 +569,10 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ## COMMIT 3 — `fix(ux): destrabar y no regañar`
 
 ### Task 13: No mostrar "vencida" en metas logradas/archivadas
+
+> **✅ Verificado al 31/05 + calidad**
+> - **Anchor:** la línea `const deadline = relativeDeadline(goal.targetDate)` en cada archivo (Goals `GoalCard`; GoalDetail por contenido, no por línea — corre los anchors de T14).
+> - **Calidad (must):** extraer un predicado compartido `isGoalClosed(status)` (en domain) en vez de repetir `done || archived` en 4 lugares — **un único booleano**, sin `goalStatusMeta`/registry/hook (sería gold-plating). Confirmar que `'paused'` **sigue** mostrando "vencida" (no ampliar scope a pausadas).
 
 **Files:**
 - Modify: `src/screens/Goals.tsx:106`
@@ -534,6 +600,11 @@ const deadline =
 
 ### Task 14: Back contextual en GoalDetail
 
+> **✅ Verificado al 31/05 + calidad**
+> - **Anchor:** hay DOS `<BackButton onClick={() => navigate('/metas')} />` (líneas 135 y 165) — el principal es el que **no** está dentro del `if (!goal)`. Declarar `goBack` dentro del componente (scope de `navigate`).
+> - **Calidad (must):** usar `location.key === 'default'` (react-router) para detectar deep-link directo, en vez de `window.history.length` (más fiable en SPA).
+> - **nice:** NO aplicar `goBack` al BackButton de "meta no encontrada" (queda como está).
+
 **Files:**
 - Modify: `src/screens/GoalDetail.tsx:163-165` (botón principal)
 
@@ -549,6 +620,13 @@ Y usarlo en el `<BackButton onClick={goBack} />` de la vista principal (línea 1
 - [ ] **Step 2: Verificar** — `npm run typecheck`. Manual: entrar al detalle desde Today y tocar Volver → vuelve a Today (no a /metas).
 
 ### Task 15: Persistencia de borrador del Wizard
+
+> **✅ Verificado al 31/05 + calidad**
+> - **Anchor:** `export function Wizard()`.
+> - **⚠ Preservar:** entre `createGoalTasks` y `navigate(...)` hay un comentario (l.71) y la variable `goal` de `createGoal` que usa el navigate — al insertar `clearDraft()` no perderlos. El componente tiene también `const [saving]`/`const [error]` junto a los 7 useState que se reescriben.
+> - **Calidad (must):** `loadDraft` NO debe confiar ciego en `JSON.parse` → validar el shape antes de devolver. Agregar un type-guard `isNiche` reusando `NICHES` (espejo de `isTheme` en theme.ts). **Sanear `step`** cargado (clamp al rango válido) para que un draft corrupto no rompa el render.
+> - **nice:** no persistir un borrador vacío en el mount inicial.
+> - **Coordinación:** `Wizard.tsx` lo tocan T4 (a11y) y T9 (catch); aparece en los 3 commits.
 
 **Files:**
 - Modify: `src/screens/Wizard.tsx`
@@ -612,6 +690,11 @@ navigate(`/meta/creada/${goal.id}`, { replace: true })
 
 ### Task 16: Nicho 'otra' seleccionable en Profile
 
+> **✅ Verificado al 31/05 + calidad**
+> - **Anchor:** string único `NICHES.filter((n) => n.id !== 'otra')` (Profile, `ProfileEditor`).
+> - **⚠ Coordinación con T5 (mismo bloque):** la nota del plan dice "Task 11" pero el dueño del borrado es **T16**. Hacer el **cambio mínimo: borrar solo el `.filter`**, sin pegar el snippet completo. NO introducir `aria-pressed`/`role=group` acá (es de T5). Preservar el wrapper `<div className="field">`.
+> - **Calidad (must):** NO replicar el cambio en `Onboarding.tsx` — ahí el `.filter('otra')` es intencional.
+
 **Files:**
 - Modify: `src/screens/Profile.tsx:148`
 
@@ -631,6 +714,13 @@ navigate(`/meta/creada/${goal.id}`, { replace: true })
 - [ ] **Step 2: Verificar** — `npm run typecheck`. Manual: con `primaryNiche='otra'`, abrir el editor → el chip "Otra" aparece seleccionado; guardar no cambia el nicho.
 
 ### Task 17: Recuperar contraseña en Auth (cerrar el dead-end)
+
+> **✅ Verificado al 31/05 + calidad**
+> - **Anchors:** `function translateAuthError(...)` ya existe (reutilizar). `import { supabase }` ya está en `auth.ts:2` — **no duplicar**. En Auth.tsx **ampliar** el import existente `import { signIn, signUp }` (no crear una 2ª línea).
+> - **⚠ Preservar:** `handleSubmit` (18-37) y `switchMode`; insertar el link de reset después del `</div>` del campo contraseña (l.141) y antes del `{error && ...}` (143).
+> - **Calidad (must):** el botón de reset (`btn--link`) no encadena con `.btn` → **darle afordancia visual de disabled**. Afinar el copy del email-vacío a voseo claro y conciso (no mezclar instrucción + promesa).
+> - **nice:** el bloque `notice` necesita `role`/`aria-live` para que el aviso se anuncie (se coordina con T2).
+> - *(Descartado: distinguir "email existe/no existe" rompería el anti-enumeración de Supabase.)*
 
 **Files:**
 - Modify: `src/services/auth.ts`
