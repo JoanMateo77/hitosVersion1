@@ -22,6 +22,13 @@ export async function signIn(email: string, password: string): Promise<void> {
   if (error) throw new Error(translateAuthError(error.message))
 }
 
+export async function resetPassword(email: string): Promise<void> {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/`,
+  })
+  if (error) throw new Error(translateAuthError(error.message))
+}
+
 export async function signOut(): Promise<void> {
   const { error } = await supabase.auth.signOut()
   if (error) throw new Error(error.message)

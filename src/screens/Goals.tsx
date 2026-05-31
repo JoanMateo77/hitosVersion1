@@ -4,6 +4,7 @@ import { listGoals } from '@/services/goals'
 import { countDoneByGoal } from '@/services/tasks'
 import { getTemplate } from '@/domain/templates'
 import { getNiche } from '@/domain/niches'
+import { isGoalClosed } from '@/domain/goals'
 import { relativeDeadline } from '@/lib/date'
 import type { Goal, GoalStatus } from '@/lib/types'
 import { useAsyncData } from '@/hooks/useAsyncData'
@@ -103,9 +104,9 @@ function GoalCard({
 }) {
   const template = getTemplate(goal.templateKey)
   const niche = getNiche(goal.area)
-  const deadline = relativeDeadline(goal.targetDate)
+  const deadline = isGoalClosed(goal.status) ? null : relativeDeadline(goal.targetDate)
   const badge = STATUS_BADGE[goal.status]
-  const dimmed = goal.status === 'done' || goal.status === 'archived'
+  const dimmed = isGoalClosed(goal.status)
   const milestones = template.milestones
   const stage = Math.min(goal.currentMilestone, milestones.length)
   const showProgress =

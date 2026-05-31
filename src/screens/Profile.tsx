@@ -147,7 +147,7 @@ function ProfileEditor({
       <div className="field">
         <span className="field__label">Tu foco principal</span>
         <div className="row wrap" role="group" aria-label="Tu foco principal">
-          {NICHES.filter((n) => n.id !== 'otra').map((n) => (
+          {NICHES.map((n) => (
             <button
               key={n.id}
               type="button"

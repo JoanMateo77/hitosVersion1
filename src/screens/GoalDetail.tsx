@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { getGoal, setGoalMilestone, setGoalStatus, updateGoal, type GoalEdit } from '@/services/goals'
 import { countDoneByGoal, createGoalTasks } from '@/services/tasks'
@@ -7,6 +7,7 @@ import { minutesByGoalInRange } from '@/services/events'
 import { getTemplate } from '@/domain/templates'
 import { pickAction } from '@/domain/dailyPlan'
 import { NICHES, getNiche } from '@/domain/niches'
+import { isGoalClosed } from '@/domain/goals'
 import { addDays, formatDuration, formatLongDate, relativeDeadline, startOfWeek, todayISO } from '@/lib/date'
 import type { Goal, GoalStatus, NicheId } from '@/lib/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
@@ -27,7 +28,12 @@ export function GoalDetail() {
   const { goalId } = useParams<{ goalId: string }>()
   const { userId } = useSession()
   const navigate = useNavigate()
+  const location = useLocation()
   const { toast } = useToast()
+
+  // Volver al origen real (Today/Agenda/Metas). En un deep-link directo (sin
+  // historial in-app) location.key === 'default': caemos a /metas.
+  const goBack = () => (location.key === 'default' ? navigate('/metas') : navigate(-1))
 
   const [goal, setGoal] = useState<Goal | null>(null)
   const [doneCount, setDoneCount] = useState(0)
@@ -158,11 +164,11 @@ export function GoalDetail() {
   const template = getTemplate(goal.templateKey)
   const milestones = template.milestones
   const niche = getNiche(goal.area)
-  const deadline = relativeDeadline(goal.targetDate)
+  const deadline = isGoalClosed(goal.status) ? null : relativeDeadline(goal.targetDate)
 
   return (
     <div className="screen">
-      <BackButton onClick={() => navigate('/metas')} />
+      <BackButton onClick={goBack} />
 
       <header className="screen__header" style={{ marginTop: 'var(--s4)' }}>
         <div className="row" style={{ marginBottom: 'var(--s2)' }}>

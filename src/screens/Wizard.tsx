@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { createGoal } from '@/services/goals'
@@ -16,20 +16,89 @@ import { Hint } from '@/components/Hint'
 /** Cantidad de pasos del wizard (las 5 preguntas + el tipo de meta). */
 const STEPS = 6
 
+const DRAFT_KEY = 'hito.wizard-draft'
+
+interface WizardDraft {
+  step: number
+  title: string
+  templateKey: string
+  why: string
+  targetDate: string
+  area: NicheId
+  criteria: string
+}
+
+/** Type-guard: ¿el valor es un NicheId válido? Espejo de isTheme en theme.ts. */
+function isNiche(value: unknown): value is NicheId {
+  return typeof value === 'string' && NICHES.some((n) => n.id === value)
+}
+
+/**
+ * Lee el borrador de sessionStorage validando campo por campo: no confiamos a
+ * ciegas en el JSON (puede estar corrupto o de una versión vieja). El step se
+ * acota al rango válido para que un draft roto no rompa el render.
+ */
+function loadDraft(): Partial<WizardDraft> {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY)
+    if (!raw) return {}
+    const parsed: unknown = JSON.parse(raw)
+    if (parsed == null || typeof parsed !== 'object') return {}
+    const d = parsed as Record<string, unknown>
+    const draft: Partial<WizardDraft> = {}
+    if (typeof d.step === 'number' && Number.isFinite(d.step)) {
+      draft.step = Math.min(Math.max(Math.trunc(d.step), 0), STEPS - 1)
+    }
+    if (typeof d.title === 'string') draft.title = d.title
+    if (typeof d.templateKey === 'string') draft.templateKey = d.templateKey
+    if (typeof d.why === 'string') draft.why = d.why
+    if (typeof d.targetDate === 'string') draft.targetDate = d.targetDate
+    if (isNiche(d.area)) draft.area = d.area
+    if (typeof d.criteria === 'string') draft.criteria = d.criteria
+    return draft
+  } catch {
+    return {}
+  }
+}
+
+function clearDraft() {
+  try {
+    sessionStorage.removeItem(DRAFT_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
 export function Wizard() {
   const { userId, profile } = useSession()
   const navigate = useNavigate()
 
-  const [step, setStep] = useState(0)
-  const [title, setTitle] = useState('')
-  const [templateKey, setTemplateKey] = useState('')
-  const [why, setWhy] = useState('')
-  const [targetDate, setTargetDate] = useState('')
-  const [area, setArea] = useState<NicheId>('otra')
-  const [criteria, setCriteria] = useState('')
+  const [draft] = useState(loadDraft)
+  const [step, setStep] = useState(draft.step ?? 0)
+  const [title, setTitle] = useState(draft.title ?? '')
+  const [templateKey, setTemplateKey] = useState(draft.templateKey ?? '')
+  const [why, setWhy] = useState(draft.why ?? '')
+  const [targetDate, setTargetDate] = useState(draft.targetDate ?? '')
+  const [area, setArea] = useState<NicheId>(draft.area ?? 'otra')
+  const [criteria, setCriteria] = useState(draft.criteria ?? '')
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Persistimos el borrador en cada cambio, salvo el estado vacío inicial.
+  useEffect(() => {
+    const isEmpty =
+      step === 0 && !title && !templateKey && !why && !targetDate && area === 'otra' && !criteria
+    if (isEmpty) return
+    try {
+      sessionStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ step, title, templateKey, why, targetDate, area, criteria }),
+      )
+    } catch {
+      /* ignore */
+    }
+  }, [step, title, templateKey, why, targetDate, area, criteria])
 
   function goBack() {
     if (step === 0) {
@@ -71,6 +140,7 @@ export function Wizard() {
         if (!isUniqueViolation(err)) throw err
       }
       // Le mostramos el camino + la primera acción: la app guía, no solo crea.
+      clearDraft()
       navigate(`/meta/creada/${goal.id}`, { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo crear la meta. Probá de nuevo.')

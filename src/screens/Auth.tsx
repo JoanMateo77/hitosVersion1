@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { signIn, signUp } from '@/services/auth'
+import { resetPassword, signIn, signUp } from '@/services/auth'
 import { IconHito } from '@/components/icons'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 
@@ -31,6 +31,25 @@ export function Auth() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Algo salió mal. Probá de nuevo.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleReset() {
+    const target = email.trim()
+    if (!target) {
+      setError('Escribí tu email arriba para recuperar tu contraseña.')
+      return
+    }
+    setError(null)
+    setNotice(null)
+    setLoading(true)
+    try {
+      await resetPassword(target)
+      setNotice('Te mandamos un email para recuperar tu contraseña. Revisá tu casilla.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo enviar el email.')
     } finally {
       setLoading(false)
     }
@@ -139,6 +158,18 @@ export function Auth() {
                 minLength={6}
               />
             </div>
+
+            {!isSignup && (
+              <button
+                type="button"
+                className="btn--link"
+                style={{ alignSelf: 'flex-end' }}
+                onClick={handleReset}
+                disabled={loading}
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            )}
 
             {error && <div className="alert alert--error" role="alert">{error}</div>}
             {notice && (

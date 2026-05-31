@@ -168,6 +168,10 @@
   font-weight: 600;
   position: relative;
 }
+.btn--link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 /* Botón redondo de ícono (volver, cerrar, etc.) — 44 px = mínimo iOS. */
 .iconbtn {
