@@ -101,6 +101,7 @@ export function Wizard() {
             <input
               className="input"
               autoFocus
+              aria-label="¿Qué querés lograr?"
               placeholder="Escribí tu meta…"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -152,6 +153,7 @@ export function Wizard() {
             <textarea
               className="textarea"
               autoFocus
+              aria-label="¿Por qué querés lograrlo?"
               placeholder="Porque…"
               value={why}
               onChange={(e) => setWhy(e.target.value)}
@@ -171,6 +173,7 @@ export function Wizard() {
             <input
               className="input"
               type="date"
+              aria-label="¿Para cuándo?"
               min={todayISO()}
               value={targetDate}
               onChange={(e) => setTargetDate(e.target.value)}
@@ -185,15 +188,16 @@ export function Wizard() {
 
         {step === 4 && (
           <Question title="¿En qué área de tu vida cae?" hint="Nos ayuda a priorizar tu plan del día.">
-            <div className="row wrap">
+            <div className="row wrap" role="group" aria-label="¿En qué área de tu vida cae?">
               {NICHES.map((n) => (
                 <button
                   key={n.id}
                   type="button"
                   className={`chip${area === n.id ? ' chip--selected' : ''}`}
+                  aria-pressed={area === n.id}
                   onClick={() => setArea(n.id)}
                 >
-                  {n.emoji} {n.label}
+                  <span aria-hidden="true">{n.emoji}</span> {n.label}
                 </button>
               ))}
             </div>
@@ -208,6 +212,7 @@ export function Wizard() {
             <input
               className="input"
               autoFocus
+              aria-label="¿Cómo vas a saber que lo lograste?"
               placeholder="Lo voy a saber cuando…"
               value={criteria}
               onChange={(e) => setCriteria(e.target.value)}

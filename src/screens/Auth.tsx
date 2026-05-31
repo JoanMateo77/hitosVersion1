@@ -140,9 +140,14 @@ export function Auth() {
               />
             </div>
 
-            {error && <div className="alert alert--error">{error}</div>}
+            {error && <div className="alert alert--error" role="alert">{error}</div>}
             {notice && (
-              <div className="alert" style={{ background: 'var(--success-soft)', color: 'var(--success)' }}>
+              <div
+                className="alert"
+                role="status"
+                aria-live="polite"
+                style={{ background: 'var(--success-soft)', color: 'var(--success)' }}
+              >
                 {notice}
               </div>
             )}

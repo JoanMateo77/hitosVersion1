@@ -1921,3 +1921,25 @@ select.input {
     top: var(--s8);
   }
 }
+
+/* Skip-link: oculto hasta recibir foco por teclado. */
+.skip-link {
+  position: absolute;
+  left: var(--s3);
+  top: -56px;
+  z-index: 1000;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: var(--fs-sm);
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+.skip-link:focus-visible {
+  top: var(--s3);
+  /* El ring global es var(--primary); sobre el fondo primary del skip-link
+     queda invisible, así que contrastamos con --on-primary (igual que .btn--primary). */
+  outline-color: var(--on-primary);
+  outline-offset: -3px;
+}

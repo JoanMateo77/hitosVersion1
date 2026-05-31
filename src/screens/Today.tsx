@@ -543,12 +543,12 @@ export function Today() {
       </form>
 
       {actionError && (
-        <div className="alert alert--error" style={{ marginTop: 'var(--s3)' }}>
+        <div className="alert alert--error" role="alert" style={{ marginTop: 'var(--s3)' }}>
           {actionError}
         </div>
       )}
       {notice && (
-        <p className="muted center small" style={{ marginTop: 'var(--s3)' }}>
+        <p className="muted center small" role="status" aria-live="polite" style={{ marginTop: 'var(--s3)' }}>
           {notice}
         </p>
       )}

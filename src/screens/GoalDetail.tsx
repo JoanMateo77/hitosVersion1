@@ -375,8 +375,9 @@ function GoalEditor({
   return (
     <div className="stack stack--lg">
       <div className="field">
-        <span className="field__label">¿Qué querés lograr?</span>
+        <label className="field__label" htmlFor="edit-title">¿Qué querés lograr?</label>
         <input
+          id="edit-title"
           className="input"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -388,8 +389,9 @@ function GoalEditor({
         />
       </div>
       <div className="field">
-        <span className="field__label">¿Por qué? (opcional)</span>
+        <label className="field__label" htmlFor="edit-why">¿Por qué? (opcional)</label>
         <textarea
+          id="edit-why"
           className="textarea"
           value={why}
           onChange={(e) => setWhy(e.target.value)}
@@ -399,8 +401,9 @@ function GoalEditor({
         />
       </div>
       <div className="field">
-        <span className="field__label">¿Para cuándo? (opcional)</span>
+        <label className="field__label" htmlFor="edit-date">¿Para cuándo? (opcional)</label>
         <input
+          id="edit-date"
           className="input"
           type="date"
           min={todayISO()}
@@ -414,23 +417,25 @@ function GoalEditor({
         )}
       </div>
       <div className="field">
-        <span className="field__label">Área</span>
-        <div className="row wrap">
+        <span className="field__label" id="edit-area-label">Área</span>
+        <div className="row wrap" role="group" aria-labelledby="edit-area-label">
           {NICHES.map((n) => (
             <button
               key={n.id}
               type="button"
               className={`chip${area === n.id ? ' chip--selected' : ''}`}
+              aria-pressed={area === n.id}
               onClick={() => setArea(n.id)}
             >
-              {n.emoji} {n.label}
+              <span aria-hidden="true">{n.emoji}</span> {n.label}
             </button>
           ))}
         </div>
       </div>
       <div className="field">
-        <span className="field__label">Lo logro cuando… (opcional)</span>
+        <label className="field__label" htmlFor="edit-criteria">Lo logro cuando… (opcional)</label>
         <input
+          id="edit-criteria"
           className="input"
           value={criteria}
           onChange={(e) => setCriteria(e.target.value)}
@@ -441,7 +446,7 @@ function GoalEditor({
           inputMode="text"
         />
       </div>
-      {error && <div className="alert alert--error">{error}</div>}
+      {error && <div className="alert alert--error" role="alert">{error}</div>}
       <div className="stack stack--sm">
         <button
           className="btn btn--primary btn--block"

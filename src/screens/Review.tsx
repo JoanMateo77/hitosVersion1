@@ -125,7 +125,7 @@ export function Review() {
           <Roadmap milestones={milestones} currentIndex={stage} />
         </div>
 
-        {error && <div className="alert alert--error">{error}</div>}
+        {error && <div className="alert alert--error" role="alert">{error}</div>}
       </div>
 
       <div className="stack stack--sm">

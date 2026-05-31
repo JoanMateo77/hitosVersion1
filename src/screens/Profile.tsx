@@ -119,10 +119,11 @@ function ProfileEditor({
     <div className="stack stack--lg">
       <div className="field">
         <span className="field__label">¿Cómo querés trabajar?</span>
-        <div className="seg" style={{ alignSelf: 'flex-start' }}>
+        <div className="seg" role="group" aria-label="¿Cómo querés trabajar?" style={{ alignSelf: 'flex-start' }}>
           <button
             type="button"
             className={`seg__btn${focusMode === 'single' ? ' seg__btn--active' : ''}`}
+            aria-pressed={focusMode === 'single'}
             onClick={() => setFocusMode('single')}
           >
             Una meta
@@ -130,6 +131,7 @@ function ProfileEditor({
           <button
             type="button"
             className={`seg__btn${focusMode === 'multi' ? ' seg__btn--active' : ''}`}
+            aria-pressed={focusMode === 'multi'}
             onClick={() => setFocusMode('multi')}
           >
             Varias metas
@@ -144,21 +146,22 @@ function ProfileEditor({
 
       <div className="field">
         <span className="field__label">Tu foco principal</span>
-        <div className="row wrap">
+        <div className="row wrap" role="group" aria-label="Tu foco principal">
           {NICHES.filter((n) => n.id !== 'otra').map((n) => (
             <button
               key={n.id}
               type="button"
               className={`chip${niche === n.id ? ' chip--selected' : ''}`}
+              aria-pressed={niche === n.id}
               onClick={() => setNiche(n.id)}
             >
-              {n.emoji} {n.label}
+              <span aria-hidden="true">{n.emoji}</span> {n.label}
             </button>
           ))}
         </div>
       </div>
 
-      {error && <div className="alert alert--error">{error}</div>}
+      {error && <div className="alert alert--error" role="alert">{error}</div>}
 
       <div className="stack stack--sm">
         <button className="btn btn--primary btn--block" onClick={save} disabled={saving}>

@@ -5,17 +5,29 @@ interface OptionRowProps {
   label: string
   desc?: string
   selected?: boolean
+  disabled?: boolean
+  busy?: boolean
   onClick: () => void
 }
 
 /** Opción grande seleccionable. Base de onboarding, wizard y sugerencias. */
-export function OptionRow({ emoji, label, desc, selected = false, onClick }: OptionRowProps) {
+export function OptionRow({
+  emoji,
+  label,
+  desc,
+  selected = false,
+  disabled = false,
+  busy = false,
+  onClick,
+}: OptionRowProps) {
   return (
     <button
       type="button"
       className={`option${selected ? ' option--selected' : ''}`}
       onClick={onClick}
+      disabled={disabled}
       aria-pressed={selected}
+      aria-busy={busy || undefined}
     >
       {emoji && <span className="option__emoji">{emoji}</span>}
       <span className="option__body">

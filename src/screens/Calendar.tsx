@@ -185,11 +185,12 @@ export function Calendar() {
             </span>
           </button>
         </div>
-        <div className="seg">
+        <div className="seg" role="group" aria-label="Vista del calendario">
           {(['day', 'week', 'month'] as const).map((v) => (
             <button
               key={v}
               className={`seg__btn${view === v ? ' seg__btn--active' : ''}`}
+              aria-pressed={view === v}
               onClick={() => changeView(v)}
             >
               {v === 'day' ? 'Día' : v === 'week' ? 'Semana' : 'Mes'}
@@ -451,10 +452,11 @@ function EventEditor({
             value={eventDate}
             onChange={(e) => setEventDate(e.target.value)}
           />
-          <div className="seg" style={{ alignSelf: 'flex-start' }}>
+          <div className="seg" role="group" aria-label="Tipo de evento" style={{ alignSelf: 'flex-start' }}>
             <button
               type="button"
               className={`seg__btn${allDay ? ' seg__btn--active' : ''}`}
+              aria-pressed={allDay}
               onClick={() => setAllDay(true)}
             >
               Todo el día
@@ -462,6 +464,7 @@ function EventEditor({
             <button
               type="button"
               className={`seg__btn${!allDay ? ' seg__btn--active' : ''}`}
+              aria-pressed={!allDay}
               onClick={() => setAllDay(false)}
             >
               Con horario

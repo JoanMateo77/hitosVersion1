@@ -82,14 +82,14 @@ export function GoalSuggestions() {
               emoji={template.emoji}
               label={seed.title}
               desc={adopting === seed.title ? 'Creando…' : template.label}
-              onClick={() => {
-                if (adopting === null) void adopt(seed)
-              }}
+              disabled={adopting !== null}
+              busy={adopting === seed.title}
+              onClick={() => void adopt(seed)}
             />
           )
         })}
 
-        {error && <div className="alert alert--error">{error}</div>}
+        {error && <div className="alert alert--error" role="alert">{error}</div>}
       </div>
 
       <button

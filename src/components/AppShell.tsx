@@ -12,12 +12,13 @@ import { TopBar } from '@/components/TopBar'
 export function AppShell() {
   return (
     <div className="shell">
+      <a className="skip-link" href="#contenido">Saltar al contenido</a>
       <SideNav />
       <div className="shell__main">
         <TopBar />
-        <div className="shell__content">
+        <main id="contenido" className="shell__content">
           <Outlet />
-        </div>
+        </main>
       </div>
       <BottomNav />
     </div>
