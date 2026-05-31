@@ -263,7 +263,7 @@ export function GoalDetail() {
 
           {weekMinutes === 0 && (
             <p className="faint tiny row row--sm" style={{ alignItems: 'center' }}>
-              <IconClock size={14} /> Ligá bloques de tu{' '}
+              <IconClock size={14} /> Ligá bloques <strong>con horario</strong> de tu{' '}
               <button
                 className="btn--link"
                 style={{ padding: 0 }}
@@ -271,7 +271,7 @@ export function GoalDetail() {
               >
                 agenda
               </button>{' '}
-              a esta meta y vas a ver acá cuánto tiempo le dedicás por semana.
+              a esta meta y vas a ver acá cuánto tiempo le agendás por semana.
             </p>
           )}
 

@@ -199,16 +199,18 @@ export function Today() {
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...changes } : t)))
   }
 
-  async function withErrorHandling(fn: () => Promise<void>) {
+  async function withErrorHandling(fn: () => Promise<void>, rollback?: () => void) {
     setActionError(null)
     try {
       await fn()
     } catch (err) {
+      rollback?.()
       setActionError(err instanceof Error ? err.message : 'No se pudo guardar el cambio.')
     }
   }
 
   function toggle(task: Task) {
+    const prevStatus = task.status
     const wasPending = task.status !== 'done'
     const nextStatus: TaskStatus = wasPending ? 'done' : 'pending'
     patchTask(task.id, { status: nextStatus }) // optimista
@@ -219,17 +221,24 @@ export function Today() {
       if (willBeDone === 1 && total > 0) cheer('Ese es el hito de hoy.')
       else if (willBeDone === total && total > 1) cheer('Cerraste tu día. Mañana seguimos.')
     }
-    void withErrorHandling(async () => {
-      const updated = await setTaskStatus(task.id, nextStatus)
-      patchTask(task.id, updated)
-    })
+    void withErrorHandling(
+      async () => {
+        const updated = await setTaskStatus(task.id, nextStatus)
+        patchTask(task.id, updated)
+      },
+      () => patchTask(task.id, { status: prevStatus }),
+    )
   }
 
   function editTask(task: Task, title: string) {
+    const prevTitle = task.title
     patchTask(task.id, { title })
-    void withErrorHandling(async () => {
-      await updateTaskTitle(task.id, title)
-    })
+    void withErrorHandling(
+      async () => {
+        await updateTaskTitle(task.id, title)
+      },
+      () => patchTask(task.id, { title: prevTitle }),
+    )
   }
 
   function removeTask(task: Task) {

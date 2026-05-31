@@ -8,6 +8,7 @@ import { pickAction } from '@/domain/dailyPlan'
 import { NICHES, getNiche } from '@/domain/niches'
 import type { NicheId } from '@/lib/types'
 import { formatLongDate, relativeDeadline, todayISO } from '@/lib/date'
+import { isUniqueViolation } from '@/lib/errors'
 import { IconBack, IconCalendar, IconLightbulb } from '@/components/icons'
 import { OptionRow } from '@/components/OptionRow'
 import { Hint } from '@/components/Hint'
@@ -65,8 +66,9 @@ export function Wizard() {
         await createGoalTasks(userId, todayISO(), [
           { goalId: goal.id, title: pickAction(goal, todayISO()) },
         ])
-      } catch {
-        // Si ya existía una tarea de esta meta hoy, seguimos igual.
+      } catch (err) {
+        // Solo ignoramos el duplicado (ya existía la acción de hoy); el resto sube.
+        if (!isUniqueViolation(err)) throw err
       }
       // Le mostramos el camino + la primera acción: la app guía, no solo crea.
       navigate(`/meta/creada/${goal.id}`, { replace: true })

@@ -8,6 +8,7 @@ import { getTemplate } from '@/domain/templates'
 import { getNiche } from '@/domain/niches'
 import { pickAction } from '@/domain/dailyPlan'
 import { todayISO } from '@/lib/date'
+import { isUniqueViolation } from '@/lib/errors'
 import type { NicheId } from '@/lib/types'
 import { OptionRow } from '@/components/OptionRow'
 import { IconBack } from '@/components/icons'
@@ -49,8 +50,9 @@ export function GoalSuggestions() {
         await createGoalTasks(userId, todayISO(), [
           { goalId: goal.id, title: pickAction(goal, todayISO()) },
         ])
-      } catch {
-        /* si ya existía una acción de esta meta hoy, seguimos */
+      } catch (err) {
+        // Solo ignoramos el duplicado (ya existía la acción de hoy); el resto sube.
+        if (!isUniqueViolation(err)) throw err
       }
       navigate(`/meta/creada/${goal.id}`, { replace: true })
     } catch (err) {

@@ -73,7 +73,8 @@ export async function createGoalTasks(
     source: 'goal' as const,
   }))
   const { data, error } = await supabase.from('tasks').insert(rows).select('*')
-  if (error) throw new Error(error.message)
+  // Preservamos el code (ej. 23505) para distinguir el duplicado del resto de fallos.
+  if (error) throw Object.assign(new Error(error.message), { code: error.code })
   return (data as TaskRow[]).map(mapTask)
 }
 

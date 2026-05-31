@@ -4,6 +4,7 @@ import { useSession } from '@/app/session'
 import type { Goal } from '@/lib/types'
 import { listGoals, markGoalReviewed, setGoalMilestone, setGoalStatus } from '@/services/goals'
 import { getTemplate } from '@/domain/templates'
+import { goalsDueForReview } from '@/domain/dailyPlan'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { useToast } from '@/app/toast'
 import { Roadmap } from '@/components/Roadmap'
@@ -31,7 +32,7 @@ export function Review() {
     listGoals(userId)
       .then((gs) => {
         if (!active) return
-        setGoals(gs.filter((g) => g.status === 'active'))
+        setGoals(goalsDueForReview(gs))
         setLoading(false)
       })
       .catch((err: unknown) => {
@@ -67,9 +68,9 @@ export function Review() {
         <div className="empty" style={{ marginTop: 'var(--s8)' }}>
           <IconSprout size={48} className="muted" />
           <p className="empty__title" style={{ marginTop: 'var(--s4)' }}>
-            No tenés metas activas para revisar
+            Nada para revisar por ahora
           </p>
-          <p className="muted">Cuando tengas metas en marcha, las repasamos acá.</p>
+          <p className="muted">Cuando una de tus metas toque revisión, la repasamos acá.</p>
         </div>
       </div>
     )
