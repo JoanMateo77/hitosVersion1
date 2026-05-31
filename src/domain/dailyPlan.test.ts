@@ -8,6 +8,7 @@ import {
   planningGoals,
   weeklyFocus,
 } from '@/domain/dailyPlan'
+import { getTemplate } from '@/domain/templates'
 import type { Goal, Task } from '@/lib/types'
 
 // 2026-05-25 = lunes · 2026-05-26 = martes · 2026-05-24 = domingo
@@ -71,6 +72,17 @@ describe('pickAction', () => {
   })
   it('es determinístico para misma meta y día', () => {
     expect(pickAction(goal(), '2026-05-25')).toBe(pickAction(goal(), '2026-05-25'))
+  })
+  it('en la primera etapa (currentMilestone 0) usa el pool de arranque', () => {
+    const t = getTemplate('salud_fisico')
+    expect(t.kickoffActions).toBeDefined()
+    const a = pickAction(goal({ currentMilestone: 0 }), '2026-05-25')
+    expect(t.kickoffActions).toContain(a)
+  })
+  it('en etapas avanzadas usa el pool de régimen, no el de arranque', () => {
+    const t = getTemplate('salud_fisico')
+    const a = pickAction(goal({ currentMilestone: 2 }), '2026-05-25')
+    expect(t.actions).toContain(a)
   })
 })
 

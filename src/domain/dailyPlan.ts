@@ -71,9 +71,17 @@ export function isDueToday(cadence: Cadence, dateISO: string): boolean {
  */
 export function pickAction(goal: Goal, dateISO: string): string {
   const template = getTemplate(goal.templateKey)
-  if (template.actions.length === 0) return 'Avanzar 25 min en tu meta'
-  const index = (dayIndex(dateISO) + hashString(goal.id)) % template.actions.length
-  return template.actions[index]
+  // En la primera etapa proponemos acciones de "arranque" (kickoff) si la
+  // plantilla las trae; en etapas avanzadas, el pool de régimen.
+  const pool =
+    goal.currentMilestone <= 0 && template.kickoffActions?.length
+      ? template.kickoffActions
+      : template.actions
+  if (pool.length === 0) return 'Avanzar 25 min en tu meta'
+  // currentMilestone entra en la rotación: la acción evoluciona con la etapa.
+  const index =
+    (dayIndex(dateISO) + hashString(goal.id) + Math.max(0, goal.currentMilestone)) % pool.length
+  return pool[index]
 }
 
 export interface PlannedAction {

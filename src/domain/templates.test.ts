@@ -6,6 +6,18 @@ describe('detectTemplate', () => {
     expect(detectTemplate('Aprender inglés').key).toBe('aprender_habilidad')
     expect(detectTemplate('Bajar 5 kg y correr').key).toBe('salud_fisico')
   })
+  it('detecta sinónimos y aliases comunes (cobertura ampliada)', () => {
+    expect(detectTemplate('Preparar las oposiciones').key).toBe('academico')
+    expect(detectTemplate('Hacer un MBA').key).toBe('academico')
+    expect(detectTemplate('Correr una maratón').key).toBe('salud_fisico')
+    expect(detectTemplate('Dejar de fumar').key).toBe('bienestar')
+    expect(detectTemplate('Lanzar mi marca personal').key).toBe('crear_publicar')
+    expect(detectTemplate('Emprender mi negocio').key).toBe('crear_publicar')
+    expect(detectTemplate('Aprender Python').key).toBe('aprender_habilidad')
+    expect(detectTemplate('Salir de deudas').key).toBe('finanzas')
+    expect(detectTemplate('Conseguir un nuevo laburo').key).toBe('carrera')
+    expect(detectTemplate('Invertir en la bolsa').key).toBe('finanzas')
+  })
   it('sin señales claras -> personalizada', () => {
     expect(detectTemplate('algo totalmente ambiguo').key).toBe('personalizada')
   })

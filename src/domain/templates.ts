@@ -17,7 +17,9 @@ export const TEMPLATES: GoalTemplate[] = [
     keywords: [
       'peso', 'adelgazar', 'bajar', 'kilos', 'gym', 'gimnasio', 'correr', 'caminar',
       'ejercicio', 'salud', 'físico', 'fisico', 'musculo', 'músculo', 'entrenar',
-      'fuerza', 'cardio', 'dieta', 'comer',
+      'fuerza', 'cardio', 'dieta', 'comer', 'maratón', 'maraton', 'running', 'trotar',
+      'pesas', 'yoga', 'pilates', 'nadar', 'natación', 'natacion', 'bici', 'bicicleta',
+      'deporte', 'tonificar', 'abdominales', 'crossfit', 'spinning', 'flexiones',
     ],
     milestones: [
       'Definir tu punto de partida (peso, medidas o resistencia actual)',
@@ -33,6 +35,13 @@ export const TEMPLATES: GoalTemplate[] = [
       'Estirar 10 min al despertar',
       'Registrar lo que comiste hoy',
     ],
+    kickoffActions: [
+      'Anotar tu peso o medidas de hoy',
+      'Elegir 3 días fijos para entrenar',
+      'Dejar la ropa de ejercicio lista para mañana',
+      'Caminar 15 min para arrancar',
+      'Buscar una rutina simple para principiantes',
+    ],
     cadence: 'weekdays',
     reviewEveryDays: 7,
   },
@@ -43,9 +52,12 @@ export const TEMPLATES: GoalTemplate[] = [
     defaultArea: 'aprendizaje',
     description: 'Un idioma, código, un instrumento, un oficio.',
     keywords: [
-      'aprender', 'idioma', 'inglés', 'ingles', 'francés', 'frances', 'programar',
-      'código', 'codigo', 'curso', 'estudiar', 'instrumento', 'guitarra', 'piano',
-      'habilidad', 'tocar', 'dibujar',
+      'aprender', 'idioma', 'idiomas', 'inglés', 'ingles', 'francés', 'frances',
+      'alemán', 'aleman', 'italiano', 'portugués', 'portugues', 'japonés', 'japones',
+      'chino', 'programar', 'código', 'codigo', 'python', 'javascript', 'excel',
+      'curso', 'estudiar', 'instrumento', 'guitarra', 'piano', 'batería', 'bateria',
+      'habilidad', 'tocar', 'dibujar', 'fotografía', 'fotografia', 'cocinar', 'bailar',
+      'cantar', 'skill',
     ],
     milestones: [
       'Elegir UN recurso principal (curso, libro o app)',
@@ -61,6 +73,13 @@ export const TEMPLATES: GoalTemplate[] = [
       'Anotar 5 conceptos nuevos',
       'Aplicar lo aprendido en un mini ejercicio',
     ],
+    kickoffActions: [
+      'Elegir UN curso, libro o app y abrirlo',
+      'Definir cuántas horas por semana le vas a dar',
+      'Hacer la primera lección o capítulo',
+      'Armar tu espacio de estudio',
+      'Anotar por qué querés aprenderlo',
+    ],
     cadence: 'weekdays',
     reviewEveryDays: 7,
   },
@@ -72,7 +91,9 @@ export const TEMPLATES: GoalTemplate[] = [
     description: 'Ahorrar, ordenar gastos o salir de deudas.',
     keywords: [
       'ahorrar', 'ahorro', 'dinero', 'plata', 'finanzas', 'deuda', 'deudas', 'gastos',
-      'presupuesto', 'invertir', 'inversión', 'inversion',
+      'presupuesto', 'invertir', 'inversión', 'inversion', 'bolsa', 'cripto', 'bitcoin',
+      'jubilación', 'jubilacion', 'tarjeta', 'crédito', 'credito', 'económico',
+      'economico', 'ingresos', 'fondo',
     ],
     milestones: [
       'Anotar tus ingresos y gastos de un mes',
@@ -87,6 +108,13 @@ export const TEMPLATES: GoalTemplate[] = [
       'Comparar precios antes de una compra',
       'Anotar 1 idea de ingreso extra',
     ],
+    kickoffActions: [
+      'Anotar todos tus gastos de hoy',
+      'Listar tus ingresos del mes',
+      'Definir un monto de ahorro realista',
+      'Revisar tus suscripciones activas',
+      'Abrir una cuenta o app para el ahorro',
+    ],
     cadence: 'thrice_week',
     reviewEveryDays: 7,
   },
@@ -97,8 +125,10 @@ export const TEMPLATES: GoalTemplate[] = [
     defaultArea: 'carrera',
     description: 'Buscar empleo, cambiar de rumbo o crecer profesionalmente.',
     keywords: [
-      'trabajo', 'empleo', 'carrera', 'cv', 'currículum', 'curriculum', 'entrevista',
-      'linkedin', 'portafolio', 'profesional', 'ascenso', 'freelance', 'cliente', 'clientes',
+      'trabajo', 'empleo', 'laburo', 'laboral', 'carrera', 'cv', 'currículum',
+      'curriculum', 'entrevista', 'linkedin', 'portafolio', 'profesional', 'ascenso',
+      'ascender', 'promoción', 'promocion', 'freelance', 'cliente', 'clientes',
+      'postular', 'postularme', 'vacante', 'reclutador', 'sueldo', 'renunciar',
     ],
     milestones: [
       'Actualizar tu CV y tu LinkedIn',
@@ -114,6 +144,13 @@ export const TEMPLATES: GoalTemplate[] = [
       'Practicar 1 respuesta de entrevista',
       'Investigar 1 empresa objetivo',
     ],
+    kickoffActions: [
+      'Actualizar tu CV',
+      'Actualizar tu perfil de LinkedIn',
+      'Listar 5 empresas o roles objetivo',
+      'Definir qué tipo de trabajo querés',
+      'Escribir a 1 contacto de tu red',
+    ],
     cadence: 'weekdays',
     reviewEveryDays: 7,
   },
@@ -125,7 +162,9 @@ export const TEMPLATES: GoalTemplate[] = [
     description: 'Un libro, canal, portafolio o proyecto propio.',
     keywords: [
       'escribir', 'libro', 'canal', 'youtube', 'portafolio', 'proyecto', 'crear',
-      'publicar', 'blog', 'podcast', 'arte', 'contenido', 'app',
+      'publicar', 'blog', 'podcast', 'arte', 'contenido', 'app', 'emprender',
+      'emprendimiento', 'negocio', 'startup', 'marca', 'newsletter', 'instagram',
+      'tiktok', 'novela', 'música', 'musica', 'disco', 'tienda', 'vender', 'ecommerce',
     ],
     milestones: [
       'Definir el alcance de tu v1 (lo mínimo publicable)',
@@ -141,6 +180,13 @@ export const TEMPLATES: GoalTemplate[] = [
       'Publicar o compartir 1 avance',
       'Anotar 3 ideas nuevas',
     ],
+    kickoffActions: [
+      'Definir lo mínimo que querés publicar (v1)',
+      'Reservar 30 min para arrancar hoy',
+      'Anotar 5 ideas para empezar',
+      'Armar un índice o plan de contenido',
+      'Crear la primera pieza chica',
+    ],
     cadence: 'thrice_week',
     reviewEveryDays: 7,
   },
@@ -153,6 +199,9 @@ export const TEMPLATES: GoalTemplate[] = [
     keywords: [
       'tesis', 'materia', 'examen', 'graduar', 'graduarme', 'universidad', 'parcial',
       'académico', 'academico', 'monografía', 'monografia', 'facultad', 'aprobar',
+      'oposiciones', 'oposición', 'oposicion', 'mba', 'doctorado', 'maestría',
+      'maestria', 'posgrado', 'licenciatura', 'rendir', 'beca', 'toefl', 'ielts',
+      'cursada',
     ],
     milestones: [
       'Listar todo lo que tenés que entregar o rendir',
@@ -168,6 +217,13 @@ export const TEMPLATES: GoalTemplate[] = [
       'Hacer un resumen de lo visto',
       'Revisar el cronograma y ajustarlo',
     ],
+    kickoffActions: [
+      'Listar todo lo que tenés que entregar o rendir',
+      'Armar un cronograma con fechas',
+      'Juntar el material de estudio',
+      'Estudiar el primer bloque de 45 min',
+      'Definir tu meta de esta semana',
+    ],
     cadence: 'weekdays',
     reviewEveryDays: 7,
   },
@@ -180,6 +236,8 @@ export const TEMPLATES: GoalTemplate[] = [
     keywords: [
       'dormir', 'sueño', 'sueno', 'leer', 'lectura', 'meditar', 'meditación',
       'meditacion', 'estrés', 'estres', 'bienestar', 'calma', 'rutina', 'mindfulness',
+      'fumar', 'tabaco', 'vapear', 'ansiedad', 'terapia', 'gratitud', 'hábito',
+      'habito', 'descansar', 'desconectar', 'respiración', 'respiracion',
     ],
     milestones: [
       'Elegir UN hábito y un horario fijo',
@@ -194,6 +252,13 @@ export const TEMPLATES: GoalTemplate[] = [
       'Escribir 3 cosas que agradecés',
       'Salir a tomar aire 15 min',
     ],
+    kickoffActions: [
+      'Elegir UN hábito y un horario fijo',
+      'Dejar todo listo para hacerlo mañana',
+      'Hacerlo hoy por primera vez',
+      'Sacar una distracción de tu camino',
+      'Anotar cómo te sentís al arrancar',
+    ],
     cadence: 'daily',
     reviewEveryDays: 7,
   },
@@ -205,7 +270,9 @@ export const TEMPLATES: GoalTemplate[] = [
     description: 'Dedicar tiempo a la familia, la pareja o las amistades.',
     keywords: [
       'familia', 'pareja', 'amigos', 'amigas', 'relación', 'relacion', 'relaciones',
-      'social', 'novia', 'novio', 'hijos', 'vínculo', 'vinculo',
+      'social', 'novia', 'novio', 'hijos', 'hijo', 'hija', 'vínculo', 'vinculo',
+      'esposa', 'esposo', 'marido', 'padres', 'hermano', 'hermana', 'amistad',
+      'citas', 'reconectar',
     ],
     milestones: [
       'Identificar a quién querés dedicarle más tiempo',
@@ -218,6 +285,13 @@ export const TEMPLATES: GoalTemplate[] = [
       'Planear un momento juntos esta semana',
       'Preguntarle a alguien cómo está y escuchar',
       'Agradecerle algo a alguien hoy',
+    ],
+    kickoffActions: [
+      'Elegir a quién querés dedicarle más tiempo',
+      'Mandarle un mensaje hoy',
+      'Agendar un momento juntos esta semana',
+      'Llamar a alguien que extrañás',
+      'Anotar qué te gustaría compartir',
     ],
     cadence: 'thrice_week',
     reviewEveryDays: 7,
