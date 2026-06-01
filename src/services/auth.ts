@@ -9,12 +9,26 @@ function translateAuthError(message: string): string {
   if (m.includes('password should be at least')) return 'La contraseña debe tener al menos 6 caracteres.'
   if (m.includes('unable to validate email')) return 'Revisá que el email sea válido.'
   if (m.includes('email not confirmed')) return 'Tenés que confirmar tu email antes de entrar.'
-  return message
+  if (
+    m.includes('for security purposes') ||
+    m.includes('rate limit') ||
+    m.includes('too many requests')
+  )
+    return 'Demasiados intentos. Esperá un momento y volvé a probar.'
+  if (m.includes('network') || m.includes('failed to fetch'))
+    return 'Hubo un problema de conexión. Revisá tu internet y probá de nuevo.'
+  // Fallback genérico en español: nunca exponemos el mensaje crudo en inglés.
+  return 'Algo salió mal. Probá de nuevo en un momento.'
 }
 
-export async function signUp(email: string, password: string): Promise<void> {
-  const { error } = await supabase.auth.signUp({ email, password })
+/** Crea la cuenta. Indica si quedó pendiente de confirmar email (sin sesión inmediata). */
+export async function signUp(
+  email: string,
+  password: string,
+): Promise<{ needsConfirmation: boolean }> {
+  const { data, error } = await supabase.auth.signUp({ email, password })
   if (error) throw new Error(translateAuthError(error.message))
+  return { needsConfirmation: data.session === null }
 }
 
 export async function signIn(email: string, password: string): Promise<void> {

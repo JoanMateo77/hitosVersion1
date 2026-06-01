@@ -752,6 +752,11 @@
   color: var(--danger);
   border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
 }
+.alert--success {
+  background: var(--success-soft);
+  color: var(--success);
+  border: 1px solid color-mix(in srgb, var(--success) 40%, transparent);
+}
 
 /* ---- Spinner — tres hitos del camino caminando -------------------------- */
 .spinner {

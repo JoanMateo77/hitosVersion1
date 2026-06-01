@@ -22,10 +22,12 @@ export function Auth() {
     setLoading(true)
     try {
       if (isSignup) {
-        await signUp(email.trim(), password)
-        // Si la confirmación de email está desactivada, el login es inmediato
-        // (useAuth detecta la sesión). Si está activada, queda este aviso.
-        setNotice('Listo, tu cuenta está creada. Si te pedimos confirmar el email, revisá tu casilla.')
+        const { needsConfirmation } = await signUp(email.trim(), password)
+        // Solo avisamos si de verdad quedó pendiente de confirmar email; si el login
+        // es inmediato, useAuth mete al usuario a la app sin un aviso a medias.
+        if (needsConfirmation) {
+          setNotice('Listo, tu cuenta está creada. Revisá tu casilla para confirmar el email.')
+        }
       } else {
         await signIn(email.trim(), password)
       }
@@ -173,12 +175,7 @@ export function Auth() {
 
             {error && <div className="alert alert--error" role="alert">{error}</div>}
             {notice && (
-              <div
-                className="alert"
-                role="status"
-                aria-live="polite"
-                style={{ background: 'var(--success-soft)', color: 'var(--success)' }}
-              >
+              <div className="alert alert--success" role="status" aria-live="polite">
                 {notice}
               </div>
             )}
