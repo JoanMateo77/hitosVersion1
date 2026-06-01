@@ -1984,3 +1984,15 @@ select.input {
 .bottomnav {
   view-transition-name: bottomnav;
 }
+
+/* Sección colapsable de metas terminadas/archivadas en la pantalla de Metas. */
+.goals-finished {
+  margin-top: var(--s5);
+}
+.goals-finished__summary {
+  cursor: pointer;
+  padding: var(--s2) 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+}

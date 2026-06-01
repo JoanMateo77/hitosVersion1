@@ -47,8 +47,20 @@ export function Goals() {
   }
   if (error || !data) return <LoadingScreen error={error ?? 'No se pudieron cargar tus metas.'} />
 
-  const goals = [...data.goals].sort(
-    (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status],
+  const goals = [...data.goals].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
+  // Lo accionable arriba; lo terminado/archivado en su propia sección colapsable,
+  // para que las metas activas no queden empujadas hacia abajo.
+  const live = goals.filter((g) => !isGoalClosed(g.status))
+  const finished = goals.filter((g) => isGoalClosed(g.status))
+
+  const renderCard = (goal: Goal) => (
+    <li key={goal.id}>
+      <GoalCard
+        goal={goal}
+        doneCount={data.counts.get(goal.id) ?? 0}
+        onClick={() => navigate(`/metas/${goal.id}`)}
+      />
+    </li>
   )
 
   return (
@@ -77,17 +89,33 @@ export function Goals() {
           </div>
         </div>
       ) : (
-        <ul className="goals-grid">
-          {goals.map((goal) => (
-            <li key={goal.id}>
-              <GoalCard
-                goal={goal}
-                doneCount={data.counts.get(goal.id) ?? 0}
-                onClick={() => navigate(`/metas/${goal.id}`)}
-              />
-            </li>
-          ))}
-        </ul>
+        <>
+          {live.length > 0 ? (
+            <ul className="goals-grid">{live.map(renderCard)}</ul>
+          ) : (
+            <p className="muted" style={{ marginTop: 'var(--s4)' }}>
+              No tenés metas en marcha ahora.{' '}
+              <button
+                className="btn--link"
+                style={{ padding: 0 }}
+                onClick={() => navigate('/meta/nueva')}
+              >
+                Creá una nueva
+              </button>
+              .
+            </p>
+          )}
+          {finished.length > 0 && (
+            <details className="goals-finished">
+              <summary className="goals-finished__summary">
+                Terminadas y archivadas ({finished.length})
+              </summary>
+              <ul className="goals-grid" style={{ marginTop: 'var(--s3)' }}>
+                {finished.map(renderCard)}
+              </ul>
+            </details>
+          )}
+        </>
       )}
     </div>
   )
