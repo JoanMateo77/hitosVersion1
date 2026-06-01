@@ -251,7 +251,7 @@ export function Today() {
         // Las acciones de metas se posponen (no se borran): así no reaparecen hoy.
         patchTask(task.id, { status: 'postponed' })
         await setTaskStatus(task.id, 'postponed')
-        toast('Saltada por hoy. Vuelve si toca por frecuencia.')
+        toast('Saltada por hoy. Volvé si toca por frecuencia.')
       }
     })
   }

@@ -112,6 +112,8 @@ function ProfileEditor({
   const [niche, setNiche] = useState<NicheId>(initialNiche)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Sin cambios no tiene sentido escribir en Supabase: deshabilitamos Guardar.
+  const dirty = focusMode !== initialFocus || niche !== initialNiche
 
   async function save() {
     setSaving(true)
@@ -174,7 +176,7 @@ function ProfileEditor({
       {error && <div className="alert alert--error" role="alert">{error}</div>}
 
       <div className="stack stack--sm">
-        <button className="btn btn--primary btn--block" onClick={save} disabled={saving}>
+        <button className="btn btn--primary btn--block" onClick={save} disabled={saving || !dirty}>
           {saving ? 'Guardando…' : 'Guardar cambios'}
         </button>
         <button className="btn btn--ghost btn--block" onClick={onCancel} disabled={saving}>
