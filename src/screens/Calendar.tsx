@@ -127,12 +127,15 @@ export function Calendar() {
   async function submitEvent(input: EventInput) {
     const current = editing?.event ?? null
     const wasLinked = current?.goalId ?? null
+    // Mantenemos en memoria solo lo que cae en el rango visible: si moviste un
+    // evento a otra semana/mes, no queda como "fantasma" (se recarga al navegar allá).
+    const inRange = (e: CalendarEvent) => e.date >= from && e.date <= to
     if (current) {
       const updated = await updateEvent(current.id, input)
-      setEvents((prev) => prev.map((e) => (e.id === updated.id ? updated : e)))
+      setEvents((prev) => prev.map((e) => (e.id === updated.id ? updated : e)).filter(inRange))
     } else {
       const created = await createEvent(userId, input)
-      setEvents((prev) => [...prev, created])
+      setEvents((prev) => [...prev, created].filter(inRange))
     }
     setEditing(null)
     // Si quedó vinculado a una meta (recién o ya estaba), cerramos el bucle: el
