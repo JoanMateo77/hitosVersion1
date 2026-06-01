@@ -758,6 +758,25 @@
   border: 1px solid color-mix(in srgb, var(--success) 40%, transparent);
 }
 
+/* Pop de entrada para el ícono de celebración (GoalCreated). Lo desactiva
+   prefers-reduced-motion vía la regla global de base.css. */
+.celebrate-pop {
+  animation: celebrate-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes celebrate-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 /* ---- Spinner — tres hitos del camino caminando -------------------------- */
 .spinner {
   display: inline-flex;

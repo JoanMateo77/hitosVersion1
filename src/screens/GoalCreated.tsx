@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { getGoal } from '@/services/goals'
 import { getTemplate } from '@/domain/templates'
@@ -16,9 +16,11 @@ import { IconCelebrate, IconPlay } from '@/components/icons'
 export function GoalCreated() {
   const { goalId } = useParams<{ goalId: string }>()
   const navigate = useNavigate()
+  const titleRef = useRef<HTMLHeadingElement>(null)
 
   const [goal, setGoal] = useState<Goal | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -28,17 +30,33 @@ export function GoalCreated() {
         setGoal(g)
         setLoading(false)
       })
-      .catch(() => active && setLoading(false))
+      .catch(() => {
+        if (!active) return
+        // Distinguimos "falló la carga" de "no existe": no rebotamos en silencio.
+        setError('No pudimos cargar tu meta recién creada. Probá de nuevo.')
+        setLoading(false)
+      })
     return () => {
       active = false
     }
   }, [goalId])
 
+  // Al cargar, movemos el foco al título para anunciar la pantalla (teclado/SR).
+  useEffect(() => {
+    if (!loading && goal) titleRef.current?.focus()
+  }, [loading, goal])
+
   if (loading) return <LoadingScreen />
+  if (error) return <LoadingScreen error={error} />
   if (!goal) return <Navigate to="/" replace />
+  // Una meta ya no activa (lograda/archivada/pausada) alcanzada por URL directa no
+  // debe mostrar "¡Meta creada!": la mandamos a su detalle real.
+  if (goal.status !== 'active') return <Navigate to={`/meta/${goal.id}`} replace />
 
   const template = getTemplate(goal.templateKey)
   const firstAction = pickAction(goal, todayISO())
+  // Evita "Porque porque…": sacamos un "porque" inicial que el placeholder induce.
+  const cleanWhy = goal.why?.trim().replace(/^porqu[eé]\s+/i, '')
 
   return (
     <div className="screen screen--full flow-screen">
@@ -47,12 +65,16 @@ export function GoalCreated() {
           className="center stack stack--sm"
           style={{ marginTop: 'var(--s6)', alignItems: 'center' }}
         >
-          <IconCelebrate size={44} style={{ color: 'var(--primary)' }} />
-          <h1 className="screen__title">¡Meta creada!</h1>
+          <span className="celebrate-pop" style={{ display: 'inline-flex' }}>
+            <IconCelebrate size={44} style={{ color: 'var(--primary)' }} />
+          </span>
+          <h1 ref={titleRef} tabIndex={-1} className="screen__title">
+            ¡Meta creada!
+          </h1>
           <p className="muted">
             {template.emoji} {goal.title}
           </p>
-          {goal.why && <p className="small muted center">Porque {goal.why}</p>}
+          {cleanWhy && <p className="small muted center">Porque {cleanWhy}</p>}
         </header>
 
         <div className="card stack">
