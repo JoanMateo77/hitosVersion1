@@ -777,6 +777,43 @@
   }
 }
 
+/* Auto-dibujo del logo de marca (solo en Auth, vía prop `animate`): el camino se
+   traza y los 3 hitos popean hacia la meta. El estado BASE es el logo TERMINADO;
+   la animación vive dentro de prefers-reduced-motion:no-preference, así quien pide
+   menos movimiento ve el logo íntegro y nunca a medio dibujar. */
+.hito-logo--draw .hito-logo__path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0; /* base: trazo completo */
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hito-logo--draw .hito-logo__path {
+    animation: hito-logo-draw 0.7s ease-out;
+  }
+  .hito-logo--draw circle {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: hito-logo-dot 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  }
+  .hito-logo--draw circle:nth-of-type(2) {
+    animation-delay: 0.18s;
+  }
+  .hito-logo--draw circle:nth-of-type(3),
+  .hito-logo--draw circle:nth-of-type(4) {
+    animation-delay: 0.34s;
+  }
+}
+@keyframes hito-logo-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+@keyframes hito-logo-dot {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
 /* ---- Spinner — tres hitos del camino caminando -------------------------- */
 .spinner {
   display: inline-flex;

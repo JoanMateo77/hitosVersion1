@@ -104,7 +104,12 @@ export function IconSparkles({ size = 20, className, style }: IconProps) {
 }
 
 /** Logo de marca de Hito: un camino ascendente con hitos, el último alcanzado. */
-export function IconHito({ size = 22, className, style }: IconProps) {
+export function IconHito({
+  size = 22,
+  className,
+  style,
+  animate = false,
+}: IconProps & { animate?: boolean }) {
   return (
     <svg
       width={size}
@@ -115,11 +120,16 @@ export function IconHito({ size = 22, className, style }: IconProps) {
       strokeWidth={size <= 22 ? 1.85 : 2}
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={className}
+      className={animate ? [className, 'hito-logo--draw'].filter(Boolean).join(' ') : className}
       style={style}
       aria-hidden="true"
     >
-      <path d="M4 17.5C8 14 9 12 11.5 12C14 12 15 9 20 5.5" opacity="0.55" />
+      <path
+        d="M4 17.5C8 14 9 12 11.5 12C14 12 15 9 20 5.5"
+        opacity="0.55"
+        pathLength={animate ? 1 : undefined}
+        className={animate ? 'hito-logo__path' : undefined}
+      />
       <circle cx="4" cy="17.5" r="1.6" fill="currentColor" stroke="none" />
       <circle cx="11.5" cy="12" r="1.6" fill="currentColor" stroke="none" />
       <circle cx="20" cy="5.5" r="3.2" fill="currentColor" stroke="none" />
