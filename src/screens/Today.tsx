@@ -426,87 +426,6 @@ export function Today() {
         </div>
       )}
 
-      {reviewDue.length > 0 && (
-        <button
-          className="card card--tight row row--between"
-          style={{
-            width: '100%',
-            textAlign: 'left',
-            marginBottom: 'var(--s5)',
-            borderColor: 'var(--primary)',
-          }}
-          onClick={() => navigate('/revision')}
-        >
-          <span className="row row--sm small" style={{ alignItems: 'center' }}>
-            <IconQuote size={16} className="muted" />
-            <span>
-              <strong>Revisión guiada</strong> — {reviewDue.length}{' '}
-              {reviewDue.length === 1 ? 'meta para revisar' : 'metas para revisar'}
-            </span>
-          </span>
-          <IconChevronRight size={16} className="faint" />
-        </button>
-      )}
-
-      {forgotten && (
-        <div
-          className="card card--tight stack stack--sm"
-          style={{ borderColor: 'var(--warning)', marginBottom: 'var(--s5)' }}
-        >
-          <span className="row row--sm small" style={{ alignItems: 'flex-start' }}>
-            <IconSprout size={16} className="muted" style={{ marginTop: 2, flex: 'none' }} />
-            <span>
-              Hace {forgotten.days} días que no tocás <strong>“{forgotten.goal.title}”</strong>.
-              ¿La retomamos o la pausamos sin culpa?
-            </span>
-          </span>
-          {forgotten.goal.why && (
-            <span className="small muted">Porque {forgotten.goal.why}</span>
-          )}
-          <div className="row wrap">
-            <button className="btn btn--sm btn--primary" onClick={() => addForgottenToToday(forgotten.goal)}>
-              Sumar al plan
-            </button>
-            <button className="btn btn--sm btn--ghost" onClick={() => pauseForgotten(forgotten.goal)}>
-              Pausar
-            </button>
-            <button className="btn btn--sm btn--subtle" onClick={() => acceptForgotten(forgotten.goal)}>
-              Está bien así
-            </button>
-          </div>
-        </div>
-      )}
-
-      {todayEvents.length > 0 && (
-        <div className="card card--tight stack stack--sm" style={{ marginBottom: 'var(--s5)' }}>
-          <div className="row row--between">
-            <span className="kicker row row--sm" style={{ alignItems: 'center' }}>
-              <IconCalendar size={12} /> Tu agenda de hoy
-            </span>
-            <button className="btn--link" onClick={() => navigate('/calendario')}>
-              Ver agenda
-            </button>
-          </div>
-          {todayEvents.map((e) => (
-            <button
-              key={e.id}
-              className="ev"
-              aria-label={`Ver "${e.title}" en la agenda`}
-              onClick={() => navigate(`/calendario?d=${e.date}`)}
-            >
-              <span className="ev__time">{e.allDay ? 'Día' : e.startTime}</span>
-              <span className="ev__title">{e.title}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {singleMode && (
-        <p className="muted small row row--sm" style={{ marginBottom: 'var(--s4)', alignItems: 'center' }}>
-          <IconStar size={14} /> Modo enfocado: tu plan prioriza una meta a la vez. Cambialo en Perfil.
-        </p>
-      )}
-
       {cheerMessage && (
         <div className="cheer" role="status" aria-live="polite">
           {cheerMessage}
@@ -607,6 +526,89 @@ export function Today() {
             {generating ? 'Armando tu plan…' : 'No sé qué hacer hoy — proponé vos'}
           </button>
         </>
+      )}
+
+      {/* Avisos secundarios DEBAJO del plan: lo primero que ve el usuario es su
+          plan de hoy, no una pila de tarjetas que lo empuja abajo del fold. */}
+      {reviewDue.length > 0 && (
+        <button
+          className="card card--tight row row--between"
+          style={{
+            width: '100%',
+            textAlign: 'left',
+            marginTop: 'var(--s5)',
+            borderColor: 'var(--primary)',
+          }}
+          onClick={() => navigate('/revision')}
+        >
+          <span className="row row--sm small" style={{ alignItems: 'center' }}>
+            <IconQuote size={16} className="muted" />
+            <span>
+              <strong>Revisión guiada</strong> — {reviewDue.length}{' '}
+              {reviewDue.length === 1 ? 'meta para revisar' : 'metas para revisar'}
+            </span>
+          </span>
+          <IconChevronRight size={16} className="faint" />
+        </button>
+      )}
+
+      {forgotten && (
+        <div
+          className="card card--tight stack stack--sm"
+          style={{ borderColor: 'var(--warning)', marginTop: 'var(--s4)' }}
+        >
+          <span className="row row--sm small" style={{ alignItems: 'flex-start' }}>
+            <IconSprout size={16} className="muted" style={{ marginTop: 2, flex: 'none' }} />
+            <span>
+              Hace {forgotten.days} días que no tocás <strong>“{forgotten.goal.title}”</strong>.
+              ¿La retomamos o la pausamos sin culpa?
+            </span>
+          </span>
+          {forgotten.goal.why && (
+            <span className="small muted">Porque {forgotten.goal.why}</span>
+          )}
+          <div className="row wrap">
+            <button className="btn btn--sm btn--primary" onClick={() => addForgottenToToday(forgotten.goal)}>
+              Sumar al plan
+            </button>
+            <button className="btn btn--sm btn--ghost" onClick={() => pauseForgotten(forgotten.goal)}>
+              Pausar
+            </button>
+            <button className="btn btn--sm btn--subtle" onClick={() => acceptForgotten(forgotten.goal)}>
+              Está bien así
+            </button>
+          </div>
+        </div>
+      )}
+
+      {todayEvents.length > 0 && (
+        <div className="card card--tight stack stack--sm" style={{ marginTop: 'var(--s4)' }}>
+          <div className="row row--between">
+            <span className="kicker row row--sm" style={{ alignItems: 'center' }}>
+              <IconCalendar size={12} /> Tu agenda de hoy
+            </span>
+            <button className="btn--link" onClick={() => navigate('/calendario')}>
+              Ver agenda
+            </button>
+          </div>
+          {todayEvents.map((e) => (
+            <button
+              key={e.id}
+              className="ev"
+              aria-label={`Ver "${e.title}" en la agenda`}
+              onClick={() => navigate(`/calendario?d=${e.date}`)}
+            >
+              <span className="ev__time">{e.allDay ? 'Día' : e.startTime}</span>
+              <span className="ev__title">{e.title}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {singleMode && (
+        <p className="muted small row row--sm" style={{ marginTop: 'var(--s4)', alignItems: 'center' }}>
+          <IconStar size={14} /> Modo enfocado: tu plan prioriza una meta a la vez. Cambialo en Perfil.
+        </p>
       )}
     </div>
   )
