@@ -5,7 +5,7 @@ import { createGoal } from '@/services/goals'
 import { createGoalTasks } from '@/services/tasks'
 import { suggestionsForNiche, type GoalSeed } from '@/domain/recommendations'
 import { getTemplate } from '@/domain/templates'
-import { getNiche } from '@/domain/niches'
+import { NICHES, getNiche } from '@/domain/niches'
 import { pickAction } from '@/domain/dailyPlan'
 import { todayISO } from '@/lib/date'
 import { isUniqueViolation } from '@/lib/errors'
@@ -24,8 +24,12 @@ export function GoalSuggestions() {
   const [params] = useSearchParams()
 
   // El ?area= (flujo "próximo paso") tiene prioridad; si no, el foco del perfil.
-  const areaParam = params.get('area') as NicheId | null
-  const niche: NicheId = areaParam ?? profile.primaryNiche ?? 'otra'
+  // Validamos el ?area= contra el catálogo: un valor basura cae al foco del perfil,
+  // no a 'otra' en silencio (que mostraba un header y sugerencias equivocadas).
+  const areaParam = params.get('area')
+  const validArea =
+    areaParam && NICHES.some((n) => n.id === areaParam) ? (areaParam as NicheId) : null
+  const niche: NicheId = validArea ?? profile.primaryNiche ?? 'otra'
   const suggestions = suggestionsForNiche(niche)
   const nicheInfo = getNiche(niche)
 

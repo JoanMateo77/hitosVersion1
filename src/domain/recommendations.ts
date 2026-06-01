@@ -36,10 +36,12 @@ export const NICHE_GOAL_SUGGESTIONS: Record<NicheId, GoalSeed[]> = {
   relaciones: [
     { title: 'Tener una cena en familia cada semana', templateKey: 'relaciones' },
     { title: 'Retomar contacto con 5 amistades', templateKey: 'relaciones' },
+    { title: 'Llamar a alguien que querés una vez por semana', templateKey: 'relaciones' },
   ],
   creatividad: [
     { title: 'Publicar mi primer proyecto en 60 días', templateKey: 'crear_publicar' },
     { title: 'Escribir 1 artículo por semana durante 2 meses', templateKey: 'crear_publicar' },
+    { title: 'Crear y compartir una pieza por semana', templateKey: 'crear_publicar' },
   ],
   bienestar: [
     { title: 'Dormir 7+ horas todas las noches', templateKey: 'bienestar' },
@@ -48,6 +50,8 @@ export const NICHE_GOAL_SUGGESTIONS: Record<NicheId, GoalSeed[]> = {
   ],
   otra: [
     { title: 'Definir y arrancar un proyecto personal', templateKey: 'personalizada' },
+    { title: 'Construir un hábito nuevo en 30 días', templateKey: 'bienestar' },
+    { title: 'Aprender una habilidad que te interese', templateKey: 'aprender_habilidad' },
   ],
 }
 
