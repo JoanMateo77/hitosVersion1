@@ -1,4 +1,6 @@
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { createBlendy, type Blendy } from 'blendy'
 import { useSession } from '@/app/session'
 import { listGoals } from '@/services/goals'
 import { countDoneByGoal } from '@/services/tasks'
@@ -35,6 +37,37 @@ export function Goals() {
     return { goals, counts }
   }, [userId])
 
+  // Blendy: tocar una meta hace que la tarjeta se "expanda" (morph) en su detalle.
+  const blendyRef = useRef<Blendy | null>(null)
+  const reducedMotion = useRef(false)
+  const [peek, setPeek] = useState<Goal | null>(null)
+
+  useEffect(() => {
+    blendyRef.current = createBlendy({ animation: 'dynamic' })
+    reducedMotion.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  }, [])
+
+  // El overlay se monta (setPeek) y recién ahí animamos del card al detalle.
+  useLayoutEffect(() => {
+    if (!peek) return
+    blendyRef.current?.update()
+    blendyRef.current?.toggle(peek.id)
+  }, [peek])
+
+  function openGoal(goal: Goal) {
+    // Reduced-motion o Blendy no cargado: vamos directo al detalle completo (como antes).
+    if (reducedMotion.current || !blendyRef.current) {
+      navigate(`/metas/${goal.id}`)
+      return
+    }
+    setPeek(goal)
+  }
+  function closePeek() {
+    const g = peek
+    if (g && blendyRef.current) blendyRef.current.untoggle(g.id, () => setPeek(null))
+    else setPeek(null)
+  }
+
   if (loading) {
     return (
       <div className="screen">
@@ -54,11 +87,11 @@ export function Goals() {
   const finished = goals.filter((g) => isGoalClosed(g.status))
 
   const renderCard = (goal: Goal) => (
-    <li key={goal.id}>
+    <li key={goal.id} data-blendy-from={goal.id}>
       <GoalCard
         goal={goal}
         doneCount={data.counts.get(goal.id) ?? 0}
-        onClick={() => navigate(`/metas/${goal.id}`)}
+        onClick={() => openGoal(goal)}
       />
     </li>
   )
@@ -117,6 +150,86 @@ export function Goals() {
           )}
         </>
       )}
+
+      {peek && (
+        <GoalPeek
+          goal={peek}
+          doneCount={data.counts.get(peek.id) ?? 0}
+          onOpen={() => navigate(`/metas/${peek.id}`)}
+          onClose={closePeek}
+        />
+      )}
+    </div>
+  )
+}
+
+/** Detalle "peek" que morphea desde la tarjeta (Blendy). Cierra por backdrop o botón. */
+function GoalPeek({
+  goal,
+  doneCount,
+  onOpen,
+  onClose,
+}: {
+  goal: Goal
+  doneCount: number
+  onOpen: () => void
+  onClose: () => void
+}) {
+  const template = getTemplate(goal.templateKey)
+  const niche = getNiche(goal.area)
+  const milestones = template.milestones
+  const stage = clampedStage(goal.currentMilestone, milestones.length)
+  const pathComplete = isPathComplete(goal.currentMilestone, milestones.length)
+  const deadline =
+    isGoalClosed(goal.status) || pathComplete ? null : relativeDeadline(goal.targetDate)
+  const showProgress =
+    (goal.status === 'active' || goal.status === 'paused') && milestones.length > 1
+
+  return (
+    <div className="goal-peek-backdrop" onClick={onClose}>
+      <div data-blendy-to={goal.id}>
+        <div className="goal-peek" onClick={(e) => e.stopPropagation()}>
+          <div className="goal-card__top">
+            <span className="goal-card__emoji" aria-hidden="true">{template.emoji}</span>
+            <span className="goal-card__title">{goal.title}</span>
+          </div>
+          <div className="row wrap" style={{ rowGap: 6 }}>
+            <span className="tag">
+              <span aria-hidden="true">{niche.emoji}</span> {niche.label}
+            </span>
+            {deadline && (
+              <span className="faint tiny row row--sm" style={{ alignItems: 'center', gap: 4 }}>
+                <IconCalendar size={12} /> {deadline}
+              </span>
+            )}
+            {doneCount > 0 && (
+              <span className="faint tiny">
+                · {doneCount} {doneCount === 1 ? 'acción hecha' : 'acciones hechas'}
+              </span>
+            )}
+          </div>
+          {goal.why && <p className="small muted">Porque {goal.why}</p>}
+          {showProgress && (
+            <div className="stack stack--sm">
+              <div className="progress">
+                <div
+                  className="progress__bar"
+                  style={{ width: `${Math.round((stage / milestones.length) * 100)}%` }}
+                />
+              </div>
+              <span className="faint tiny">
+                {pathComplete ? 'Camino completo' : `Etapa ${stage + 1} de ${milestones.length}`}
+              </span>
+            </div>
+          )}
+          <button className="btn btn--primary btn--block" onClick={onOpen}>
+            Abrir meta
+          </button>
+          <button className="btn--link" style={{ alignSelf: 'center' }} onClick={onClose}>
+            Cerrar
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
