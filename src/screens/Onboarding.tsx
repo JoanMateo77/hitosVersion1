@@ -25,11 +25,6 @@ export function Onboarding() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  function chooseFocus(mode: FocusMode) {
-    setFocusMode(mode)
-    setStep('niche')
-  }
-
   function answerQuestion(picked: NicheId) {
     const next = [...answers, picked]
     if (next.length >= NICHE_QUESTIONS.length) {
@@ -76,17 +71,24 @@ export function Onboarding() {
               emoji="🎯"
               label="Con una sola meta"
               desc="Modo enfocado: un objetivo principal, sin dispersarte."
-              selected={false}
-              onClick={() => chooseFocus('single')}
+              selected={focusMode === 'single'}
+              onClick={() => setFocusMode('single')}
             />
             <OptionRow
               emoji="🧭"
               label="Con varias metas"
               desc="Modo multi-meta: la app reparte tu energía entre ellas."
-              selected={false}
-              onClick={() => chooseFocus('multi')}
+              selected={focusMode === 'multi'}
+              onClick={() => setFocusMode('multi')}
             />
           </div>
+          <button
+            className="btn btn--primary btn--block"
+            disabled={!focusMode}
+            onClick={() => setStep('niche')}
+          >
+            Continuar
+          </button>
         </section>
       )}
 
@@ -160,7 +162,7 @@ export function Onboarding() {
 
 function Stepper({ step }: { step: Step }) {
   return (
-    <div className="stepper" style={{ marginTop: 'var(--s2)' }}>
+    <div className="stepper" aria-hidden="true" style={{ marginTop: 'var(--s2)' }}>
       <span className={`stepper__dot ${step === 'focus' ? 'stepper__dot--active' : 'stepper__dot--done'}`} />
       <span className={`stepper__dot ${step === 'niche' ? 'stepper__dot--active' : ''}`} />
     </div>
