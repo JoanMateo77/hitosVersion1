@@ -81,6 +81,9 @@ export function Wizard() {
   const [targetDate, setTargetDate] = useState(draft.targetDate ?? '')
   const [area, setArea] = useState<NicheId>(draft.area ?? 'otra')
   const [criteria, setCriteria] = useState(draft.criteria ?? '')
+  // Título con el que ya autodetectamos plantilla/área. Evita pisar una elección
+  // manual del paso 1 al volver al paso 0 y avanzar sin cambiar el título.
+  const [detectedFromTitle, setDetectedFromTitle] = useState(draft.title ?? '')
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -109,11 +112,13 @@ export function Wizard() {
   }
 
   function next() {
-    // Al salir del título, sugerimos plantilla y área (Mecanismo F).
-    if (step === 0) {
+    // Al salir del título sugerimos plantilla y área, pero solo si el título cambió
+    // desde la última detección: así no pisamos la elección manual del paso 1.
+    if (step === 0 && title !== detectedFromTitle) {
       const detected = detectTemplate(title)
       setTemplateKey(detected.key)
       setArea(detected.defaultArea)
+      setDetectedFromTitle(title)
     }
     setStep((s) => s + 1)
   }
@@ -142,8 +147,9 @@ export function Wizard() {
       // Le mostramos el camino + la primera acción: la app guía, no solo crea.
       clearDraft()
       navigate(`/meta/creada/${goal.id}`, { replace: true })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo crear la meta. Probá de nuevo.')
+    } catch {
+      // No exponemos el mensaje crudo del backend (puede venir técnico o en inglés).
+      setError('No pudimos crear tu meta. Probá de nuevo en un momento.')
       setSaving(false)
     }
   }
@@ -157,7 +163,7 @@ export function Wizard() {
         <button className="iconbtn" onClick={goBack} aria-label="Volver">
           <IconBack />
         </button>
-        <div className="stepper spacer">
+        <div className="stepper spacer" aria-hidden="true">
           {Array.from({ length: STEPS }, (_, i) => (
             <span
               key={i}
