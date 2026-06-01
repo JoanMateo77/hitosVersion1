@@ -34,7 +34,7 @@ export function SideNav() {
             {email}
           </span>
           <span className="kicker sidenav__day">
-            Día {days} {days === 1 ? 'en Hito' : 'en Hito'}
+            Día {days} en Hito
           </span>
         </div>
       </div>

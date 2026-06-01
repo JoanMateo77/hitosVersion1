@@ -1971,3 +1971,16 @@ select.input {
   outline-color: var(--on-primary);
   outline-offset: -3px;
 }
+
+/* Barras fijas con view-transition-name propio: quedan fuera del cross-fade de
+   root, así no parpadean en cada cambio de ruta (lo que el comentario de base.css
+   prometía y antes no existía). */
+.sidenav {
+  view-transition-name: sidenav;
+}
+.topbar {
+  view-transition-name: topbar;
+}
+.bottomnav {
+  view-transition-name: bottomnav;
+}
