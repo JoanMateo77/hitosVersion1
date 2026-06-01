@@ -96,7 +96,8 @@ export function GoalDetail() {
         toast('Archivada.')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo actualizar la meta.')
+      // Toast (no alert lateral): el error aparece donde el usuario está mirando.
+      toast(err instanceof Error ? err.message : 'No se pudo actualizar la meta.', 'warning')
     } finally {
       setUpdating(false)
     }
@@ -119,7 +120,7 @@ export function GoalDetail() {
         else toast(`Etapa ${clamped} cumplida.`, 'success')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo actualizar tu avance.')
+      toast(err instanceof Error ? err.message : 'No se pudo actualizar tu avance.', 'warning')
     } finally {
       setUpdating(false)
     }
@@ -214,7 +215,7 @@ export function GoalDetail() {
             <Roadmap
               milestones={milestones}
               currentIndex={Math.min(goal.currentMilestone, milestones.length)}
-              onSelect={goal.status === 'active' ? updateMilestone : undefined}
+              onSelect={goal.status === 'active' && !updating ? updateMilestone : undefined}
             />
             {goal.status === 'active' && goal.currentMilestone === 0 && (
               <div style={{ marginTop: 'var(--s4)' }}>
@@ -280,8 +281,6 @@ export function GoalDetail() {
               a esta meta y vas a ver acá cuánto tiempo le agendás por semana.
             </p>
           )}
-
-          {error && <div className="alert alert--error">{error}</div>}
 
           <div className="stack stack--sm">
             {goal.status === 'active' && (
