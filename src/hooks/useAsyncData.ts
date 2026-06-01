@@ -17,7 +17,10 @@ export function useAsyncData<T>(loader: () => Promise<T>, deps: unknown[]): Asyn
   const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
 
-  // Memoiza el loader según las deps explícitas que pasa el caller.
+  // Memoiza el loader según las deps explícitas que pasa el caller. Es un hook
+  // genérico: las deps las controla quien lo usa (igual que un useEffect), así
+  // que el linter no puede verificarlas estáticamente — es el patrón esperado.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const run = useCallback(loader, deps)
 
   useEffect(() => {

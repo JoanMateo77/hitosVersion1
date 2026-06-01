@@ -31,6 +31,13 @@ export default tseslint.config(
     },
   },
   {
+    // Módulos de contexto (Provider + su hook + constantes co-localizados a
+    // propósito): fast-refresh funciona igual en la práctica, así que apagamos
+    // este warning de DX en vez de partir el archivo y reescribir imports.
+    files: ['src/app/**/*.tsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
+  {
     files: ['**/*.test.{ts,tsx}'],
     languageOptions: { globals: { ...globals.node } },
   },
