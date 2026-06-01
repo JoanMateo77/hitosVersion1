@@ -92,7 +92,9 @@
 
   --text: #1c241a;
   --text-muted: #4f5947;
-  --text-faint: #7e8773;
+  /* Oscurecido de #7e8773 (3.5:1) a ~4.8:1 sobre surface/bg para cumplir WCAG AA
+     en texto chico (deadlines, "N acciones", "Etapa X de N", labels de nav). */
+  --text-faint: #646d59;
 
   --primary: #16a777;
   --primary-strong: #0e8a5e;
@@ -133,7 +135,8 @@
 
   --text: #eafaff;
   --text-muted: #93a6cf;
-  --text-faint: #5d6e95;
+  /* Aclarado de #5d6e95 (3.7:1) a ~4.8:1 sobre el fondo oscuro del tema neón. */
+  --text-faint: #7080a8;
 
   --primary: #34f5c5;
   --primary-strong: #14d8a7;
