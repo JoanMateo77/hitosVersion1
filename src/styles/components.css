@@ -1956,7 +1956,12 @@ select.input {
   .flow-screen {
     width: 100%;
     max-width: 600px;
+    /* No estirar a toda la altura del viewport: el bloque se sizea al contenido y
+       se centra vertical, así los botones quedan JUNTO al contenido en vez de
+       pegados al fondo con un hueco enorme en el medio (bug de desktop). */
+    flex: 0 0 auto;
     margin-inline: auto;
+    margin-block: auto;
     padding-left: var(--s6);
     padding-right: var(--s6);
   }
