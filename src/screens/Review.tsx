@@ -73,6 +73,9 @@ export function Review() {
           </p>
           <p className="muted">Cuando una de tus metas toque revisión, la repasamos acá.</p>
         </div>
+        <button className="btn btn--primary btn--block" onClick={() => navigate('/')}>
+          Volver a hoy
+        </button>
       </div>
     )
   }
@@ -113,7 +116,7 @@ export function Review() {
       <div className="stack stack--lg" style={{ flex: 1 }}>
         <header>
           <h1 className="screen__title">
-            {template.emoji} {goal.title}
+            <span aria-hidden="true">{template.emoji}</span> {goal.title}
           </h1>
           {goal.why && <p className="screen__subtitle">Tu porqué: {goal.why}</p>}
         </header>
