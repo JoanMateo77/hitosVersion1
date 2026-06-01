@@ -116,15 +116,21 @@ function GoalCard({
     (goal.status === 'active' || goal.status === 'paused') && milestones.length > 1
 
   return (
-    <button className="goal-card" onClick={onClick} style={dimmed ? { opacity: 0.7 } : undefined}>
+    <button
+      type="button"
+      className="goal-card"
+      onClick={onClick}
+      aria-label={`Ver meta: ${goal.title}`}
+      style={dimmed ? { opacity: 0.7 } : undefined}
+    >
       <div className="goal-card__top">
-        <span className="goal-card__emoji">{template.emoji}</span>
+        <span className="goal-card__emoji" aria-hidden="true">{template.emoji}</span>
         <span className="goal-card__title nowrap-ellipsis">{goal.title}</span>
         {badge && <span className="tag">{badge}</span>}
       </div>
       <div className="row wrap" style={{ rowGap: 6 }}>
         <span className="tag">
-          {niche.emoji} {niche.label}
+          <span aria-hidden="true">{niche.emoji}</span> {niche.label}
         </span>
         {deadline && (
           <span className="faint tiny row row--sm" style={{ alignItems: 'center', gap: 4 }}>
