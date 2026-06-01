@@ -1,10 +1,17 @@
 import { NavLink } from 'react-router-dom'
-import { IconCalendar, IconGoals, IconProfile, IconToday } from '@/components/icons'
+import {
+  IconCalendar,
+  IconGoals,
+  IconProfile,
+  IconProgress,
+  IconToday,
+} from '@/components/icons'
 
 const TABS = [
   { to: '/', label: 'Hoy', Icon: IconToday },
   { to: '/metas', label: 'Metas', Icon: IconGoals },
   { to: '/calendario', label: 'Agenda', Icon: IconCalendar },
+  { to: '/progreso', label: 'Progreso', Icon: IconProgress },
   { to: '/perfil', label: 'Perfil', Icon: IconProfile },
 ] as const
 

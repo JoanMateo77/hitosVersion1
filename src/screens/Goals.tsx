@@ -161,14 +161,16 @@ export function Goals() {
             </p>
           )}
           {finished.length > 0 && (
-            <details className="goals-finished">
-              <summary className="goals-finished__summary">
-                Terminadas y archivadas ({finished.length})
-              </summary>
-              <ul className="goals-grid" style={{ marginTop: 'var(--s3)' }}>
-                {finished.map(renderCard)}
-              </ul>
-            </details>
+            <button
+              type="button"
+              className="btn--link"
+              style={{ marginTop: 'var(--s5)', alignSelf: 'flex-start', padding: 0 }}
+              onClick={() => navigate('/progreso')}
+            >
+              Ver {finished.length}{' '}
+              {finished.length === 1 ? 'meta lograda o archivada' : 'metas logradas o archivadas'} en
+              Progreso →
+            </button>
           )}
         </>
       )}

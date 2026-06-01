@@ -160,3 +160,32 @@ export async function countDoneByGoal(userId: string): Promise<Map<string, numbe
   }
   return counts
 }
+
+/** Total de acciones completadas por el usuario. Si pasás `sinceISO`, cuenta
+ *  solo desde esa fecha (plan_date inclusive) — útil para "esta semana". */
+export async function countDoneTasks(userId: string, sinceISO?: string): Promise<number> {
+  let query = supabase
+    .from('tasks')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('status', 'done')
+  if (sinceISO) query = query.gte('plan_date', sinceISO)
+  const { count, error } = await query
+  if (error) throw new Error(error.message)
+  return count ?? 0
+}
+
+/** Fechas (plan_date) en las que el usuario completó ≥1 tarea, desde `sinceISO`.
+ *  Sirve para calcular la racha de días activos. */
+export async function listActiveDates(userId: string, sinceISO: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('plan_date')
+    .eq('user_id', userId)
+    .eq('status', 'done')
+    .gte('plan_date', sinceISO)
+  if (error) throw new Error(error.message)
+  const seen = new Set<string>()
+  for (const row of data as { plan_date: string }[]) seen.add(row.plan_date)
+  return [...seen]
+}

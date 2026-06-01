@@ -24,6 +24,7 @@ const Today = lazy(() => import('@/screens/Today').then((m) => ({ default: m.Tod
 const Goals = lazy(() => import('@/screens/Goals').then((m) => ({ default: m.Goals })))
 const GoalDetail = lazy(() => import('@/screens/GoalDetail').then((m) => ({ default: m.GoalDetail })))
 const Calendar = lazy(() => import('@/screens/Calendar').then((m) => ({ default: m.Calendar })))
+const Progress = lazy(() => import('@/screens/Progress').then((m) => ({ default: m.Progress })))
 const ProfileScreen = lazy(() => import('@/screens/Profile').then((m) => ({ default: m.ProfileScreen })))
 
 /**
@@ -111,12 +112,13 @@ function ProfiledApp({ userId, email }: { userId: string; email: string }) {
               <Route path="/meta/nueva" element={<Wizard />} />
               <Route path="/meta/creada/:goalId" element={<GoalCreated />} />
               <Route path="/ideas" element={<GoalSuggestions />} />
-              <Route path="/revision" element={<Review />} />
               <Route element={<AppShell />}>
                 <Route path="/" element={<Today />} />
                 <Route path="/metas" element={<Goals />} />
                 <Route path="/metas/:goalId" element={<GoalDetail />} />
                 <Route path="/calendario" element={<Calendar />} />
+                <Route path="/progreso" element={<Progress />} />
+                <Route path="/revision" element={<Review />} />
                 <Route path="/perfil" element={<ProfileScreen />} />
               </Route>
             </Route>

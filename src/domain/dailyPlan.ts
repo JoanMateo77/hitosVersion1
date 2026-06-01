@@ -1,5 +1,5 @@
 import type { Cadence, FocusMode, Goal, NicheId, Task } from '@/lib/types'
-import { daysUntil, parseISO, todayISO } from '@/lib/date'
+import { addDays, daysUntil, parseISO, todayISO } from '@/lib/date'
 import { getTemplate } from '@/domain/templates'
 
 /**
@@ -197,6 +197,26 @@ export function planningGoals(
  * Metas activas que toca revisar (Sección 6): nunca revisadas, o cuya última
  * revisión es anterior al reviewEveryDays de su plantilla. Determinístico.
  */
+/**
+ * Racha de días activos consecutivos hasta hoy. `activeDates` son fechas
+ * YYYY-MM-DD con al menos una tarea completada. Si hoy todavía no hubo actividad,
+ * la racha NO se rompe: cuenta desde ayer (sigue "en juego" hasta fin del día).
+ */
+export function currentStreak(activeDates: string[], today: string): number {
+  const set = new Set(activeDates)
+  let cursor = today
+  if (!set.has(cursor)) {
+    cursor = addDays(today, -1)
+    if (!set.has(cursor)) return 0
+  }
+  let streak = 0
+  while (set.has(cursor)) {
+    streak++
+    cursor = addDays(cursor, -1)
+  }
+  return streak
+}
+
 export function goalsDueForReview(goals: Goal[], now: Date = new Date()): Goal[] {
   const today = todayISO(now)
   return goals.filter((g) => {

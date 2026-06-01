@@ -255,3 +255,12 @@ export function IconCelebrate({ size = 20, className, style }: IconProps) {
     </svg>
   )
 }
+
+export function IconProgress({ size = 24, className, style }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} style={style} aria-hidden="true">
+      <polyline points="3 16.5 9 10.5 13 14.5 21 6.5" />
+      <polyline points="15 6.5 21 6.5 21 12.5" />
+    </svg>
+  )
+}

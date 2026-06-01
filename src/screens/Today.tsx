@@ -9,6 +9,7 @@ import {
   createUserTask,
   deleteTask,
   lastDoneByGoal,
+  listActiveDates,
   listTasksForDate,
   setTaskStatus,
   updateTaskTitle,
@@ -17,6 +18,7 @@ import { listEventsInRange } from '@/services/events'
 import { compareEvents } from '@/domain/calendar'
 import {
   actionsPerWeek,
+  currentStreak,
   deriveGoalActions,
   findForgottenGoal,
   goalsDueForReview,
@@ -25,11 +27,10 @@ import {
   weeklyFocus,
 } from '@/domain/dailyPlan'
 import { getTemplate } from '@/domain/templates'
-import { endOfWeek, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
+import { addDays, endOfWeek, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
 import { TaskItem } from '@/components/TaskItem'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
-import { Hint } from '@/components/Hint'
 import {
   IconCalendar,
   IconChevronRight,
@@ -61,8 +62,22 @@ export function Today() {
   const [generating, setGenerating] = useState(false)
   const [focusActions, setFocusActions] = useState(0)
   const [showFocusPicker, setShowFocusPicker] = useState(false)
+  const [activeDates, setActiveDates] = useState<string[]>([])
   const { cheerMessage, cheer } = useCheer()
   const { toast } = useToast()
+
+  // Racha de días activos: momentum sutil ("tu esfuerzo se acumula").
+  useEffect(() => {
+    let active = true
+    listActiveDates(userId, addDays(today, -60))
+      .then((dates) => {
+        if (active) setActiveDates(dates)
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [userId, today])
 
   // Override manual del foco semanal: se persiste por semana (key = lunes ISO).
   // Cuando empieza una semana nueva, el override viejo deja de aplicar.
@@ -156,6 +171,8 @@ export function Today() {
   const activeGoals = useMemo(() => goals.filter((g) => g.status === 'active'), [goals])
   const visibleTasks = useMemo(() => tasks.filter((t) => t.status !== 'postponed'), [tasks])
   const doneCount = visibleTasks.filter((t) => t.status === 'done').length
+  // Si ya hiciste algo hoy, hoy cuenta para la racha aunque la DB aún no sincronice.
+  const streak = currentStreak(doneCount > 0 ? [today, ...activeDates] : activeDates, today)
   const todayEvents = useMemo(() => [...events].sort(compareEvents), [events])
   const reviewDue = useMemo(() => goalsDueForReview(goals), [goals])
   // Modo enfocado con varias metas: avisamos que el plan prioriza una sola.
@@ -219,7 +236,7 @@ export function Today() {
       const total = visibleTasks.length
       const willBeDone = currentlyDone + 1
       if (willBeDone === 1 && total > 0) cheer('Ese es el hito de hoy.')
-      else if (willBeDone === total && total > 1) cheer('Cerraste tu día. Mañana seguimos.')
+      else if (willBeDone === total && total > 1) cheer('Terminaste tu plan de hoy. Mañana seguimos.')
     }
     void withErrorHandling(
       async () => {
@@ -327,17 +344,90 @@ export function Today() {
   return (
     <div className="screen">
       <header className="screen__header">
-        <p className="muted small">{formatWeekday(today)}</p>
+        <p className="muted small">
+          {formatWeekday(today)}
+          {streak >= 2 && ` · 🔥 ${streak} días seguidos`}
+        </p>
         <h1 className="screen__title">Tu plan de hoy</h1>
         {visibleTasks.length > 0 && (
           <p className="screen__subtitle">
-            {doneCount} de {visibleTasks.length} {visibleTasks.length === 1 ? 'hecha' : 'hechas'}
+            {doneCount === visibleTasks.length
+              ? `¡Listo por hoy! 🙌 ${doneCount} de ${visibleTasks.length} hechas.`
+              : doneCount === 0
+                ? `Tenés ${visibleTasks.length} ${visibleTasks.length === 1 ? 'cosa' : 'cosas'} para hoy. Empezá por la primera 👇`
+                : `${doneCount} de ${visibleTasks.length} hechas. Seguí con la próxima 👇`}
           </p>
         )}
       </header>
 
+      {cheerMessage && (
+        <div className="cheer" role="status" aria-live="polite">
+          {cheerMessage}
+        </div>
+      )}
+
+      {visibleTasks.length > 0 ? (
+        <ul className="stack stack--sm">
+          {visibleTasks.map((task) => {
+            const goal = task.goalId ? goalById.get(task.goalId) : null
+            return (
+              <TaskItem
+                key={task.id}
+                task={task}
+                goalTitle={goal ? goal.title : null}
+                goalWhy={goal ? goal.why : null}
+                isFocus={focus !== null && task.goalId === focus.id}
+                onToggle={() => toggle(task)}
+                onEdit={(title) => editTask(task, title)}
+                onRemove={() => removeTask(task)}
+              />
+            )
+          })}
+        </ul>
+      ) : (
+        <p className="muted center" style={{ padding: 'var(--s5) 0' }}>
+          {activeGoals.length === 0
+            ? 'Hito brilla con una meta — y también podés anotar algo del día acá abajo.'
+            : 'Sin acciones pendientes hoy. Sumá lo que quieras hacer 👇'}
+        </p>
+      )}
+
+      <form className="row" style={{ marginTop: 'var(--s4)' }} onSubmit={addTask}>
+        <input
+          className="input"
+          placeholder="Agregar algo que querés hacer hoy…"
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          maxLength={300}
+          autoCapitalize="sentences"
+          autoCorrect="on"
+          enterKeyHint="send"
+          inputMode="text"
+        />
+        <button className="iconbtn" type="submit" aria-label="Agregar tarea" disabled={!newTitle.trim()}>
+          <IconPlus size={22} />
+        </button>
+      </form>
+
+      {visibleTasks.length > 0 && doneCount === visibleTasks.length && (
+        <div className="card stack stack--sm" style={{ marginTop: 'var(--s5)', alignItems: 'flex-start' }}>
+          <strong>Cerraste tu plan de hoy 🙌</strong>
+          <p className="small muted" style={{ margin: 0 }}>
+            Mañana seguimos. ¿Querés sumar una meta nueva o ver cómo venís?
+          </p>
+          <div className="row wrap" style={{ gap: 'var(--s2)' }}>
+            <button className="btn btn--primary btn--sm" onClick={() => navigate('/meta/nueva')}>
+              <IconPlus size={16} /> Sumar una meta
+            </button>
+            <button className="btn btn--ghost btn--sm" onClick={() => navigate('/progreso')}>
+              Ver mi progreso
+            </button>
+          </div>
+        </div>
+      )}
+
       {focus && (
-        <div className="focus-card stack stack--sm" style={{ marginBottom: 'var(--s5)' }}>
+        <div className="focus-card stack stack--sm" style={{ marginTop: 'var(--s6)', marginBottom: 'var(--s5)' }}>
           <div className="row row--between" style={{ alignItems: 'center' }}>
             <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
               <IconStar size={12} /> Foco de la semana
@@ -426,55 +516,6 @@ export function Today() {
         </div>
       )}
 
-      {cheerMessage && (
-        <div className="cheer" role="status" aria-live="polite">
-          {cheerMessage}
-        </div>
-      )}
-
-      {visibleTasks.length > 0 ? (
-        <ul className="stack stack--sm">
-          {visibleTasks.map((task) => {
-            const goal = task.goalId ? goalById.get(task.goalId) : null
-            return (
-              <TaskItem
-                key={task.id}
-                task={task}
-                goalTitle={goal ? goal.title : null}
-                goalWhy={goal ? goal.why : null}
-                isFocus={focus !== null && task.goalId === focus.id}
-                onToggle={() => toggle(task)}
-                onEdit={(title) => editTask(task, title)}
-                onRemove={() => removeTask(task)}
-              />
-            )
-          })}
-        </ul>
-      ) : (
-        <p className="muted center" style={{ padding: 'var(--s5) 0' }}>
-          {activeGoals.length === 0
-            ? 'Hito brilla con una meta — y también podés anotar algo del día acá abajo.'
-            : 'Sin acciones pendientes hoy. Sumá una o pedí una propuesta 👇'}
-        </p>
-      )}
-
-      <form className="row" style={{ marginTop: 'var(--s4)' }} onSubmit={addTask}>
-        <input
-          className="input"
-          placeholder="Agregar algo que querés hacer hoy…"
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          maxLength={300}
-          autoCapitalize="sentences"
-          autoCorrect="on"
-          enterKeyHint="send"
-          inputMode="text"
-        />
-        <button className="iconbtn" type="submit" aria-label="Agregar tarea" disabled={!newTitle.trim()}>
-          <IconPlus size={22} />
-        </button>
-      </form>
-
       {actionError && (
         <div className="alert alert--error" role="alert" style={{ marginTop: 'var(--s3)' }}>
           {actionError}
@@ -507,25 +548,20 @@ export function Today() {
       )}
 
       {activeGoals.length > 0 && (
-        <>
-          {visibleTasks.length === 0 && (
-            <div style={{ marginTop: 'var(--s4)' }}>
-              <Hint id="today-propose-2026-05">
-                ¿Día flojo? Tocá <strong>“proponé vos”</strong> y te armo un plan en base a tus
-                metas activas.
-              </Hint>
-            </div>
-          )}
-          <button
-            className="btn btn--ghost btn--block"
-            style={{ marginTop: 'var(--s5)' }}
-            onClick={proposePlan}
-            disabled={generating}
-          >
-            <IconSparkles size={18} />
-            {generating ? 'Armando tu plan…' : 'No sé qué hacer hoy — proponé vos'}
-          </button>
-        </>
+        // "Proponé vos" queda deshabilitado a propósito: esta función va a armar el
+        // plan del día con IA (no con heurísticas). Hasta que la IA esté lista, se
+        // muestra como "próximamente" para no prometer algo que todavía no hacemos
+        // bien. Conservamos proposePlan/generating cableados para enchufarlos luego.
+        <button
+          className="btn btn--ghost btn--block"
+          style={{ marginTop: 'var(--s5)' }}
+          onClick={proposePlan}
+          disabled
+          title="Pronto vas a poder pedirme el plan del día con IA."
+        >
+          <IconSparkles size={18} />
+          {generating ? 'Armando tu plan…' : 'Proponé mi plan con IA — pronto ✨'}
+        </button>
       )}
 
       {/* Avisos secundarios DEBAJO del plan: lo primero que ve el usuario es su
@@ -537,7 +573,6 @@ export function Today() {
             width: '100%',
             textAlign: 'left',
             marginTop: 'var(--s5)',
-            borderColor: 'var(--primary)',
           }}
           onClick={() => navigate('/revision')}
         >

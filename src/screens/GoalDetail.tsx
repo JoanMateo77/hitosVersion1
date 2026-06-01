@@ -228,7 +228,7 @@ export function GoalDetail() {
               <div className="stack stack--sm" style={{ marginTop: 'var(--s4)' }}>
                 {goal.currentMilestone < milestones.length ? (
                   <button
-                    className="btn btn--ghost btn--block"
+                    className="btn btn--primary btn--block"
                     disabled={updating}
                     onClick={() => updateMilestone(goal.currentMilestone + 1)}
                   >

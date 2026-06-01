@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  currentStreak,
   deriveGoalActions,
   findForgottenGoal,
   goalsDueForReview,
@@ -143,5 +144,20 @@ describe('goalsDueForReview', () => {
   it('excluye metas revisadas hace poco', () => {
     const g = goal({ lastReviewedAt: '2026-05-24T12:00:00Z' }) // ayer; reviewEveryDays = 7
     expect(goalsDueForReview([g], new Date('2026-05-25T12:00:00'))).toHaveLength(0)
+  })
+})
+
+describe('currentStreak', () => {
+  it('cuenta días consecutivos incluido hoy', () => {
+    expect(currentStreak(['2026-06-01', '2026-05-31', '2026-05-30'], '2026-06-01')).toBe(3)
+  })
+  it('no se rompe si hoy aún no hubo actividad (cuenta desde ayer)', () => {
+    expect(currentStreak(['2026-05-31', '2026-05-30'], '2026-06-01')).toBe(2)
+  })
+  it('se corta en el primer hueco', () => {
+    expect(currentStreak(['2026-06-01', '2026-05-30'], '2026-06-01')).toBe(1)
+  })
+  it('es 0 si ni hoy ni ayer hubo actividad', () => {
+    expect(currentStreak(['2026-05-28'], '2026-06-01')).toBe(0)
   })
 })
