@@ -7,6 +7,7 @@ import { minutesByGoalInRange } from '@/services/events'
 import { getTemplate } from '@/domain/templates'
 import { pickAction } from '@/domain/dailyPlan'
 import { NICHES, getNiche } from '@/domain/niches'
+import { nicheAccent } from '@/lib/nicheAccent'
 import { isGoalClosed } from '@/domain/goals'
 import { addDays, formatDuration, formatLongDate, relativeDeadline, startOfWeek, todayISO } from '@/lib/date'
 import type { Goal, GoalStatus, NicheId } from '@/lib/types'
@@ -168,12 +169,12 @@ export function GoalDetail() {
   const deadline = isGoalClosed(goal.status) ? null : relativeDeadline(goal.targetDate)
 
   return (
-    <div className="screen">
+    <div className="screen" style={nicheAccent(goal.area)}>
       <BackButton onClick={goBack} />
 
       <header className="screen__header" style={{ marginTop: 'var(--s4)' }}>
-        <div className="row" style={{ marginBottom: 'var(--s2)' }}>
-          <span style={{ fontSize: 28 }}>{template.emoji}</span>
+        <div className="row" style={{ marginBottom: 'var(--s2)', alignItems: 'center' }}>
+          <span className="goal-card__emoji" aria-hidden="true">{template.emoji}</span>
           {goal.status !== 'active' && (
             <span className="tag">
               {goal.status === 'done' ? 'Lograda 🎉' : goal.status === 'paused' ? 'Pausada' : 'Archivada'}

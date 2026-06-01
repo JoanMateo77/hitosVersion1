@@ -8,6 +8,7 @@ import { getTemplate } from '@/domain/templates'
 import { getNiche } from '@/domain/niches'
 import { clampedStage, isGoalClosed, isPathComplete } from '@/domain/goals'
 import { relativeDeadline } from '@/lib/date'
+import { nicheAccent } from '@/lib/nicheAccent'
 import type { Goal, GoalStatus } from '@/lib/types'
 import { useAsyncData } from '@/hooks/useAsyncData'
 import { LoadingScreen } from '@/components/LoadingScreen'
@@ -215,13 +216,13 @@ function GoalPeek({
   return (
     <div className="goal-peek-backdrop" onClick={onClose}>
       <div data-blendy-to={bid(goal.id)}>
-        <div className="goal-peek" onClick={(e) => e.stopPropagation()}>
+        <div className="goal-peek" onClick={(e) => e.stopPropagation()} style={nicheAccent(goal.area)}>
           <div className="goal-card__top">
             <span className="goal-card__emoji" aria-hidden="true">{template.emoji}</span>
             <span className="goal-card__title">{goal.title}</span>
           </div>
           <div className="row wrap" style={{ rowGap: 6 }}>
-            <span className="tag">
+            <span className="tag tag--niche">
               <span aria-hidden="true">{niche.emoji}</span> {niche.label}
             </span>
             {deadline && (
@@ -289,7 +290,7 @@ function GoalCard({
       className="goal-card"
       onClick={onClick}
       aria-label={`Ver meta: ${goal.title}`}
-      style={dimmed ? { opacity: 0.7 } : undefined}
+      style={{ ...nicheAccent(goal.area), ...(dimmed ? { opacity: 0.7 } : {}) }}
     >
       <div className="goal-card__top">
         <span className="goal-card__emoji" aria-hidden="true">{template.emoji}</span>
@@ -297,7 +298,7 @@ function GoalCard({
         {badge && <span className="tag">{badge}</span>}
       </div>
       <div className="row wrap" style={{ rowGap: 6 }}>
-        <span className="tag">
+        <span className="tag tag--niche">
           <span aria-hidden="true">{niche.emoji}</span> {niche.label}
         </span>
         {deadline && (

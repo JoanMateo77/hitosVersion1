@@ -72,6 +72,19 @@
 
   /* Acento de marca: usa los colores del tema activo (se resuelve al usarse). */
   --gradient-brand: linear-gradient(135deg, var(--primary), var(--primary-strong));
+
+  /* Color por NICHO (área): le da significado al color — cada meta/tarea se
+     reconoce por su tono, y el verde deja de hacer TODOS los trabajos. salud usa
+     el verde de marca (se adapta al tema); el resto son tonos medios que se leen
+     bien en claro, negro y neón. Se aplican vía --niche (helper nicheAccent). */
+  --niche-salud: var(--primary);
+  --niche-finanzas: #e0992f;
+  --niche-carrera: #4a8ee6;
+  --niche-aprendizaje: #7b6cf0;
+  --niche-relaciones: #ec5f8f;
+  --niche-creatividad: #c75ad6;
+  --niche-bienestar: #19b3c4;
+  --niche-otra: #98a0ab;
 }
 
 /* ===== Tema CLARO (default) ==============================================
@@ -161,4 +174,45 @@
   --neon-rim: inset 0 0 0 1px color-mix(in srgb, var(--primary) 14%, transparent);
   --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(52, 245, 197, 0.22), transparent 60%),
     radial-gradient(120% 80% at 100% 100%, rgba(34, 211, 238, 0.18), transparent 60%);
+}
+
+/* ===== Tema NEGRO (neutro) ===============================================
+   Full black, sin neón ni glow. Superficies grises neutras separadas por borde,
+   acentos neutros (gris) y el verde de marca en versión calma para lo esencial
+   (acción principal, estado activo). Modo "sobrio" para concentrarse. */
+[data-theme='negro'] {
+  color-scheme: dark;
+
+  --bg: #000000;
+  --bg-elev: #0a0a0b;
+  --surface: #111113;
+  --surface-2: #1a1a1d;
+  --surface-3: #242428;
+  --border: #2c2c32;
+  --border-soft: #1e1e22;
+
+  --text: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --text-faint: #7e7e87;
+
+  --primary: #2dd4a0;
+  --primary-strong: #25b88a;
+  --primary-soft: rgba(45, 212, 160, 0.12);
+  --on-primary: #04140d;
+
+  /* Acento NEUTRO (gris claro), no un segundo color: el negro es sobrio. */
+  --accent: #d4d4d8;
+  --accent-soft: rgba(212, 212, 216, 0.1);
+
+  --success: #2dd4a0;
+  --success-soft: rgba(45, 212, 160, 0.12);
+  --danger: #f26d85;
+  --danger-soft: rgba(242, 109, 133, 0.12);
+  --warning: #e3b341;
+  --warning-soft: rgba(227, 179, 65, 0.12);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.7);
+  /* Wash blanco muy sutil (neutro), sin tinte verde/cyan. */
+  --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(255, 255, 255, 0.045), transparent 60%);
 }

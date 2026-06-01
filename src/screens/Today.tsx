@@ -28,6 +28,7 @@ import {
 } from '@/domain/dailyPlan'
 import { getTemplate } from '@/domain/templates'
 import { addDays, endOfWeek, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
+import { nicheAccent } from '@/lib/nicheAccent'
 import { TaskItem } from '@/components/TaskItem'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
@@ -427,7 +428,10 @@ export function Today() {
       )}
 
       {focus && (
-        <div className="focus-card stack stack--sm" style={{ marginTop: 'var(--s6)', marginBottom: 'var(--s5)' }}>
+        <div
+          className="focus-card stack stack--sm"
+          style={{ ...nicheAccent(focus.area), marginTop: 'var(--s6)', marginBottom: 'var(--s5)' }}
+        >
           <div className="row row--between" style={{ alignItems: 'center' }}>
             <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
               <IconStar size={12} /> Foco de la semana

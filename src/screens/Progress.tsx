@@ -8,6 +8,7 @@ import { getNiche } from '@/domain/niches'
 import { clampedStage, isGoalClosed } from '@/domain/goals'
 import { currentStreak } from '@/domain/dailyPlan'
 import { addDays, formatLongDate, startOfWeek, todayISO } from '@/lib/date'
+import { nicheAccent } from '@/lib/nicheAccent'
 import { useAsyncData } from '@/hooks/useAsyncData'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
@@ -117,7 +118,7 @@ function TimelineItem({ goal, onClick }: { goal: Goal; onClick: () => void }) {
   const dateISO = (goal.completedAt ?? goal.createdAt).slice(0, 10)
 
   return (
-    <li className="timeline__item">
+    <li className="timeline__item" style={nicheAccent(goal.area)}>
       <span className={`timeline__dot${done ? ' timeline__dot--done' : ''}`} aria-hidden="true" />
       <button type="button" className="timeline__card" onClick={onClick}>
         <div className="row row--between" style={{ alignItems: 'flex-start', gap: 'var(--s2)' }}>

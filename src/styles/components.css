@@ -398,6 +398,12 @@
   font-size: var(--fs-xs);
   font-weight: 600;
 }
+/* Tag teñido por nicho: fondo suave del color del área + texto mezclado con el
+   color de texto del tema para que se lea bien en claro, negro y neón. */
+.tag--niche {
+  background: color-mix(in srgb, var(--niche, var(--primary)) 14%, transparent);
+  color: color-mix(in srgb, var(--niche, var(--primary)) 62%, var(--text));
+}
 
 /* Grilla de metas: stack en móvil, grid auto-fit en desktop ancho. */
 .goals-grid {
@@ -489,7 +495,8 @@
   font-weight: 600;
   letter-spacing: var(--tracking-kicker);
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--primary) 80%, var(--text));
+  /* Tinte por nicho del foco (--niche, seteado en .focus-card). */
+  color: color-mix(in srgb, var(--niche, var(--primary)) 72%, var(--text));
 }
 .focus-card strong {
   font-family: var(--font-display);
@@ -1608,8 +1615,9 @@ select.input {
   align-items: center;
   justify-content: center;
   border-radius: var(--radius);
-  background: var(--surface-2);
-  border: 1px solid var(--border-soft);
+  /* Token teñido por el color del nicho (--niche, heredado de .goal-card). */
+  background: color-mix(in srgb, var(--niche, var(--text)) 15%, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--niche, var(--text)) 28%, var(--border-soft));
   font-size: 22px;
 }
 
@@ -2134,8 +2142,8 @@ select.input {
   border: 2px solid var(--border);
 }
 .timeline__dot--done {
-  background: var(--primary);
-  border-color: var(--primary);
+  background: var(--niche, var(--primary));
+  border-color: var(--niche, var(--primary));
 }
 .timeline__card {
   display: flex;

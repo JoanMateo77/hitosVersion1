@@ -1,4 +1,4 @@
-export type Theme = 'claro' | 'neon'
+export type Theme = 'claro' | 'neon' | 'negro'
 
 const STORAGE_KEY = 'hito-theme'
 
@@ -6,15 +6,17 @@ const STORAGE_KEY = 'hito-theme'
 const THEME_COLOR: Record<Theme, string> = {
   claro: '#f5f0e6',
   neon: '#05060f',
+  negro: '#000000',
 }
 
 export const THEMES: { id: Theme; label: string; emoji: string }[] = [
   { id: 'claro', label: 'Claro', emoji: '☀️' },
+  { id: 'negro', label: 'Negro', emoji: '🌑' },
   { id: 'neon', label: 'Neón', emoji: '✨' },
 ]
 
 function isTheme(value: string | null): value is Theme {
-  return value === 'claro' || value === 'neon'
+  return value === 'claro' || value === 'neon' || value === 'negro'
 }
 
 export function readTheme(): Theme {
