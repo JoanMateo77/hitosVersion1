@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import type { Goal } from '@/lib/types'
-import { listGoals, markGoalReviewed, setGoalMilestone, setGoalStatus } from '@/services/goals'
+import type { Goal, Milestone } from '@/lib/types'
+import { listGoals, markGoalReviewed, setGoalStatus } from '@/services/goals'
+import { listMilestones, setMilestoneDone } from '@/services/milestones'
 import { getTemplate } from '@/domain/templates'
 import { goalsDueForReview } from '@/domain/dailyPlan'
-import { clampedStage } from '@/domain/goals'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { useToast } from '@/app/toast'
 import { Roadmap } from '@/components/Roadmap'
@@ -13,7 +13,7 @@ import { IconCelebrate, IconCheck, IconSprout } from '@/components/icons'
 
 /**
  * Revisión semanal guiada (Sección 6): recorre tus metas activas una por una y
- * te deja confirmar que seguís, avanzar de etapa o pausarla. Cada confirmación
+ * te deja confirmar que sigues, avanzar de etapa o pausarla. Cada confirmación
  * marca la meta como revisada (last_reviewed_at), así no vuelve a pedirla hasta
  * que pase su frecuencia de revisión.
  *
@@ -28,6 +28,7 @@ export function Review() {
   const { toast } = useToast()
 
   const [goals, setGoals] = useState<Goal[]>([])
+  const [milestonesByGoal, setMilestonesByGoal] = useState<Map<string, Milestone[]>>(new Map())
   const [index, setIndex] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -43,9 +44,13 @@ export function Review() {
   useEffect(() => {
     let active = true
     listGoals(userId)
-      .then((gs) => {
+      .then(async (gs) => {
+        const due = goalsDueForReview(gs)
+        // Hitos reales de cada meta a revisar (pocas): el avance se marca ahí.
+        const lists = await Promise.all(due.map((g) => listMilestones(g.id)))
         if (!active) return
-        setGoals(goalsDueForReview(gs))
+        setGoals(due)
+        setMilestonesByGoal(new Map(due.map((g, i) => [g.id, lists[i]])))
         setLoading(false)
       })
       .catch((err: unknown) => {
@@ -67,7 +72,7 @@ export function Review() {
         setIndex((i) => i + 1)
       })
       .catch((err: unknown) =>
-        setError(err instanceof Error ? err.message : 'No se pudo guardar. Probá de nuevo.'),
+        setError(err instanceof Error ? err.message : 'No se pudo guardar. Inténtalo de nuevo.'),
       )
       .finally(() => setWorking(false))
   }
@@ -134,7 +139,7 @@ export function Review() {
             style={{ marginTop: 'var(--s6)', width: 'min(340px, 100%)' }}
           >
             <button className="btn btn--primary btn--block" onClick={() => navigate('/progreso')}>
-              Ver cómo venís
+              Ver cómo vas
             </button>
             <button className="btn--link" onClick={() => navigate('/')}>
               Volver a hoy
@@ -146,9 +151,26 @@ export function Review() {
   }
 
   const template = getTemplate(goal.templateKey)
-  const milestones = template.milestones
-  const stage = clampedStage(goal.currentMilestone, milestones.length)
-  const canAdvance = stage < milestones.length
+  const goalMilestones = [...(milestonesByGoal.get(goal.id) ?? [])].sort(
+    (a, b) => a.position - b.position,
+  )
+  const milestones = goalMilestones.map((m) => m.title)
+  const stage = goalMilestones.filter((m) => m.doneAt !== null).length
+  const firstPending = goalMilestones.find((m) => m.doneAt === null) ?? null
+  const canAdvance = firstPending !== null
+
+  function markPendingDone(m: Milestone) {
+    return setMilestoneDone(m.id, true).then((updated) => {
+      setMilestonesByGoal((prev) => {
+        const next = new Map(prev)
+        next.set(
+          goal.id,
+          (next.get(goal.id) ?? []).map((x) => (x.id === updated.id ? updated : x)),
+        )
+        return next
+      })
+    })
+  }
 
   return (
     <div className="screen">
@@ -190,7 +212,7 @@ export function Review() {
         >
           <IconCheck size={18} /> Sigo con esto
         </button>
-        {canAdvance ? (
+        {canAdvance && firstPending ? (
           stage + 1 >= milestones.length ? (
             <button
               className="btn btn--ghost btn--block"
@@ -198,7 +220,7 @@ export function Review() {
               onClick={() =>
                 act(async () => {
                   // Completar la última etapa cierra el ciclo: camino completo + meta lograda.
-                  await setGoalMilestone(goal.id, milestones.length)
+                  await markPendingDone(firstPending)
                   await setGoalStatus(goal.id, 'done')
                   toast('¡Meta lograda! Recorriste todo el camino. 🎉', 'success')
                 }, 'achieved')
@@ -212,13 +234,13 @@ export function Review() {
               disabled={working}
               onClick={() =>
                 act(async () => {
-                  await setGoalMilestone(goal.id, stage + 1)
+                  await markPendingDone(firstPending)
                   await markGoalReviewed(goal.id)
-                  toast('Etapa cumplida. Bien ahí.', 'success')
+                  toast(`Etapa cumplida: ${firstPending.title} 🎉`, 'success')
                 }, 'advanced')
               }
             >
-              Avancé de etapa 🎯
+              Cumplí la etapa “{firstPending.title}” 🎯
             </button>
           )
         ) : (
@@ -242,7 +264,7 @@ export function Review() {
           onClick={() =>
             act(async () => {
               await setGoalStatus(goal.id, 'paused')
-              toast('Pausada. La retomás cuando quieras.')
+              toast('Pausada. La retomas cuando quieras.')
             }, 'paused')
           }
         >
