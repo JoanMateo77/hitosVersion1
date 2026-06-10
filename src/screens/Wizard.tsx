@@ -19,15 +19,16 @@ import {
   type CommitmentBlockDraft,
   type MilestoneDraft,
 } from '@/domain/commitment'
-import { listScheduleForUser, createScheduleBlocks } from '@/services/schedule'
+import { listActiveGoalSchedule, createScheduleBlocks } from '@/services/schedule'
 import { createMilestones } from '@/services/milestones'
+import { WIZARD_DRAFT_KEY } from '@/lib/wizardDraft'
 import { CommitmentStep } from '@/components/wizard/CommitmentStep'
 import { MilestonesStep } from '@/components/wizard/MilestonesStep'
 
-/** Cantidad de pasos del wizard (las 5 preguntas + el tipo de meta). */
+/** Pasos del wizard: título · tipo · compromiso · camino · ancla · resumen. */
 const STEPS = 6
 
-const DRAFT_KEY = 'logralo.wizard-draft-v2'
+const DRAFT_KEY = WIZARD_DRAFT_KEY
 
 interface WizardDraft {
   step: number
@@ -39,6 +40,10 @@ interface WizardDraft {
   criteria: string
   blocks: CommitmentBlockDraft[]
   milestones: MilestoneDraft[]
+  /** Plantilla con la que se sembraron las etapas (para re-sembrar si cambia). */
+  seededFromTemplate: string
+  /** true si el usuario editó las etapas: nunca se pisan. */
+  milestonesTouched: boolean
 }
 
 /** Type-guard: ¿el valor es un NicheId válido? Espejo de isTheme en theme.ts. */
@@ -68,6 +73,8 @@ function loadDraft(): Partial<WizardDraft> {
     if (typeof d.targetDate === 'string') draft.targetDate = d.targetDate
     if (isNiche(d.area)) draft.area = d.area
     if (typeof d.criteria === 'string') draft.criteria = d.criteria
+    if (typeof d.seededFromTemplate === 'string') draft.seededFromTemplate = d.seededFromTemplate
+    if (typeof d.milestonesTouched === 'boolean') draft.milestonesTouched = d.milestonesTouched
     if (Array.isArray(d.blocks)) {
       draft.blocks = (d.blocks as unknown[]).filter(
         (item): item is CommitmentBlockDraft =>
@@ -116,14 +123,19 @@ export function Wizard() {
 
   const [blocks, setBlocks] = useState<CommitmentBlockDraft[]>(draft.blocks ?? [])
   const [milestones, setMilestones] = useState<MilestoneDraft[]>(draft.milestones ?? [])
+  // Si el usuario cambia de plantilla sin haber editado las etapas, se re-siembran;
+  // si las tocó, se respetan siempre (espejo del patrón detectedFromTitle).
+  const [seededFromTemplate, setSeededFromTemplate] = useState(draft.seededFromTemplate ?? '')
+  const [milestonesTouched, setMilestonesTouched] = useState(draft.milestonesTouched ?? false)
   const [existingBlocks, setExistingBlocks] = useState<ScheduleBlock[]>([])
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Carga los bloques de otras metas del usuario (guardia de sobrecompromiso).
+  // Carga los bloques de otras metas ACTIVAS del usuario (guardia de
+  // sobrecompromiso): las metas logradas o archivadas ya no ocupan agenda.
   useEffect(() => {
-    listScheduleForUser(userId)
+    listActiveGoalSchedule(userId)
       .then(setExistingBlocks)
       .catch(() => setExistingBlocks([]))
   }, [userId])
@@ -155,12 +167,24 @@ export function Wizard() {
     try {
       sessionStorage.setItem(
         DRAFT_KEY,
-        JSON.stringify({ step, title, templateKey, why, targetDate, area, criteria, blocks, milestones }),
+        JSON.stringify({
+          step,
+          title,
+          templateKey,
+          why,
+          targetDate,
+          area,
+          criteria,
+          blocks,
+          milestones,
+          seededFromTemplate,
+          milestonesTouched,
+        }),
       )
     } catch {
       /* ignore */
     }
-  }, [step, title, templateKey, why, targetDate, area, criteria, blocks, milestones])
+  }, [step, title, templateKey, why, targetDate, area, criteria, blocks, milestones, seededFromTemplate, milestonesTouched])
 
   function goBack() {
     if (step === 0) {
@@ -179,15 +203,26 @@ export function Wizard() {
       setArea(detected.defaultArea)
       setDetectedFromTitle(title)
     }
-    // Al salir del tipo elegido (paso 1 → 2), sembrar los hitos desde la plantilla
-    // si el usuario aún no los tocó.
-    if (step === 1 && milestones.length === 0) {
-      setMilestones(buildMilestonesFromTemplate(getTemplate(templateKey || 'personalizada'), 0))
+    // Al salir del tipo elegido (paso 1 → 2), sembrar las etapas desde la
+    // plantilla. Se re-siembran si la plantilla cambió y el usuario no las editó;
+    // las etapas editadas a mano no se pisan nunca.
+    if (step === 1) {
+      const key = templateKey || 'personalizada'
+      if (milestones.length === 0 || (!milestonesTouched && key !== seededFromTemplate)) {
+        setMilestones(buildMilestonesFromTemplate(getTemplate(key), 0))
+        setSeededFromTemplate(key)
+      }
     }
     setStep((s) => s + 1)
   }
 
   async function submit() {
+    // Defensa del invariante central: ninguna meta se crea sin contrato, ni
+    // siquiera desde un borrador manipulado o un estado inesperado.
+    if (validateCommitment(blocks) !== null || milestones.length === 0) {
+      setError('Tu meta necesita un compromiso y al menos una etapa.')
+      return
+    }
     setSaving(true)
     setError(null)
     let createdGoalId: string | null = null
@@ -215,7 +250,8 @@ export function Wizard() {
       // Le mostramos el camino + la primera acción: la app guía, no solo crea.
       clearDraft()
       navigate(`/meta/creada/${goal.id}`, { replace: true })
-    } catch {
+    } catch (err) {
+      console.error('No se pudo crear la meta con su contrato:', err)
       // Si la meta quedó a medias (sin hitos o sin compromiso), la deshacemos:
       // una meta sin contrato es exactamente lo que este rediseño elimina.
       if (createdGoalId) await deleteGoal(userId, createdGoalId).catch(() => {})
@@ -319,7 +355,13 @@ export function Wizard() {
 
         {step === 3 && (
           <Question title="Estas son tus etapas" hint="Las sugerimos según tu tipo de meta. Edítalas a tu medida.">
-            <MilestonesStep milestones={milestones} onChange={setMilestones} />
+            <MilestonesStep
+              milestones={milestones}
+              onChange={(ms) => {
+                setMilestones(ms)
+                setMilestonesTouched(true)
+              }}
+            />
           </Question>
         )}
 

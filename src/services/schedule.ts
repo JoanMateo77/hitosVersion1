@@ -39,6 +39,20 @@ export async function listScheduleForUser(userId: string): Promise<ScheduleBlock
   return (data as ScheduleRow[]).map(mapBlock)
 }
 
+/**
+ * Bloques del usuario SOLO de metas activas: la guardia de sobrecompromiso no
+ * debe contar agenda de metas logradas, pausadas o archivadas.
+ */
+export async function listActiveGoalSchedule(userId: string): Promise<ScheduleBlock[]> {
+  const { data, error } = await supabase
+    .from('goal_schedule')
+    .select('*, goals!inner(status)')
+    .eq('user_id', userId)
+    .eq('goals.status', 'active')
+  if (error) throw new Error(error.message)
+  return (data as ScheduleRow[]).map(mapBlock)
+}
+
 export async function listScheduleForGoal(goalId: string): Promise<ScheduleBlock[]> {
   const { data, error } = await supabase
     .from('goal_schedule')
