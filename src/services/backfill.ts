@@ -6,14 +6,26 @@ import { createScheduleBlocks, listScheduleForUser } from '@/services/schedule'
 
 const FLAG = 'logralo.backfill-v1'
 
+let inflight: Promise<void> | null = null
+
 /**
  * Migración perezosa (Fase 1): a las metas creadas ANTES del modelo nuevo les
  * copia los hitos de su plantilla (marcando los primeros current_milestone como
  * cumplidos) y les crea un compromiso desde la cadencia legacy (25 min/sesión).
  * Corre una vez por sesión de navegador; es idempotente porque consulta qué
  * metas ya tienen datos.
+ * Single-flight: StrictMode monta el efecto dos veces en dev; sin esta guarda,
+ * dos corridas concurrentes duplicarían filas (no hay unique en la BD).
  */
 export async function ensureCommitmentBackfill(userId: string, goals: Goal[]): Promise<void> {
+  if (inflight) return inflight
+  inflight = run(userId, goals).finally(() => {
+    inflight = null
+  })
+  return inflight
+}
+
+async function run(userId: string, goals: Goal[]): Promise<void> {
   try {
     if (sessionStorage.getItem(FLAG)) return
   } catch {
