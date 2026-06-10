@@ -6,6 +6,9 @@ interface ProfileRow {
   focus_mode: string
   primary_niche: string | null
   onboarded_at: string | null
+  preferred_moment: string | null
+  default_session_minutes: number | null
+  priority_goal_id: string | null
   created_at: string
 }
 
@@ -15,6 +18,9 @@ function mapProfile(row: ProfileRow): Profile {
     focusMode: row.focus_mode as FocusMode,
     primaryNiche: (row.primary_niche as NicheId | null) ?? null,
     onboardedAt: row.onboarded_at,
+    preferredMoment: (row.preferred_moment as Profile['preferredMoment']) ?? null,
+    defaultSessionMinutes: row.default_session_minutes ?? null,
+    priorityGoalId: row.priority_goal_id ?? null,
     createdAt: row.created_at,
   }
 }

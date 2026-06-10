@@ -30,13 +30,22 @@ export type TaskStatus = 'pending' | 'done' | 'postponed'
 /** Frecuencia con la que una meta pide una acción en el plan diario. */
 export type Cadence = 'daily' | 'weekdays' | 'thrice_week' | 'weekly'
 
+/** Momento del día en que al usuario le resulta más fácil cumplir. */
+export type PreferredMoment = 'morning' | 'midday' | 'evening'
+
 /** Perfil del usuario (1:1 con auth.users en Supabase). */
 export interface Profile {
   id: string
+  /** @deprecated El modo Enfoque se elimina en Fase 2; no usar en código nuevo. */
   focusMode: FocusMode
   primaryNiche: NicheId | null
   /** Fecha en que terminó el onboarding; null = todavía no lo completó. */
   onboardedAt: string | null
+  /** Defaults capturados en onboarding (alimentan el wizard). */
+  preferredMoment: PreferredMoment | null
+  defaultSessionMinutes: number | null
+  /** Meta prioritaria ⭐ opcional: ordena el día, no oculta nada. */
+  priorityGoalId: string | null
   createdAt: string
 }
 
@@ -122,5 +131,41 @@ export interface CalendarEvent {
   startTime: string | null
   endTime: string | null
   allDay: boolean
+  createdAt: string
+}
+
+/** Cómo se mide una sesión: tiempo (minutos) o cantidad (páginas, km…). */
+export type TargetKind = 'time' | 'count'
+
+/** Hito propio de UNA meta. Editable; se marca individualmente. */
+export interface Milestone {
+  id: string
+  goalId: string
+  userId: string
+  title: string
+  /** Orden dentro del camino (0-based). */
+  position: number
+  targetDate: string | null
+  /** Cuándo se cumplió; null = pendiente. */
+  doneAt: string | null
+  createdAt: string
+}
+
+/**
+ * Un bloque/momento comprometido: "los lunes, 25 min, a las 19:00".
+ * Un día puede tener varios bloques. weekday: lunes=0 … domingo=6.
+ */
+export interface ScheduleBlock {
+  id: string
+  goalId: string
+  userId: string
+  weekday: number
+  targetKind: TargetKind
+  /** Minutos si targetKind='time'; cantidad si 'count'. */
+  targetValue: number
+  /** Unidad para 'count' ("páginas", "km"…); null para 'time'. */
+  unit: string | null
+  /** Hora preferida "HH:MM", o null si todavía no la fijó. */
+  startTime: string | null
   createdAt: string
 }
