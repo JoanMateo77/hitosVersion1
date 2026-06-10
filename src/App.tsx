@@ -20,6 +20,7 @@ const GoalSuggestions = lazy(() =>
   import('@/screens/GoalSuggestions').then((m) => ({ default: m.GoalSuggestions })),
 )
 const Review = lazy(() => import('@/screens/Review').then((m) => ({ default: m.Review })))
+const SessionRun = lazy(() => import('@/screens/SessionRun').then((m) => ({ default: m.SessionRun })))
 const Today = lazy(() => import('@/screens/Today').then((m) => ({ default: m.Today })))
 const Goals = lazy(() => import('@/screens/Goals').then((m) => ({ default: m.Goals })))
 const GoalDetail = lazy(() => import('@/screens/GoalDetail').then((m) => ({ default: m.GoalDetail })))
@@ -112,6 +113,7 @@ function ProfiledApp({ userId, email }: { userId: string; email: string }) {
               <Route path="/meta/nueva" element={<Wizard />} />
               <Route path="/meta/creada/:goalId" element={<GoalCreated />} />
               <Route path="/ideas" element={<GoalSuggestions />} />
+              <Route path="/sesion/:sessionId" element={<SessionRun />} />
               <Route element={<AppShell />}>
                 <Route path="/" element={<Today />} />
                 <Route path="/metas" element={<Goals />} />
