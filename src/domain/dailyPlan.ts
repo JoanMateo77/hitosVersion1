@@ -131,10 +131,10 @@ export interface ForgottenGoal {
 export function findForgottenGoal(
   goals: Goal[],
   lastDoneByGoalId: Map<string, string>,
-  todayTasks: Task[],
+  excludeGoalIds: Set<string>,
   now: Date = new Date(),
 ): ForgottenGoal | null {
-  const hasTaskToday = new Set(todayTasks.filter((t) => t.goalId !== null).map((t) => t.goalId))
+  const hasTaskToday = excludeGoalIds
   // Diferencia en días-calendario (evita el off-by-one de mezclar hora local y UTC).
   const daysSince = (iso: string) => daysUntil(todayISO(now), todayISO(new Date(iso)))
 

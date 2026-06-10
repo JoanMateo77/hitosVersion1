@@ -2178,3 +2178,75 @@ select.input {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+
+/* --- Sesiones del día (Fase 2): tarjeta con tinte sutil por meta --- */
+.session {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--border-soft);
+  border-left: 3px solid var(--niche, var(--primary));
+  border-radius: 14px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--niche, var(--primary)) 7%, var(--surface)),
+    var(--surface)
+  );
+}
+.session__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.session__title {
+  font-weight: 600;
+}
+.session__title--closed {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+.session__meta {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.session__meta--ok {
+  color: var(--success, var(--primary));
+}
+.session__why {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  font-style: italic;
+}
+.session__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex: none;
+}
+.session__play {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--niche, var(--primary));
+  color: #fff;
+}
+.session__play:active {
+  transform: scale(0.96);
+}
+.session--done,
+.session--partial,
+.session--missed {
+  opacity: 0.78;
+}
+.session__undo {
+  flex: none;
+  font-size: var(--fs-xs);
+}
