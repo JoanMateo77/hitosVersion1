@@ -44,6 +44,7 @@ import {
 } from '@/components/icons'
 import { useCheer } from '@/hooks/useCheer'
 import { useToast } from '@/app/toast'
+import { ensureCommitmentBackfill } from '@/services/backfill'
 
 export function Today() {
   const { userId, profile } = useSession()
@@ -139,6 +140,10 @@ export function Today() {
             loadedTasks = await listTasksForDate(userId, today)
           }
         }
+
+        // Migración perezosa al modelo de compromiso (Fase 1). No bloquea el plan:
+        // si falla, la app vieja sigue funcionando y se reintenta en la próxima sesión.
+        void ensureCommitmentBackfill(userId, loadedGoals).catch(() => {})
 
         if (active) {
           setGoals(loadedGoals)
