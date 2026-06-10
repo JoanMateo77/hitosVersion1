@@ -101,3 +101,22 @@ export async function updateBlockStartTime(
   if (error) throw new Error(error.message)
   return mapBlock(data as ScheduleRow)
 }
+
+/**
+ * Reemplaza el compromiso completo de una meta (editar desde el detalle).
+ * Las sesiones pasadas conservan su historia (schedule_id queda en NULL por
+ * el ON DELETE SET NULL); las futuras se regeneran solas al abrir cada día.
+ */
+export async function replaceSchedule(
+  userId: string,
+  goalId: string,
+  drafts: CommitmentBlockDraft[],
+): Promise<ScheduleBlock[]> {
+  const { error } = await supabase
+    .from('goal_schedule')
+    .delete()
+    .eq('goal_id', goalId)
+    .eq('user_id', userId)
+  if (error) throw new Error(error.message)
+  return createScheduleBlocks(userId, goalId, drafts)
+}

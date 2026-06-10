@@ -1,27 +1,52 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import { getGoal, setGoalMilestone, setGoalStatus, updateGoal, type GoalEdit } from '@/services/goals'
-import { countDoneByGoal, createGoalTasks } from '@/services/tasks'
+import { getGoal, setGoalStatus, updateGoal, type GoalEdit } from '@/services/goals'
+import {
+  addMilestone,
+  deleteMilestone,
+  listMilestones,
+  reorderMilestones,
+  setMilestoneDone,
+  updateMilestoneFields,
+} from '@/services/milestones'
+import { listActiveGoalSchedule, listScheduleForGoal, replaceSchedule } from '@/services/schedule'
+import {
+  generateSessionsForDate,
+  listSessionsInRange,
+  sessionStatsForGoal,
+} from '@/services/sessions'
 import { minutesByGoalInRange } from '@/services/events'
 import { getTemplate } from '@/domain/templates'
-import { pickAction } from '@/domain/dailyPlan'
 import { NICHES, getNiche } from '@/domain/niches'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { isGoalClosed } from '@/domain/goals'
-import { addDays, formatDuration, formatLongDate, relativeDeadline, startOfWeek, todayISO } from '@/lib/date'
-import type { Goal, GoalStatus, NicheId } from '@/lib/types'
+import { milestoneProgress, weekConsistency } from '@/domain/sessions'
+import {
+  WEEKDAY_LABELS,
+  formatCommitmentSummary,
+  validateCommitment,
+  type CommitmentBlockDraft,
+} from '@/domain/commitment'
+import {
+  addDays,
+  formatDuration,
+  formatLongDate,
+  formatTime12,
+  relativeDeadline,
+  startOfWeek,
+  todayISO,
+} from '@/lib/date'
+import type { Goal, GoalStatus, Milestone, NicheId, ScheduleBlock, Session } from '@/lib/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
-import { Roadmap } from '@/components/Roadmap'
-import { Hint } from '@/components/Hint'
+import { MilestoneChecklist } from '@/components/MilestoneChecklist'
+import { CommitmentStep } from '@/components/wizard/CommitmentStep'
 import { useToast } from '@/app/toast'
 import {
   IconBack,
   IconCelebrate,
-  IconCheck,
   IconClock,
   IconCompass,
-  IconFlag,
   IconQuote,
 } from '@/components/icons'
 
@@ -32,33 +57,51 @@ export function GoalDetail() {
   const location = useLocation()
   const { toast } = useToast()
 
-  // Volver al origen real (Today/Agenda/Metas). En un deep-link directo (sin
+  // Volver al origen real (Hoy/Agenda/Metas). En un deep-link directo (sin
   // historial in-app) location.key === 'default': caemos a /metas.
   const goBack = () => (location.key === 'default' ? navigate('/metas') : navigate(-1))
 
   const [goal, setGoal] = useState<Goal | null>(null)
-  const [doneCount, setDoneCount] = useState(0)
+  const [milestones, setMilestones] = useState<Milestone[]>([])
+  const [blocks, setBlocks] = useState<ScheduleBlock[]>([])
+  const [weekSessions, setWeekSessions] = useState<Session[]>([])
+  const [stats, setStats] = useState({ done: 0, minutes: 0 })
   const [weekMinutes, setWeekMinutes] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
   const [editing, setEditing] = useState(false)
+  // Editor de compromiso inline: null = cerrado.
+  const [commitDraft, setCommitDraft] = useState<CommitmentBlockDraft[] | null>(null)
+  const [otherBlocks, setOtherBlocks] = useState<ScheduleBlock[]>([])
+  // Camino completo recién: ofrecemos cerrar la meta (nunca se cierra sola).
+  const [offerAchieve, setOfferAchieve] = useState(false)
+  // Confirmación al lograr con etapas pendientes.
+  const [confirmAchieve, setConfirmAchieve] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
 
   useEffect(() => {
     let active = true
     async function load() {
       try {
         setLoading(true)
+        const id = goalId ?? ''
         const weekStart = startOfWeek(todayISO())
-        const [g, counts, mins] = await Promise.all([
-          getGoal(goalId ?? ''),
-          countDoneByGoal(userId),
+        const [g, ms, blks, weekSess, st, mins] = await Promise.all([
+          getGoal(id),
+          listMilestones(id),
+          listScheduleForGoal(id),
+          listSessionsInRange(userId, weekStart, addDays(weekStart, 6)),
+          sessionStatsForGoal(id),
           minutesByGoalInRange(userId, weekStart, addDays(weekStart, 6)),
         ])
         if (!active) return
         setGoal(g)
-        setDoneCount(counts.get(goalId ?? '') ?? 0)
-        setWeekMinutes(mins.get(goalId ?? '') ?? 0)
+        setMilestones(ms)
+        setBlocks(blks)
+        setWeekSessions(weekSess.filter((s) => s.goalId === id))
+        setStats(st)
+        setWeekMinutes(mins.get(id) ?? 0)
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : 'No se pudo cargar la meta.')
       } finally {
@@ -74,54 +117,139 @@ export function GoalDetail() {
   async function changeStatus(status: GoalStatus) {
     if (!goal) return
     setUpdating(true)
-    setError(null)
+    setMoreOpen(false)
+    setConfirmAchieve(false)
     try {
       const updated = await setGoalStatus(goal.id, status)
       setGoal(updated)
-      // Al reactivar, re-sembramos la acción de hoy (si no existe) para no dejar
-      // la meta "viva" pero sin nada en el plan.
       if (status === 'active') {
-        try {
-          await createGoalTasks(userId, todayISO(), [
-            { goalId: updated.id, title: pickAction(updated, todayISO()) },
-          ])
-        } catch {
-          /* ya había una acción de esta meta hoy */
-        }
-        toast('Reactivada. Te sumé una acción para hoy.', 'success')
+        // Al reactivar, si hoy es día comprometido la sesión vuelve a Hoy.
+        await generateSessionsForDate(userId, todayISO(), blocks).catch(() => {})
+        toast('Reactivada. Si hoy es tu día comprometido, la sesión ya está en Hoy.', 'success')
       } else if (status === 'paused') {
-        toast('Pausada. La retomás cuando quieras.')
+        toast('Pausada. La retomas cuando quieras.')
       } else if (status === 'done') {
-        toast('¡Meta lograda! Bien ahí.', 'success')
+        setOfferAchieve(false)
+        toast('¡Meta lograda! Bien ahí. 🎉', 'success')
       } else if (status === 'archived') {
         toast('Archivada.')
       }
     } catch (err) {
-      // Toast (no alert lateral): el error aparece donde el usuario está mirando.
       toast(err instanceof Error ? err.message : 'No se pudo actualizar la meta.', 'warning')
     } finally {
       setUpdating(false)
     }
   }
 
-  async function updateMilestone(index: number) {
-    if (!goal) return
-    const max = getTemplate(goal.templateKey).milestones.length
-    const clamped = Math.max(0, Math.min(index, max))
-    const previous = goal.currentMilestone
+  /** Marcar lograda respetando la regla: con pendientes, pide confirmación. */
+  function requestAchieve() {
+    const pending = milestones.filter((m) => m.doneAt === null)
+    if (pending.length === 0) void changeStatus('done')
+    else {
+      setMoreOpen(false)
+      setConfirmAchieve(true)
+    }
+  }
+
+  async function achieveMarkingPending() {
     setUpdating(true)
-    setError(null)
     try {
-      const updated = await setGoalMilestone(goal.id, clamped)
-      setGoal(updated)
-      // Sólo celebramos cuando AVANZÁS (no al corregir hacia atrás).
-      if (clamped > previous) {
-        const total = getTemplate(updated.templateKey).milestones.length
-        if (clamped >= total) toast('Recorriste todo el camino.', 'success')
-        else toast(`Etapa ${clamped} cumplida.`, 'success')
+      const pending = milestones.filter((m) => m.doneAt === null)
+      for (const m of pending) await setMilestoneDone(m.id, true)
+      setMilestones((prev) =>
+        prev.map((m) => (m.doneAt === null ? { ...m, doneAt: new Date().toISOString() } : m)),
+      )
+    } catch {
+      /* si alguna falla, igual cerramos: el usuario decidió lograrla */
+    } finally {
+      setUpdating(false)
+    }
+    void changeStatus('done')
+  }
+
+  // ----- Camino -----
+  const sortedMilestones = [...milestones].sort((a, b) => a.position - b.position)
+
+  async function toggleMilestone(m: Milestone) {
+    const willBeDone = m.doneAt === null
+    try {
+      const updated = await setMilestoneDone(m.id, willBeDone)
+      const next = milestones.map((x) => (x.id === m.id ? updated : x))
+      setMilestones(next)
+      if (willBeDone) {
+        const pendingLeft = next.filter((x) => x.doneAt === null).length
+        if (pendingLeft === 0) setOfferAchieve(true)
+        else toast('Etapa cumplida. 🎉', 'success')
+      } else {
+        setOfferAchieve(false)
       }
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'No se pudo actualizar tu avance.', 'warning')
+    } catch {
+      toast('No se pudo guardar el cambio.', 'warning')
+    }
+  }
+
+  async function renameMilestone(m: Milestone, title: string) {
+    const updated = await updateMilestoneFields(m.id, { title }).catch(() => null)
+    if (updated) setMilestones((prev) => prev.map((x) => (x.id === m.id ? updated : x)))
+  }
+
+  async function dateMilestone(m: Milestone, date: string | null) {
+    const updated = await updateMilestoneFields(m.id, { targetDate: date }).catch(() => null)
+    if (updated) setMilestones((prev) => prev.map((x) => (x.id === m.id ? updated : x)))
+  }
+
+  async function moveMilestone(m: Milestone, dir: -1 | 1) {
+    const list = sortedMilestones
+    const index = list.findIndex((x) => x.id === m.id)
+    const j = index + dir
+    if (j < 0 || j >= list.length) return
+    const next = [...list]
+    ;[next[index], next[j]] = [next[j], next[index]]
+    const renumbered = next.map((x, position) => ({ ...x, position }))
+    setMilestones(renumbered)
+    await reorderMilestones(renumbered.map((x) => ({ id: x.id, position: x.position }))).catch(() =>
+      toast('No se pudo reordenar.', 'warning'),
+    )
+  }
+
+  async function removeMilestone(m: Milestone) {
+    setMilestones((prev) => prev.filter((x) => x.id !== m.id))
+    await deleteMilestone(m.id).catch(() => toast('No se pudo quitar la etapa.', 'warning'))
+  }
+
+  async function appendMilestone(title: string) {
+    if (!goal) return
+    const created = await addMilestone(userId, goal.id, title, milestones.length).catch(() => null)
+    if (created) setMilestones((prev) => [...prev, created])
+  }
+
+  // ----- Compromiso -----
+  async function openCommitmentEditor() {
+    setCommitDraft(
+      blocks.map((b) => ({
+        weekday: b.weekday,
+        targetKind: b.targetKind,
+        targetValue: b.targetValue,
+        unit: b.unit,
+        startTime: b.startTime,
+      })),
+    )
+    const others = await listActiveGoalSchedule(userId).catch(() => [])
+    setOtherBlocks(others.filter((b) => b.goalId !== goal?.id))
+  }
+
+  async function saveCommitment() {
+    if (!goal || !commitDraft) return
+    if (validateCommitment(commitDraft) !== null) return
+    setUpdating(true)
+    try {
+      const next = await replaceSchedule(userId, goal.id, commitDraft)
+      setBlocks(next)
+      setCommitDraft(null)
+      await generateSessionsForDate(userId, todayISO(), next).catch(() => {})
+      toast('Compromiso actualizado.', 'success')
+    } catch {
+      toast('No se pudo guardar el compromiso.', 'warning')
     } finally {
       setUpdating(false)
     }
@@ -164,9 +292,11 @@ export function GoalDetail() {
   }
 
   const template = getTemplate(goal.templateKey)
-  const milestones = template.milestones
   const niche = getNiche(goal.area)
   const deadline = isGoalClosed(goal.status) ? null : relativeDeadline(goal.targetDate)
+  const progress = milestoneProgress(sortedMilestones)
+  const consistency = weekConsistency(blocks, weekSessions, startOfWeek(todayISO()))
+  const isActive = goal.status === 'active'
 
   return (
     <div className="screen" style={nicheAccent(goal.area)}>
@@ -174,7 +304,9 @@ export function GoalDetail() {
 
       <header className="screen__header" style={{ marginTop: 'var(--s4)' }}>
         <div className="row" style={{ marginBottom: 'var(--s2)', alignItems: 'center' }}>
-          <span className="goal-card__emoji" aria-hidden="true">{template.emoji}</span>
+          <span className="goal-card__emoji" aria-hidden="true">
+            {template.emoji}
+          </span>
           {goal.status !== 'active' && (
             <span className="tag">
               {goal.status === 'done' ? 'Lograda 🎉' : goal.status === 'paused' ? 'Pausada' : 'Archivada'}
@@ -204,52 +336,116 @@ export function GoalDetail() {
             </div>
           )}
 
+          {/* ----- Progreso calculado: etapas + consistencia + invertido ----- */}
+          <div className="card stack stack--sm">
+            <div className="row row--between">
+              <span className="kicker">Tu progreso</span>
+              <span className="tag">
+                {progress.total > 0 ? `Etapa ${Math.min(progress.done + 1, progress.total)} de ${progress.total}` : 'Sin etapas'}
+              </span>
+            </div>
+            <div className="progress">
+              <div className="progress__bar" style={{ width: `${progress.ratio * 100}%` }} />
+            </div>
+            <div className="row wrap" style={{ gap: 'var(--s5)', marginTop: 'var(--s2)' }}>
+              <Stat value={`${consistency.done}/${consistency.committed}`} label="sesiones esta semana" />
+              <Stat value={String(stats.done)} label="sesiones totales" />
+              <Stat value={formatDuration(stats.minutes)} label="invertidas" />
+            </div>
+          </div>
+
+          {/* ----- El camino: checklist real ----- */}
           <div>
             <div className="row row--between" style={{ marginBottom: 'var(--s3)' }}>
               <h2 style={{ fontSize: 'var(--fs-lg)' }}>El camino</h2>
-              <span className="tag">
-                {goal.currentMilestone >= milestones.length
-                  ? 'Camino completo'
-                  : `Etapa ${goal.currentMilestone + 1} de ${milestones.length}`}
-              </span>
             </div>
-            <Roadmap
-              milestones={milestones}
-              currentIndex={Math.min(goal.currentMilestone, milestones.length)}
-              onSelect={goal.status === 'active' && !updating ? updateMilestone : undefined}
+            <MilestoneChecklist
+              milestones={sortedMilestones}
+              disabled={!isActive || updating}
+              onToggle={(m) => void toggleMilestone(m)}
+              onRename={(m, t) => void renameMilestone(m, t)}
+              onSetDate={(m, d) => void dateMilestone(m, d)}
+              onMove={(m, d) => void moveMilestone(m, d)}
+              onDelete={(m) => void removeMilestone(m)}
+              onAdd={(t) => void appendMilestone(t)}
             />
-            {goal.status === 'active' && goal.currentMilestone === 0 && (
-              <div style={{ marginTop: 'var(--s4)' }}>
-                <Hint id="goal-milestone-click-2026-05">
-                  Tocá un hito del camino para marcarlo cumplido o ajustar dónde estás.
-                </Hint>
-              </div>
-            )}
-            {goal.status === 'active' && (
-              <div className="stack stack--sm" style={{ marginTop: 'var(--s4)' }}>
-                {goal.currentMilestone < milestones.length ? (
-                  <button
-                    className="btn btn--primary btn--block"
-                    disabled={updating}
-                    onClick={() => updateMilestone(goal.currentMilestone + 1)}
-                  >
-                    <IconCheck size={18} /> Completé esta etapa
+            {offerAchieve && isActive && (
+              <div className="focus-card stack stack--sm" style={{ marginTop: 'var(--s4)' }}>
+                <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
+                  <IconCelebrate size={14} /> Recorriste todo el camino
+                </span>
+                <p className="small">Cumpliste todas las etapas. ¿La damos por lograda?</p>
+                <div className="row wrap">
+                  <button className="btn btn--primary btn--sm" disabled={updating} onClick={() => void changeStatus('done')}>
+                    Sí, lograda 🎉
                   </button>
-                ) : (
-                  <div className="focus-card stack stack--sm">
-                    <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
-                      <IconFlag size={12} /> Recorriste todo el camino
-                    </span>
-                    <p className="small">Cumpliste todos los hitos. Si ya está, marcala como lograda abajo.</p>
-                  </div>
-                )}
-                <p className="faint tiny center">Tocá un hito para ajustar dónde estás.</p>
+                  <button className="btn btn--ghost btn--sm" onClick={() => setOfferAchieve(false)}>
+                    Todavía no
+                  </button>
+                </div>
               </div>
             )}
           </div>
         </div>
 
         <div className="detail-grid__side stack stack--lg">
+          {/* ----- Tu compromiso, visible y editable (backlog smoke #3) ----- */}
+          <div className="card stack stack--sm">
+            <div className="row row--between">
+              <span className="kicker">Tu compromiso</span>
+              {isActive && commitDraft === null && (
+                <button className="btn--link" style={{ fontSize: 'var(--fs-xs)' }} onClick={() => void openCommitmentEditor()}>
+                  Editar
+                </button>
+              )}
+            </div>
+            {commitDraft === null ? (
+              blocks.length > 0 ? (
+                <>
+                  <div className="row wrap">
+                    {blocks.map((b) => (
+                      <span key={b.id} className="tag">
+                        {WEEKDAY_LABELS[b.weekday]}
+                        {b.startTime ? ` ${formatTime12(b.startTime)}` : ''} ·{' '}
+                        {b.targetKind === 'time' ? `${b.targetValue} min` : `${b.targetValue} ${b.unit ?? ''}`}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="small muted" style={{ margin: 0 }}>
+                    {formatCommitmentSummary(blocks)}
+                  </p>
+                </>
+              ) : (
+                <p className="small muted" style={{ margin: 0 }}>
+                  Sin compromiso definido. {isActive ? 'Edítalo para que tus sesiones aparezcan en Hoy.' : ''}
+                </p>
+              )
+            ) : (
+              <>
+                <CommitmentStep
+                  blocks={commitDraft}
+                  onChange={setCommitDraft}
+                  existing={otherBlocks}
+                  defaultMinutes={25}
+                  defaultStart={null}
+                />
+                <div className="row" style={{ marginTop: 'var(--s2)' }}>
+                  <button
+                    className="btn btn--primary btn--sm"
+                    style={{ flex: 1 }}
+                    disabled={updating || validateCommitment(commitDraft) !== null}
+                    onClick={() => void saveCommitment()}
+                  >
+                    Guardar
+                  </button>
+                  <button className="btn btn--ghost btn--sm" style={{ flex: 1 }} onClick={() => setCommitDraft(null)}>
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
           <div className="card stack">
             <InfoRow label="Área" value={`${niche.emoji} ${niche.label}`} />
             <InfoRow label="Tipo" value={template.label} />
@@ -259,68 +455,98 @@ export function GoalDetail() {
                 value={`${formatLongDate(goal.targetDate)}${deadline ? ` · ${deadline}` : ''}`}
               />
             )}
-            {goal.successCriteria && <InfoRow label="Lo logro cuando" value={goal.successCriteria} />}
-            <InfoRow
-              label="Avance"
-              value={`${doneCount} ${doneCount === 1 ? 'acción completada' : 'acciones completadas'}`}
-            />
+            {goal.successCriteria && <InfoRow label="Lo logras cuando" value={goal.successCriteria} />}
             {weekMinutes > 0 && (
-              <InfoRow label="Esta semana" value={`${formatDuration(weekMinutes)} agendadas`} />
+              <InfoRow label="Agendado esta semana" value={`${formatDuration(weekMinutes)} en tu agenda`} />
             )}
           </div>
 
           {weekMinutes === 0 && (
             <p className="faint tiny row row--sm" style={{ alignItems: 'center' }}>
-              <IconClock size={14} /> Ligá bloques <strong>con horario</strong> de tu{' '}
-              <button
-                className="btn--link"
-                style={{ padding: 0 }}
-                onClick={() => navigate('/calendario')}
-              >
+              <IconClock size={14} /> También puedes bloquear tiempo extra en tu{' '}
+              <button className="btn--link" style={{ padding: 0 }} onClick={() => navigate('/calendario')}>
                 agenda
               </button>{' '}
-              a esta meta y vas a ver acá cuánto tiempo le agendás por semana.
+              y vincularlo a esta meta.
             </p>
           )}
 
           <div className="stack stack--sm">
-            {goal.status === 'active' && (
-            <>
-              <button className="btn btn--primary btn--block" disabled={updating} onClick={() => changeStatus('done')}>
-                Marcar como lograda 🎉
+            {isActive && (
+              <>
+                <button className="btn btn--ghost btn--block" disabled={updating} onClick={() => changeStatus('paused')}>
+                  Pausar esta meta
+                </button>
+                <button
+                  className="btn btn--subtle btn--block"
+                  aria-expanded={moreOpen}
+                  onClick={() => setMoreOpen((v) => !v)}
+                >
+                  ⋯ Más
+                </button>
+                {moreOpen && (
+                  <div className="stack stack--sm">
+                    <button className="btn btn--ghost btn--block" disabled={updating} onClick={requestAchieve}>
+                      Marcar como lograda 🎉
+                    </button>
+                    <button className="btn btn--ghost btn--block" disabled={updating} onClick={() => changeStatus('archived')}>
+                      Archivar
+                    </button>
+                  </div>
+                )}
+                {confirmAchieve && (
+                  <div className="card card--tight stack stack--sm" style={{ borderColor: 'var(--warning)' }}>
+                    <strong className="small">
+                      Te quedan {milestones.filter((m) => m.doneAt === null).length} etapas sin marcar.
+                    </strong>
+                    <div className="stack stack--sm">
+                      <button className="btn btn--primary btn--sm" disabled={updating} onClick={() => void achieveMarkingPending()}>
+                        Ya las cumplí — márcalas y lograla
+                      </button>
+                      <button className="btn btn--ghost btn--sm" disabled={updating} onClick={() => void changeStatus('done')}>
+                        Cerrarla igual
+                      </button>
+                      <button className="btn btn--subtle btn--sm" onClick={() => setConfirmAchieve(false)}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+            {goal.status === 'paused' && (
+              <button className="btn btn--primary btn--block" disabled={updating} onClick={() => changeStatus('active')}>
+                Reactivar
               </button>
-              <button className="btn btn--ghost btn--block" disabled={updating} onClick={() => changeStatus('paused')}>
-                Pausar esta meta
+            )}
+            {goal.status === 'done' && (
+              <div className="focus-card stack stack--sm">
+                <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
+                  <IconCelebrate size={14} /> ¡Meta lograda!
+                </span>
+                <p className="small">¿Vas por la próxima? Te paso ideas para seguir avanzando.</p>
+                <button className="btn btn--primary btn--block" onClick={() => navigate(`/ideas?area=${goal.area}`)}>
+                  Ver ideas para tu próxima meta
+                </button>
+              </div>
+            )}
+            {(goal.status === 'done' || goal.status === 'archived') && (
+              <button className="btn btn--ghost btn--block" disabled={updating} onClick={() => changeStatus('active')}>
+                Reactivar
               </button>
-            </>
-          )}
-          {goal.status === 'paused' && (
-            <button className="btn btn--primary btn--block" disabled={updating} onClick={() => changeStatus('active')}>
-              Reactivar
-            </button>
-          )}
-          {goal.status === 'done' && (
-            <div className="focus-card stack stack--sm">
-              <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
-                <IconCelebrate size={14} /> ¡Meta lograda!
-              </span>
-              <p className="small">¿Vas por la próxima? Te paso ideas para seguir avanzando.</p>
-              <button
-                className="btn btn--primary btn--block"
-                onClick={() => navigate(`/ideas?area=${goal.area}`)}
-              >
-                Ver ideas para tu próxima meta
-              </button>
-            </div>
-          )}
-          {(goal.status === 'done' || goal.status === 'archived') && (
-            <button className="btn btn--ghost btn--block" disabled={updating} onClick={() => changeStatus('active')}>
-              Reactivar
-            </button>
-          )}
+            )}
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function Stat({ value, label }: { value: string; label: string }) {
+  return (
+    <div>
+      <div style={{ fontWeight: 700, fontSize: 'var(--fs-lg)' }}>{value}</div>
+      <div className="faint tiny">{label}</div>
     </div>
   )
 }
@@ -373,7 +599,7 @@ function GoalEditor({
       area,
       successCriteria: criteria.trim() || null,
     }).catch((e: unknown) => {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar. Probá de nuevo.')
+      setError(e instanceof Error ? e.message : 'No se pudo guardar. Inténtalo de nuevo.')
       setSaving(false)
     })
   }
@@ -381,7 +607,9 @@ function GoalEditor({
   return (
     <div className="stack stack--lg">
       <div className="field">
-        <label className="field__label" htmlFor="edit-title">¿Qué querés lograr?</label>
+        <label className="field__label" htmlFor="edit-title">
+          ¿Qué quieres lograr?
+        </label>
         <input
           id="edit-title"
           className="input"
@@ -395,7 +623,9 @@ function GoalEditor({
         />
       </div>
       <div className="field">
-        <label className="field__label" htmlFor="edit-why">¿Por qué? (opcional)</label>
+        <label className="field__label" htmlFor="edit-why">
+          ¿Por qué? (opcional)
+        </label>
         <textarea
           id="edit-why"
           className="textarea"
@@ -407,7 +637,9 @@ function GoalEditor({
         />
       </div>
       <div className="field">
-        <label className="field__label" htmlFor="edit-date">¿Para cuándo? (opcional)</label>
+        <label className="field__label" htmlFor="edit-date">
+          ¿Para cuándo? (opcional)
+        </label>
         <input
           id="edit-date"
           className="input"
@@ -423,7 +655,9 @@ function GoalEditor({
         )}
       </div>
       <div className="field">
-        <span className="field__label" id="edit-area-label">Área</span>
+        <span className="field__label" id="edit-area-label">
+          Área
+        </span>
         <div className="row wrap" role="group" aria-labelledby="edit-area-label">
           {NICHES.map((n) => (
             <button
@@ -439,7 +673,9 @@ function GoalEditor({
         </div>
       </div>
       <div className="field">
-        <label className="field__label" htmlFor="edit-criteria">Lo logro cuando… (opcional)</label>
+        <label className="field__label" htmlFor="edit-criteria">
+          Lo logras cuando… (opcional)
+        </label>
         <input
           id="edit-criteria"
           className="input"
@@ -452,13 +688,13 @@ function GoalEditor({
           inputMode="text"
         />
       </div>
-      {error && <div className="alert alert--error" role="alert">{error}</div>}
+      {error && (
+        <div className="alert alert--error" role="alert">
+          {error}
+        </div>
+      )}
       <div className="stack stack--sm">
-        <button
-          className="btn btn--primary btn--block"
-          disabled={!title.trim() || saving}
-          onClick={submit}
-        >
+        <button className="btn btn--primary btn--block" disabled={!title.trim() || saving} onClick={submit}>
           {saving ? 'Guardando…' : 'Guardar cambios'}
         </button>
         <button className="btn btn--ghost btn--block" disabled={saving} onClick={onCancel}>

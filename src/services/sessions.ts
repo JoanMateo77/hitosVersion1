@@ -253,3 +253,19 @@ export async function createSpontaneousSession(
 export function setSessionPlannedTime(sessionId: string, time: string | null): Promise<Session> {
   return patchSession(sessionId, { planned_time: time })
 }
+
+/** Totales históricos de una meta: sesiones cumplidas y minutos invertidos reales. */
+export async function sessionStatsForGoal(
+  goalId: string,
+): Promise<{ done: number; minutes: number }> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('status, target_kind, actual_value')
+    .eq('goal_id', goalId)
+    .in('status', ['done', 'partial'])
+  if (error) throw new Error(error.message)
+  const rows = data as { status: string; target_kind: string; actual_value: number | null }[]
+  let minutes = 0
+  for (const r of rows) if (r.target_kind === 'time') minutes += r.actual_value ?? 0
+  return { done: rows.length, minutes }
+}
