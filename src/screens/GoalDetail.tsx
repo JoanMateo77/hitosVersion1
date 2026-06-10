@@ -354,41 +354,6 @@ export function GoalDetail() {
             </div>
           </div>
 
-          {/* ----- El camino: checklist real ----- */}
-          <div>
-            <div className="row row--between" style={{ marginBottom: 'var(--s3)' }}>
-              <h2 style={{ fontSize: 'var(--fs-lg)' }}>El camino</h2>
-            </div>
-            <MilestoneChecklist
-              milestones={sortedMilestones}
-              disabled={!isActive || updating}
-              onToggle={(m) => void toggleMilestone(m)}
-              onRename={(m, t) => void renameMilestone(m, t)}
-              onSetDate={(m, d) => void dateMilestone(m, d)}
-              onMove={(m, d) => void moveMilestone(m, d)}
-              onDelete={(m) => void removeMilestone(m)}
-              onAdd={(t) => void appendMilestone(t)}
-            />
-            {offerAchieve && isActive && (
-              <div className="focus-card stack stack--sm" style={{ marginTop: 'var(--s4)' }}>
-                <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
-                  <IconCelebrate size={14} /> Recorriste todo el camino
-                </span>
-                <p className="small">Cumpliste todas las etapas. ¿La damos por lograda?</p>
-                <div className="row wrap">
-                  <button className="btn btn--primary btn--sm" disabled={updating} onClick={() => void changeStatus('done')}>
-                    Sí, lograda 🎉
-                  </button>
-                  <button className="btn btn--ghost btn--sm" onClick={() => setOfferAchieve(false)}>
-                    Todavía no
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="detail-grid__side stack stack--lg">
           {/* ----- Tu compromiso, visible y editable (backlog smoke #3) ----- */}
           <div className="card stack stack--sm">
             <div className="row row--between">
@@ -446,6 +411,42 @@ export function GoalDetail() {
             )}
           </div>
 
+
+          {/* ----- El camino: checklist real ----- */}
+          <div>
+            <div className="row row--between" style={{ marginBottom: 'var(--s3)' }}>
+              <h2 style={{ fontSize: 'var(--fs-lg)' }}>El camino</h2>
+            </div>
+            <MilestoneChecklist
+              milestones={sortedMilestones}
+              disabled={!isActive || updating}
+              onToggle={(m) => void toggleMilestone(m)}
+              onRename={(m, t) => void renameMilestone(m, t)}
+              onSetDate={(m, d) => void dateMilestone(m, d)}
+              onMove={(m, d) => void moveMilestone(m, d)}
+              onDelete={(m) => void removeMilestone(m)}
+              onAdd={(t) => void appendMilestone(t)}
+            />
+            {offerAchieve && isActive && (
+              <div className="focus-card stack stack--sm" style={{ marginTop: 'var(--s4)' }}>
+                <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
+                  <IconCelebrate size={14} /> Recorriste todo el camino
+                </span>
+                <p className="small">Cumpliste todas las etapas. ¿La damos por lograda?</p>
+                <div className="row wrap">
+                  <button className="btn btn--primary btn--sm" disabled={updating} onClick={() => void changeStatus('done')}>
+                    Sí, lograda 🎉
+                  </button>
+                  <button className="btn btn--ghost btn--sm" onClick={() => setOfferAchieve(false)}>
+                    Todavía no
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="detail-grid__side stack stack--lg">
           <div className="card stack">
             <InfoRow label="Área" value={`${niche.emoji} ${niche.label}`} />
             <InfoRow label="Tipo" value={template.label} />
