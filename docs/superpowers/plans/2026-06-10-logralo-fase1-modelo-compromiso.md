@@ -1372,6 +1372,32 @@ Reportar al usuario: Fase 1 completa, recordar pendientes personales (correr mig
 
 ---
 
+## Backlog de observaciones del usuario (smoke test Fase 1, 2026-06-10)
+
+> Anotaciones del dueño del producto tras probar la Fase 1. NO se pierden: cada una tiene fase asignada.
+
+1. **Paso "Tus etapas" del wizard: demasiado ruido visual** (prioridad ALTA, → Fase 2 junto al detalle de meta).
+   Cada etapa renderiza tarjeta + input grande + input de fecha siempre visible + 3 botones circulares:
+   "saca todo el feeling, la persona se siente perdida y da pereza". Rediseñar como lista compacta y
+   calma: texto plano editable al tocar, fecha y reordenar detrás de un toque (menú/expansión), añadir
+   al final. El mismo patrón compacto se usará en el checklist de etapas del detalle de meta (Fase 2),
+   así que se diseña UNA vez ahí y se reusa en el wizard.
+2. **Plantillas mal escritas** (→ Fase 4, pase de contenido). Los textos de hitos/acciones de las 9
+   plantillas son flojos (ej. "Producir la primera pieza", "Publicarla"). Reescribir TODO el contenido
+   de plantillas con criterio de experto por nicho cuando se haga el pase de copy profesional.
+   El usuario pidió explícitamente dejarlo para después: "deja eso así ahora".
+3. **El detalle de meta no muestra el compromiso** (prioridad ALTA, ya en alcance de Fase 2 — el usuario
+   lo confirmó como carencia fuerte: "falta fuerte el visualizar ese tiempo que se va a dedicar").
+   El bloque "Tu compromiso" (chips por momento: "Lu 19:00 · 25 min" + total semanal) debe ser de lo
+   primero visible en GoalDetail, junto al progreso calculado.
+
+Además, pendientes menores de la revisión final integral (Fase 4 salvo indicación):
+- `backfill.ts`: FLAG de sessionStorage no está espaciado por usuario (logout/login en la misma pestaña).
+- Costura de copy tuteo/voseo entre wizard nuevo y pantallas legacy (se resuelve con el pase de copy).
+- `CommitmentStep`: unidad vacía renderiza "10 " con espacio; paso 3 no muestra razón cuando el botón se deshabilita.
+- `key={index}` en filas dinámicas (wizard): salto de foco al borrar — pulir con ids estables.
+- Comprar `logralo.app` (acción del usuario, sigue pendiente).
+
 ## Esqueleto de las fases siguientes (cada una recibe su plan detallado al llegar)
 
 - **Fase 2 — El día vivo:** servicio + dominio de `sessions` (generación idempotente desde `goal_schedule`, máquina de estados, cronómetro por timestamps); pantalla de sesión en curso (anillo, pausar, terminar); flujo de regreso ("¿Cómo te fue?": completa/parcial/no pude; cierre >24 h como `unconfirmed`); Hoy rediseñado (sesiones + mini tira semanal con corrección de ayer + 1 aviso máximo); GoalDetail nuevo (checklist de hitos, compromiso editable, reglas de logro, "lograda" al menú ⋯); migración 0005: drop `goals.current_milestone` y retiro de `setGoalMilestone`/`pickAction` legacy; eliminación del modo Enfoque (`planningGoals`/`weeklyFocus` single).
