@@ -312,13 +312,29 @@ export function SessionRun() {
         ) : (
           <>
         {!needsResolution && !closed && (
-          <div className="stack center" style={{ alignItems: 'center', gap: 2 }}>
+          <div className="stack stack--sm center" style={{ alignItems: 'center', width: '100%' }}>
             {currentMilestone && (
-              <p className="small center" style={{ margin: 0 }}>
-                Etapa actual: <strong>{currentMilestone.title}</strong>
-              </p>
+              <div
+                className="focus-card stack"
+                style={{ width: '100%', textAlign: 'center', gap: 4, padding: 'var(--s3) var(--s4)' }}
+              >
+                <span className="focus-card__kicker" style={{ justifyContent: 'center' }}>
+                  Estás construyendo
+                </span>
+                <strong
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 'var(--fs-xl)',
+                    lineHeight: 1.25,
+                  }}
+                >
+                  {currentMilestone.title}
+                </strong>
+              </div>
             )}
-            <p className="small muted center" style={{ margin: 0 }}>Idea: {suggestion}</p>
+            <span className="tag" style={{ fontSize: 'var(--fs-sm)', padding: '6px 12px' }}>
+              💡 {suggestion}
+            </span>
           </div>
         )}
 
