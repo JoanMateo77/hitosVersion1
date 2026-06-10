@@ -1,4 +1,4 @@
-# Hito — Base sólida: rediseño de lógica, compromiso y experiencia
+# Lógralo (antes Hito) — Base sólida: rediseño de lógica, compromiso y experiencia
 
 > Diseño validado con el usuario el 2026-06-09/10 (brainstorming con mockups en navegador).
 > Objetivo: una base de producto publicable y digna de pago, **sin IA**. La IA y los planes
@@ -35,7 +35,9 @@ su objetivo:
 | Vista de calendario | **Tira semanal + agenda del día**, con **mes completo expandible** (grilla con puntos por meta) |
 | Onboarding | **Guiado con salida discreta**: termina con la primera meta creada y la primera sesión agendada; "Prefiero mirar la app primero" en pie de página |
 | Pregunta de dedicación | "¿Cuánto tiempo puedes dedicarle a esta meta?" — presets + **"Otro: tú decides cuánto"** sin techo |
-| Nombre | **Se mantiene "Hito"** (el modelo nuevo gira alrededor de hitos; nombre y mecánica se refuerzan) |
+| Nombre y marca | **"Lógralo"** (decidido 2026-06-10 tras análisis de marketing sobre 25+ candidatos: verbo-promesa, el boca a boca lleva la orden incluida). Wordmark global sin tilde: **LOGRALO**. Eslogan: *"Lo dijiste. Lógralo."* Ícono: el check naranja. Subtítulo de tienda (ASO): "Lógralo — metas y hábitos con compromiso". Estrategia: español/LatAm primero; el wordmark sin tilde ya funciona como marca acuñada para expansión. Pendiente del usuario: comprar `logralo.app` (logralo.com está tomado desde 2009) |
+| Modo "Enfoque" (una/varias) | **Se elimina** — con compromiso por sesiones, ocultar metas rompería el contrato. Lo reemplazan: recomendación de UNA meta en onboarding, guardia de sobrecompromiso en el wizard, y meta prioritaria ⭐ opcional que ordena el día sin ocultar nada |
+| Crecimiento orgánico | **Tarjetas de logro compartibles** (al cumplir hitos y metas): imagen con el logro + la marca; cada share lleva el call-to-action en el nombre. Fase 4 |
 | Identidad visual | **Una identidad, dos variantes (claro/oscuro cálido)**. Paleta funcional: naranja = acción, verde = logrado, ámbar/rojo suave = atención sin culpa. Tinte sutil por meta en tarjetas. Se eliminan los temas neón y papel actuales |
 | Copy | **Español profesional y neutro (tuteo)** en toda la app. Se elimina el voseo |
 
@@ -125,7 +127,9 @@ mostradas dentro de la tarjeta de sesión (solo UI, no filas).
 - **`tasks`**: queda solo para tareas libres del usuario (`source='user'`). Las tasks de meta
   dejan de generarse.
 - **`profiles`**: se agregan `preferred_moment` (`morning|midday|evening` NULL) y
-  `default_session_minutes` (int NULL) — defaults capturados en onboarding.
+  `default_session_minutes` (int NULL) — defaults capturados en onboarding. `focus_mode`
+  queda obsoleto (deja de leerse; se elimina en una migración posterior). Se agrega
+  `priority_goal_id` (uuid NULL) para la meta prioritaria ⭐ opcional.
 - **`push_subscriptions`** (fase 5): `id, user_id, endpoint, keys jsonb, created_at`.
 
 ### 3.5 Migración de datos existentes
@@ -186,8 +190,7 @@ pending → done | partial | missed   (check directo sin cronómetro; missed al 
 3. **¿Cuánto tiempo puedes dedicarle a esta meta?** — 15/30/60 min al día + "Otro: tú decides"
    (stepper libre, sin techo). Alimenta defaults del wizard.
 4. **¿Cuándo te es más fácil cumplir?** — mañana / mediodía / noche → default de horas.
-5. **¿Una meta o varias?** — se mantiene, selección visible, recomienda una.
-6. → **Wizard precargado**. El onboarding termina con la primera meta creada y el contrato a la
+5. → **Wizard precargado**. El onboarding termina con la primera meta creada y el contrato a la
    vista: "Lu·Mi·Vi — 25 min, 19:00. Comenzar mañana" + atajo "¿Prefieres hoy? Tu primera
    sesión puede ser ahora".
 - Salida discreta "Prefiero mirar la app primero" al pie → Hoy con estado vacío que invita a crear.
@@ -201,6 +204,9 @@ pending → done | partial | missed   (check directo sin cronómetro; missed al 
    momentos con stepper de duración (o cantidad+unidad) y **recuadro de hora opcional** al lado
    ("🕐 10:00" / "🕐 Hora…"); "+ añadir otro momento"; resumen vivo
    ("Lu 25 min · Vi 10:00 y 14:00 — 1 h 25 min por semana"). Defaults desde onboarding.
+   **Guardia de sobrecompromiso**: si un día elegido ya acumula sesiones de otras metas, el
+   resumen lo advierte ("Los lunes ya tienes 3 sesiones — 1 h 30. ¿Seguro que entra otra?")
+   sin bloquear.
 4. **Tu camino** (hitos de plantilla copiados, editables ahí mismo: renombrar, borrar, agregar,
    reordenar, fecha opcional por hito)
 5. Tu ancla (porqué + criterio de éxito + fecha objetivo; opcionales, con sugerencias por plantilla)
@@ -275,11 +281,18 @@ contextual de Hoy el día de revisión.
 ### 5.9 Metas (lista), Perfil, Auth
 
 - **Metas**: tarjetas con tinte por nicho, barra de etapas y consistencia; agrupadas
-  activas/pausadas/cerradas.
-- **Perfil**: editar `preferred_moment`, default de minutos, foco, nicho (con "Otra" visible),
-  variante clara/oscura, gestión de notificaciones (fase 5).
+  activas/pausadas/cerradas. Estrella ⭐ para marcar la meta prioritaria (opcional).
+- **Perfil** (diseño validado): cabecera con cuenta; **Tu ritmo** (momento preferido, sesión
+  por defecto — el nicho ya no se edita aquí: vive en cada meta); **Notificaciones** (toggles
+  por tipo; "cuidar tu racha" apagado por defecto; si el navegador no soporta push se explica);
+  **Apariencia** (claro/oscuro/sistema); **Cuenta**: cambiar contraseña, cerrar sesión y
+  **eliminar cuenta** (borrado de datos + usuario vía Edge Function — requisito de tiendas);
+  versión y legales al pie.
 - **Auth**: copy alineado a la promesa, errores de Supabase mapeados a mensajes claros,
   estado de "no me llegó el mail" con reenvío.
+- **Tarjetas de logro compartibles** (motor orgánico, fase 4): al cumplir un hito o lograr una
+  meta, generar una tarjeta-imagen ("Logré: correr 5K — 12 semanas, 47 sesiones") con el
+  wordmark; compartir nativo (Web Share API).
 
 ## 6. Sistema visual
 
@@ -298,6 +311,9 @@ contextual de Hoy el día de revisión.
   que guían, esqueletos de carga, sin saltos de layout, haptics en celebraciones, splash e ícono
   coherentes con la identidad.
 - **Limpieza**: los estilos inline regados por los TSX se consolidan en clases/componentes.
+- **Marca**: rebranding completo a Lógralo — ícono de app (check naranja sobre degradado),
+  splash con wordmark, manifest de PWA, títulos y metadatos. La referencia analizada (Grit)
+  y la psicología del color aplicada quedan documentadas en `.superpowers/brainstorm/`.
 
 ## 7. Copy
 
