@@ -66,5 +66,7 @@ export async function createMilestones(
     )
     .select('*')
   if (error) throw new Error(error.message)
-  return (data as MilestoneRow[]).map(mapMilestone)
+  return (data as MilestoneRow[])
+    .sort((a, b) => a.position - b.position)
+    .map(mapMilestone)
 }

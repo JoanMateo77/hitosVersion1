@@ -152,10 +152,15 @@ export async function updateGoal(goalId: string, edit: GoalEdit): Promise<Goal> 
 }
 
 /**
- * Borra una meta. Las tablas hijas (milestones, goal_schedule, sessions, tasks)
- * caen por ON DELETE CASCADE. Se usa para deshacer una creación a medias.
+ * Borra una meta del usuario. Las tablas hijas (milestones, goal_schedule,
+ * sessions, tasks) caen por ON DELETE CASCADE. Se usa para deshacer una
+ * creación a medias; el doble filtro por user_id acota el radio de daño.
  */
-export async function deleteGoal(goalId: string): Promise<void> {
-  const { error } = await supabase.from('goals').delete().eq('id', goalId)
+export async function deleteGoal(userId: string, goalId: string): Promise<void> {
+  const { error } = await supabase
+    .from('goals')
+    .delete()
+    .eq('id', goalId)
+    .eq('user_id', userId)
   if (error) throw new Error(error.message)
 }
