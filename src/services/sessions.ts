@@ -122,8 +122,24 @@ async function patchSession(sessionId: string, patch: Record<string, unknown>): 
   return mapSession(data as SessionRow)
 }
 
-/** Arranca el cronómetro. */
-export function startSession(sessionId: string): Promise<Session> {
+/**
+ * Una sola sesión corriendo a la vez: arrancar (o reanudar) una pausa
+ * automáticamente cualquier otra que esté en marcha, como un reproductor.
+ */
+async function pauseOtherRunning(userId: string, exceptId: string): Promise<void> {
+  const { error } = await supabase
+    .from('sessions')
+    .update({ paused_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .eq('status', 'running')
+    .is('paused_at', null)
+    .neq('id', exceptId)
+  if (error) throw new Error(error.message)
+}
+
+/** Arranca el cronómetro (pausando cualquier otra sesión en marcha). */
+export async function startSession(userId: string, sessionId: string): Promise<Session> {
+  await pauseOtherRunning(userId, sessionId)
   return patchSession(sessionId, { started_at: new Date().toISOString(), status: 'running' })
 }
 
@@ -132,7 +148,12 @@ export function pauseSession(sessionId: string, pausedAtISO: string): Promise<Se
 }
 
 /** Reanuda: el dominio calcula el total acumulado; acá solo se persiste. */
-export function resumeSession(sessionId: string, pausedTotalSeconds: number): Promise<Session> {
+export async function resumeSession(
+  userId: string,
+  sessionId: string,
+  pausedTotalSeconds: number,
+): Promise<Session> {
+  await pauseOtherRunning(userId, sessionId)
   return patchSession(sessionId, { paused_at: null, paused_total_seconds: pausedTotalSeconds })
 }
 
@@ -155,6 +176,7 @@ export function finishSession(
  * Si nunca tuvo cronómetro (check rápido), arranca de cero ahora.
  */
 export async function resumeClosedSession(s: Session): Promise<Session> {
+  await pauseOtherRunning(s.userId, s.id)
   if (!s.startedAt) {
     return patchSession(s.id, {
       status: 'running',

@@ -115,3 +115,13 @@ export function formatDuration(totalMin: number): string {
   if (m === 0) return `${h} h`
   return `${h} h ${m} min`
 }
+
+/** "20:02" → "8:02 pm" (formato 12 horas para mostrar; los inputs siguen nativos). */
+export function formatTime12(hhmm: string): string {
+  const [hStr, mStr] = hhmm.split(':')
+  let h = Number(hStr)
+  const suffix = h >= 12 ? 'pm' : 'am'
+  h = h % 12
+  if (h === 0) h = 12
+  return `${h}:${mStr} ${suffix}`
+}

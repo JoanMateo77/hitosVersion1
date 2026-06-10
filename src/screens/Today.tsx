@@ -20,7 +20,7 @@ import { compareEvents } from '@/domain/calendar'
 import { findForgottenGoal, goalsDueForReview } from '@/domain/dailyPlan'
 import { currentStreakCommitted, formatClock, pickSuggestion, remainingSeconds } from '@/domain/sessions'
 import { getTemplate } from '@/domain/templates'
-import { addDays, formatWeekday, todayISO } from '@/lib/date'
+import { addDays, formatTime12, formatWeekday, todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { TaskItem } from '@/components/TaskItem'
 import { SessionCard } from '@/components/SessionCard'
@@ -125,7 +125,13 @@ export function Today() {
 
   const goalById = useMemo(() => new Map(goals.map((g) => [g.id, g])), [goals])
   // Sesión en curso: protagonista arriba de todo, con el reloj latiendo.
-  const runningSession = useMemo(() => sessions.find((x) => x.status === 'running') ?? null, [sessions])
+  const runningSession = useMemo(
+    () =>
+      sessions.find((x) => x.status === 'running' && !x.pausedAt) ??
+      sessions.find((x) => x.status === 'running') ??
+      null,
+    [sessions],
+  )
   const [nowTick, setNowTick] = useState(() => new Date())
   useEffect(() => {
     if (!runningSession || runningSession.pausedAt || runningSession.targetKind !== 'time') return
@@ -549,7 +555,7 @@ export function Today() {
               aria-label={`Ver "${e.title}" en la agenda`}
               onClick={() => navigate(`/calendario?d=${e.date}`)}
             >
-              <span className="ev__time">{e.allDay ? 'Día' : e.startTime}</span>
+              <span className="ev__time">{e.allDay || !e.startTime ? 'Día' : formatTime12(e.startTime)}</span>
               <span className="ev__title">{e.title}</span>
             </button>
           ))}

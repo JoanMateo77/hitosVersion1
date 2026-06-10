@@ -12,7 +12,7 @@ import {
 } from '@/services/sessions'
 import { elapsedSeconds, formatClock, isTimeReached, pickSuggestion, remainingSeconds } from '@/domain/sessions'
 import { getTemplate } from '@/domain/templates'
-import { todayISO } from '@/lib/date'
+import { formatTime12, todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SessionRing } from '@/components/SessionRing'
@@ -216,7 +216,7 @@ export function SessionRun() {
   async function doStart() {
     setSaving(true)
     try {
-      const updated = await startSession(session!.id)
+      const updated = await startSession(session!.userId, session!.id)
       setSession(updated)
       setNow(new Date())
     } catch {
@@ -245,7 +245,7 @@ export function SessionRun() {
       session.pausedTotalSeconds +
       Math.max(0, Math.floor((Date.now() - new Date(session.pausedAt).getTime()) / 1000))
     try {
-      setSession(await resumeSession(session.id, accumulated))
+      setSession(await resumeSession(session.userId, session.id, accumulated))
       setNow(new Date())
     } catch {
       /* idem pausa */
@@ -393,7 +393,7 @@ export function SessionRun() {
           <>
             <SessionRing progress={0}>
               <strong style={{ fontSize: 'var(--fs-2xl, 28px)' }}>{targetLabel}</strong>
-              {session.plannedTime && <span className="small muted">{session.plannedTime}</span>}
+              {session.plannedTime && <span className="small muted">{formatTime12(session.plannedTime)}</span>}
             </SessionRing>
             {goal.why && <p className="small muted center" style={{ maxWidth: 360 }}>“{goal.why}”</p>}
             <button className="btn btn--primary btn--block" disabled={saving} onClick={doStart}>

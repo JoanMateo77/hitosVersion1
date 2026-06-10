@@ -6,6 +6,7 @@ import { listScheduleForGoal } from '@/services/schedule'
 import { getTemplate } from '@/domain/templates'
 import { WEEKDAY_LABELS, formatCommitmentSummary } from '@/domain/commitment'
 import { pickAction } from '@/domain/dailyPlan'
+import { formatTime12 } from '@/lib/date'
 import { todayISO } from '@/lib/date'
 import type { Goal, Milestone, ScheduleBlock } from '@/lib/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
@@ -106,7 +107,7 @@ export function GoalCreated() {
               {schedule.map((b) => (
                 <span key={b.id} className="tag">
                   {WEEKDAY_LABELS[b.weekday]}
-                  {b.startTime ? ` ${b.startTime}` : ''} ·{' '}
+                  {b.startTime ? ` ${formatTime12(b.startTime)}` : ''} ·{' '}
                   {b.targetKind === 'time' ? `${b.targetValue} min` : `${b.targetValue} ${b.unit ?? ''}`}
                 </span>
               ))}

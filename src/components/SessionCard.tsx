@@ -1,6 +1,7 @@
 import type { Goal, Session } from '@/lib/types'
 import { getTemplate } from '@/domain/templates'
 import { nicheAccent } from '@/lib/nicheAccent'
+import { formatTime12 } from '@/lib/date'
 import { IconPlay } from '@/components/icons'
 
 interface SessionCardProps {
@@ -24,7 +25,7 @@ function targetLabel(s: Session): string {
 
 function clock(iso: string): string {
   const d = new Date(iso)
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  return formatTime12(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)
 }
 
 export function SessionCard({ session, goal, suggestion, onOpen, onQuickDone, onReopen, onResume }: SessionCardProps) {
@@ -83,8 +84,10 @@ export function SessionCard({ session, goal, suggestion, onOpen, onQuickDone, on
           {running
             ? session.status === 'unconfirmed'
               ? 'Quedó sin confirmar — cuéntame cómo te fue'
-              : 'En curso'
-            : `${session.plannedTime ? `${session.plannedTime} · ` : ''}Idea: ${suggestion}`}
+              : session.pausedAt
+                ? 'En pausa'
+                : 'En curso'
+            : `${session.plannedTime ? `${formatTime12(session.plannedTime)} · ` : ''}Idea: ${suggestion}`}
         </span>
         {goal.why && !running && <span className="session__why">“{goal.why}”</span>}
       </div>

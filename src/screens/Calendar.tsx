@@ -21,6 +21,7 @@ import {
   addMonths,
   dayOfMonth,
   formatMonthYear,
+  formatTime12,
   formatWeekday,
   isToday,
   todayISO,
@@ -77,7 +78,8 @@ export function Calendar() {
   // ?d=YYYY-MM-DD (p. ej. al tocar un evento en Today) abre ese día directo.
   const dParam = params.get('d')
   const initialDate = dParam && /^\d{4}-\d{2}-\d{2}$/.test(dParam) ? dParam : null
-  const [view, setView] = useState<View>(initialDate ? 'day' : 'month')
+  // La agenda abre en el DÍA: lo inmediato primero; semana/mes a un toque.
+  const [view, setView] = useState<View>('day')
   const [anchor, setAnchor] = useState(initialDate ?? todayISO()) // mes / semana de referencia
   const [selected, setSelected] = useState(initialDate ?? todayISO()) // día activo
   const [events, setEvents] = useState<CalendarEvent[]>([])
@@ -208,7 +210,7 @@ export function Calendar() {
       }
       toast(
         time
-          ? `Listo: todos los ${WEEKDAY_PLURALS[ts.block.weekday]} a las ${time}.`
+          ? `Listo: todos los ${WEEKDAY_PLURALS[ts.block.weekday]} a las ${formatTime12(time)}.`
           : 'Hora quitada.',
         'success',
       )
@@ -457,7 +459,7 @@ function DaySection({
                 onClick={() => onSession(it)}
                 aria-label={`Sesión de ${it.goal.title}, ${sessionStateLabel(it.state)}`}
               >
-                <span className="ev__time">{it.time ?? '—'}</span>
+                <span className="ev__time">{it.time ? formatTime12(it.time) : '—'}</span>
                 <span className="ev__body">
                   <span className="ev__title">Sesión · {it.goal.title}</span>
                   <span className="ev__meta">
@@ -483,7 +485,7 @@ function DaySection({
             const notePreview = e.notes ? e.notes.trim().split('\n')[0] : null
             return (
               <button key={e.id} className="ev" onClick={() => onOpen(e)}>
-                <span className="ev__time">{e.allDay ? 'Día' : e.startTime}</span>
+                <span className="ev__time">{e.allDay || !e.startTime ? 'Día' : formatTime12(e.startTime)}</span>
                 <span className="ev__body">
                   <span className="ev__title">{e.title}</span>
                   {(goal || notePreview) && (
