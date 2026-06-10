@@ -16,14 +16,10 @@
 
 **Files:** Create `supabase/migrations/0005_sesiones_pausa.sql`
 
-```sql
--- 0005 — Cronómetro con pausa (Fase 2). Idempotente. Solo agrega columnas.
-alter table public.sessions
-  add column if not exists paused_at timestamptz;
-alter table public.sessions
-  add column if not exists paused_total_seconds int not null default 0
-    check (paused_total_seconds >= 0);
-```
+Contenido: columnas `paused_at` + `paused_total_seconds`, y reemplazo del índice único
+PARCIAL de 0004 por uno COMPLETO sobre `(schedule_id, session_date)` — los índices parciales
+no funcionan con `ON CONFLICT` desde PostgREST, y el completo es equivalente (los NULL de
+`schedule_id` no chocan entre sí). Ver el archivo de la migración: es la fuente de verdad.
 
 - [ ] Crear archivo, commit `feat(db): columnas de pausa para sesiones (fase 2)`.
 - [ ] CHECKPOINT usuario: pegar en SQL Editor → Run (se le deja en el portapapeles).

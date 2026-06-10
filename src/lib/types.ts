@@ -169,3 +169,28 @@ export interface ScheduleBlock {
   startTime: string | null
   createdAt: string
 }
+
+export type SessionStatus = 'pending' | 'running' | 'done' | 'partial' | 'missed' | 'unconfirmed'
+
+/** Una sesión de trabajo real sobre una meta, generada desde el compromiso. */
+export interface Session {
+  id: string
+  goalId: string
+  userId: string
+  /** Bloque que la generó; null = sesión espontánea. */
+  scheduleId: string | null
+  date: string
+  targetKind: TargetKind
+  targetValue: number
+  unit: string | null
+  plannedTime: string | null
+  startedAt: string | null
+  endedAt: string | null
+  /** Minutos (time) o cantidad (count) realmente hechos. */
+  actualValue: number | null
+  status: SessionStatus
+  /** Pausa del cronómetro: cuándo se pausó y cuánto acumula en pausas. */
+  pausedAt: string | null
+  pausedTotalSeconds: number
+  createdAt: string
+}
