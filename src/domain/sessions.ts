@@ -120,3 +120,10 @@ export function currentStreakCommitted(
   }
   return streak
 }
+
+/** mm:ss para relojes en pantalla (compartido por Hoy y la sesión en vivo). */
+export function formatClock(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60)
+  const sec = totalSeconds % 60
+  return `${m}:${String(sec).padStart(2, '0')}`
+}

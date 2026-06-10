@@ -17,9 +17,10 @@ import {
 import { listEventsInRange } from '@/services/events'
 import { compareEvents } from '@/domain/calendar'
 import { findForgottenGoal, goalsDueForReview } from '@/domain/dailyPlan'
-import { currentStreakCommitted, pickSuggestion } from '@/domain/sessions'
+import { currentStreakCommitted, formatClock, pickSuggestion, remainingSeconds } from '@/domain/sessions'
 import { getTemplate } from '@/domain/templates'
 import { addDays, formatWeekday, todayISO } from '@/lib/date'
+import { nicheAccent } from '@/lib/nicheAccent'
 import { TaskItem } from '@/components/TaskItem'
 import { SessionCard } from '@/components/SessionCard'
 import { LoadingScreen } from '@/components/LoadingScreen'
@@ -122,6 +123,14 @@ export function Today() {
   }, [])
 
   const goalById = useMemo(() => new Map(goals.map((g) => [g.id, g])), [goals])
+  // Sesión en curso: protagonista arriba de todo, con el reloj latiendo.
+  const runningSession = useMemo(() => sessions.find((x) => x.status === 'running') ?? null, [sessions])
+  const [nowTick, setNowTick] = useState(() => new Date())
+  useEffect(() => {
+    if (!runningSession || runningSession.pausedAt || runningSession.targetKind !== 'time') return
+    const id = setInterval(() => setNowTick(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [runningSession])
   const activeGoals = useMemo(() => goals.filter((g) => g.status === 'active'), [goals])
 
   // Sesiones de hoy de metas activas, con su meta resuelta.
@@ -324,6 +333,33 @@ export function Today() {
         )}
       </header>
 
+      {runningSession && goalById.get(runningSession.goalId) && (
+        <button
+          className="card stack stack--sm"
+          style={{
+            ...nicheAccent(goalById.get(runningSession.goalId)!.area),
+            width: '100%',
+            alignItems: 'center',
+            textAlign: 'center',
+            marginBottom: 'var(--s4)',
+            borderLeft: '3px solid var(--niche, var(--primary))',
+          }}
+          onClick={() => navigate(`/sesion/${runningSession.id}`)}
+        >
+          <span className="kicker">
+            En curso · {goalById.get(runningSession.goalId)!.title}
+          </span>
+          <strong className="ring__time" style={{ fontSize: 42 }}>
+            {runningSession.targetKind === 'time'
+              ? formatClock(remainingSeconds(runningSession, nowTick))
+              : `${runningSession.actualValue ?? 0} / ${runningSession.targetValue}`}
+          </strong>
+          <span className="small muted">
+            {runningSession.pausedAt ? 'En pausa — toca para continuar' : 'Toca para abrir el cronómetro'}
+          </span>
+        </button>
+      )}
+
       {cheerMessage && (
         <div className="cheer" role="status" aria-live="polite">
           {cheerMessage}
@@ -390,7 +426,9 @@ export function Today() {
           <span className="kicker">
             Tus sesiones de hoy · {closedCount} de {todaySessions.length}
           </span>
-          {todaySessions.map(({ session, goal }) => (
+          {todaySessions
+            .filter(({ session }) => session.id !== runningSession?.id)
+            .map(({ session, goal }) => (
             <SessionCard
               key={session.id}
               session={session}

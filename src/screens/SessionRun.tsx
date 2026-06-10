@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import type { Goal, Session } from '@/lib/types'
+import type { Goal, Milestone, Session } from '@/lib/types'
 import { getGoal } from '@/services/goals'
+import { listMilestones, setMilestoneDone } from '@/services/milestones'
 import {
   finishSession,
   getSession,
@@ -9,19 +10,13 @@ import {
   resumeSession,
   startSession,
 } from '@/services/sessions'
-import { elapsedSeconds, isTimeReached, remainingSeconds } from '@/domain/sessions'
+import { elapsedSeconds, formatClock, isTimeReached, pickSuggestion, remainingSeconds } from '@/domain/sessions'
 import { getTemplate } from '@/domain/templates'
 import { todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SessionRing } from '@/components/SessionRing'
 import { IconBack, IconPlay } from '@/components/icons'
-
-function mmss(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60)
-  const s = totalSeconds % 60
-  return `${m}:${String(s).padStart(2, '0')}`
-}
 
 
 interface ResolutionOptionsProps {
@@ -120,6 +115,9 @@ export function SessionRun() {
   const [partialValue, setPartialValue] = useState<number | null>(null)
   /** Hoja de cierre anticipado ("Terminé" antes del objetivo). */
   const [earlyFinish, setEarlyFinish] = useState(false)
+  const [milestones, setMilestones] = useState<Milestone[]>([])
+  /** Tras guardar el cierre: ofrecer marcar la etapa actual (sesión → etapa). */
+  const [finishedStatus, setFinishedStatus] = useState<'done' | 'partial' | null>(null)
 
   useEffect(() => {
     let active = true
@@ -130,10 +128,11 @@ export function SessionRun() {
           if (active) setLoading(false)
           return
         }
-        const g = await getGoal(s.goalId)
+        const [g, ms] = await Promise.all([getGoal(s.goalId), listMilestones(s.goalId)])
         if (!active) return
         setSession(s)
         setGoal(g)
+        setMilestones(ms)
         setCount(s.actualValue ?? 0)
         setLoading(false)
       })
@@ -195,6 +194,8 @@ export function SessionRun() {
   if (!goal) return <Navigate to="/" replace />
 
   const template = getTemplate(goal.templateKey)
+  const currentMilestone = milestones.find((m) => m.doneAt === null) ?? null
+  const suggestion = pickSuggestion(template, goal.id, today)
   const isTime = session.targetKind === 'time'
   const targetLabel = isTime ? `${session.targetValue} min` : `${session.targetValue} ${session.unit ?? ''}`.trim()
   const elapsed = elapsedSeconds(session, now)
@@ -255,15 +256,32 @@ export function SessionRun() {
     setSaving(true)
     try {
       await finishSession(session.id, { status, actualValue })
-      navigate('/', { replace: true })
+      // Conexión sesión → etapa: si hubo trabajo real y hay una etapa en curso,
+      // ofrecemos marcarla antes de volver. "No pude" vuelve directo.
+      if (status !== 'missed' && currentMilestone) {
+        setFinishedStatus(status)
+        setSaving(false)
+      } else {
+        navigate('/', { replace: true })
+      }
     } catch {
       setError('No se pudo guardar el cierre. Inténtalo de nuevo.')
       setSaving(false)
     }
   }
 
+  async function completeMilestoneAndLeave() {
+    if (!currentMilestone) return navigate('/', { replace: true })
+    setSaving(true)
+    await setMilestoneDone(currentMilestone.id, true).catch(() => {})
+    navigate('/', { replace: true })
+  }
+
   return (
-    <div className="screen screen--full flow-screen" style={nicheAccent(goal.area)}>
+    <div
+      className="screen screen--full flow-screen"
+      style={{ ...nicheAccent(goal.area), width: '100%', maxWidth: 560, margin: '0 auto' }}
+    >
       <div className="row" style={{ marginBottom: 'var(--s4)' }}>
         <button className="iconbtn" onClick={() => navigate('/')} aria-label="Volver a tu día">
           <IconBack />
@@ -274,6 +292,35 @@ export function SessionRun() {
         <span className="kicker">
           {template.emoji} {goal.title} · {targetLabel}
         </span>
+
+        {finishedStatus && currentMilestone ? (
+          <div className="stack stack--sm center" style={{ width: '100%', alignItems: 'center' }}>
+            <strong style={{ fontSize: 32 }}>✓</strong>
+            <h2 style={{ fontSize: 'var(--fs-lg)', textAlign: 'center' }}>
+              {finishedStatus === 'done' ? 'Sesión cumplida' : 'Parcial guardado'}
+            </h2>
+            <p className="small muted center" style={{ maxWidth: 360 }}>
+              ¿Completaste la etapa “{currentMilestone.title}”?
+            </p>
+            <button className="btn btn--primary btn--block" disabled={saving} onClick={() => void completeMilestoneAndLeave()}>
+              Sí, cumplida 🎉
+            </button>
+            <button className="btn btn--ghost btn--block" onClick={() => navigate('/', { replace: true })}>
+              Aún no
+            </button>
+          </div>
+        ) : (
+          <>
+        {!needsResolution && !closed && (
+          <div className="stack center" style={{ alignItems: 'center', gap: 2 }}>
+            {currentMilestone && (
+              <p className="small center" style={{ margin: 0 }}>
+                Etapa actual: <strong>{currentMilestone.title}</strong>
+              </p>
+            )}
+            <p className="small muted center" style={{ margin: 0 }}>Idea: {suggestion}</p>
+          </div>
+        )}
 
         {/* --- Cierre pendiente (otro día / sin confirmar) --- */}
         {needsResolution && (
@@ -334,7 +381,7 @@ export function SessionRun() {
         {!needsResolution && !reachedToday && session.status === 'running' && isTime && (
           <>
             <SessionRing progress={elapsed / (session.targetValue * 60)}>
-              <strong className="ring__time">{mmss(remainingSeconds(session, now))}</strong>
+              <strong className="ring__time">{formatClock(remainingSeconds(session, now))}</strong>
               <span className="small muted">de {targetLabel}</span>
             </SessionRing>
             {goal.why && <p className="small muted center" style={{ maxWidth: 360 }}>“{goal.why}”</p>}
@@ -424,6 +471,8 @@ export function SessionRun() {
               Volver a tu día
             </button>
           </div>
+        )}
+          </>
         )}
       </div>
     </div>
