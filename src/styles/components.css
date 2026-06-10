@@ -765,8 +765,9 @@
   border: 1px solid color-mix(in srgb, var(--success) 40%, transparent);
 }
 .alert--warn {
-  border-color: var(--niche-finanzas);
-  color: var(--niche-finanzas);
+  background: var(--warning-soft);
+  color: var(--warning);
+  border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
 }
 
 /* Pop de entrada para el ícono de celebración (GoalCreated). Lo desactiva

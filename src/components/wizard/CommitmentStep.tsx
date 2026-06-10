@@ -49,6 +49,8 @@ export function CommitmentStep({
     ])
   }
 
+  // Cambiar de tipo reinicia los valores a defaults: es intencional, porque
+  // "30 minutos" y "30 páginas" no son magnitudes intercambiables.
   function setKind(next: TargetKind) {
     onChange(
       blocks.map((b) => ({
@@ -200,7 +202,11 @@ export function CommitmentStep({
       </div>
 
       {blocks.length > 0 && <div className="alert">{formatCommitmentSummary(blocks)}</div>}
-      {warning && <div className="alert alert--warn" role="status">{warning}</div>}
+      {warning && (
+        <div className="alert alert--warn" role="status" aria-live="polite" aria-atomic="true">
+          {warning}
+        </div>
+      )}
       <p className="faint tiny">La hora es opcional: puedes fijarla o cambiarla después desde tu agenda.</p>
     </div>
   )
