@@ -79,13 +79,20 @@ export function overcommitWarning(
       .reduce((sum, b) => sum + b.targetValue, 0)
     const sessions = sameDay.length
     if (sessions >= 3 || minutes >= 90) {
-      if (!worst || minutes > worst.minutes) worst = { weekday, sessions, minutes }
+      if (
+        !worst ||
+        minutes > worst.minutes ||
+        (minutes === worst.minutes && sessions > worst.sessions)
+      ) {
+        worst = { weekday, sessions, minutes }
+      }
     }
   }
   if (!worst) return null
   const day = WEEKDAY_PLURALS[worst.weekday]
   const sessionsLabel = worst.sessions === 1 ? '1 sesión' : `${worst.sessions} sesiones`
-  return `Los ${day} ya tienes ${sessionsLabel} (${formatDuration(worst.minutes)}) de otras metas. Revisa que el plan te entre.`
+  const durationPart = worst.minutes > 0 ? ` (${formatDuration(worst.minutes)})` : ''
+  return `Los ${day} ya tienes ${sessionsLabel}${durationPart} de otras metas. Revisa que el plan te entre.`
 }
 
 /** Copia los hitos de una plantilla como borradores, marcando los primeros `doneCount`. */
@@ -101,7 +108,10 @@ export function buildMilestonesFromTemplate(
   }))
 }
 
-/** Mapea la cadencia legacy de plantillas a días comprometidos (backfill). */
+/**
+ * Mapea la cadencia legacy de plantillas a días comprometidos (backfill).
+ * Paralelo a isDueToday (dailyPlan.ts), pero en convención lunes=0.
+ */
 export function weekdaysForCadence(cadence: Cadence): number[] {
   switch (cadence) {
     case 'daily':

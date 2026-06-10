@@ -65,6 +65,11 @@ describe('validateCommitment', () => {
   it('acepta un compromiso válido', () => {
     expect(validateCommitment([time(0, 25)])).toBeNull()
   })
+  it('rechaza bloques con duración cero', () => {
+    expect(
+      validateCommitment([{ weekday: 0, targetKind: 'time', targetValue: 0, unit: null, startTime: null }]),
+    ).toBe('Cada momento necesita una duración o cantidad mayor a cero.')
+  })
 })
 
 describe('overcommitWarning', () => {
@@ -88,6 +93,21 @@ describe('overcommitWarning', () => {
   })
   it('no avisa si los días elegidos están libres', () => {
     expect(overcommitWarning([existing(1, 120)], [time(0, 25)])).toBeNull()
+  })
+  it('avisa por cantidad de sesiones aunque no llegue a 90 min, sin "(0 min)"', () => {
+    const countBlock = (weekday: number, idx: number): ScheduleBlock => ({
+      id: `c-${weekday}-${idx}`,
+      goalId: 'otra-meta',
+      userId: 'u1',
+      weekday,
+      targetKind: 'count',
+      targetValue: 10,
+      unit: 'páginas',
+      startTime: null,
+      createdAt: '2026-06-01T00:00:00Z',
+    })
+    const msg = overcommitWarning([countBlock(0, 1), countBlock(0, 2), countBlock(0, 3)], [time(0, 25)])
+    expect(msg).toBe('Los lunes ya tienes 3 sesiones de otras metas. Revisa que el plan te entre.')
   })
 })
 
