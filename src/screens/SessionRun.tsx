@@ -115,6 +115,8 @@ export function SessionRun() {
   const [partialValue, setPartialValue] = useState<number | null>(null)
   /** Hoja de cierre anticipado ("Terminé" antes del objetivo). */
   const [earlyFinish, setEarlyFinish] = useState(false)
+  /** Objetivo cumplido pero el usuario quiere seguir: el reloj cuenta hacia arriba. */
+  const [keepGoing, setKeepGoing] = useState(false)
   const [milestones, setMilestones] = useState<Milestone[]>([])
   /** Tras guardar el cierre: ofrecer marcar la etapa actual (sesión → etapa). */
   const [finishedStatus, setFinishedStatus] = useState<'done' | 'partial' | null>(null)
@@ -154,7 +156,7 @@ export function SessionRun() {
     !session.pausedAt &&
     session.targetKind === 'time' &&
     session.date === todayISO() &&
-    !isTimeReached(session, now) &&
+    (!isTimeReached(session, now) || keepGoing) &&
     !earlyFinish
   useEffect(() => {
     if (!ticking) return
@@ -175,6 +177,7 @@ export function SessionRun() {
 
   const reachedToday =
     session !== null &&
+    !keepGoing &&
     session.status === 'running' &&
     session.date === today &&
     isTimeReached(session, now)
@@ -365,6 +368,12 @@ export function SessionRun() {
               <strong style={{ fontSize: 28 }}>🎉</strong>
               <span className="small muted">{targetLabel} cumplidos</span>
             </SessionRing>
+            <button
+              className="btn btn--ghost btn--block"
+              onClick={() => setKeepGoing(true)}
+            >
+              Seguir un rato más
+            </button>
             <ResolutionOptions
               title="¡Lo lograste!"
               isTime={isTime}
@@ -396,9 +405,13 @@ export function SessionRun() {
         {/* --- En curso: tiempo --- */}
         {!needsResolution && !reachedToday && session.status === 'running' && isTime && (
           <>
-            <SessionRing progress={elapsed / (session.targetValue * 60)}>
-              <strong className="ring__time">{formatClock(remainingSeconds(session, now))}</strong>
-              <span className="small muted">de {targetLabel}</span>
+            <SessionRing progress={keepGoing ? 1 : elapsed / (session.targetValue * 60)}>
+              <strong className="ring__time">
+                {keepGoing ? formatClock(elapsed) : formatClock(remainingSeconds(session, now))}
+              </strong>
+              <span className="small muted">
+                {keepGoing ? `ya superaste tus ${targetLabel}` : `de ${targetLabel}`}
+              </span>
             </SessionRing>
             {goal.why && <p className="small muted center" style={{ maxWidth: 360 }}>“{goal.why}”</p>}
             {!earlyFinish ? (
@@ -416,7 +429,7 @@ export function SessionRun() {
                   className="btn btn--primary"
                   style={{ flex: 1 }}
                   disabled={saving}
-                  onClick={() => setEarlyFinish(true)}
+                  onClick={() => (keepGoing ? void finish('done', elapsedMinutes) : setEarlyFinish(true))}
                 >
                   Terminé ✓
                 </button>

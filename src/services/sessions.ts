@@ -149,6 +149,34 @@ export function finishSession(
   })
 }
 
+/**
+ * Retomar una sesión cerrada HOY conservando lo trabajado: el rato que estuvo
+ * cerrada cuenta como pausa, así el reloj continúa donde quedó (ej. 7 de 90).
+ * Si nunca tuvo cronómetro (check rápido), arranca de cero ahora.
+ */
+export async function resumeClosedSession(s: Session): Promise<Session> {
+  if (!s.startedAt) {
+    return patchSession(s.id, {
+      status: 'running',
+      started_at: new Date().toISOString(),
+      ended_at: null,
+      actual_value: null,
+      paused_at: null,
+      paused_total_seconds: 0,
+    })
+  }
+  const gap = s.endedAt
+    ? Math.max(0, Math.floor((Date.now() - new Date(s.endedAt).getTime()) / 1000))
+    : 0
+  return patchSession(s.id, {
+    status: 'running',
+    ended_at: null,
+    actual_value: null,
+    paused_at: null,
+    paused_total_seconds: s.pausedTotalSeconds + gap,
+  })
+}
+
 /** Deshace un cierre (ej. check rápido por error): vuelve a pendiente. */
 export function reopenSession(sessionId: string): Promise<Session> {
   return patchSession(sessionId, {

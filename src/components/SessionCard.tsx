@@ -14,6 +14,8 @@ interface SessionCardProps {
   onQuickDone: () => void
   /** Deshacer un cierre (volver a pendiente). */
   onReopen: () => void
+  /** Retomar una sesión parcial/no completada: el reloj sigue donde quedó. */
+  onResume: () => void
 }
 
 function targetLabel(s: Session): string {
@@ -25,7 +27,7 @@ function clock(iso: string): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-export function SessionCard({ session, goal, suggestion, onOpen, onQuickDone, onReopen }: SessionCardProps) {
+export function SessionCard({ session, goal, suggestion, onOpen, onQuickDone, onReopen, onResume }: SessionCardProps) {
   const template = getTemplate(goal.templateKey)
   const closed = session.status === 'done' || session.status === 'partial' || session.status === 'missed'
 
@@ -46,14 +48,26 @@ export function SessionCard({ session, goal, suggestion, onOpen, onQuickDone, on
             {label}
           </span>
         </div>
-        <button
-          type="button"
-          className="btn--link session__undo"
-          onClick={onReopen}
-          aria-label={`Deshacer el cierre de la sesión de ${goal.title}`}
-        >
-          Deshacer
-        </button>
+        {session.status === 'done' ? (
+          <button
+            type="button"
+            className="btn--link session__undo"
+            onClick={onReopen}
+            aria-label={`Deshacer el cierre de la sesión de ${goal.title}`}
+          >
+            Deshacer
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="btn btn--sm btn--ghost"
+            style={{ flex: 'none' }}
+            onClick={onResume}
+            aria-label={`Retomar la sesión de ${goal.title} donde quedó`}
+          >
+            ▶ Retomar
+          </button>
+        )}
       </div>
     )
   }

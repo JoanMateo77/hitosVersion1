@@ -13,6 +13,7 @@ import {
   listSessionsForDate,
   listSessionsInRange,
   reopenSession,
+  resumeClosedSession,
 } from '@/services/sessions'
 import { listEventsInRange } from '@/services/events'
 import { compareEvents } from '@/domain/calendar'
@@ -214,6 +215,14 @@ export function Today() {
       },
       () => patchSession(s.id, prev),
     )
+  }
+
+  function resumeClosed(s: Session) {
+    void withErrorHandling(async () => {
+      const updated = await resumeClosedSession(s)
+      patchSession(s.id, updated)
+      navigate(`/sesion/${updated.id}`)
+    })
   }
 
   function reopen(s: Session) {
@@ -437,6 +446,7 @@ export function Today() {
               onOpen={() => navigate(`/sesion/${session.id}`)}
               onQuickDone={() => quickDone(session)}
               onReopen={() => reopen(session)}
+              onResume={() => resumeClosed(session)}
             />
           ))}
         </section>
