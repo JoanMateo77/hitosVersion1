@@ -226,3 +226,8 @@ export async function createSpontaneousSession(
   if (error) throw new Error(error.message)
   return mapSession(data as SessionRow)
 }
+
+/** Cambia la hora planificada de una sesión ya generada. */
+export function setSessionPlannedTime(sessionId: string, time: string | null): Promise<Session> {
+  return patchSession(sessionId, { planned_time: time })
+}

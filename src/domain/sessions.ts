@@ -121,6 +121,11 @@ export function currentStreakCommitted(
   return streak
 }
 
+/** Bloques del compromiso que tocan en una fecha (proyección a futuro). */
+export function dueBlocksForDate(blocks: ScheduleBlock[], dateISO: string): ScheduleBlock[] {
+  return blocks.filter((b) => b.weekday === weekdayMon0Local(dateISO))
+}
+
 /** mm:ss para relojes en pantalla (compartido por Hoy y la sesión en vivo). */
 export function formatClock(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60)

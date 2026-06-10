@@ -2293,3 +2293,15 @@ select.input {
   font-variant-numeric: tabular-nums;
   font-family: var(--font-display);
 }
+
+/* --- Sesiones en la agenda (Fase 3) --- */
+.ev--session {
+  border-left: 3px solid var(--niche, var(--primary));
+}
+.ev--session:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+.cal-dot--session {
+  background: var(--primary);
+}

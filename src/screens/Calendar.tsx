@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import type { CalendarEvent, Goal } from '@/lib/types'
+import type { CalendarEvent, Goal, ScheduleBlock, Session } from '@/lib/types'
 import { listGoals } from '@/services/goals'
 import {
   createEvent,
@@ -11,6 +11,11 @@ import {
   type EventInput,
 } from '@/services/events'
 import { WEEKDAY_LABELS, groupByDate, inSameMonth, monthGrid, weekDays } from '@/domain/calendar'
+import { WEEKDAY_PLURALS } from '@/domain/commitment'
+import { dueBlocksForDate } from '@/domain/sessions'
+import { listScheduleForUser, updateBlockStartTime } from '@/services/schedule'
+import { listSessionsInRange, setSessionPlannedTime } from '@/services/sessions'
+import { nicheAccent } from '@/lib/nicheAccent'
 import {
   addDays,
   addMonths,
@@ -27,6 +32,36 @@ import { useToast } from '@/app/toast'
 import { Hint } from '@/components/Hint'
 
 type View = 'day' | 'week' | 'month'
+
+/** Una sesión tal como se ve en la agenda: real (fila en BD) o proyectada del compromiso. */
+interface DayAgendaSession {
+  key: string
+  goal: Goal
+  time: string | null
+  state: 'pending' | 'running' | 'done' | 'partial' | 'missed' | 'unconfirmed' | 'projected'
+  targetLabel: string
+  session: Session | null
+  block: ScheduleBlock | null
+}
+
+function sessionStateLabel(state: DayAgendaSession['state']): string {
+  switch (state) {
+    case 'done':
+      return '✓ hecha'
+    case 'partial':
+      return 'parcial'
+    case 'missed':
+      return 'no pudiste'
+    case 'running':
+      return 'en curso'
+    case 'unconfirmed':
+      return 'sin confirmar'
+    case 'projected':
+      return 'comprometida'
+    default:
+      return 'pendiente'
+  }
+}
 
 /**
  * Agenda / calendario propio del usuario (Sección 4): vistas día / semana / mes,
@@ -47,6 +82,9 @@ export function Calendar() {
   const [selected, setSelected] = useState(initialDate ?? todayISO()) // día activo
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [goals, setGoals] = useState<Goal[]>([])
+  const [blocks, setBlocks] = useState<ScheduleBlock[]>([])
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [timeSheet, setTimeSheet] = useState<{ goal: Goal; block: ScheduleBlock; session: Session | null } | null>(null)
   const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState<{ event: CalendarEvent | null; date: string } | null>(null)
@@ -66,13 +104,17 @@ export function Calendar() {
     async function load() {
       try {
         setError(null)
-        const [evs, gs] = await Promise.all([
+        const [evs, gs, blks, sess] = await Promise.all([
           listEventsInRange(userId, from, to),
           listGoals(userId),
+          listScheduleForUser(userId),
+          listSessionsInRange(userId, from, to),
         ])
         if (!active) return
         setEvents(evs)
         setGoals(gs)
+        setBlocks(blks)
+        setSessions(sess)
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : 'No se pudo cargar tu agenda.')
       } finally {
@@ -101,6 +143,79 @@ export function Calendar() {
     }
     return m
   }, [goals])
+
+  const today = todayISO()
+
+  /** Sesiones del día: filas reales + proyección del compromiso hacia adelante. */
+  function daySessions(day: string): DayAgendaSession[] {
+    const real = sessions.filter((s) => s.date === day)
+    const items: DayAgendaSession[] = []
+    for (const s of real) {
+      const goal = goalById.get(s.goalId)
+      if (!goal) continue
+      items.push({
+        key: s.id,
+        goal,
+        time: s.plannedTime,
+        state: s.status,
+        targetLabel: s.targetKind === 'time' ? `${s.targetValue} min` : `${s.targetValue} ${s.unit ?? ''}`.trim(),
+        session: s,
+        block: blocks.find((b) => b.id === s.scheduleId) ?? null,
+      })
+    }
+    if (day >= today) {
+      for (const b of dueBlocksForDate(blocks, day)) {
+        if (real.some((sx) => sx.scheduleId === b.id)) continue
+        const goal = goalById.get(b.goalId)
+        if (!goal || goal.status !== 'active') continue
+        items.push({
+          key: `p-${b.id}-${day}`,
+          goal,
+          time: b.startTime,
+          state: 'projected',
+          targetLabel: b.targetKind === 'time' ? `${b.targetValue} min` : `${b.targetValue} ${b.unit ?? ''}`.trim(),
+          session: null,
+          block: b,
+        })
+      }
+    }
+    return items.sort((a, b2) => (a.time ?? '99').localeCompare(b2.time ?? '99'))
+  }
+
+  function handleSession(it: DayAgendaSession) {
+    // Hoy y abierta → directo al cronómetro. Lo demás → fijar hora del bloque.
+    if (
+      it.session &&
+      it.session.date === today &&
+      ['pending', 'running', 'unconfirmed'].includes(it.session.status)
+    ) {
+      navigate(`/sesion/${it.session.id}`)
+      return
+    }
+    if (it.block) setTimeSheet({ goal: it.goal, block: it.block, session: it.session })
+  }
+
+  async function saveSessionTime(time: string | null) {
+    const ts = timeSheet
+    setTimeSheet(null)
+    if (!ts) return
+    try {
+      const updatedBlock = await updateBlockStartTime(ts.block.id, time)
+      setBlocks((prev) => prev.map((b) => (b.id === updatedBlock.id ? updatedBlock : b)))
+      if (ts.session) {
+        const updatedSession = await setSessionPlannedTime(ts.session.id, time)
+        setSessions((prev) => prev.map((sx) => (sx.id === updatedSession.id ? updatedSession : sx)))
+      }
+      toast(
+        time
+          ? `Listo: todos los ${WEEKDAY_PLURALS[ts.block.weekday]} a las ${time}.`
+          : 'Hora quitada.',
+        'success',
+      )
+    } catch {
+      toast('No se pudo guardar la hora.')
+    }
+  }
 
   function shift(dir: 1 | -1) {
     if (view === 'day') setSelected((s) => addDays(s, dir))
@@ -163,6 +278,8 @@ export function Calendar() {
 
   const dayProps = (day: string) => ({
     day,
+    sessions: daySessions(day),
+    onSession: handleSession,
     events: eventsByDate.get(day) ?? [],
     deadlines: deadlinesByDate.get(day) ?? [],
     goalById,
@@ -214,10 +331,9 @@ export function Calendar() {
 
       {ready && !error && (
         <div style={{ marginBottom: 'var(--s4)' }}>
-          <Hint id="calendar-uses-2026-05">
-            Acá podés agendar reuniones, bloquear tiempo para una meta, y dejar{' '}
-            <strong>notas</strong> en cada evento. Si lo vinculás a una meta, vemos cuánto tiempo
-            le dedicás por semana.
+          <Hint id="calendar-uses-2026-06">
+            Tus <strong>sesiones comprometidas</strong> aparecen aquí con su hora y estado — toca
+            una para fijarle horario. También puedes agendar eventos propios y dejar notas.
           </Hint>
         </div>
       )}
@@ -244,6 +360,7 @@ export function Calendar() {
                 <button key={day} className={cls.join(' ')} onClick={() => selectDay(day)}>
                   <span>{dayOfMonth(day)}</span>
                   <span className="cal-cell__dots">
+                    {daySessions(day).length > 0 && <span className="cal-dot cal-dot--session" />}
                     {evs.slice(0, 3).map((e) => (
                       <span key={e.id} className="cal-dot" />
                     ))}
@@ -267,6 +384,15 @@ export function Calendar() {
         <DaySection {...dayProps(selected)} />
       )}
 
+      {timeSheet && (
+        <TimeSheet
+          goal={timeSheet.goal}
+          block={timeSheet.block}
+          onClose={() => setTimeSheet(null)}
+          onSave={(t) => void saveSessionTime(t)}
+        />
+      )}
+
       {editing && (
         <EventEditor
           key={editing.event?.id ?? `new-${editing.date}`}
@@ -285,6 +411,8 @@ export function Calendar() {
 /** Un día con sus eventos. Se reutiliza en las vistas día, semana y mes. */
 function DaySection({
   day,
+  sessions,
+  onSession,
   events,
   deadlines,
   goalById,
@@ -293,6 +421,8 @@ function DaySection({
   onGoal,
 }: {
   day: string
+  sessions: DayAgendaSession[]
+  onSession: (it: DayAgendaSession) => void
   events: CalendarEvent[]
   deadlines: Goal[]
   goalById: Map<string, Goal>
@@ -300,7 +430,7 @@ function DaySection({
   onOpen: (e: CalendarEvent) => void
   onGoal: (g: Goal) => void
 }) {
-  const empty = events.length === 0 && deadlines.length === 0
+  const empty = sessions.length === 0 && events.length === 0 && deadlines.length === 0
   return (
     <section className="cal-day stack stack--sm">
       <div className="row row--between">
@@ -313,9 +443,31 @@ function DaySection({
       </div>
 
       {empty ? (
-        <p className="faint small">Sin eventos.</p>
+        <p className="faint small">Nada agendado. Toca + para sumar algo.</p>
       ) : (
         <div className="stack stack--sm">
+          {sessions.map((it) => {
+            const isClosed = ['done', 'partial', 'missed'].includes(it.state)
+            return (
+              <button
+                key={it.key}
+                className={`ev ev--session${isClosed ? ' ev--closed' : ''}`}
+                style={nicheAccent(it.goal.area)}
+                disabled={isClosed}
+                onClick={() => onSession(it)}
+                aria-label={`Sesión de ${it.goal.title}, ${sessionStateLabel(it.state)}`}
+              >
+                <span className="ev__time">{it.time ?? '—'}</span>
+                <span className="ev__body">
+                  <span className="ev__title">Sesión · {it.goal.title}</span>
+                  <span className="ev__meta">
+                    <span className="tag">{sessionStateLabel(it.state)}</span>
+                    <span className="faint tiny">{it.targetLabel}</span>
+                  </span>
+                </span>
+              </button>
+            )
+          })}
           {deadlines.map((g) => (
             <button key={`d-${g.id}`} className="ev ev--goal" onClick={() => onGoal(g)}>
               <span className="ev__time" style={{ display: 'inline-flex', justifyContent: 'flex-start' }}>
@@ -355,6 +507,62 @@ function DaySection({
         </div>
       )}
     </section>
+  )
+}
+
+/** Hoja para fijar la hora de una sesión comprometida ("todos los lunes a las 19:00"). */
+function TimeSheet({
+  goal,
+  block,
+  onClose,
+  onSave,
+}: {
+  goal: Goal
+  block: ScheduleBlock
+  onClose: () => void
+  onSave: (time: string | null) => void
+}) {
+  const [time, setTime] = useState(block.startTime ?? '')
+  const panelRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(panelRef, onClose)
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [])
+  return (
+    <div className="sheet" role="dialog" aria-modal="true">
+      <div className="sheet__backdrop" onClick={onClose} />
+      <div ref={panelRef} className="sheet__panel stack stack--lg">
+        <div className="row row--between">
+          <h2 style={{ fontSize: 'var(--fs-lg)' }}>¿A qué hora te queda cómodo?</h2>
+          <button type="button" className="iconbtn iconbtn--sm" onClick={onClose} aria-label="Cerrar">
+            <IconClose />
+          </button>
+        </div>
+        <p className="small muted" style={{ margin: 0 }}>
+          Sesión de <strong>{goal.title}</strong> · todos los {WEEKDAY_PLURALS[block.weekday]} ·{' '}
+          {block.targetKind === 'time' ? `${block.targetValue} min` : `${block.targetValue} ${block.unit ?? ''}`}
+        </p>
+        <input
+          className="input"
+          type="time"
+          value={time}
+          onChange={(e) => setTime(e.target.value)}
+          aria-label="Hora de la sesión"
+        />
+        <button className="btn btn--primary btn--block" disabled={!time} onClick={() => onSave(time)}>
+          Guardar para todos los {WEEKDAY_PLURALS[block.weekday]}
+        </button>
+        {block.startTime && (
+          <button className="btn btn--ghost btn--block" onClick={() => onSave(null)}>
+            Quitar hora
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 

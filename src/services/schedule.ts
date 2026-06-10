@@ -86,3 +86,18 @@ export async function createScheduleBlocks(
   if (error) throw new Error(error.message)
   return (data as ScheduleRow[]).map(mapBlock)
 }
+
+/** Fija (o quita) la hora preferida de un bloque: "todos los lunes a las 19:00". */
+export async function updateBlockStartTime(
+  blockId: string,
+  startTime: string | null,
+): Promise<ScheduleBlock> {
+  const { data, error } = await supabase
+    .from('goal_schedule')
+    .update({ start_time: startTime })
+    .eq('id', blockId)
+    .select('*')
+    .single()
+  if (error) throw new Error(error.message)
+  return mapBlock(data as ScheduleRow)
+}
