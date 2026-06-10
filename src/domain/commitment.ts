@@ -110,7 +110,7 @@ export function buildMilestonesFromTemplate(
 
 /**
  * Mapea la cadencia legacy de plantillas a días comprometidos (backfill).
- * Paralelo a isDueToday (dailyPlan.ts), pero en convención lunes=0.
+ * Convención lunes=0; reemplaza a la cadencia fija de las plantillas legacy.
  */
 export function weekdaysForCadence(cadence: Cadence): number[] {
   switch (cadence) {

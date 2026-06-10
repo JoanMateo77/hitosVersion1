@@ -44,7 +44,7 @@ async function run(userId: string, goals: Goal[]): Promise<void> {
         await createMilestones(
           userId,
           goal.id,
-          buildMilestonesFromTemplate(template, goal.currentMilestone),
+          buildMilestonesFromTemplate(template, 0),
         )
       }
       if (!withSchedule.has(goal.id)) {

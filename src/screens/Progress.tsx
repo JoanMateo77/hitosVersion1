@@ -2,10 +2,11 @@ import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import type { Goal } from '@/lib/types'
 import { listGoals } from '@/services/goals'
+import { milestoneProgressByGoal } from '@/services/milestones'
 import { countDoneTasks, listActiveDates } from '@/services/tasks'
 import { getTemplate } from '@/domain/templates'
 import { getNiche } from '@/domain/niches'
-import { clampedStage, isGoalClosed } from '@/domain/goals'
+import { isGoalClosed } from '@/domain/goals'
 import { currentStreak } from '@/domain/dailyPlan'
 import { addDays, formatLongDate, startOfWeek, todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
@@ -27,13 +28,14 @@ export function Progress() {
 
   const { data, loading, error } = useAsyncData(async () => {
     const weekStart = startOfWeek(today)
-    const [goals, doneTotal, doneWeek, activeDates] = await Promise.all([
+    const [goals, doneTotal, doneWeek, activeDates, progress] = await Promise.all([
       listGoals(userId),
       countDoneTasks(userId),
       countDoneTasks(userId, weekStart),
       listActiveDates(userId, addDays(today, -120)),
+      milestoneProgressByGoal(userId),
     ])
-    return { goals, doneTotal, doneWeek, activeDates }
+    return { goals, doneTotal, doneWeek, activeDates, progress }
   }, [userId])
 
   if (loading) {
@@ -48,7 +50,7 @@ export function Progress() {
   }
   if (error || !data) return <LoadingScreen error={error ?? 'No se pudo cargar tu progreso.'} />
 
-  const { goals, doneTotal, doneWeek, activeDates } = data
+  const { goals, doneTotal, doneWeek, activeDates, progress } = data
   const streak = currentStreak(activeDates, today)
   const active = goals.filter((g) => g.status === 'active').length
   const achieved = goals.filter((g) => g.status === 'done').length
@@ -102,7 +104,7 @@ export function Progress() {
       ) : (
         <ul className="timeline">
           {finished.map((goal) => (
-            <TimelineItem key={goal.id} goal={goal} onClick={() => navigate(`/metas/${goal.id}`)} />
+            <TimelineItem key={goal.id} goal={goal} progress={progress.get(goal.id)} onClick={() => navigate(`/metas/${goal.id}`)} />
           ))}
         </ul>
       )}
@@ -110,10 +112,17 @@ export function Progress() {
   )
 }
 
-function TimelineItem({ goal, onClick }: { goal: Goal; onClick: () => void }) {
+function TimelineItem({
+  goal,
+  progress,
+  onClick,
+}: {
+  goal: Goal
+  progress?: { done: number; total: number }
+  onClick: () => void
+}) {
   const template = getTemplate(goal.templateKey)
   const niche = getNiche(goal.area)
-  const stage = clampedStage(goal.currentMilestone, template.milestones.length)
   const done = goal.status === 'done'
   const dateISO = (goal.completedAt ?? goal.createdAt).slice(0, 10)
 
@@ -131,7 +140,9 @@ function TimelineItem({ goal, onClick }: { goal: Goal; onClick: () => void }) {
           {niche.label} ·{' '}
           {done
             ? 'Camino completo'
-            : `Llegó a etapa ${stage + 1} de ${template.milestones.length}`}{' '}
+            : progress && progress.total > 0
+              ? `Llegó a etapa ${Math.min(progress.done + 1, progress.total)} de ${progress.total}`
+              : 'En pausa indefinida'}{' '}
           · {formatLongDate(dateISO)}
         </span>
       </button>

@@ -4,10 +4,9 @@ import { getGoal } from '@/services/goals'
 import { listMilestones } from '@/services/milestones'
 import { listScheduleForGoal } from '@/services/schedule'
 import { getTemplate } from '@/domain/templates'
-import { WEEKDAY_LABELS, formatCommitmentSummary } from '@/domain/commitment'
-import { pickAction } from '@/domain/dailyPlan'
+import { WEEKDAY_LABELS, formatCommitmentSummary, weekdayMon0 } from '@/domain/commitment'
 import { formatTime12 } from '@/lib/date'
-import { todayISO } from '@/lib/date'
+import { addDays, formatWeekday, todayISO } from '@/lib/date'
 import type { Goal, Milestone, ScheduleBlock } from '@/lib/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { Roadmap } from '@/components/Roadmap'
@@ -42,7 +41,7 @@ export function GoalCreated() {
       .catch(() => {
         if (!active) return
         // Distinguimos "falló la carga" de "no existe": no rebotamos en silencio.
-        setError('No pudimos cargar tu meta recién creada. Probá de nuevo.')
+        setError('No pudimos cargar tu meta recién creada. Inténtalo de nuevo.')
         setLoading(false)
       })
     return () => {
@@ -63,7 +62,17 @@ export function GoalCreated() {
   if (goal.status !== 'active') return <Navigate to={`/meta/${goal.id}`} replace />
 
   const template = getTemplate(goal.templateKey)
-  const firstAction = pickAction(goal, todayISO())
+  // Próximo día comprometido (hoy..+6): el contrato se vuelve una cita concreta.
+  const firstSession = (() => {
+    for (let offset = 0; offset < 7; offset++) {
+      const date = addDays(todayISO(), offset)
+      const dayBlocks = schedule
+        .filter((b) => b.weekday === weekdayMon0(date))
+        .sort((a, b) => (a.startTime ?? '99').localeCompare(b.startTime ?? '99'))
+      if (dayBlocks.length > 0) return { date, offset, block: dayBlocks[0] }
+    }
+    return null
+  })()
   // Evita "Porque porque…": sacamos un "porque" inicial que el placeholder induce.
   const cleanWhy = goal.why?.trim().replace(/^porqu[eé]\s+/i, '')
 
@@ -92,11 +101,7 @@ export function GoalCreated() {
               para metas viejas que todavía no pasaron por el backfill. */}
           <Roadmap
             milestones={milestones.length > 0 ? milestones.map((m) => m.title) : template.milestones}
-            currentIndex={
-              milestones.length > 0
-                ? milestones.filter((m) => m.doneAt !== null).length
-                : goal.currentMilestone
-            }
+            currentIndex={milestones.filter((m) => m.doneAt !== null).length}
           />
         </div>
 
@@ -116,12 +121,20 @@ export function GoalCreated() {
           </div>
         )}
 
-        <div className="focus-card stack stack--sm">
-          <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
-            <IconPlay size={11} /> Empezá hoy con
-          </span>
-          <strong style={{ fontSize: 'var(--fs-xl)' }}>{firstAction}</strong>
-        </div>
+        {firstSession && (
+          <div className="focus-card stack stack--sm">
+            <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
+              <IconPlay size={11} /> Tu primera sesión
+            </span>
+            <strong style={{ fontSize: 'var(--fs-xl)' }}>
+              {firstSession.offset === 0 ? 'Hoy' : firstSession.offset === 1 ? 'Mañana' : formatWeekday(firstSession.date)}
+              {firstSession.block.startTime ? ` a las ${formatTime12(firstSession.block.startTime)}` : ''} ·{' '}
+              {firstSession.block.targetKind === 'time'
+                ? `${firstSession.block.targetValue} min`
+                : `${firstSession.block.targetValue} ${firstSession.block.unit ?? ''}`}
+            </strong>
+          </div>
+        )}
       </div>
 
       <button className="btn btn--primary btn--block" onClick={() => navigate('/', { replace: true })}>

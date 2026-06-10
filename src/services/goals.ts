@@ -10,7 +10,6 @@ interface GoalRow {
   area: string
   success_criteria: string | null
   template_key: string
-  current_milestone: number | null
   last_reviewed_at: string | null
   status: string
   created_at: string
@@ -27,8 +26,6 @@ function mapGoal(row: GoalRow): Goal {
     area: row.area as NicheId,
     successCriteria: row.success_criteria,
     templateKey: row.template_key,
-    // Los ?? hacen que la app funcione aún si una migración nueva no corrió todavía.
-    currentMilestone: row.current_milestone ?? 0,
     lastReviewedAt: row.last_reviewed_at ?? null,
     status: row.status as GoalStatus,
     createdAt: row.created_at,
@@ -93,18 +90,6 @@ export async function setGoalStatus(goalId: string, status: GoalStatus): Promise
       // Registra cuándo se completó (y lo limpia si se reactiva).
       completed_at: status === 'done' ? new Date().toISOString() : null,
     })
-    .eq('id', goalId)
-    .select('*')
-    .single()
-  if (error) throw new Error(error.message)
-  return mapGoal(data as GoalRow)
-}
-
-/** Fija el hito actual de una meta dentro de su camino (Roadmap). */
-export async function setGoalMilestone(goalId: string, index: number): Promise<Goal> {
-  const { data, error } = await supabase
-    .from('goals')
-    .update({ current_milestone: index })
     .eq('id', goalId)
     .select('*')
     .single()

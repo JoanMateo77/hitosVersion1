@@ -2,13 +2,10 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { createGoal, deleteGoal } from '@/services/goals'
-import { createGoalTasks } from '@/services/tasks'
 import { detectTemplate, getTemplate, templatesForNiche } from '@/domain/templates'
-import { pickAction } from '@/domain/dailyPlan'
 import { NICHES, getNiche } from '@/domain/niches'
 import type { NicheId, ScheduleBlock } from '@/lib/types'
 import { formatLongDate, relativeDeadline, todayISO } from '@/lib/date'
-import { isUniqueViolation } from '@/lib/errors'
 import { IconBack, IconCalendar, IconLightbulb } from '@/components/icons'
 import { OptionRow } from '@/components/OptionRow'
 import { Hint } from '@/components/Hint'
@@ -20,6 +17,7 @@ import {
   type MilestoneDraft,
 } from '@/domain/commitment'
 import { listActiveGoalSchedule, createScheduleBlocks } from '@/services/schedule'
+import { generateSessionsForDate } from '@/services/sessions'
 import { createMilestones } from '@/services/milestones'
 import { WIZARD_DRAFT_KEY } from '@/lib/wizardDraft'
 import { CommitmentStep } from '@/components/wizard/CommitmentStep'
@@ -237,16 +235,9 @@ export function Wizard() {
       })
       createdGoalId = goal.id
       await createMilestones(userId, goal.id, milestones.map((m, position) => ({ ...m, position })))
-      await createScheduleBlocks(userId, goal.id, blocks)
-      // Compatibilidad Fase 1: Today sigue mostrando tareas legacy hasta la Fase 2.
-      try {
-        await createGoalTasks(userId, todayISO(), [
-          { goalId: goal.id, title: pickAction(goal, todayISO()) },
-        ])
-      } catch (err) {
-        // Solo ignoramos el duplicado (ya existía la acción de hoy); el resto sube.
-        if (!isUniqueViolation(err)) throw err
-      }
+      const createdBlocks = await createScheduleBlocks(userId, goal.id, blocks)
+      // Si hoy es día comprometido, la sesión aparece en Hoy al instante.
+      await generateSessionsForDate(userId, todayISO(), createdBlocks).catch(() => {})
       // Le mostramos el camino + la primera acción: la app guía, no solo crea.
       clearDraft()
       navigate(`/meta/creada/${goal.id}`, { replace: true })

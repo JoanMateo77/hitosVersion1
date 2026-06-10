@@ -64,8 +64,6 @@ export interface Goal {
   successCriteria: string | null
   /** Plantilla (Mecanismo F) de la que deriva su estructura y acciones. */
   templateKey: string
-  /** Índice del hito actual dentro del camino de la plantilla (0 = recién arranca). */
-  currentMilestone: number
   /** Última revisión guiada de esta meta (ISO), o null si nunca se revisó. */
   lastReviewedAt: string | null
   status: GoalStatus

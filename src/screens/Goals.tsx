@@ -4,9 +4,10 @@ import { createBlendy, type Blendy } from 'blendy'
 import { useSession } from '@/app/session'
 import { listGoals } from '@/services/goals'
 import { countDoneByGoal } from '@/services/tasks'
+import { milestoneProgressByGoal } from '@/services/milestones'
 import { getTemplate } from '@/domain/templates'
 import { getNiche } from '@/domain/niches'
-import { clampedStage, isGoalClosed, isPathComplete } from '@/domain/goals'
+import { isGoalClosed } from '@/domain/goals'
 import { relativeDeadline } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import type { Goal, GoalStatus } from '@/lib/types'
@@ -42,8 +43,12 @@ export function Goals() {
   const navigate = useNavigate()
 
   const { data, loading, error } = useAsyncData(async () => {
-    const [goals, counts] = await Promise.all([listGoals(userId), countDoneByGoal(userId)])
-    return { goals, counts }
+    const [goals, counts, progress] = await Promise.all([
+      listGoals(userId),
+      countDoneByGoal(userId),
+      milestoneProgressByGoal(userId),
+    ])
+    return { goals, counts, progress }
   }, [userId])
 
   // Blendy: tocar una meta hace que la tarjeta se EXPANDA (morph FLIP) en su detalle,
@@ -114,6 +119,7 @@ export function Goals() {
       <GoalCard
         goal={goal}
         doneCount={data.counts.get(goal.id) ?? 0}
+        progress={data.progress.get(goal.id)}
         onClick={() => openGoal(goal)}
       />
     </li>
@@ -180,6 +186,7 @@ export function Goals() {
         <GoalPeek
           goal={peek}
           doneCount={data.counts.get(peek.id) ?? 0}
+          progress={data.progress.get(peek.id)}
           onOpen={() => navigate(`/metas/${peek.id}`)}
           onClose={closePeek}
         />
@@ -195,23 +202,25 @@ export function Goals() {
 function GoalPeek({
   goal,
   doneCount,
+  progress,
   onOpen,
   onClose,
 }: {
   goal: Goal
   doneCount: number
+  progress?: { done: number; total: number }
   onOpen: () => void
   onClose: () => void
 }) {
   const template = getTemplate(goal.templateKey)
   const niche = getNiche(goal.area)
-  const milestones = template.milestones
-  const stage = clampedStage(goal.currentMilestone, milestones.length)
-  const pathComplete = isPathComplete(goal.currentMilestone, milestones.length)
+  const progressDone = progress?.done ?? 0
+  const progressTotal = progress?.total ?? 0
+  const pathComplete = progressTotal > 0 && progressDone >= progressTotal
   const deadline =
     isGoalClosed(goal.status) || pathComplete ? null : relativeDeadline(goal.targetDate)
   const showProgress =
-    (goal.status === 'active' || goal.status === 'paused') && milestones.length > 1
+    (goal.status === 'active' || goal.status === 'paused') && progressTotal > 1
 
   return (
     <div className="goal-peek-backdrop" onClick={onClose}>
@@ -242,11 +251,11 @@ function GoalPeek({
               <div className="progress">
                 <div
                   className="progress__bar"
-                  style={{ width: `${Math.round((stage / milestones.length) * 100)}%` }}
+                  style={{ width: `${Math.round((progressDone / Math.max(1, progressTotal)) * 100)}%` }}
                 />
               </div>
               <span className="faint tiny">
-                {pathComplete ? 'Camino completo' : `Etapa ${stage + 1} de ${milestones.length}`}
+                {pathComplete ? 'Camino completo' : `Etapa ${progressDone + 1} de ${progressTotal}`}
               </span>
             </div>
           )}
@@ -265,24 +274,25 @@ function GoalPeek({
 function GoalCard({
   goal,
   doneCount,
+  progress,
   onClick,
 }: {
   goal: Goal
   doneCount: number
+  progress?: { done: number; total: number }
   onClick: () => void
 }) {
   const template = getTemplate(goal.templateKey)
   const niche = getNiche(goal.area)
-  const milestones = template.milestones
-  const stage = clampedStage(goal.currentMilestone, milestones.length)
-  const pathComplete = isPathComplete(goal.currentMilestone, milestones.length)
-  // No mostramos deadline (ni "vencida") en metas cerradas NI con el camino completo.
+  const progressDone = progress?.done ?? 0
+  const progressTotal = progress?.total ?? 0
+  const pathComplete = progressTotal > 0 && progressDone >= progressTotal
   const deadline =
     isGoalClosed(goal.status) || pathComplete ? null : relativeDeadline(goal.targetDate)
+  const showProgress =
+    (goal.status === 'active' || goal.status === 'paused') && progressTotal > 1
   const badge = STATUS_BADGE[goal.status]
   const dimmed = isGoalClosed(goal.status)
-  const showProgress =
-    (goal.status === 'active' || goal.status === 'paused') && milestones.length > 1
 
   return (
     <button
@@ -315,13 +325,13 @@ function GoalCard({
           <div className="progress">
             <div
               className="progress__bar"
-              style={{ width: `${Math.round((stage / milestones.length) * 100)}%` }}
+              style={{ width: `${Math.round((progressDone / Math.max(1, progressTotal)) * 100)}%` }}
             />
           </div>
           <span className="faint tiny">
             {pathComplete
               ? 'Camino completo'
-              : `Etapa ${stage + 1} de ${milestones.length}`}
+              : `Etapa ${progressDone + 1} de ${progressTotal}`}
           </span>
         </div>
       )}

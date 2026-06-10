@@ -53,31 +53,6 @@ export async function createUserTask(
   return mapTask(data as TaskRow)
 }
 
-export interface GoalTaskInput {
-  goalId: string
-  title: string
-}
-
-/** Persiste de una vez las acciones derivadas de metas (Mecanismo G). */
-export async function createGoalTasks(
-  userId: string,
-  planDate: string,
-  actions: GoalTaskInput[],
-): Promise<Task[]> {
-  if (actions.length === 0) return []
-  const rows = actions.map((a) => ({
-    user_id: userId,
-    goal_id: a.goalId,
-    title: a.title,
-    plan_date: planDate,
-    source: 'goal' as const,
-  }))
-  const { data, error } = await supabase.from('tasks').insert(rows).select('*')
-  // Preservamos el code (ej. 23505) para distinguir el duplicado del resto de fallos.
-  if (error) throw Object.assign(new Error(error.message), { code: error.code })
-  return (data as TaskRow[]).map(mapTask)
-}
-
 export async function setTaskStatus(taskId: string, status: TaskStatus): Promise<Task> {
   const { data, error } = await supabase
     .from('tasks')
