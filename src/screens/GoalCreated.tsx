@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { getGoal } from '@/services/goals'
+import { listMilestones } from '@/services/milestones'
+import { listScheduleForGoal } from '@/services/schedule'
 import { getTemplate } from '@/domain/templates'
+import { WEEKDAY_LABELS, formatCommitmentSummary } from '@/domain/commitment'
 import { pickAction } from '@/domain/dailyPlan'
 import { todayISO } from '@/lib/date'
-import type { Goal } from '@/lib/types'
+import type { Goal, Milestone, ScheduleBlock } from '@/lib/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { Roadmap } from '@/components/Roadmap'
 import { IconCelebrate, IconPlay } from '@/components/icons'
@@ -19,15 +22,20 @@ export function GoalCreated() {
   const titleRef = useRef<HTMLHeadingElement>(null)
 
   const [goal, setGoal] = useState<Goal | null>(null)
+  const [milestones, setMilestones] = useState<Milestone[]>([])
+  const [schedule, setSchedule] = useState<ScheduleBlock[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
-    getGoal(goalId ?? '')
-      .then((g) => {
+    const id = goalId ?? ''
+    Promise.all([getGoal(id), listMilestones(id), listScheduleForGoal(id)])
+      .then(([g, m, s]) => {
         if (!active) return
         setGoal(g)
+        setMilestones(m)
+        setSchedule(s)
         setLoading(false)
       })
       .catch(() => {
@@ -79,8 +87,33 @@ export function GoalCreated() {
 
         <div className="card stack">
           <span className="kicker">Así la vas a lograr</span>
-          <Roadmap milestones={template.milestones} currentIndex={goal.currentMilestone} />
+          {/* Camino real de la meta (tabla milestones); plantilla solo como fallback
+              para metas viejas que todavía no pasaron por el backfill. */}
+          <Roadmap
+            milestones={milestones.length > 0 ? milestones.map((m) => m.title) : template.milestones}
+            currentIndex={
+              milestones.length > 0
+                ? milestones.filter((m) => m.doneAt !== null).length
+                : goal.currentMilestone
+            }
+          />
         </div>
+
+        {schedule.length > 0 && (
+          <div className="card card--tight stack stack--sm">
+            <span className="kicker">Tu compromiso</span>
+            <div className="row wrap">
+              {schedule.map((b) => (
+                <span key={b.id} className="tag">
+                  {WEEKDAY_LABELS[b.weekday]}
+                  {b.startTime ? ` ${b.startTime}` : ''} ·{' '}
+                  {b.targetKind === 'time' ? `${b.targetValue} min` : `${b.targetValue} ${b.unit ?? ''}`}
+                </span>
+              ))}
+            </div>
+            <p className="small">{formatCommitmentSummary(schedule)}</p>
+          </div>
+        )}
 
         <div className="focus-card stack stack--sm">
           <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
