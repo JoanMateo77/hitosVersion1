@@ -39,13 +39,25 @@ su objetivo:
 | Identidad visual | **Una identidad, dos variantes (claro/oscuro cálido)**. Paleta funcional: naranja = acción, verde = logrado, ámbar/rojo suave = atención sin culpa. Tinte sutil por meta en tarjetas. Se eliminan los temas neón y papel actuales |
 | Copy | **Español profesional y neutro (tuteo)** en toda la app. Se elimina el voseo |
 
-### Diferenciación deliberada frente a Grit (referente analizado)
+### Criterio frente a referentes (Grit y otros): mérito, no diferenciación
 
-Adoptamos: tinte por meta en tarjetas, botón de registro circular grande de un toque,
-cronómetro por sesión. **No** adoptamos: negro puro, tarjetas saturadas (color como única
-estructura), contadores punitivos de deuda ("−7"). En Hito el color tiene función (naranja
-acción / verde logro), la jerarquía la da la narrativa (meta → etapa → sesión → porqué) y el
-refuerzo es positivo.
+Regla acordada con el usuario: **no evitamos nada "por no parecernos" ni copiamos nada "por
+parecernos"** — cada patrón se adopta o descarta por lo que aporta a Hito. Aplicado a Grit:
+
+**Adoptado por mérito**: tinte por meta en las tarjetas (reconocimiento sin leer), botón de
+registro circular grande de un toque, cronómetro por sesión, y **acceso rápido a días
+recientes desde Hoy** (mini tira de la semana en el header con puntos de estado: permite ver
+cómo viene la semana y corregir el registro de ayer sin ir al calendario).
+
+**Descartado, con la razón explícita (no por diferenciarnos)**:
+- Tarjetas totalmente saturadas: con 2-4 sesiones/día (vs 10-15 hábitos) deja la pantalla
+  vacía y ruidosa; en Hito la jerarquía la da la narrativa (meta → etapa → sesión → porqué).
+- Contadores de deuda tipo "−7": gamificación punitiva; la evidencia de retención en wellness
+  favorece refuerzo positivo — la culpa expulsa usuarios.
+- Buscador en el plan del día: con 1-5 metas activas no hay nada que buscar.
+
+Si durante la implementación un patrón de un referente resuelve mejor un problema, se adopta
+y se documenta la razón — el parecido no es argumento ni a favor ni en contra.
 
 ## 3. Modelo de datos
 
@@ -197,7 +209,9 @@ pending → done | partial | missed   (check directo sin cronómetro; missed al 
 
 ### 5.3 Hoy
 
-- Header: fecha + racha (🔥 con récord en Progreso).
+- Header: fecha + racha (🔥 con récord en Progreso) + **mini tira semanal** con puntos de
+  estado por día; tocar un día pasado abre sus sesiones para ver/corregir el registro (ej.
+  "ayer sí la hice"); tocar un día futuro abre la agenda de ese día.
 - **Tus sesiones de hoy (X de Y)**: tarjeta por sesión con tinte sutil del color de la meta,
   emoji + meta + objetivo del momento ("25 min" / "10 páginas"), hora si la tiene, sugerencia
   de contenido de plantilla, porqué como ancla, botón circular grande **▶ Empezar** + check
