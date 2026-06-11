@@ -6,9 +6,8 @@
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="116" fill="url(#g)"/>
-  <!-- El check de Lógralo (preview aprobado): barras finas, check con aire, 33°. -->
+  <!-- Check de UNA sola pieza (sin costura), variante A: 33°. -->
   <g transform="translate(0 -8) rotate(33 256 256)">
-    <rect x="266" y="140" width="58" height="232" rx="17" fill="#ffffff"/>
-    <rect x="167" y="314" width="157" height="58" rx="17" fill="#ffffff"/>
+    <path d="M 283 140 H 307 Q 324 140 324 157 V 355 Q 324 372 307 372 H 184 Q 167 372 167 355 V 331 Q 167 314 184 314 H 266 V 157 Q 266 140 283 140 Z" fill="#ffffff"/>
   </g>
 </svg>
