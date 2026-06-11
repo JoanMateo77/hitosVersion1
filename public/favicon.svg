@@ -24,7 +24,7 @@
   <rect width="512" height="512" rx="122" fill="url(#glow)"/>
   <rect width="512" height="512" rx="122" fill="url(#shade)"/>
   <rect x="3" y="3" width="506" height="506" rx="119" fill="none" stroke="url(#rim)" stroke-width="6"/>
-  <g transform="rotate(24 256 256)">
+  <g transform="rotate(32 256 256)">
     <g filter="url(#soft)" opacity="0.3" transform="translate(4 14)">
       <rect x="280" y="114" width="66" height="264" rx="10" fill="#8a2104"/>
       <rect x="151" y="312" width="118" height="66" rx="10" fill="#8a2104"/>
