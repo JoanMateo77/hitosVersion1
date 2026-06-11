@@ -38,3 +38,9 @@ pnpm-debug.log*
 
 # Artefactos de brainstorming local
 .superpowers/
+
+# Documentos personales de planificación (no van al repo)
+AUDITORIA.pdf
+IA_barata_gestora_metas.docx
+PLAN-arreglos-tier1.pdf
+*.docx
