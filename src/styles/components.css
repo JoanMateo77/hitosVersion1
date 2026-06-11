@@ -1319,12 +1319,12 @@ select.input {
   color: var(--text);
 }
 
-/* Switcher en el login (esquina superior derecha) */
+/* Switcher en el login: al pie del formulario, discreto y centrado. */
 .auth__theme {
-  position: absolute;
-  top: calc(var(--safe-top) + var(--s3));
-  right: var(--s4);
-  z-index: 5;
+  display: flex;
+  justify-content: center;
+  margin-top: var(--s6);
+  padding-bottom: var(--s2);
 }
 .auth__trail {
   position: absolute;

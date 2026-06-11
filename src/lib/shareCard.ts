@@ -49,14 +49,14 @@ function drawCard(card: AchievementCard): HTMLCanvasElement {
   ctx.fillStyle = halo
   ctx.fillRect(0, 0, W, H)
 
-  // Check de la marca (esquina superior izquierda): dos barras en L, 40°.
+  // Check de la marca (esquina superior izquierda) — misma geometría que favicon.svg.
   ctx.save()
   ctx.translate(190, 180)
-  ctx.rotate((40 * Math.PI) / 180)
+  ctx.rotate((33 * Math.PI) / 180)
   ctx.fillStyle = '#ea580c'
   ctx.beginPath()
-  ctx.roundRect(14, -86, 40, 150, 12)
-  ctx.roundRect(-46, 24, 100, 40, 12)
+  ctx.roundRect(6, -72, 36, 144, 10)
+  ctx.roundRect(-55, 36, 97, 36, 10)
   ctx.fill()
   ctx.restore()
 

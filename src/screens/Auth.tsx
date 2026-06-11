@@ -65,10 +65,6 @@ export function Auth() {
 
   return (
     <div className="screen screen--full auth-screen">
-      <div className="auth__theme">
-        <ThemeSwitcher variant="compact" />
-      </div>
-
       {/* Camino decorativo: en mobile cruza toda la pantalla; en desktop vive en
           la columna izquierda del hero, más amplio y expresivo. */}
       <svg
@@ -191,6 +187,11 @@ export function Auth() {
               {isSignup ? 'Entra' : 'Crea tu cuenta'}
             </button>
           </p>
+        </div>
+
+        {/* Apariencia al pie, donde no compite con la marca ni con el formulario. */}
+        <div className="auth__theme">
+          <ThemeSwitcher variant="compact" />
         </div>
       </div>
     </div>
