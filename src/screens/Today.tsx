@@ -148,8 +148,14 @@ export function Today() {
     () =>
       sessions
         .map((s) => ({ session: s, goal: goalById.get(s.goalId) }))
-        .filter((x): x is { session: Session; goal: Goal } => x.goal !== undefined),
-    [sessions, goalById],
+        .filter((x): x is { session: Session; goal: Goal } => x.goal !== undefined)
+        // La meta prioritaria ⭐ va primero; no oculta nada, solo ordena.
+        .sort((a, b) => {
+          const ap = a.goal.id === profile.priorityGoalId ? 0 : 1
+          const bp = b.goal.id === profile.priorityGoalId ? 0 : 1
+          return ap - bp
+        }),
+    [sessions, goalById, profile.priorityGoalId],
   )
   const closedCount = todaySessions.filter((x) =>
     ['done', 'partial', 'missed'].includes(x.session.status),

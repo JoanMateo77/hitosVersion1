@@ -4,6 +4,7 @@ import { createBlendy, type Blendy } from 'blendy'
 import { useSession } from '@/app/session'
 import { listGoals } from '@/services/goals'
 import { countDoneByGoal } from '@/services/tasks'
+import { updatePriorityGoal } from '@/services/profile'
 import { milestoneProgressByGoal } from '@/services/milestones'
 import { getTemplate } from '@/domain/templates'
 import { getNiche } from '@/domain/niches'
@@ -39,7 +40,7 @@ const STATUS_BADGE: Partial<Record<GoalStatus, string>> = {
 const bid = (id: string) => 'b' + id.replace(/-/g, '')
 
 export function Goals() {
-  const { userId } = useSession()
+  const { userId, profile, setProfile } = useSession()
   const navigate = useNavigate()
 
   const { data, loading, error } = useAsyncData(async () => {
@@ -68,6 +69,15 @@ export function Goals() {
     blendyRef.current?.update() // re-escanea las cards (se renderizan tras cargar datos)
     blendyRef.current?.toggle(bid(peek.id))
   }, [peek])
+
+  async function togglePriority(goal: Goal) {
+    const next = profile.priorityGoalId === goal.id ? null : goal.id
+    try {
+      setProfile(await updatePriorityGoal(userId, next))
+    } catch {
+      /* no crítico */
+    }
+  }
 
   function openGoal(goal: Goal) {
     // Reduced-motion o Blendy no listo: directo al detalle completo (como antes).
@@ -120,6 +130,8 @@ export function Goals() {
         goal={goal}
         doneCount={data.counts.get(goal.id) ?? 0}
         progress={data.progress.get(goal.id)}
+        isPriority={profile.priorityGoalId === goal.id}
+        onTogglePriority={goal.status === 'active' ? () => void togglePriority(goal) : undefined}
         onClick={() => openGoal(goal)}
       />
     </li>
@@ -275,11 +287,15 @@ function GoalCard({
   goal,
   doneCount,
   progress,
+  isPriority = false,
+  onTogglePriority,
   onClick,
 }: {
   goal: Goal
   doneCount: number
   progress?: { done: number; total: number }
+  isPriority?: boolean
+  onTogglePriority?: () => void
   onClick: () => void
 }) {
   const template = getTemplate(goal.templateKey)
@@ -305,6 +321,28 @@ function GoalCard({
       <div className="goal-card__top">
         <span className="goal-card__emoji" aria-hidden="true">{template.emoji}</span>
         <span className="goal-card__title nowrap-ellipsis">{goal.title}</span>
+        {onTogglePriority && (
+          <span
+            role="button"
+            tabIndex={0}
+            aria-pressed={isPriority}
+            aria-label={isPriority ? 'Quitar prioridad' : 'Marcar como prioritaria'}
+            style={{ marginLeft: 'auto', fontSize: 16, opacity: isPriority ? 1 : 0.35, flex: 'none', padding: 4 }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onTogglePriority()
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                e.stopPropagation()
+                onTogglePriority()
+              }
+            }}
+          >
+            ⭐
+          </span>
+        )}
         {badge && <span className="tag">{badge}</span>}
       </div>
       <div className="row wrap" style={{ rowGap: 6 }}>

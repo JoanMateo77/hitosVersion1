@@ -106,3 +106,15 @@ export async function updateRhythm(
   if (error) throw new Error(error.message)
   return mapProfile(data as ProfileRow)
 }
+
+/** Fija o quita la meta prioritaria (ordena el día; no oculta nada). */
+export async function updatePriorityGoal(userId: string, goalId: string | null): Promise<Profile> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ priority_goal_id: goalId })
+    .eq('id', userId)
+    .select('*')
+    .single()
+  if (error) throw new Error(error.message)
+  return mapProfile(data as ProfileRow)
+}
