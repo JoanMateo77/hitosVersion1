@@ -38,6 +38,7 @@ import {
 import { useCheer } from '@/hooks/useCheer'
 import { useToast } from '@/app/toast'
 import { ensureCommitmentBackfill } from '@/services/backfill'
+import { syncTimezone } from '@/lib/push'
 
 export function Today() {
   const { userId, profile } = useSession()
@@ -95,6 +96,8 @@ export function Today() {
 
         // Migración perezosa al modelo de compromiso (Fase 1). No bloquea.
         void ensureCommitmentBackfill(userId, loadedGoals).catch(() => {})
+        // Recordatorios en TU hora: mantiene profiles.tz al día.
+        void syncTimezone(userId)
 
         if (active) {
           setGoals(loadedGoals)

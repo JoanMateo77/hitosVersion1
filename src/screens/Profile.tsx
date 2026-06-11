@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSession } from '@/app/session'
 import { deleteAccount, signOut } from '@/services/auth'
 import { updateRhythm } from '@/services/profile'
+import { disablePush, enablePush, getPushState } from '@/lib/push'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 import type { PreferredMoment } from '@/lib/types'
 
@@ -17,6 +18,33 @@ export function ProfileScreen() {
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [push, setPush] = useState<'on' | 'off' | 'blocked' | 'unsupported' | 'loading'>('loading')
+
+  useEffect(() => {
+    let active = true
+    getPushState()
+      .then((st) => active && setPush(st))
+      .catch(() => active && setPush('unsupported'))
+    return () => {
+      active = false
+    }
+  }, [])
+
+  async function togglePush() {
+    setError(null)
+    try {
+      if (push === 'on') {
+        setPush('off')
+        await disablePush()
+      } else {
+        await enablePush(userId)
+        setPush('on')
+      }
+    } catch (err) {
+      setPush(await getPushState().catch(() => 'unsupported' as const))
+      setError(err instanceof Error ? err.message : 'No se pudo cambiar el recordatorio.')
+    }
+  }
 
   const initial = (email[0] ?? '?').toUpperCase()
   // Local y optimista: los +/- rápidos no deben leer estado viejo del perfil.
@@ -148,6 +176,40 @@ export function ProfileScreen() {
           </div>
           <span className="field__hint">El punto de partida al comprometer días nuevos.</span>
         </div>
+      </section>
+
+      {/* ----- Recordatorios ----- */}
+      <section className="card stack stack--sm" style={{ marginTop: 'var(--s4)' }} aria-label="Recordatorios">
+        <span className="kicker">Recordatorios</span>
+        {push === 'unsupported' ? (
+          <p className="small muted" style={{ margin: 0 }}>
+            Este navegador no soporta recordatorios. En iPhone: instala Lógralo en tu pantalla de
+            inicio (Compartir → Añadir a pantalla de inicio) y vuelve aquí.
+          </p>
+        ) : push === 'blocked' ? (
+          <p className="small muted" style={{ margin: 0 }}>
+            Bloqueaste las notificaciones para este sitio. Actívalas desde los ajustes del navegador.
+          </p>
+        ) : (
+          <div className="row row--between" style={{ alignItems: 'center' }}>
+            <span className="small">
+              Recordatorio de sesión
+              <span className="field__hint" style={{ display: 'block' }}>
+                Te avisamos a la hora de cada sesión con horario.
+              </span>
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={push === 'on'}
+              className={`seg__btn${push === 'on' ? ' seg__btn--active' : ''}`}
+              disabled={push === 'loading'}
+              onClick={() => void togglePush()}
+            >
+              {push === 'loading' ? '…' : push === 'on' ? 'Activado' : 'Activar'}
+            </button>
+          </div>
+        )}
       </section>
 
       {/* ----- Apariencia ----- */}

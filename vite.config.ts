@@ -64,6 +64,8 @@ export default defineConfig({
         // La API de Supabase nunca se cachea; el shell de la app sí.
         navigateFallbackDenylist: [/^\/api/],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Push: los handlers viven en un script aparte que convive con workbox.
+        importScripts: ['push-sw.js'],
       },
     }),
   ],
