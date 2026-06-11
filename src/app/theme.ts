@@ -8,10 +8,10 @@ const THEME_COLOR: Record<'claro' | 'oscuro', string> = {
   oscuro: '#16110c',
 }
 
-export const THEMES: { id: Theme; label: string; emoji: string }[] = [
-  { id: 'claro', label: 'Claro', emoji: '☀️' },
-  { id: 'oscuro', label: 'Oscuro', emoji: '🌙' },
-  { id: 'sistema', label: 'Sistema', emoji: '⚙️' },
+export const THEMES: { id: Theme; label: string }[] = [
+  { id: 'claro', label: 'Claro' },
+  { id: 'oscuro', label: 'Oscuro' },
+  { id: 'sistema', label: 'Sistema' },
 ]
 
 function isTheme(value: string | null): value is Theme {

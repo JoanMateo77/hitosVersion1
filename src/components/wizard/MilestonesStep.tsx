@@ -1,6 +1,13 @@
 import { useState, type KeyboardEvent } from 'react'
 import { todayISO, formatLongDate } from '@/lib/date'
 import type { MilestoneDraft } from '@/domain/commitment'
+import {
+  IconArrowDown,
+  IconArrowUp,
+  IconCalendar,
+  IconClose,
+  IconDots,
+} from '@/components/icons'
 
 interface MilestonesStepProps {
   milestones: MilestoneDraft[]
@@ -92,7 +99,11 @@ export function MilestonesStep({ milestones, onChange }: MilestonesStepProps) {
                 {m.title || <span className="faint">Describe esta etapa…</span>}
               </button>
             )}
-            {m.targetDate && <span className="tag mstone__date">📅 {formatLongDate(m.targetDate)}</span>}
+            {m.targetDate && (
+              <span className="tag mstone__date">
+                <IconCalendar size={11} /> {formatLongDate(m.targetDate)}
+              </span>
+            )}
             <button
               type="button"
               className="iconbtn iconbtn--sm"
@@ -100,7 +111,7 @@ export function MilestonesStep({ milestones, onChange }: MilestonesStepProps) {
               aria-label={`Opciones de la etapa ${index + 1}`}
               onClick={() => setMenuIndex(menuIndex === index ? null : index)}
             >
-              ⋯
+              <IconDots size={17} />
             </button>
           </div>
           {menuIndex === index && (
@@ -121,7 +132,7 @@ export function MilestonesStep({ milestones, onChange }: MilestonesStepProps) {
                 disabled={index === 0}
                 onClick={() => move(index, -1)}
               >
-                ↑
+                <IconArrowUp size={15} />
               </button>
               <button
                 type="button"
@@ -130,7 +141,7 @@ export function MilestonesStep({ milestones, onChange }: MilestonesStepProps) {
                 disabled={index === milestones.length - 1}
                 onClick={() => move(index, 1)}
               >
-                ↓
+                <IconArrowDown size={15} />
               </button>
               <button
                 type="button"
@@ -138,7 +149,7 @@ export function MilestonesStep({ milestones, onChange }: MilestonesStepProps) {
                 aria-label="Quitar la etapa"
                 onClick={() => remove(index)}
               >
-                ✕
+                <IconClose size={15} />
               </button>
             </div>
           )}
@@ -164,7 +175,8 @@ export function MilestonesStep({ milestones, onChange }: MilestonesStepProps) {
       </li>
       <li>
         <p className="faint tiny" style={{ marginTop: 'var(--s3)' }}>
-          Toca una etapa para editarla; con ⋯ le pones fecha, la ordenas o la quitas.
+          Toca una etapa para editarla; con el menú de puntos le pones fecha, la ordenas o la
+          quitas.
         </p>
       </li>
     </ul>

@@ -48,8 +48,11 @@ import {
   IconCelebrate,
   IconClock,
   IconCompass,
+  IconDots,
   IconQuote,
+  IconShare,
 } from '@/components/icons'
+import { NicheGlyph } from '@/components/NicheGlyph'
 
 export function GoalDetail() {
   const { goalId } = useParams<{ goalId: string }>()
@@ -131,7 +134,7 @@ export function GoalDetail() {
         toast('Pausada. La retomas cuando quieras.')
       } else if (status === 'done') {
         setOfferAchieve(false)
-        toast('¡Meta lograda! Bien ahí. 🎉', 'success')
+        toast('¡Meta lograda! Bien hecho.', 'success')
       } else if (status === 'archived') {
         toast('Archivada.')
       }
@@ -180,7 +183,7 @@ export function GoalDetail() {
       if (willBeDone) {
         const pendingLeft = next.filter((x) => x.doneAt === null).length
         if (pendingLeft === 0) setOfferAchieve(true)
-        else toast('Etapa cumplida. 🎉', 'success')
+        else toast('Etapa cumplida.', 'success')
       } else {
         setOfferAchieve(false)
       }
@@ -271,10 +274,10 @@ export function GoalDetail() {
       <div className="screen">
         <BackButton onClick={() => navigate('/metas')} />
         <div className="empty">
-          <IconCompass size={44} className="muted" />
-          <p className="empty__title" style={{ marginTop: 'var(--s4)' }}>
-            No encontramos esa meta
-          </p>
+          <span className="empty__icon">
+            <IconCompass size={32} />
+          </span>
+          <p className="empty__title">No encontramos esa meta</p>
         </div>
       </div>
     )
@@ -305,12 +308,10 @@ export function GoalDetail() {
 
       <header className="screen__header" style={{ marginTop: 'var(--s4)' }}>
         <div className="row" style={{ marginBottom: 'var(--s2)', alignItems: 'center' }}>
-          <span className="goal-card__emoji" aria-hidden="true">
-            {template.emoji}
-          </span>
+          <NicheGlyph area={goal.area} size="lg" />
           {goal.status !== 'active' && (
             <span className="tag">
-              {goal.status === 'done' ? 'Lograda 🎉' : goal.status === 'paused' ? 'Pausada' : 'Archivada'}
+              {goal.status === 'done' ? 'Lograda' : goal.status === 'paused' ? 'Pausada' : 'Archivada'}
             </span>
           )}
           <button
@@ -436,7 +437,7 @@ export function GoalDetail() {
                 <p className="small">Cumpliste todas las etapas. ¿La damos por lograda?</p>
                 <div className="row wrap">
                   <button className="btn btn--primary btn--sm" disabled={updating} onClick={() => void changeStatus('done')}>
-                    Sí, lograda 🎉
+                    Sí, lograda
                   </button>
                   <button className="btn btn--ghost btn--sm" onClick={() => setOfferAchieve(false)}>
                     Todavía no
@@ -449,7 +450,7 @@ export function GoalDetail() {
 
         <div className="detail-grid__side stack stack--lg">
           <div className="card stack">
-            <InfoRow label="Área" value={`${niche.emoji} ${niche.label}`} />
+            <InfoRow label="Área" value={niche.label} />
             <InfoRow label="Tipo" value={template.label} />
             {goal.targetDate && (
               <InfoRow
@@ -484,12 +485,12 @@ export function GoalDetail() {
                   aria-expanded={moreOpen}
                   onClick={() => setMoreOpen((v) => !v)}
                 >
-                  ⋯ Más
+                  <IconDots size={16} /> Más opciones
                 </button>
                 {moreOpen && (
                   <div className="stack stack--sm">
                     <button className="btn btn--ghost btn--block" disabled={updating} onClick={requestAchieve}>
-                      Marcar como lograda 🎉
+                      Marcar como lograda
                     </button>
                     <button className="btn btn--ghost btn--block" disabled={updating} onClick={() => changeStatus('archived')}>
                       Archivar
@@ -540,10 +541,10 @@ export function GoalDetail() {
                       ]
                         .filter(Boolean)
                         .join(' · ') || 'Cumplida con compromiso',
-                    }).then((r) => toast(r === 'shared' ? 'Compartido 🎉' : 'Imagen descargada.'))
+                    }).then((r) => toast(r === 'shared' ? 'Compartido.' : 'Imagen descargada.'))
                   }
                 >
-                  Compartir mi logro 🧡
+                  <IconShare size={16} /> Compartir mi logro
                 </button>
                 <button className="btn btn--ghost btn--block" onClick={() => navigate(`/ideas?area=${goal.area}`)}>
                   Ver ideas para tu próxima meta
@@ -687,7 +688,7 @@ function GoalEditor({
               aria-pressed={area === n.id}
               onClick={() => setArea(n.id)}
             >
-              <span aria-hidden="true">{n.emoji}</span> {n.label}
+              {n.label}
             </button>
           ))}
         </div>

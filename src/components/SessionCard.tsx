@@ -1,8 +1,8 @@
 import type { Goal, Session } from '@/lib/types'
-import { getTemplate } from '@/domain/templates'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { formatTime12 } from '@/lib/date'
 import { IconPlay } from '@/components/icons'
+import { NicheIcon } from '@/components/NicheGlyph'
 
 interface SessionCardProps {
   session: Session
@@ -29,7 +29,6 @@ function clock(iso: string): string {
 }
 
 export function SessionCard({ session, goal, suggestion, onOpen, onQuickDone, onReopen, onResume }: SessionCardProps) {
-  const template = getTemplate(goal.templateKey)
   const closed = session.status === 'done' || session.status === 'partial' || session.status === 'missed'
 
   if (closed) {
@@ -43,7 +42,7 @@ export function SessionCard({ session, goal, suggestion, onOpen, onQuickDone, on
       <div className={`session session--${session.status}`} style={nicheAccent(goal.area)}>
         <div className="session__body">
           <span className="session__title session__title--closed">
-            {template.emoji} {goal.title} · {targetLabel(session)}
+            {goal.title} · {targetLabel(session)}
           </span>
           <span className={`session__meta${session.status === 'done' ? ' session__meta--ok' : ''}`}>
             {label}
@@ -66,7 +65,7 @@ export function SessionCard({ session, goal, suggestion, onOpen, onQuickDone, on
             onClick={onResume}
             aria-label={`Retomar la sesión de ${goal.title} donde quedó`}
           >
-            ▶ Retomar
+            <IconPlay size={12} /> Retomar
           </button>
         )}
       </div>
@@ -77,8 +76,11 @@ export function SessionCard({ session, goal, suggestion, onOpen, onQuickDone, on
   return (
     <div className="session" style={nicheAccent(goal.area)}>
       <div className="session__body">
-        <span className="session__title">
-          {template.emoji} {goal.title} · {targetLabel(session)}
+        <span className="session__title row row--sm" style={{ alignItems: 'center' }}>
+          <NicheIcon area={goal.area} size={15} className="session__icon" />
+          <span className="nowrap-ellipsis">
+            {goal.title} · {targetLabel(session)}
+          </span>
         </span>
         <span className="session__meta">
           {running

@@ -265,12 +265,23 @@
   border-color: var(--primary);
   background: var(--primary-soft);
 }
-.option__emoji {
-  font-size: 26px;
-  line-height: 1;
+/* Disco del ícono de la opción: neutro en reposo, teñido al seleccionar. */
+.option__icon {
   flex: none;
-  width: 34px;
-  text-align: center;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  color: var(--text-muted);
+}
+.option--selected .option__icon {
+  background: var(--primary-soft);
+  border-color: color-mix(in srgb, var(--primary) 35%, transparent);
+  color: var(--primary);
 }
 .option__body {
   display: flex;
@@ -440,14 +451,71 @@
   align-items: center;
   gap: var(--s3);
 }
-.goal-card__emoji {
-  font-size: 24px;
-  flex: none;
-}
 .goal-card__title {
   font-weight: 600;
   flex: 1;
   min-width: 0;
+}
+
+/* ---- Glyph de área: el ancla visual teñida por nicho --------------------- */
+.glyph {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--niche, var(--text)) 14%, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--niche, var(--text)) 26%, var(--border-soft));
+  color: color-mix(in srgb, var(--niche, var(--primary)) 78%, var(--text));
+}
+.glyph--sm {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+}
+.glyph--md {
+  width: 36px;
+  height: 36px;
+}
+.glyph--lg {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius);
+}
+
+/* Estrella de prioridad de la tarjeta de meta. */
+.goal-card__star {
+  margin-left: auto;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  color: var(--text-faint);
+  transition: color 0.15s ease, transform 0.1s ease;
+}
+.goal-card__star:active {
+  transform: scale(0.88);
+}
+.goal-card__star--on {
+  color: var(--primary);
+}
+
+/* ---- Chip de racha: la llama de los días cumplidos ----------------------- */
+.streak-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: var(--radius-pill);
+  background: var(--primary-soft);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  color: var(--primary);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
 /* Barra de progreso */
@@ -738,8 +806,17 @@
   padding: var(--s8) var(--s4);
   color: var(--text-muted);
 }
-.empty__emoji {
-  font-size: 44px;
+/* Disco del ícono del estado vacío. */
+.empty__icon {
+  width: 76px;
+  height: 76px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-soft);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  color: var(--primary);
   margin-bottom: var(--s3);
 }
 .empty__title {
@@ -864,6 +941,9 @@
   padding: 3px;
 }
 .seg__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 7px 13px;
   border-radius: var(--radius-pill);
   font-size: var(--fs-sm);
@@ -1563,20 +1643,6 @@ select.input {
   transform: scale(0.99);
 }
 
-/* Tarjeta de meta: emoji en un "token" cuadrado como ancla de la fila */
-.goal-card__emoji {
-  width: 40px;
-  height: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius);
-  /* Token teñido por el color del nicho (--niche, heredado de .goal-card). */
-  background: color-mix(in srgb, var(--niche, var(--text)) 15%, var(--surface-2));
-  border: 1px solid color-mix(in srgb, var(--niche, var(--text)) 28%, var(--border-soft));
-  font-size: 22px;
-}
-
 /* Botón primario: degradado + sombra de color */
 .btn--primary {
   background: linear-gradient(135deg, var(--primary), var(--primary-strong));
@@ -1637,18 +1703,7 @@ select.input {
   padding-right: 40px;
 }
 
-/* Estado vacío: emoji en un disco de marca + título más fuerte */
-.empty__emoji {
-  width: 76px;
-  height: 76px;
-  border-radius: var(--radius-pill);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--primary-soft);
-  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
-  font-size: 30px;
-}
+/* Estado vacío: título más fuerte */
 .empty__title {
   font-size: var(--fs-lg);
   line-height: var(--lh-snug);
@@ -2134,6 +2189,11 @@ select.input {
 }
 .session__title {
   font-weight: 600;
+  min-width: 0;
+}
+.session__icon {
+  flex: none;
+  color: color-mix(in srgb, var(--niche, var(--primary)) 80%, var(--text));
 }
 .session__title--closed {
   text-decoration: line-through;
@@ -2296,15 +2356,21 @@ select.input {
 }
 .weekstrip__day--today {
   background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border-soft);
+}
+.weekstrip__day--today .weekstrip__label {
+  color: var(--text);
+  font-weight: 700;
 }
 .weekstrip__label {
   font-size: 10px;
   color: var(--text-faint);
   letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 .weekstrip__dot {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
 }
 .weekstrip__dot--done {
@@ -2321,4 +2387,137 @@ select.input {
 }
 .weekstrip__dot--free {
   border: 1px solid var(--border-soft);
+}
+
+/* ============================================================================
+   Jerarquía 2026-06: cabeceras consistentes, secciones con cabeza propia y
+   layouts de escritorio reales (Hoy y Perfil dejan de ser un stack móvil
+   estirado). Todo deriva de tokens; nada de valores sueltos por pantalla.
+   ============================================================================ */
+
+/* Cabeza de sección: kicker a la izquierda, acción opcional a la derecha. */
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  min-height: 28px;
+  margin-bottom: var(--s3);
+}
+.section-head .btn--link {
+  padding: 4px 0;
+  font-size: var(--fs-xs);
+}
+
+/* Separación estándar entre secciones de una pantalla. */
+.section {
+  margin-top: var(--s6);
+}
+
+/* Meta-línea de la cabecera (fecha + racha) — una sola línea, bien alineada. */
+.screen__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  margin-bottom: var(--s1);
+}
+
+/* La sesión en curso, protagonista: tarjeta centrada con bloom del nicho. */
+.hero-session {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--s1);
+  padding: var(--s5);
+  background:
+    radial-gradient(
+      130% 90% at 50% 0%,
+      color-mix(in srgb, var(--niche, var(--primary)) 12%, transparent),
+      transparent 70%
+    ),
+    var(--surface);
+  border: 1px solid color-mix(in srgb, var(--niche, var(--primary)) 30%, var(--border-soft));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+}
+.hero-session__time {
+  font-family: var(--font-display);
+  font-size: 44px;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Aviso contextual (sesión sin confirmar / meta olvidada): tarjeta con
+   borde ámbar coherente, sin inline styles. */
+.card--warn {
+  border-color: color-mix(in srgb, var(--warning) 55%, var(--border-soft));
+}
+.card--danger {
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--border-soft));
+}
+
+/* Utilidades de separación (reemplazan margin-top inline repetidos). */
+.mt-1 { margin-top: var(--s1); }
+.mt-2 { margin-top: var(--s2); }
+.mt-3 { margin-top: var(--s3); }
+.mt-4 { margin-top: var(--s4); }
+.mt-5 { margin-top: var(--s5); }
+.mt-6 { margin-top: var(--s6); }
+.mt-8 { margin-top: var(--s8); }
+.mb-3 { margin-bottom: var(--s3); }
+.mb-4 { margin-bottom: var(--s4); }
+.m-0 { margin: 0; }
+
+/* --- Hoy: dos columnas en escritorio (compromiso | tu día alrededor) ------ */
+.today-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+}
+.today-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+}
+
+/* --- Perfil: grilla de tarjetas en escritorio ------------------------------ */
+.settings-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+@media (min-width: 1024px) {
+  /* Títulos de pantalla con presencia editorial en monitores. */
+  .screen__title {
+    font-size: 38px;
+  }
+
+  .today-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(280px, 32%, 360px);
+    gap: var(--s8);
+    align-items: start;
+  }
+  .today-side {
+    position: sticky;
+    top: var(--s8);
+  }
+
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s5);
+    align-items: start;
+  }
+  .settings-grid > .settings-grid__wide {
+    grid-column: 1 / -1;
+  }
 }

@@ -4,12 +4,12 @@ import { useSession } from '@/app/session'
 import type { Goal, Milestone } from '@/lib/types'
 import { listGoals, markGoalReviewed, setGoalStatus } from '@/services/goals'
 import { listMilestones, setMilestoneDone } from '@/services/milestones'
-import { getTemplate } from '@/domain/templates'
 import { goalsDueForReview } from '@/domain/dailyPlan'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { useToast } from '@/app/toast'
 import { Roadmap } from '@/components/Roadmap'
 import { IconCelebrate, IconCheck, IconSprout } from '@/components/icons'
+import { NicheGlyph } from '@/components/NicheGlyph'
 
 /**
  * Revisión semanal guiada (Sección 6): recorre tus metas activas una por una y
@@ -89,10 +89,10 @@ export function Review() {
           <h1 className="screen__title">Revisión guiada</h1>
         </header>
         <div className="empty">
-          <IconSprout size={48} className="muted" />
-          <p className="empty__title" style={{ marginTop: 'var(--s4)' }}>
-            Nada para revisar por ahora
-          </p>
+          <span className="empty__icon">
+            <IconSprout size={32} />
+          </span>
+          <p className="empty__title">Nada para revisar por ahora</p>
           <p className="muted" style={{ marginBottom: 'var(--s4)' }}>
             Cuando una de tus metas toque revisión, la repasamos aquí.
           </p>
@@ -106,10 +106,10 @@ export function Review() {
 
   if (!goal) {
     const chips = [
-      tally.advanced > 0 && `🎯 ${tally.advanced} ${tally.advanced === 1 ? 'avanzada' : 'avanzadas'}`,
-      tally.achieved > 0 && `🎉 ${tally.achieved} ${tally.achieved === 1 ? 'lograda' : 'logradas'}`,
-      tally.kept > 0 && `✓ ${tally.kept} en marcha`,
-      tally.paused > 0 && `⏸ ${tally.paused} en pausa`,
+      tally.advanced > 0 && `${tally.advanced} ${tally.advanced === 1 ? 'avanzada' : 'avanzadas'}`,
+      tally.achieved > 0 && `${tally.achieved} ${tally.achieved === 1 ? 'lograda' : 'logradas'}`,
+      tally.kept > 0 && `${tally.kept} en marcha`,
+      tally.paused > 0 && `${tally.paused} en pausa`,
     ].filter(Boolean) as string[]
 
     return (
@@ -150,7 +150,6 @@ export function Review() {
     )
   }
 
-  const template = getTemplate(goal.templateKey)
   const goalMilestones = [...(milestonesByGoal.get(goal.id) ?? [])].sort(
     (a, b) => a.position - b.position,
   )
@@ -178,8 +177,8 @@ export function Review() {
         <p className="muted small">
           Revisión guiada · Meta {index + 1} de {total}
         </p>
-        <h1 className="screen__title">
-          <span aria-hidden="true">{template.emoji}</span> {goal.title}
+        <h1 className="screen__title row" style={{ alignItems: 'center', gap: 'var(--s3)' }}>
+          <NicheGlyph area={goal.area} size="md" /> {goal.title}
         </h1>
         {goal.why && <p className="screen__subtitle">Tu porqué: {goal.why}</p>}
       </header>
@@ -222,11 +221,11 @@ export function Review() {
                   // Completar la última etapa cierra el ciclo: camino completo + meta lograda.
                   await markPendingDone(firstPending)
                   await setGoalStatus(goal.id, 'done')
-                  toast('¡Meta lograda! Recorriste todo el camino. 🎉', 'success')
+                  toast('¡Meta lograda! Recorriste todo el camino.', 'success')
                 }, 'achieved')
               }
             >
-              Logré la meta 🎉
+              Logré la meta
             </button>
           ) : (
             <button
@@ -236,11 +235,11 @@ export function Review() {
                 act(async () => {
                   await markPendingDone(firstPending)
                   await markGoalReviewed(goal.id)
-                  toast(`Etapa cumplida: ${firstPending.title} 🎉`, 'success')
+                  toast(`Etapa cumplida: ${firstPending.title}`, 'success')
                 }, 'advanced')
               }
             >
-              Cumplí la etapa “{firstPending.title}” 🎯
+              Cumplí la etapa “{firstPending.title}”
             </button>
           )
         ) : (
@@ -251,11 +250,11 @@ export function Review() {
               act(async () => {
                 // Camino ya completo pero la meta seguía activa: cerramos el ciclo.
                 await setGoalStatus(goal.id, 'done')
-                toast('¡Meta lograda! 🎉', 'success')
+                toast('¡Meta lograda!', 'success')
               }, 'achieved')
             }
           >
-            Marcar como lograda 🎉
+            Marcar como lograda
           </button>
         )}
         <button

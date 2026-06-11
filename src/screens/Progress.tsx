@@ -5,7 +5,6 @@ import { listGoals } from '@/services/goals'
 import { listDoneMilestones, milestoneProgressByGoal } from '@/services/milestones'
 import { listScheduleForUser } from '@/services/schedule'
 import { listSessionsInRange } from '@/services/sessions'
-import { getTemplate } from '@/domain/templates'
 import { getNiche } from '@/domain/niches'
 import { isGoalClosed } from '@/domain/goals'
 import { bestStreakCommitted, currentStreakCommitted, weekConsistency } from '@/domain/sessions'
@@ -15,7 +14,8 @@ import { nicheAccent } from '@/lib/nicheAccent'
 import { useAsyncData } from '@/hooks/useAsyncData'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
-import { IconProgress } from '@/components/icons'
+import { IconCheck, IconFlame, IconProgress } from '@/components/icons'
+import { NicheGlyph } from '@/components/NicheGlyph'
 
 const HISTORY_DAYS = 120
 
@@ -126,8 +126,8 @@ export function Progress() {
         <div className="row row--between">
           <span className="kicker">Tu semana</span>
           {streak >= 2 && (
-            <span className="tag" style={{ color: 'var(--primary)' }}>
-              🔥 {streak} días{best > streak ? ` · récord ${best}` : ''}
+            <span className="streak-chip">
+              <IconFlame size={13} /> {streak} días{best > streak ? ` · récord ${best}` : ''}
             </span>
           )}
         </div>
@@ -219,9 +219,11 @@ export function Progress() {
 
       {/* ----- Tus metas ----- */}
       {activeGoals.length > 0 && (
-        <section style={{ marginTop: 'var(--s5)' }} aria-label="Tus metas">
-          <span className="kicker">Tus metas</span>
-          <div className="stack stack--sm" style={{ marginTop: 'var(--s3)' }}>
+        <section className="section" aria-label="Tus metas">
+          <div className="section-head">
+            <span className="kicker">Tus metas</span>
+          </div>
+          <div className="stack stack--sm">
             {activeGoals.map((g) => {
               const prog = progressByGoal.get(g.id) ?? { done: 0, total: 0 }
               const goalBlocks = blocks.filter((b) => b.goalId === g.id)
@@ -239,9 +241,10 @@ export function Progress() {
                   onClick={() => navigate(`/metas/${g.id}`)}
                 >
                   <div className="row row--between">
-                    <strong>
-                      {getTemplate(g.templateKey).emoji} {g.title}
-                    </strong>
+                    <span className="row row--sm" style={{ alignItems: 'center', minWidth: 0 }}>
+                      <NicheGlyph area={g.area} size="sm" />
+                      <strong className="nowrap-ellipsis">{g.title}</strong>
+                    </span>
                     {goalWeek.committed > 0 && (
                       <span className="faint tiny" style={{ flex: 'none' }}>
                         {goalWeek.done}/{goalWeek.committed} esta semana
@@ -305,10 +308,10 @@ export function Progress() {
       <h2 className="section-title">Tu camino</h2>
       {timeline.length === 0 ? (
         <div className="empty">
-          <IconProgress size={40} className="muted" />
-          <p className="empty__title" style={{ marginTop: 'var(--s4)' }}>
-            Tu camino empieza hoy
-          </p>
+          <span className="empty__icon">
+            <IconProgress size={30} />
+          </span>
+          <p className="empty__title">Tu camino empieza hoy</p>
           <p className="muted">Cada etapa que cumplas y cada meta que logres queda aquí.</p>
         </div>
       ) : (
@@ -331,18 +334,21 @@ export function Progress() {
                 onClick={() => navigate(`/metas/${e.goal.id}`)}
               >
                 <div className="row row--between" style={{ alignItems: 'flex-start', gap: 'var(--s2)' }}>
-                  <span className="timeline__title">
+                  <span className="timeline__title row row--sm" style={{ alignItems: 'center' }}>
                     {e.kind === 'milestone' ? (
-                      <>✓ {e.milestone.title}</>
+                      <>
+                        <IconCheck size={14} style={{ color: 'var(--success)', flex: 'none' }} />
+                        {e.milestone.title}
+                      </>
                     ) : (
                       <>
-                        <span aria-hidden="true">{getTemplate(e.goal.templateKey).emoji}</span>{' '}
+                        <NicheGlyph area={e.goal.area} size="sm" />
                         {e.goal.title}
                       </>
                     )}
                   </span>
                   <span className="tag">
-                    {e.kind === 'milestone' ? 'Etapa' : e.goal.status === 'done' ? 'Lograda 🎉' : 'Archivada'}
+                    {e.kind === 'milestone' ? 'Etapa' : e.goal.status === 'done' ? 'Lograda' : 'Archivada'}
                   </span>
                 </div>
                 <span className="faint tiny">

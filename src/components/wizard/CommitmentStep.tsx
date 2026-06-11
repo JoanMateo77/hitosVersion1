@@ -5,6 +5,7 @@ import {
   overcommitWarning,
   type CommitmentBlockDraft,
 } from '@/domain/commitment'
+import { IconClose, IconTimer } from '@/components/icons'
 
 interface CommitmentStepProps {
   blocks: CommitmentBlockDraft[]
@@ -113,7 +114,7 @@ export function CommitmentStep({
           aria-pressed={kind === 'time'}
           onClick={() => setKind('time')}
         >
-          ⏱ Tiempo
+          <IconTimer size={14} /> Tiempo
         </button>
         <button
           type="button"
@@ -121,7 +122,7 @@ export function CommitmentStep({
           aria-pressed={kind === 'count'}
           onClick={() => setKind('count')}
         >
-          № Cantidad
+          Cantidad
         </button>
         {kind === 'count' && (
           <input
@@ -189,7 +190,7 @@ export function CommitmentStep({
                     aria-label="Quitar este momento"
                     onClick={() => removeBlock(index)}
                   >
-                    ✕
+                    <IconClose size={16} />
                   </button>
                 )}
               </div>

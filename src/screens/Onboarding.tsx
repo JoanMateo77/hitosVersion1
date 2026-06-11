@@ -4,7 +4,18 @@ import { useSession } from '@/app/session'
 import { completeOnboarding } from '@/services/profile'
 import { NICHES, NICHE_QUESTIONS, getNiche, scoreNiche } from '@/domain/niches'
 import type { NicheId, PreferredMoment } from '@/lib/types'
-import { IconBack, IconHito } from '@/components/icons'
+import {
+  IconBack,
+  IconClock,
+  IconHito,
+  IconMoon,
+  IconProgress,
+  IconRoute,
+  IconSun,
+  IconSunrise,
+  IconTimer,
+} from '@/components/icons'
+import { NicheIcon } from '@/components/NicheGlyph'
 import { OptionRow } from '@/components/OptionRow'
 
 type Step = 'promise' | 'niche' | 'time' | 'moment'
@@ -102,13 +113,13 @@ export function Onboarding() {
           </header>
           <div className="stack stack--sm">
             {[
-              ['🗺️', 'Un camino por etapas', 'Tu meta se divide en pasos editables que se marcan de verdad.'],
-              ['⏱️', 'Sesiones comprometidas', 'Eliges días y tiempos; el cronómetro te acompaña en cada una.'],
-              ['📈', 'Progreso que no se inventa', 'Todo se calcula de lo que realmente haces. Sin humo.'],
-            ].map(([emoji, label, desc]) => (
+              { Icon: IconRoute, label: 'Un camino por etapas', desc: 'Tu meta se divide en pasos editables que se marcan de verdad.' },
+              { Icon: IconTimer, label: 'Sesiones comprometidas', desc: 'Eliges días y tiempos; el cronómetro te acompaña en cada una.' },
+              { Icon: IconProgress, label: 'Progreso que no se inventa', desc: 'Todo se calcula de lo que realmente haces. Sin humo.' },
+            ].map(({ Icon, label, desc }) => (
               <div key={label} className="card card--tight row" style={{ alignItems: 'flex-start', gap: 'var(--s3)' }}>
-                <span aria-hidden="true" style={{ fontSize: 22, flex: 'none' }}>
-                  {emoji}
+                <span className="option__icon" aria-hidden="true">
+                  <Icon size={20} />
                 </span>
                 <span>
                   <strong>{label}</strong>
@@ -146,11 +157,8 @@ export function Onboarding() {
 
           {suggested && (
             <div className="alert" style={{ background: 'var(--primary-soft)', color: 'var(--text)' }}>
-              Según tus respuestas, tu foco sería{' '}
-              <strong>
-                {getNiche(suggested).emoji} {getNiche(suggested).label}
-              </strong>
-              . Puedes cambiarlo abajo.
+              Según tus respuestas, tu foco sería <strong>{getNiche(suggested).label}</strong>. Puedes
+              cambiarlo abajo.
             </div>
           )}
 
@@ -158,7 +166,7 @@ export function Onboarding() {
             {NICHES.map((n) => (
               <OptionRow
                 key={n.id}
-                emoji={n.emoji}
+                icon={<NicheIcon area={n.id} size={20} />}
                 label={n.label}
                 desc={n.blurb}
                 selected={niche === n.id}
@@ -175,7 +183,7 @@ export function Onboarding() {
               setSuggested(null)
             }}
           >
-            🤔 No estoy seguro — ayúdame a descubrirlo
+            No estoy seguro — ayúdame a descubrirlo
           </button>
 
           <button className="btn btn--primary btn--block" disabled={!niche} onClick={() => setStep('time')}>
@@ -211,7 +219,6 @@ export function Onboarding() {
             {TIME_PRESETS.map((m) => (
               <OptionRow
                 key={m}
-                emoji={m === 15 ? '🌱' : m === 30 ? '🌿' : '🌳'}
                 label={`${m} minutos al día`}
                 selected={!customTime && minutes === m}
                 onClick={() => {
@@ -221,7 +228,6 @@ export function Onboarding() {
               />
             ))}
             <OptionRow
-              emoji="✏️"
               label="Otro — tú decides cuánto"
               selected={customTime}
               onClick={() => setCustomTime(true)}
@@ -263,10 +269,10 @@ export function Onboarding() {
             <p className="screen__subtitle">Sugiere la hora de tus sesiones. Siempre puedes cambiarla.</p>
           </header>
           <div className="stack stack--sm">
-            <OptionRow emoji="🌅" label="Por la mañana" selected={moment === 'morning'} onClick={() => setMoment('morning')} />
-            <OptionRow emoji="☀️" label="Al mediodía" selected={moment === 'midday'} onClick={() => setMoment('midday')} />
-            <OptionRow emoji="🌙" label="Por la noche" selected={moment === 'evening'} onClick={() => setMoment('evening')} />
-            <OptionRow emoji="🤷" label="Depende del día" selected={moment === null} onClick={() => setMoment(null)} />
+            <OptionRow icon={<IconSunrise size={20} />} label="Por la mañana" selected={moment === 'morning'} onClick={() => setMoment('morning')} />
+            <OptionRow icon={<IconSun size={20} />} label="Al mediodía" selected={moment === 'midday'} onClick={() => setMoment('midday')} />
+            <OptionRow icon={<IconMoon size={20} />} label="Por la noche" selected={moment === 'evening'} onClick={() => setMoment('evening')} />
+            <OptionRow icon={<IconClock size={20} />} label="Depende del día" selected={moment === null} onClick={() => setMoment(null)} />
           </div>
 
           {error && <div className="alert alert--error" role="alert">{error}</div>}

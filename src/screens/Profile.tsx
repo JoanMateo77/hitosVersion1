@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ComponentType } from 'react'
 import { useSession } from '@/app/session'
 import { deleteAccount, signOut } from '@/services/auth'
 import { updateRhythm } from '@/services/profile'
 import { disablePush, enablePush, getPushState } from '@/lib/push'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
+import { IconMoon, IconSun, IconSunrise } from '@/components/icons'
 import type { PreferredMoment } from '@/lib/types'
 
-const MOMENTS: { id: PreferredMoment; label: string; emoji: string }[] = [
-  { id: 'morning', label: 'Mañana', emoji: '🌅' },
-  { id: 'midday', label: 'Mediodía', emoji: '☀️' },
-  { id: 'evening', label: 'Noche', emoji: '🌙' },
+const MOMENTS: { id: PreferredMoment; label: string; Icon: ComponentType<{ size?: number }> }[] = [
+  { id: 'morning', label: 'Mañana', Icon: IconSunrise },
+  { id: 'midday', label: 'Mediodía', Icon: IconSun },
+  { id: 'evening', label: 'Noche', Icon: IconMoon },
 ]
 
 export function ProfileScreen() {
@@ -122,6 +123,7 @@ export function ProfileScreen() {
         </div>
       </header>
 
+      <div className="settings-grid">
       {/* ----- Tu ritmo: defaults que alimentan el wizard y los horarios ----- */}
       <section className="card stack stack--sm" aria-label="Tu ritmo">
         <span className="kicker">Tu ritmo</span>
@@ -138,7 +140,7 @@ export function ProfileScreen() {
                   void saveRhythm({ preferredMoment: profile.preferredMoment === m.id ? null : m.id })
                 }
               >
-                <span aria-hidden="true">{m.emoji}</span> {m.label}
+                <m.Icon size={14} /> {m.label}
               </button>
             ))}
           </div>
@@ -179,7 +181,7 @@ export function ProfileScreen() {
       </section>
 
       {/* ----- Recordatorios ----- */}
-      <section className="card stack stack--sm" style={{ marginTop: 'var(--s4)' }} aria-label="Recordatorios">
+      <section className="card stack stack--sm" aria-label="Recordatorios">
         <span className="kicker">Recordatorios</span>
         {push === 'unsupported' ? (
           <p className="small muted" style={{ margin: 0 }}>
@@ -202,7 +204,7 @@ export function ProfileScreen() {
               type="button"
               role="switch"
               aria-checked={push === 'on'}
-              className={`seg__btn${push === 'on' ? ' seg__btn--active' : ''}`}
+              className={`btn btn--sm ${push === 'on' ? 'btn--primary' : 'btn--ghost'}`}
               disabled={push === 'loading'}
               onClick={() => void togglePush()}
             >
@@ -213,13 +215,13 @@ export function ProfileScreen() {
       </section>
 
       {/* ----- Apariencia ----- */}
-      <section className="card stack stack--sm" style={{ marginTop: 'var(--s4)' }} aria-label="Apariencia">
+      <section className="card stack stack--sm" aria-label="Apariencia">
         <span className="kicker">Apariencia</span>
         <ThemeSwitcher variant="compact" />
       </section>
 
       {/* ----- Cuenta ----- */}
-      <section className="card stack stack--sm" style={{ marginTop: 'var(--s4)' }} aria-label="Cuenta">
+      <section className="card stack stack--sm" aria-label="Cuenta">
         <span className="kicker">Cuenta</span>
         <button className="btn btn--ghost btn--block" onClick={handleSignOut} disabled={signingOut}>
           {signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
@@ -249,6 +251,7 @@ export function ProfileScreen() {
           </div>
         )}
       </section>
+      </div>
 
       {error && (
         <div className="alert alert--error" role="alert" style={{ marginTop: 'var(--s3)' }}>
@@ -257,7 +260,7 @@ export function ProfileScreen() {
       )}
 
       <p className="faint tiny center" style={{ marginTop: 'var(--s8)' }}>
-        Lógralo es gratis. Si algún día te sirve de verdad, podrás apoyar el proyecto. 🧡
+        Lógralo es gratis. Si algún día te sirve de verdad, podrás apoyar el proyecto.
       </p>
     </div>
   )

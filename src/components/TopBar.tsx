@@ -1,7 +1,7 @@
 import { IconHito } from '@/components/icons'
-import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 
-/** Barra superior fina (solo móvil/tablet): marca a la izquierda, tema a la derecha. */
+/** Barra superior fina (solo móvil/tablet): la marca, sin ruido.
+ *  El tema se cambia en Perfil → Apariencia. */
 export function TopBar() {
   return (
     <header className="topbar">
@@ -11,7 +11,6 @@ export function TopBar() {
         </span>
         Lógralo
       </span>
-      <ThemeSwitcher variant="compact" />
     </header>
   )
 }

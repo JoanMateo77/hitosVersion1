@@ -6,7 +6,6 @@ import { listGoals } from '@/services/goals'
 import { countDoneByGoal } from '@/services/tasks'
 import { updatePriorityGoal } from '@/services/profile'
 import { milestoneProgressByGoal } from '@/services/milestones'
-import { getTemplate } from '@/domain/templates'
 import { getNiche } from '@/domain/niches'
 import { isGoalClosed } from '@/domain/goals'
 import { relativeDeadline } from '@/lib/date'
@@ -15,7 +14,8 @@ import type { Goal, GoalStatus } from '@/lib/types'
 import { useAsyncData } from '@/hooks/useAsyncData'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
-import { IconCalendar, IconGoals, IconPlus } from '@/components/icons'
+import { IconCalendar, IconChevronRight, IconGoals, IconPlus, IconStar } from '@/components/icons'
+import { NicheGlyph } from '@/components/NicheGlyph'
 
 /** Orden de presentación por estado: lo activo primero. */
 const STATUS_ORDER: Record<GoalStatus, number> = {
@@ -27,7 +27,7 @@ const STATUS_ORDER: Record<GoalStatus, number> = {
 
 const STATUS_BADGE: Partial<Record<GoalStatus, string>> = {
   paused: 'Pausada',
-  done: 'Lograda 🎉',
+  done: 'Lograda',
   archived: 'Archivada',
 }
 
@@ -148,8 +148,10 @@ export function Goals() {
 
       {goals.length === 0 ? (
         <div className="empty">
-          <IconGoals size={48} className="muted" />
-          <p className="empty__title" style={{ marginTop: 'var(--s4)' }}>Todavía no tienes metas</p>
+          <span className="empty__icon">
+            <IconGoals size={34} />
+          </span>
+          <p className="empty__title">Todavía no tienes metas</p>
           <p className="muted" style={{ marginBottom: 'var(--s4)' }}>
             Mira ideas para tu foco y adopta una, o escribe la tuya.
           </p>
@@ -174,7 +176,7 @@ export function Goals() {
                 style={{ padding: 0 }}
                 onClick={() => navigate('/meta/nueva')}
               >
-                Creá una nueva
+                Crea una nueva
               </button>
               .
             </p>
@@ -182,13 +184,13 @@ export function Goals() {
           {finished.length > 0 && (
             <button
               type="button"
-              className="btn--link"
-              style={{ marginTop: 'var(--s5)', alignSelf: 'flex-start', padding: 0 }}
+              className="btn--link row row--sm"
+              style={{ marginTop: 'var(--s5)', alignSelf: 'flex-start', padding: 0, alignItems: 'center' }}
               onClick={() => navigate('/progreso')}
             >
               Ver {finished.length}{' '}
               {finished.length === 1 ? 'meta lograda o archivada' : 'metas logradas o archivadas'} en
-              Progreso →
+              Progreso <IconChevronRight size={14} />
             </button>
           )}
         </>
@@ -224,7 +226,6 @@ function GoalPeek({
   onOpen: () => void
   onClose: () => void
 }) {
-  const template = getTemplate(goal.templateKey)
   const niche = getNiche(goal.area)
   const progressDone = progress?.done ?? 0
   const progressTotal = progress?.total ?? 0
@@ -239,13 +240,11 @@ function GoalPeek({
       <div data-blendy-to={bid(goal.id)}>
         <div className="goal-peek" onClick={(e) => e.stopPropagation()} style={nicheAccent(goal.area)}>
           <div className="goal-card__top">
-            <span className="goal-card__emoji" aria-hidden="true">{template.emoji}</span>
+            <NicheGlyph area={goal.area} size="md" />
             <span className="goal-card__title">{goal.title}</span>
           </div>
           <div className="row wrap" style={{ rowGap: 6 }}>
-            <span className="tag tag--niche">
-              <span aria-hidden="true">{niche.emoji}</span> {niche.label}
-            </span>
+            <span className="tag tag--niche">{niche.label}</span>
             {deadline && (
               <span className="faint tiny row row--sm" style={{ alignItems: 'center', gap: 4 }}>
                 <IconCalendar size={12} /> {deadline}
@@ -298,7 +297,6 @@ function GoalCard({
   onTogglePriority?: () => void
   onClick: () => void
 }) {
-  const template = getTemplate(goal.templateKey)
   const niche = getNiche(goal.area)
   const progressDone = progress?.done ?? 0
   const progressTotal = progress?.total ?? 0
@@ -319,7 +317,7 @@ function GoalCard({
       style={{ ...nicheAccent(goal.area), ...(dimmed ? { opacity: 0.7 } : {}) }}
     >
       <div className="goal-card__top">
-        <span className="goal-card__emoji" aria-hidden="true">{template.emoji}</span>
+        <NicheGlyph area={goal.area} size="md" />
         <span className="goal-card__title nowrap-ellipsis">{goal.title}</span>
         {onTogglePriority && (
           <span
@@ -327,7 +325,7 @@ function GoalCard({
             tabIndex={0}
             aria-pressed={isPriority}
             aria-label={isPriority ? 'Quitar prioridad' : 'Marcar como prioritaria'}
-            style={{ marginLeft: 'auto', fontSize: 16, opacity: isPriority ? 1 : 0.35, flex: 'none', padding: 4 }}
+            className={`goal-card__star${isPriority ? ' goal-card__star--on' : ''}`}
             onClick={(e) => {
               e.stopPropagation()
               onTogglePriority()
@@ -340,15 +338,13 @@ function GoalCard({
               }
             }}
           >
-            ⭐
+            <IconStar size={17} style={isPriority ? { fill: 'currentColor' } : undefined} />
           </span>
         )}
         {badge && <span className="tag">{badge}</span>}
       </div>
       <div className="row wrap" style={{ rowGap: 6 }}>
-        <span className="tag tag--niche">
-          <span aria-hidden="true">{niche.emoji}</span> {niche.label}
-        </span>
+        <span className="tag tag--niche">{niche.label}</span>
         {deadline && (
           <span className="faint tiny row row--sm" style={{ alignItems: 'center', gap: 4 }}>
             <IconCalendar size={12} /> {deadline}

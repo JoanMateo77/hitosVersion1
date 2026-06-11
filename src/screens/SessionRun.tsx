@@ -16,7 +16,15 @@ import { formatTime12, todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SessionRing } from '@/components/SessionRing'
-import { IconBack, IconPlay } from '@/components/icons'
+import {
+  IconBack,
+  IconCelebrate,
+  IconCheck,
+  IconLightbulb,
+  IconPause,
+  IconPlay,
+} from '@/components/icons'
+import { NicheGlyph } from '@/components/NicheGlyph'
 
 
 interface ResolutionOptionsProps {
@@ -51,7 +59,7 @@ function ResolutionOptions({
       <h2 style={{ fontSize: 'var(--fs-lg)', textAlign: 'center' }}>{title}</h2>
       {hint && <p className="small muted center">{hint}</p>}
       <button className="btn btn--primary btn--block" disabled={saving} onClick={() => onFinish('done', target)}>
-        ✓ La completé
+        <IconCheck size={16} /> La completé
       </button>
       {partialValue === null ? (
         <button className="btn btn--ghost btn--block" disabled={saving} onClick={() => onPartialChange(defaultPartial)}>
@@ -292,13 +300,16 @@ export function SessionRun() {
       </div>
 
       <div className="stack stack--lg center" style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <span className="kicker">
-          {template.emoji} {goal.title} · {targetLabel}
+        <span className="kicker row row--sm" style={{ alignItems: 'center' }}>
+          <NicheGlyph area={goal.area} size="sm" />
+          {goal.title} · {targetLabel}
         </span>
 
         {finishedStatus && currentMilestone ? (
           <div className="stack stack--sm center" style={{ width: '100%', alignItems: 'center' }}>
-            <strong style={{ fontSize: 32 }}>✓</strong>
+            <span className="empty__icon" style={{ width: 56, height: 56 }}>
+              <IconCheck size={26} />
+            </span>
             <h2 style={{ fontSize: 'var(--fs-lg)', textAlign: 'center' }}>
               {finishedStatus === 'done' ? 'Sesión cumplida' : 'Parcial guardado'}
             </h2>
@@ -306,7 +317,7 @@ export function SessionRun() {
               ¿Completaste la etapa “{currentMilestone.title}”?
             </p>
             <button className="btn btn--primary btn--block" disabled={saving} onClick={() => void completeMilestoneAndLeave()}>
-              Sí, cumplida 🎉
+              Sí, cumplida
             </button>
             <button className="btn btn--ghost btn--block" onClick={() => navigate('/', { replace: true })}>
               Aún no
@@ -336,7 +347,7 @@ export function SessionRun() {
               </div>
             )}
             <span className="tag" style={{ fontSize: 'var(--fs-sm)', padding: '6px 12px' }}>
-              💡 {suggestion}
+              <IconLightbulb size={13} /> {suggestion}
             </span>
           </div>
         )}
@@ -365,7 +376,7 @@ export function SessionRun() {
         {!needsResolution && reachedToday && (
           <>
             <SessionRing progress={1}>
-              <strong style={{ fontSize: 28 }}>🎉</strong>
+              <IconCelebrate size={34} style={{ color: 'var(--primary)' }} />
               <span className="small muted">{targetLabel} cumplidos</span>
             </SessionRing>
             <button
@@ -418,11 +429,11 @@ export function SessionRun() {
               <div className="row" style={{ width: '100%' }}>
                 {session.pausedAt ? (
                   <button className="btn btn--ghost" style={{ flex: 1 }} disabled={saving} onClick={doResume}>
-                    ▶ Reanudar
+                    <IconPlay size={14} /> Reanudar
                   </button>
                 ) : (
                   <button className="btn btn--ghost" style={{ flex: 1 }} disabled={saving} onClick={doPause}>
-                    ⏸ Pausar
+                    <IconPause size={15} /> Pausar
                   </button>
                 )}
                 <button
@@ -431,7 +442,7 @@ export function SessionRun() {
                   disabled={saving}
                   onClick={() => (keepGoing ? void finish('done', elapsedMinutes) : setEarlyFinish(true))}
                 >
-                  Terminé ✓
+                  <IconCheck size={16} /> Terminé
                 </button>
               </div>
             ) : (
@@ -487,7 +498,7 @@ export function SessionRun() {
                 else void finish('missed', 0)
               }}
             >
-              Terminé ✓
+              <IconCheck size={16} /> Terminé
             </button>
           </>
         )}

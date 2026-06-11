@@ -48,7 +48,7 @@ interface DayAgendaSession {
 function sessionStateLabel(state: DayAgendaSession['state']): string {
   switch (state) {
     case 'done':
-      return '✓ hecha'
+      return 'hecha'
     case 'partial':
       return 'parcial'
     case 'missed':

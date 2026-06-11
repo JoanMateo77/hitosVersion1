@@ -7,7 +7,8 @@ import { buildMilestonesFromTemplate } from '@/domain/commitment'
 import { seedWizardDraft } from '@/lib/wizardDraft'
 import type { NicheId } from '@/lib/types'
 import { OptionRow } from '@/components/OptionRow'
-import { IconBack } from '@/components/icons'
+import { IconBack, IconPencil } from '@/components/icons'
+import { NicheIcon } from '@/components/NicheGlyph'
 
 /**
  * Recomendación al inicio (doc 5.1): cuando el usuario no sabe qué meta poner,
@@ -55,8 +56,8 @@ export function GoalSuggestions() {
       <header className="screen__header" style={{ marginTop: 'var(--s4)' }}>
         <h1 className="screen__title">Ideas para ti</h1>
         <p className="screen__subtitle">
-          Metas concretas para tu foco {nicheInfo.emoji} {nicheInfo.label}. Adopta una con un toque o
-          escribe la tuya.
+          Metas concretas para tu foco en {nicheInfo.label}. Adopta una con un toque o escribe la
+          tuya.
         </p>
       </header>
 
@@ -66,7 +67,7 @@ export function GoalSuggestions() {
           return (
             <OptionRow
               key={seed.title}
-              emoji={template.emoji}
+              icon={<NicheIcon area={niche} size={20} />}
               label={seed.title}
               desc={template.label}
               onClick={() => adopt(seed)}
@@ -80,7 +81,7 @@ export function GoalSuggestions() {
         style={{ marginTop: 'var(--s4)' }}
         onClick={() => navigate('/meta/nueva')}
       >
-        ✍️ Escribir mi propia meta
+        <IconPencil size={16} /> Escribir mi propia meta
       </button>
     </div>
   )

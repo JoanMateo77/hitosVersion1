@@ -29,12 +29,16 @@ import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
 import {
   IconCalendar,
+  IconCheck,
   IconChevronRight,
+  IconClock,
   IconCompass,
+  IconFlame,
   IconPlus,
   IconQuote,
   IconSprout,
 } from '@/components/icons'
+import { NicheGlyph, NicheIcon } from '@/components/NicheGlyph'
 import { useCheer } from '@/hooks/useCheer'
 import { useToast } from '@/app/toast'
 import { ensureCommitmentBackfill } from '@/services/backfill'
@@ -222,7 +226,7 @@ export function Today() {
     patchSession(s.id, { status: 'done', actualValue: s.targetValue })
     const willBeDone = todaySessions.filter((x) => doneish(x.session)).length + 1
     if (willBeDone === todaySessions.length && todaySessions.length > 0) {
-      cheer('Cumpliste tu compromiso de hoy 🙌')
+      cheer('Cumpliste tu compromiso de hoy. Bien hecho.')
     } else if (willBeDone === 1) {
       cheer('Primera sesión del día. Así se empieza.')
     }
@@ -366,304 +370,310 @@ export function Today() {
   return (
     <div className="screen">
       <header className="screen__header">
-        <p className="muted small">
-          {formatWeekday(today)}
-          {streak >= 2 && ` · 🔥 ${streak} días`}
-        </p>
+        <div className="screen__meta">
+          <span>{formatWeekday(today)}</span>
+          {streak >= 2 && (
+            <span className="streak-chip">
+              <IconFlame size={13} /> {streak} días
+            </span>
+          )}
+        </div>
         <h1 className="screen__title">Tu día</h1>
         {todaySessions.length > 0 && (
           <p className="screen__subtitle">
             {closedCount === todaySessions.length
-              ? 'Cumpliste tu compromiso de hoy 🙌'
+              ? 'Cumpliste tu compromiso de hoy.'
               : `${closedCount} de ${todaySessions.length} ${todaySessions.length === 1 ? 'sesión' : 'sesiones'}`}
           </p>
         )}
       </header>
 
-      <div className="weekstrip" role="group" aria-label="Tu semana">
-        {Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(today), i)).map((d, i) => {
-          const st = stripState(d)
-          const isToday = d === today
-          const clickable = d < today && st !== 'free'
-          return (
-            <button
-              key={d}
-              type="button"
-              className={`weekstrip__day${isToday ? ' weekstrip__day--today' : ''}`}
-              disabled={!clickable}
-              aria-label={`${WEEKDAY_LABELS[i]} ${d.slice(8)}: ${
-                st === 'done' ? 'cumplido' : st === 'partial' ? 'parcial' : st === 'missed' ? 'sin cumplir' : st === 'future' ? 'por venir' : 'libre'
-              }`}
-              onClick={() => setStripDay(stripDay === d ? null : d)}
-            >
-              <span className="weekstrip__label">{WEEKDAY_LABELS[i]}</span>
-              <span
-                className={`weekstrip__dot weekstrip__dot--${st}`}
-                aria-hidden="true"
-              />
-            </button>
-          )
-        })}
-      </div>
-
-      {stripDay && (
-        <div className="card card--tight stack stack--sm" style={{ marginBottom: 'var(--s4)' }}>
-          <div className="row row--between">
-            <span className="kicker">{formatWeekday(stripDay)}</span>
-            <button className="btn--link" style={{ fontSize: 'var(--fs-xs)' }} onClick={() => setStripDay(null)}>
-              Cerrar
-            </button>
-          </div>
-          {history.filter((x) => x.date === stripDay).length === 0 ? (
-            <p className="small muted" style={{ margin: 0 }}>
-              Ese día no hubo sesiones.
-            </p>
-          ) : (
-            history
-              .filter((x) => x.date === stripDay)
-              .map((x) => {
-                const g = goalById.get(x.goalId)
-                if (!g) return null
-                const closedOk = x.status === 'done'
+      <div className="today-grid">
+        <div className="stack stack--lg">
+          <div>
+            <div className="weekstrip" role="group" aria-label="Tu semana">
+              {Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(today), i)).map((d, i) => {
+                const st = stripState(d)
+                const isToday = d === today
+                const clickable = d < today && st !== 'free'
                 return (
-                  <div key={x.id} className="row row--between" style={{ alignItems: 'center' }}>
-                    <span className="small">
-                      {getTemplate(g.templateKey).emoji} {g.title} ·{' '}
-                      <span className="muted">
-                        {x.status === 'done'
-                          ? 'hecha ✓'
-                          : x.status === 'partial'
-                            ? `parcial (${x.actualValue ?? 0})`
-                            : x.status === 'missed'
-                              ? 'no pudiste'
-                              : 'sin registrar'}
-                      </span>
-                    </span>
-                    {!closedOk && (
-                      <button className="btn btn--sm btn--ghost" onClick={() => fixPastSession(x)}>
-                        ✓ Sí la hice
-                      </button>
-                    )}
-                  </div>
+                  <button
+                    key={d}
+                    type="button"
+                    className={`weekstrip__day${isToday ? ' weekstrip__day--today' : ''}`}
+                    disabled={!clickable}
+                    aria-label={`${WEEKDAY_LABELS[i]} ${d.slice(8)}: ${
+                      st === 'done' ? 'cumplido' : st === 'partial' ? 'parcial' : st === 'missed' ? 'sin cumplir' : st === 'future' ? 'por venir' : 'libre'
+                    }`}
+                    onClick={() => setStripDay(stripDay === d ? null : d)}
+                  >
+                    <span className="weekstrip__label">{WEEKDAY_LABELS[i]}</span>
+                    <span className={`weekstrip__dot weekstrip__dot--${st}`} aria-hidden="true" />
+                  </button>
                 )
-              })
+              })}
+            </div>
+
+            {stripDay && (
+              <div className="card card--tight stack stack--sm">
+                <div className="section-head" style={{ marginBottom: 0 }}>
+                  <span className="kicker">{formatWeekday(stripDay)}</span>
+                  <button className="btn--link" onClick={() => setStripDay(null)}>
+                    Cerrar
+                  </button>
+                </div>
+                {history.filter((x) => x.date === stripDay).length === 0 ? (
+                  <p className="small muted m-0">Ese día no hubo sesiones.</p>
+                ) : (
+                  history
+                    .filter((x) => x.date === stripDay)
+                    .map((x) => {
+                      const g = goalById.get(x.goalId)
+                      if (!g) return null
+                      const closedOk = x.status === 'done'
+                      return (
+                        <div key={x.id} className="row row--between" style={{ alignItems: 'center' }}>
+                          <span className="small row row--sm" style={{ alignItems: 'center', minWidth: 0 }}>
+                            <NicheGlyph area={g.area} size="sm" />
+                            <span className="nowrap-ellipsis">
+                              {g.title} ·{' '}
+                              <span className="muted">
+                                {x.status === 'done'
+                                  ? 'hecha'
+                                  : x.status === 'partial'
+                                    ? `parcial (${x.actualValue ?? 0})`
+                                    : x.status === 'missed'
+                                      ? 'no pudiste'
+                                      : 'sin registrar'}
+                              </span>
+                            </span>
+                          </span>
+                          {!closedOk && (
+                            <button className="btn btn--sm btn--ghost" onClick={() => fixPastSession(x)}>
+                              <IconCheck size={14} /> Sí la hice
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })
+                )}
+              </div>
+            )}
+          </div>
+
+          {runningSession && goalById.get(runningSession.goalId) && (
+            <button
+              className="hero-session"
+              style={nicheAccent(goalById.get(runningSession.goalId)!.area)}
+              onClick={() => navigate(`/sesion/${runningSession.id}`)}
+            >
+              <span className="kicker">En curso · {goalById.get(runningSession.goalId)!.title}</span>
+              <strong className="hero-session__time">
+                {runningSession.targetKind === 'time'
+                  ? formatClock(remainingSeconds(runningSession, nowTick))
+                  : `${runningSession.actualValue ?? 0} / ${runningSession.targetValue}`}
+              </strong>
+              <span className="small muted">
+                {runningSession.pausedAt ? 'En pausa — toca para continuar' : 'Toca para abrir el cronómetro'}
+              </span>
+            </button>
+          )}
+
+          {cheerMessage && (
+            <div className="cheer" role="status" aria-live="polite">
+              {cheerMessage}
+            </div>
+          )}
+
+          {notice === 'resolve' && toResolve && (
+            <button
+              className="card card--tight card--warn row row--between"
+              style={{ width: '100%', textAlign: 'left' }}
+              onClick={() => navigate(`/sesion/${toResolve.id}`)}
+            >
+              <span className="row row--sm small" style={{ alignItems: 'flex-start' }}>
+                <IconClock size={16} className="muted" style={{ marginTop: 2, flex: 'none' }} />
+                <span>
+                  Quedó una sesión abierta de <strong>{goalById.get(toResolve.goalId)?.title}</strong>.
+                  ¿Cómo te fue?
+                </span>
+              </span>
+              <IconChevronRight size={16} className="faint" />
+            </button>
+          )}
+          {notice === 'review' && (
+            <button
+              className="card card--tight row row--between"
+              style={{ width: '100%', textAlign: 'left' }}
+              onClick={() => navigate('/revision')}
+            >
+              <span className="row row--sm small" style={{ alignItems: 'center' }}>
+                <IconQuote size={16} className="muted" />
+                <span>
+                  <strong>Revisión guiada</strong> — {reviewDue.length}{' '}
+                  {reviewDue.length === 1 ? 'meta para revisar' : 'metas para revisar'}
+                </span>
+              </span>
+              <IconChevronRight size={16} className="faint" />
+            </button>
+          )}
+          {notice === 'forgotten' && forgotten && (
+            <div className="card card--tight card--warn stack stack--sm">
+              <span className="row row--sm small" style={{ alignItems: 'flex-start' }}>
+                <IconSprout size={16} className="muted" style={{ marginTop: 2, flex: 'none' }} />
+                <span>
+                  Hace {forgotten.days} días que no tocas <strong>“{forgotten.goal.title}”</strong>.
+                  ¿La retomamos o la pausamos sin culpa?
+                </span>
+              </span>
+              <div className="row wrap">
+                <button className="btn btn--sm btn--primary" onClick={() => addSpontaneous(forgotten.goal)}>
+                  Sesión hoy
+                </button>
+                <button className="btn btn--sm btn--ghost" onClick={() => pauseForgotten(forgotten.goal)}>
+                  Pausar
+                </button>
+                <button className="btn btn--sm btn--subtle" onClick={() => acceptForgotten(forgotten.goal)}>
+                  Está bien así
+                </button>
+              </div>
+            </div>
+          )}
+
+          {todaySessions.length > 0 && (
+            <section aria-label="Tus sesiones de hoy">
+              <div className="section-head">
+                <span className="kicker">Tus sesiones de hoy</span>
+                <span className="small muted">
+                  {closedCount} de {todaySessions.length}
+                </span>
+              </div>
+              <div className="stack stack--sm">
+                {todaySessions
+                  .filter(({ session }) => session.id !== runningSession?.id)
+                  .map(({ session, goal }) => (
+                    <SessionCard
+                      key={session.id}
+                      session={session}
+                      goal={goal}
+                      suggestion={pickSuggestion(getTemplate(goal.templateKey), goal.id, today)}
+                      onOpen={() => navigate(`/sesion/${session.id}`)}
+                      onQuickDone={() => quickDone(session)}
+                      onReopen={() => reopen(session)}
+                      onResume={() => resumeClosed(session)}
+                    />
+                  ))}
+              </div>
+            </section>
+          )}
+
+          {todaySessions.length === 0 && activeGoals.length > 0 && (
+            <div className="card stack stack--sm" style={{ alignItems: 'flex-start' }}>
+              <strong>Hoy no comprometiste sesiones.</strong>
+              <p className="small muted m-0">Día libre — o súmale una sesión espontánea a una meta.</p>
+              {!pickingSpontaneous ? (
+                <button className="btn btn--ghost btn--sm" onClick={() => setPickingSpontaneous(true)}>
+                  <IconPlus size={16} /> Sesión espontánea
+                </button>
+              ) : (
+                <div className="row wrap">
+                  {activeGoals.map((g) => (
+                    <button key={g.id} type="button" className="chip" onClick={() => addSpontaneous(g)}>
+                      <NicheIcon area={g.area} size={14} /> {g.title}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeGoals.length === 0 && (
+            <div className="card stack stack--sm center" style={{ alignItems: 'center' }}>
+              <IconCompass size={32} className="muted" />
+              <p className="small muted center">
+                Cuando crees una meta, tu día se arma alrededor de tu compromiso.
+              </p>
+              <div className="row wrap" style={{ justifyContent: 'center' }}>
+                <button className="btn btn--primary btn--sm" onClick={() => navigate('/ideas')}>
+                  Ver ideas para empezar
+                </button>
+                <button className="btn--link" onClick={() => navigate('/meta/nueva')}>
+                  Escribir mi propia meta
+                </button>
+              </div>
+            </div>
+          )}
+
+          {actionError && (
+            <div className="alert alert--error" role="alert">
+              {actionError}
+            </div>
           )}
         </div>
-      )}
 
-      {runningSession && goalById.get(runningSession.goalId) && (
-        <button
-          className="card stack stack--sm"
-          style={{
-            ...nicheAccent(goalById.get(runningSession.goalId)!.area),
-            width: '100%',
-            alignItems: 'center',
-            textAlign: 'center',
-            marginBottom: 'var(--s4)',
-            borderLeft: '3px solid var(--niche, var(--primary))',
-          }}
-          onClick={() => navigate(`/sesion/${runningSession.id}`)}
-        >
-          <span className="kicker">
-            En curso · {goalById.get(runningSession.goalId)!.title}
-          </span>
-          <strong className="ring__time" style={{ fontSize: 42 }}>
-            {runningSession.targetKind === 'time'
-              ? formatClock(remainingSeconds(runningSession, nowTick))
-              : `${runningSession.actualValue ?? 0} / ${runningSession.targetValue}`}
-          </strong>
-          <span className="small muted">
-            {runningSession.pausedAt ? 'En pausa — toca para continuar' : 'Toca para abrir el cronómetro'}
-          </span>
-        </button>
-      )}
+        <aside className="today-side">
+          <section aria-label="Lo que sumaste tú">
+            <div className="section-head">
+              <span className="kicker">Lo que sumaste tú</span>
+            </div>
+            {userTasks.length > 0 && (
+              <ul className="stack stack--sm mb-3">
+                {userTasks.map((task) => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    goalTitle={null}
+                    goalWhy={null}
+                    onToggle={() => toggleTask(task)}
+                    onEdit={(title) => editTask(task, title)}
+                    onRemove={() => removeTask(task)}
+                  />
+                ))}
+              </ul>
+            )}
+            <form className="row" onSubmit={addTask}>
+              <input
+                className="input"
+                placeholder="Agrega algo para hoy…"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                maxLength={300}
+                autoCapitalize="sentences"
+                autoCorrect="on"
+                enterKeyHint="send"
+                inputMode="text"
+              />
+              <button className="iconbtn" type="submit" aria-label="Agregar tarea" disabled={!newTitle.trim()}>
+                <IconPlus size={22} />
+              </button>
+            </form>
+          </section>
 
-      {cheerMessage && (
-        <div className="cheer" role="status" aria-live="polite">
-          {cheerMessage}
-        </div>
-      )}
-
-      {notice === 'resolve' && toResolve && (
-        <button
-          className="card card--tight row row--between"
-          style={{ width: '100%', textAlign: 'left', marginBottom: 'var(--s4)', borderColor: 'var(--warning)' }}
-          onClick={() => navigate(`/sesion/${toResolve.id}`)}
-        >
-          <span className="small">
-            ⏱ Quedó una sesión abierta de <strong>{goalById.get(toResolve.goalId)?.title}</strong>.
-            ¿Cómo te fue?
-          </span>
-          <IconChevronRight size={16} className="faint" />
-        </button>
-      )}
-      {notice === 'review' && (
-        <button
-          className="card card--tight row row--between"
-          style={{ width: '100%', textAlign: 'left', marginBottom: 'var(--s4)' }}
-          onClick={() => navigate('/revision')}
-        >
-          <span className="row row--sm small" style={{ alignItems: 'center' }}>
-            <IconQuote size={16} className="muted" />
-            <span>
-              <strong>Revisión guiada</strong> — {reviewDue.length}{' '}
-              {reviewDue.length === 1 ? 'meta para revisar' : 'metas para revisar'}
-            </span>
-          </span>
-          <IconChevronRight size={16} className="faint" />
-        </button>
-      )}
-      {notice === 'forgotten' && forgotten && (
-        <div
-          className="card card--tight stack stack--sm"
-          style={{ borderColor: 'var(--warning)', marginBottom: 'var(--s4)' }}
-        >
-          <span className="row row--sm small" style={{ alignItems: 'flex-start' }}>
-            <IconSprout size={16} className="muted" style={{ marginTop: 2, flex: 'none' }} />
-            <span>
-              Hace {forgotten.days} días que no tocas <strong>“{forgotten.goal.title}”</strong>.
-              ¿La retomamos o la pausamos sin culpa?
-            </span>
-          </span>
-          <div className="row wrap">
-            <button className="btn btn--sm btn--primary" onClick={() => addSpontaneous(forgotten.goal)}>
-              Sesión hoy
-            </button>
-            <button className="btn btn--sm btn--ghost" onClick={() => pauseForgotten(forgotten.goal)}>
-              Pausar
-            </button>
-            <button className="btn btn--sm btn--subtle" onClick={() => acceptForgotten(forgotten.goal)}>
-              Está bien así
-            </button>
-          </div>
-        </div>
-      )}
-
-      {todaySessions.length > 0 && (
-        <section className="stack stack--sm" aria-label="Tus sesiones de hoy">
-          <span className="kicker">
-            Tus sesiones de hoy · {closedCount} de {todaySessions.length}
-          </span>
-          {todaySessions
-            .filter(({ session }) => session.id !== runningSession?.id)
-            .map(({ session, goal }) => (
-            <SessionCard
-              key={session.id}
-              session={session}
-              goal={goal}
-              suggestion={pickSuggestion(getTemplate(goal.templateKey), goal.id, today)}
-              onOpen={() => navigate(`/sesion/${session.id}`)}
-              onQuickDone={() => quickDone(session)}
-              onReopen={() => reopen(session)}
-              onResume={() => resumeClosed(session)}
-            />
-          ))}
-        </section>
-      )}
-
-      {todaySessions.length === 0 && activeGoals.length > 0 && (
-        <div className="card stack stack--sm" style={{ alignItems: 'flex-start' }}>
-          <strong>Hoy no comprometiste sesiones.</strong>
-          <p className="small muted" style={{ margin: 0 }}>
-            Día libre — o súmale una sesión espontánea a una meta.
-          </p>
-          {!pickingSpontaneous ? (
-            <button className="btn btn--ghost btn--sm" onClick={() => setPickingSpontaneous(true)}>
-              <IconPlus size={16} /> Sesión espontánea
-            </button>
-          ) : (
-            <div className="row wrap">
-              {activeGoals.map((g) => (
-                <button key={g.id} type="button" className="chip" onClick={() => addSpontaneous(g)}>
-                  {getTemplate(g.templateKey).emoji} {g.title}
+          {todayEvents.length > 0 && (
+            <div className="card card--tight stack stack--sm">
+              <div className="section-head" style={{ marginBottom: 0 }}>
+                <span className="kicker row row--sm" style={{ alignItems: 'center' }}>
+                  <IconCalendar size={12} /> Tu agenda de hoy
+                </span>
+                <button className="btn--link" onClick={() => navigate('/calendario')}>
+                  Ver agenda
+                </button>
+              </div>
+              {todayEvents.map((e) => (
+                <button
+                  key={e.id}
+                  className="ev"
+                  aria-label={`Ver "${e.title}" en la agenda`}
+                  onClick={() => navigate(`/calendario?d=${e.date}`)}
+                >
+                  <span className="ev__time">{e.allDay || !e.startTime ? 'Día' : formatTime12(e.startTime)}</span>
+                  <span className="ev__title">{e.title}</span>
                 </button>
               ))}
             </div>
           )}
-        </div>
-      )}
-
-      {activeGoals.length === 0 && (
-        <div className="card stack stack--sm center" style={{ alignItems: 'center' }}>
-          <IconCompass size={32} className="muted" />
-          <p className="small muted center">
-            Cuando crees una meta, tu día se arma alrededor de tu compromiso.
-          </p>
-          <div className="row wrap" style={{ justifyContent: 'center' }}>
-            <button className="btn btn--primary btn--sm" onClick={() => navigate('/ideas')}>
-              Ver ideas para empezar
-            </button>
-            <button className="btn--link" onClick={() => navigate('/meta/nueva')}>
-              Escribir mi propia meta
-            </button>
-          </div>
-        </div>
-      )}
-
-      <section style={{ marginTop: 'var(--s6)' }}>
-        <span className="kicker">Lo que sumaste tú</span>
-        {userTasks.length > 0 && (
-          <ul className="stack stack--sm" style={{ marginTop: 'var(--s3)' }}>
-            {userTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                goalTitle={null}
-                goalWhy={null}
-                onToggle={() => toggleTask(task)}
-                onEdit={(title) => editTask(task, title)}
-                onRemove={() => removeTask(task)}
-              />
-            ))}
-          </ul>
-        )}
-        <form className="row" style={{ marginTop: 'var(--s3)' }} onSubmit={addTask}>
-          <input
-            className="input"
-            placeholder="Agrega algo para hoy…"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            maxLength={300}
-            autoCapitalize="sentences"
-            autoCorrect="on"
-            enterKeyHint="send"
-            inputMode="text"
-          />
-          <button className="iconbtn" type="submit" aria-label="Agregar tarea" disabled={!newTitle.trim()}>
-            <IconPlus size={22} />
-          </button>
-        </form>
-      </section>
-
-      {actionError && (
-        <div className="alert alert--error" role="alert" style={{ marginTop: 'var(--s3)' }}>
-          {actionError}
-        </div>
-      )}
-
-      {todayEvents.length > 0 && (
-        <div className="card card--tight stack stack--sm" style={{ marginTop: 'var(--s5)' }}>
-          <div className="row row--between">
-            <span className="kicker row row--sm" style={{ alignItems: 'center' }}>
-              <IconCalendar size={12} /> Tu agenda de hoy
-            </span>
-            <button className="btn--link" onClick={() => navigate('/calendario')}>
-              Ver agenda
-            </button>
-          </div>
-          {todayEvents.map((e) => (
-            <button
-              key={e.id}
-              className="ev"
-              aria-label={`Ver "${e.title}" en la agenda`}
-              onClick={() => navigate(`/calendario?d=${e.date}`)}
-            >
-              <span className="ev__time">{e.allDay || !e.startTime ? 'Día' : formatTime12(e.startTime)}</span>
-              <span className="ev__title">{e.title}</span>
-            </button>
-          ))}
-        </div>
-      )}
+        </aside>
+      </div>
     </div>
   )
 }

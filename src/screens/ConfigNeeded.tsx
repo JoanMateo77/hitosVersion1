@@ -8,30 +8,30 @@ export function ConfigNeeded() {
         <span className="brand__mark">
           <IconHito />
         </span>
-        Hito
+        Lógralo
       </div>
 
       <div className="card stack stack--lg" style={{ marginTop: 'var(--s6)' }}>
         <div>
           <h2>Falta conectar la base de datos</h2>
           <p className="muted" style={{ marginTop: 4 }}>
-            Hito guarda tus metas en Supabase. Configurarlo toma 2 minutos.
+            Lógralo guarda tus metas en Supabase. Configurarlo toma 2 minutos.
           </p>
         </div>
 
         <ol className="stack stack--sm" style={{ paddingLeft: '1.1em' }}>
           <li>
-            Creá un proyecto gratis en <strong>supabase.com</strong>.
+            Crea un proyecto gratis en <strong>supabase.com</strong>.
           </li>
           <li>
-            En <strong>SQL Editor</strong>, pegá y ejecutá el archivo{' '}
+            En <strong>SQL Editor</strong>, pega y ejecuta el archivo{' '}
             <code>supabase/schema.sql</code>.
           </li>
           <li>
-            En <strong>Settings → API</strong>, copiá la URL y la anon key.
+            En <strong>Settings → API</strong>, copia la URL y la anon key.
           </li>
           <li>
-            Copiá <code>.env.example</code> como <code>.env</code> y completá los valores.
+            Copia <code>.env.example</code> como <code>.env</code> y completa los valores.
           </li>
         </ol>
 
@@ -49,7 +49,7 @@ export function ConfigNeeded() {
         </pre>
 
         <p className="faint tiny">
-          Después reiniciá <code>npm run dev</code> y recargá esta pantalla.
+          Después reinicia <code>npm run dev</code> y recarga esta pantalla.
         </p>
       </div>
     </div>

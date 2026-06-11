@@ -1,7 +1,9 @@
+import type { ReactNode } from 'react'
 import { IconCheck } from '@/components/icons'
 
 interface OptionRowProps {
-  emoji?: string
+  /** Ícono dibujado (componente del set) — va en un disco neutro a la izquierda. */
+  icon?: ReactNode
   label: string
   desc?: string
   selected?: boolean
@@ -12,7 +14,7 @@ interface OptionRowProps {
 
 /** Opción grande seleccionable. Base de onboarding, wizard y sugerencias. */
 export function OptionRow({
-  emoji,
+  icon,
   label,
   desc,
   selected = false,
@@ -29,7 +31,11 @@ export function OptionRow({
       aria-pressed={selected}
       aria-busy={busy || undefined}
     >
-      {emoji && <span className="option__emoji">{emoji}</span>}
+      {icon && (
+        <span className="option__icon" aria-hidden="true">
+          {icon}
+        </span>
+      )}
       <span className="option__body">
         <span className="option__label">{label}</span>
         {desc && <span className="option__desc">{desc}</span>}

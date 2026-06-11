@@ -7,6 +7,7 @@ import { NICHES, getNiche } from '@/domain/niches'
 import type { NicheId, ScheduleBlock } from '@/lib/types'
 import { formatLongDate, relativeDeadline, todayISO } from '@/lib/date'
 import { IconBack, IconCalendar, IconLightbulb } from '@/components/icons'
+import { NicheIcon } from '@/components/NicheGlyph'
 import { OptionRow } from '@/components/OptionRow'
 import { Hint } from '@/components/Hint'
 import {
@@ -314,7 +315,7 @@ export function Wizard() {
               {templatesForNiche(profile.primaryNiche ?? 'otra').map((t) => (
                 <OptionRow
                   key={t.key}
-                  emoji={t.emoji}
+                  icon={<NicheIcon area={t.defaultArea} size={20} />}
                   label={t.label}
                   desc={t.description}
                   selected={templateKey === t.key}
@@ -480,9 +481,7 @@ function ReviewCard({
       </strong>
       <div className="row wrap">
         <span className="tag">{templateLabel}</span>
-        <span className="tag">
-          {getNiche(area).emoji} {getNiche(area).label}
-        </span>
+        <span className="tag">{getNiche(area).label}</span>
         {dateLabel && (
           <span className="tag">
             <IconCalendar size={11} /> {dateLabel}

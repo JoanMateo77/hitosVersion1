@@ -89,9 +89,7 @@ export function GoalCreated() {
           <h1 ref={titleRef} tabIndex={-1} className="screen__title">
             ¡Meta creada!
           </h1>
-          <p className="muted">
-            {template.emoji} {goal.title}
-          </p>
+          <p className="muted">{goal.title}</p>
           {cleanWhy && <p className="small muted center">Porque {cleanWhy}</p>}
         </header>
 

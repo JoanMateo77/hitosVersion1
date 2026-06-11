@@ -1,6 +1,13 @@
 import { useState, type KeyboardEvent } from 'react'
 import type { Milestone } from '@/lib/types'
 import { formatLongDate, todayISO } from '@/lib/date'
+import {
+  IconArrowDown,
+  IconArrowUp,
+  IconCalendar,
+  IconClose,
+  IconDots,
+} from '@/components/icons'
 
 interface MilestoneChecklistProps {
   milestones: Milestone[]
@@ -87,7 +94,11 @@ export function MilestoneChecklist({
                 {m.title}
               </button>
             )}
-            {m.targetDate && <span className="tag mstone__date">📅 {formatLongDate(m.targetDate)}</span>}
+            {m.targetDate && (
+              <span className="tag mstone__date">
+                <IconCalendar size={11} /> {formatLongDate(m.targetDate)}
+              </span>
+            )}
             {!disabled && (
               <button
                 type="button"
@@ -96,7 +107,7 @@ export function MilestoneChecklist({
                 aria-label={`Opciones de la etapa: ${m.title}`}
                 onClick={() => setMenuId(menuId === m.id ? null : m.id)}
               >
-                ⋯
+                <IconDots size={17} />
               </button>
             )}
           </div>
@@ -118,7 +129,7 @@ export function MilestoneChecklist({
                 disabled={index === 0}
                 onClick={() => onMove(m, -1)}
               >
-                ↑
+                <IconArrowUp size={15} />
               </button>
               <button
                 type="button"
@@ -127,7 +138,7 @@ export function MilestoneChecklist({
                 disabled={index === milestones.length - 1}
                 onClick={() => onMove(m, 1)}
               >
-                ↓
+                <IconArrowDown size={15} />
               </button>
               <button
                 type="button"
@@ -138,7 +149,7 @@ export function MilestoneChecklist({
                   onDelete(m)
                 }}
               >
-                ✕
+                <IconClose size={15} />
               </button>
             </div>
           )}
