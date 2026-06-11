@@ -42,6 +42,7 @@ import { LoadingScreen } from '@/components/LoadingScreen'
 import { MilestoneChecklist } from '@/components/MilestoneChecklist'
 import { CommitmentStep } from '@/components/wizard/CommitmentStep'
 import { useToast } from '@/app/toast'
+import { shareAchievement } from '@/lib/shareCard'
 import {
   IconBack,
   IconCelebrate,
@@ -526,7 +527,25 @@ export function GoalDetail() {
                   <IconCelebrate size={14} /> ¡Meta lograda!
                 </span>
                 <p className="small">¿Vas por la próxima? Te paso ideas para seguir avanzando.</p>
-                <button className="btn btn--primary btn--block" onClick={() => navigate(`/ideas?area=${goal.area}`)}>
+                <button
+                  className="btn btn--primary btn--block"
+                  onClick={() =>
+                    void shareAchievement({
+                      kicker: 'Logré mi meta',
+                      title: goal.title,
+                      stats: [
+                        progress.total > 0 ? `${progress.done} etapas` : null,
+                        stats.done > 0 ? `${stats.done} sesiones` : null,
+                        stats.minutes > 0 ? `${formatDuration(stats.minutes)} invertidas` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ') || 'Cumplida con compromiso',
+                    }).then((r) => toast(r === 'shared' ? 'Compartido 🎉' : 'Imagen descargada.'))
+                  }
+                >
+                  Compartir mi logro 🧡
+                </button>
+                <button className="btn btn--ghost btn--block" onClick={() => navigate(`/ideas?area=${goal.area}`)}>
                   Ver ideas para tu próxima meta
                 </button>
               </div>
