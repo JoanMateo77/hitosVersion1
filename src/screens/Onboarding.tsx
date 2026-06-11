@@ -3,19 +3,29 @@ import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { completeOnboarding } from '@/services/profile'
 import { NICHES, NICHE_QUESTIONS, getNiche, scoreNiche } from '@/domain/niches'
-import type { FocusMode, NicheId } from '@/lib/types'
-import { IconBack } from '@/components/icons'
+import type { NicheId, PreferredMoment } from '@/lib/types'
+import { IconBack, IconHito } from '@/components/icons'
 import { OptionRow } from '@/components/OptionRow'
 
-type Step = 'focus' | 'niche'
+type Step = 'promise' | 'niche' | 'time' | 'moment'
+const STEPS: Step[] = ['promise', 'niche', 'time', 'moment']
 
+const TIME_PRESETS = [15, 30, 60]
+
+/**
+ * Onboarding: termina con el usuario dentro del wizard, con sus defaults de
+ * dedicación y horario ya capturados. Cada respuesta SE USA. Salida discreta
+ * para quien prefiere mirar primero — compromete sin secuestrar.
+ */
 export function Onboarding() {
   const { userId, setProfile } = useSession()
   const navigate = useNavigate()
 
-  const [step, setStep] = useState<Step>('focus')
-  const [focusMode, setFocusMode] = useState<FocusMode | null>(null)
+  const [step, setStep] = useState<Step>('promise')
   const [niche, setNiche] = useState<NicheId | null>(null)
+  const [minutes, setMinutes] = useState<number>(30)
+  const [customTime, setCustomTime] = useState(false)
+  const [moment, setMoment] = useState<PreferredMoment | null>(null)
 
   // Sub-flujo "no sé mi foco": mini-entrevista determinística.
   const [interview, setInterview] = useState(false)
@@ -38,70 +48,100 @@ export function Onboarding() {
     }
   }
 
-  async function finish() {
-    if (!focusMode || !niche) return
+  async function finish(destination: '/meta/nueva' | '/') {
     setSaving(true)
     setError(null)
     try {
-      const updated = await completeOnboarding(userId, { focusMode, primaryNiche: niche })
+      const updated = await completeOnboarding(userId, {
+        primaryNiche: niche,
+        preferredMoment: moment,
+        defaultSessionMinutes: minutes,
+      })
       setProfile(updated)
-      // En vez de un formulario vacío, lo primero que ve es ideas concretas (5.1).
-      navigate('/ideas', { replace: true })
+      navigate(destination, { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar. Inténtalo de nuevo.')
       setSaving(false)
     }
   }
 
+  const stepIndex = STEPS.indexOf(step)
+
   return (
     <div className="screen screen--full flow-screen">
-      <Stepper step={step} />
+      <div className="stepper" aria-hidden="true" style={{ marginTop: 'var(--s2)' }}>
+        {STEPS.map((s, i) => (
+          <span
+            key={s}
+            className={`stepper__dot ${i < stepIndex ? 'stepper__dot--done' : i === stepIndex ? 'stepper__dot--active' : ''}`}
+          />
+        ))}
+      </div>
 
-      {step === 'focus' && (
-        <section className="stack stack--lg" style={{ marginTop: 'var(--s6)' }}>
-          <header>
-            <h1 className="screen__title">Bienvenido/a 👋</h1>
-            <p className="screen__subtitle">
-              Dos preguntas rápidas para adaptar Hito a vos.
-            </p>
+      {/* ----- 1 · La promesa ----- */}
+      {step === 'promise' && (
+        <section className="stack stack--lg" style={{ marginTop: 'var(--s8)', flex: 1 }}>
+          <header className="center stack stack--sm" style={{ alignItems: 'center' }}>
+            <span
+              aria-hidden="true"
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 18,
+                background: 'var(--gradient-brand)',
+                color: 'var(--on-primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <IconHito size={34} />
+            </span>
+            <h1 className="screen__title">Lógralo</h1>
+            <p className="screen__subtitle center">Tu meta, con un compromiso real.</p>
           </header>
-          <h2 style={{ fontSize: 'var(--fs-lg)' }}>¿Cómo quieres empezar?</h2>
-          <div className="stack">
-            <OptionRow
-              emoji="🎯"
-              label="Con una sola meta"
-              desc="Modo enfocado: un objetivo principal, sin dispersarte."
-              selected={focusMode === 'single'}
-              onClick={() => setFocusMode('single')}
-            />
-            <OptionRow
-              emoji="🧭"
-              label="Con varias metas"
-              desc="Modo multi-meta: la app reparte tu energía entre ellas."
-              selected={focusMode === 'multi'}
-              onClick={() => setFocusMode('multi')}
-            />
+          <div className="stack stack--sm">
+            {[
+              ['🗺️', 'Un camino por etapas', 'Tu meta se divide en pasos editables que se marcan de verdad.'],
+              ['⏱️', 'Sesiones comprometidas', 'Eliges días y tiempos; el cronómetro te acompaña en cada una.'],
+              ['📈', 'Progreso que no se inventa', 'Todo se calcula de lo que realmente haces. Sin humo.'],
+            ].map(([emoji, label, desc]) => (
+              <div key={label} className="card card--tight row" style={{ alignItems: 'flex-start', gap: 'var(--s3)' }}>
+                <span aria-hidden="true" style={{ fontSize: 22, flex: 'none' }}>
+                  {emoji}
+                </span>
+                <span>
+                  <strong>{label}</strong>
+                  <span className="small muted" style={{ display: 'block' }}>
+                    {desc}
+                  </span>
+                </span>
+              </div>
+            ))}
           </div>
+          <button className="btn btn--primary btn--block" onClick={() => setStep('niche')}>
+            Empezar
+          </button>
           <button
-            className="btn btn--primary btn--block"
-            disabled={!focusMode}
-            onClick={() => setStep('niche')}
+            className="btn--link"
+            style={{ alignSelf: 'center', fontSize: 'var(--fs-xs)' }}
+            disabled={saving}
+            onClick={() => void finish('/')}
           >
-            Continuar
+            Prefiero mirar la app primero
           </button>
         </section>
       )}
 
+      {/* ----- 2 · Qué cambiar primero ----- */}
       {step === 'niche' && !interview && (
         <section className="stack stack--lg" style={{ marginTop: 'var(--s5)' }}>
-          <button className="iconbtn" onClick={() => setStep('focus')} aria-label="Volver">
+          <button className="iconbtn" onClick={() => setStep('promise')} aria-label="Volver">
             <IconBack />
           </button>
           <header>
-            <h1 className="screen__title">¿Cuál es tu foco?</h1>
-            <p className="screen__subtitle">
-              El área de tu vida en la que quieres avanzar ahora. Después puedes sumar otras.
-            </p>
+            <h1 className="screen__title">¿Qué quieres cambiar primero?</h1>
+            <p className="screen__subtitle">El área donde quieres avanzar ahora. Después puedes sumar otras.</p>
           </header>
 
           {suggested && (
@@ -110,12 +150,12 @@ export function Onboarding() {
               <strong>
                 {getNiche(suggested).emoji} {getNiche(suggested).label}
               </strong>
-              . Podés cambiarlo abajo.
+              . Puedes cambiarlo abajo.
             </div>
           )}
 
           <div className="stack stack--sm">
-            {NICHES.filter((n) => n.id !== 'otra').map((n) => (
+            {NICHES.map((n) => (
               <OptionRow
                 key={n.id}
                 emoji={n.emoji}
@@ -135,13 +175,11 @@ export function Onboarding() {
               setSuggested(null)
             }}
           >
-            🤔 No estoy seguro/a — ayudame a descubrirlo
+            🤔 No estoy seguro — ayúdame a descubrirlo
           </button>
 
-          {error && <div className="alert alert--error">{error}</div>}
-
-          <button className="btn btn--primary btn--block" disabled={!niche || saving} onClick={finish}>
-            {saving ? 'Guardando…' : 'Continuar'}
+          <button className="btn btn--primary btn--block" disabled={!niche} onClick={() => setStep('time')}>
+            Continuar
           </button>
         </section>
       )}
@@ -156,15 +194,88 @@ export function Onboarding() {
           }}
         />
       )}
-    </div>
-  )
-}
 
-function Stepper({ step }: { step: Step }) {
-  return (
-    <div className="stepper" aria-hidden="true" style={{ marginTop: 'var(--s2)' }}>
-      <span className={`stepper__dot ${step === 'focus' ? 'stepper__dot--active' : 'stepper__dot--done'}`} />
-      <span className={`stepper__dot ${step === 'niche' ? 'stepper__dot--active' : ''}`} />
+      {/* ----- 3 · Dedicación (sin techo) ----- */}
+      {step === 'time' && (
+        <section className="stack stack--lg" style={{ marginTop: 'var(--s5)' }}>
+          <button className="iconbtn" onClick={() => setStep('niche')} aria-label="Volver">
+            <IconBack />
+          </button>
+          <header>
+            <h1 className="screen__title">¿Cuánto tiempo puedes dedicarle a tu meta?</h1>
+            <p className="screen__subtitle">
+              Es un punto de partida: después defines cuánto por cada día, y lo ajustas cuando quieras.
+            </p>
+          </header>
+          <div className="stack stack--sm">
+            {TIME_PRESETS.map((m) => (
+              <OptionRow
+                key={m}
+                emoji={m === 15 ? '🌱' : m === 30 ? '🌿' : '🌳'}
+                label={`${m} minutos al día`}
+                selected={!customTime && minutes === m}
+                onClick={() => {
+                  setCustomTime(false)
+                  setMinutes(m)
+                }}
+              />
+            ))}
+            <OptionRow
+              emoji="✏️"
+              label="Otro — tú decides cuánto"
+              selected={customTime}
+              onClick={() => setCustomTime(true)}
+            />
+            {customTime && (
+              <div className="row" style={{ alignItems: 'center', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  className="iconbtn"
+                  aria-label="Restar 5 minutos"
+                  disabled={minutes <= 5}
+                  onClick={() => setMinutes((m) => Math.max(5, m - 5))}
+                >
+                  −
+                </button>
+                <strong style={{ minWidth: 110, textAlign: 'center', fontSize: 'var(--fs-lg)' }}>
+                  {minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60 || ''}${minutes % 60 ? ' min' : ''}` : `${minutes} min`}
+                </strong>
+                <button type="button" className="iconbtn" aria-label="Sumar 5 minutos" onClick={() => setMinutes((m) => m + 5)}>
+                  +
+                </button>
+              </div>
+            )}
+          </div>
+          <button className="btn btn--primary btn--block" onClick={() => setStep('moment')}>
+            Continuar
+          </button>
+        </section>
+      )}
+
+      {/* ----- 4 · Tu momento ----- */}
+      {step === 'moment' && (
+        <section className="stack stack--lg" style={{ marginTop: 'var(--s5)' }}>
+          <button className="iconbtn" onClick={() => setStep('time')} aria-label="Volver">
+            <IconBack />
+          </button>
+          <header>
+            <h1 className="screen__title">¿Cuándo te es más fácil cumplir?</h1>
+            <p className="screen__subtitle">Sugiere la hora de tus sesiones. Siempre puedes cambiarla.</p>
+          </header>
+          <div className="stack stack--sm">
+            <OptionRow emoji="🌅" label="Por la mañana" selected={moment === 'morning'} onClick={() => setMoment('morning')} />
+            <OptionRow emoji="☀️" label="Al mediodía" selected={moment === 'midday'} onClick={() => setMoment('midday')} />
+            <OptionRow emoji="🌙" label="Por la noche" selected={moment === 'evening'} onClick={() => setMoment('evening')} />
+            <OptionRow emoji="🤷" label="Depende del día" selected={moment === null} onClick={() => setMoment(null)} />
+          </div>
+
+          {error && <div className="alert alert--error" role="alert">{error}</div>}
+
+          <button className="btn btn--primary btn--block" disabled={saving} onClick={() => void finish('/meta/nueva')}>
+            {saving ? 'Guardando…' : 'Crear mi primera meta'}
+          </button>
+        </section>
+      )}
     </div>
   )
 }

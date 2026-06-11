@@ -49,11 +49,12 @@ export async function ensureProfile(userId: string): Promise<Profile> {
 }
 
 export interface OnboardingResult {
-  focusMode: FocusMode
-  primaryNiche: NicheId
+  primaryNiche: NicheId | null
+  preferredMoment: Profile['preferredMoment']
+  defaultSessionMinutes: number | null
 }
 
-/** Cierra el onboarding: guarda modo + nicho y marca onboarded_at. */
+/** Cierra el onboarding: guarda foco + ritmo y marca onboarded_at. */
 export async function completeOnboarding(
   userId: string,
   result: OnboardingResult,
@@ -61,8 +62,9 @@ export async function completeOnboarding(
   const { data, error } = await supabase
     .from('profiles')
     .update({
-      focus_mode: result.focusMode,
       primary_niche: result.primaryNiche,
+      preferred_moment: result.preferredMoment,
+      default_session_minutes: result.defaultSessionMinutes,
       onboarded_at: new Date().toISOString(),
     })
     .eq('id', userId)
