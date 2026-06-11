@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   IconCalendar,
+  IconFlame,
   IconGoals,
   IconProfile,
   IconProgress,
@@ -9,6 +10,7 @@ import {
 
 const TABS = [
   { to: '/', label: 'Hoy', Icon: IconToday },
+  { to: '/habitos', label: 'Hábitos', Icon: IconFlame },
   { to: '/metas', label: 'Metas', Icon: IconGoals },
   { to: '/calendario', label: 'Agenda', Icon: IconCalendar },
   { to: '/progreso', label: 'Crecer', Icon: IconProgress },

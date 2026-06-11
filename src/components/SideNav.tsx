@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import {
   IconCalendar,
+  IconFlame,
   IconGoals,
   IconHito,
   IconProfile,
@@ -12,6 +13,7 @@ import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 
 const NAV = [
   { to: '/', label: 'Hoy', Icon: IconToday },
+  { to: '/habitos', label: 'Hábitos', Icon: IconFlame },
   { to: '/metas', label: 'Metas', Icon: IconGoals },
   { to: '/calendario', label: 'Agenda', Icon: IconCalendar },
   { to: '/progreso', label: 'Crecer', Icon: IconProgress },
