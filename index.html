@@ -18,7 +18,7 @@
     />
     <!-- Theme-color declarativo por scheme: el status bar acierta antes de que el script corra. -->
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf5ec" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#16110c" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#121110" />
     <!-- Aplica la variante guardada antes de pintar (sin parpadeo). Una identidad,
          dos variantes: claro/oscuro cálido; "sistema" sigue al SO. Los temas viejos
          (negro, neón) migran a oscuro. -->
@@ -30,7 +30,7 @@
           : raw === 'negro' || raw === 'neon' ? 'oscuro'
           : pref
         document.documentElement.dataset.theme = t
-        var c = { claro: '#faf5ec', oscuro: '#16110c' }[t]
+        var c = { claro: '#faf5ec', oscuro: '#121110' }[t]
         var metas = document.querySelectorAll('meta[name="theme-color"]')
         if (c) metas.forEach(function (m) { m.setAttribute('content', c) })
       } catch (e) {}

@@ -5,7 +5,7 @@ const STORAGE_KEY = 'hito-theme'
 /** Color de la barra del sistema por variante (debe coincidir con index.html). */
 const THEME_COLOR: Record<'claro' | 'oscuro', string> = {
   claro: '#faf5ec',
-  oscuro: '#16110c',
+  oscuro: '#121110',
 }
 
 export const THEMES: { id: Theme; label: string }[] = [

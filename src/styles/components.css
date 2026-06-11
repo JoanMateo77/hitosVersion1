@@ -989,8 +989,11 @@
   color: var(--text-faint);
   font-weight: 500;
 }
+/* Hoy se reconoce de un vistazo: número en color de marca + halo sutil. */
 .cal-cell--today {
-  border-color: var(--border);
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  color: var(--primary);
+  font-weight: 700;
 }
 .cal-cell--selected {
   border-color: var(--primary);
@@ -1100,7 +1103,7 @@
 .sheet__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(2, 6, 20, 0.6);
+  background: rgba(12, 10, 8, 0.62);
 }
 .sheet__panel {
   position: relative;
@@ -1134,7 +1137,7 @@
 .sheet__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(2, 6, 20, 0.6);
+  background: rgba(12, 10, 8, 0.62);
   animation: sheet-fade 220ms ease-out;
 }
 @keyframes sheet-up {
@@ -1709,13 +1712,13 @@ select.input {
   line-height: var(--lh-snug);
 }
 
-/* Barra de progreso: relleno con degradado de marca */
+/* Barra de progreso: relleno verde con un respiro de luz al frente */
 .progress {
   height: 8px;
   background: var(--surface-2);
 }
 .progress__bar {
-  background: var(--success);
+  background: linear-gradient(90deg, var(--success), color-mix(in srgb, var(--success) 78%, #fff));
   transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -2063,8 +2066,8 @@ select.input {
   padding: var(--s5);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 18px;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
 }
 
 /* Progreso: resumen en grilla de tarjetas + línea de tiempo del camino recorrido. */

@@ -132,40 +132,54 @@
     radial-gradient(120% 80% at 100% 100%, rgba(147, 107, 63, 0.1), transparent 60%);
 }
 
-/* ===== Variante OSCURA (cálida) ===========================================
-   Oscuro de madera tostada, no negro frío: misma personalidad que el claro.
-   El naranja sube un punto de brillo; el verde también. */
+/* ===== Variante OSCURA (piedra cálida) ====================================
+   Casi neutro con un grado de calidez — NO marrón chocolate: las superficies
+   saturadas de madera se veían sucias en OLED. Aquí el fondo es piedra oscura,
+   cada nivel de elevación sube un paso de luz, y el naranja de marca es el
+   único que grita. Los colores de nicho suben brillo para leerse sobre oscuro. */
 [data-theme='oscuro'] {
   color-scheme: dark;
 
-  --bg: #16110c;
-  --bg-elev: #1c1610;
-  --surface: #221b13;
-  --surface-2: #2b2218;
-  --surface-3: #362a1c;
-  --border: #46382a;
-  --border-soft: #2e2517;
+  --bg: #121110;
+  --bg-elev: #171513;
+  --surface: #1c1a18;
+  --surface-2: #252220;
+  --surface-3: #302c28;
+  --border: #3b3631;
+  --border-soft: #282522;
 
-  --text: #f2ece4;
-  --text-muted: #c0b39e;
-  --text-faint: #97896f;
+  --text: #f3f0ec;
+  --text-muted: #b5ada2;
+  --text-faint: #847c70;
 
   --primary: #f97316;
   --primary-strong: #fb923c;
-  --primary-soft: rgba(249, 115, 22, 0.16);
+  --primary-soft: rgba(249, 115, 22, 0.14);
   --on-primary: #ffffff;
 
-  --accent: #d9b88a;
-  --accent-soft: rgba(217, 184, 138, 0.12);
+  --accent: #d4b486;
+  --accent-soft: rgba(212, 180, 134, 0.1);
 
-  --success: #34c46d;
-  --success-soft: rgba(52, 196, 109, 0.14);
-  --danger: #f26d85;
-  --danger-soft: rgba(242, 109, 133, 0.12);
-  --warning: #e3b341;
-  --warning-soft: rgba(227, 179, 65, 0.12);
+  --success: #3ecf78;
+  --success-soft: rgba(62, 207, 120, 0.13);
+  --danger: #f4708a;
+  --danger-soft: rgba(244, 112, 138, 0.12);
+  --warning: #e6b84c;
+  --warning-soft: rgba(230, 184, 76, 0.12);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
-  --shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.7);
-  --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(249, 115, 22, 0.07), transparent 60%);
+  /* En oscuro la profundidad la da la elevación de superficie; la sombra solo
+     asienta el borde, sin charcos negros. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow: 0 14px 36px -18px rgba(0, 0, 0, 0.65);
+  --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(249, 115, 22, 0.08), transparent 60%);
+
+  /* Nichos recalibrados para fondo oscuro (un paso más de luz y menos carga). */
+  --niche-salud: #2dc78b;
+  --niche-finanzas: #eead4e;
+  --niche-carrera: #6ba5f5;
+  --niche-aprendizaje: #998cf5;
+  --niche-relaciones: #f278a2;
+  --niche-creatividad: #d878e3;
+  --niche-bienestar: #38c4d3;
+  --niche-otra: #a7afba;
 }

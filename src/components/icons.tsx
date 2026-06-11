@@ -260,6 +260,17 @@ export function IconProgress({ size = 24, className, style }: IconProps) {
   )
 }
 
+/** Triángulo de alerta — pantalla de error y avisos serios. */
+export function IconAlert({ size = 20, className, style }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} style={style} aria-hidden="true">
+      <path d="M10.2 4.2 2.8 17.5a2 2 0 0 0 1.8 3h14.8a2 2 0 0 0 1.8-3L13.8 4.2a2 2 0 0 0-3.6 0Z" />
+      <path d="M12 9.5v4.5" />
+      <circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
 /* ===== Tema / momento del día ============================================ */
 
 export function IconSun({ size = 18, className, style }: IconProps) {
