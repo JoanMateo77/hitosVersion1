@@ -53,7 +53,7 @@ async function drawCard(card: AchievementCard): Promise<HTMLCanvasElement> {
   // Una sola fuente de verdad — la tarjeta nunca diverge del ícono.
   try {
     const icon = new Image()
-    icon.src = '/favicon.svg'
+    icon.src = '/favicon.svg?v=3'
     await icon.decode()
     ctx.drawImage(icon, 96, 92, 168, 168)
   } catch {

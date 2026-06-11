@@ -114,7 +114,9 @@ export function IconHito({
 }: IconProps & { animate?: boolean }) {
   return (
     <img
-      src="/favicon.svg"
+      // El ?v= salta el precache del service worker viejo: sin él, una PWA con
+      // SW desactualizado seguiría mostrando el logo anterior dentro de la app.
+      src="/favicon.svg?v=3"
       width={size}
       height={size}
       className={animate ? [className, 'celebrate-pop'].filter(Boolean).join(' ') : className}
