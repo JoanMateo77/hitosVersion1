@@ -27,6 +27,8 @@ const GoalDetail = lazy(() => import('@/screens/GoalDetail').then((m) => ({ defa
 const Calendar = lazy(() => import('@/screens/Calendar').then((m) => ({ default: m.Calendar })))
 const Progress = lazy(() => import('@/screens/Progress').then((m) => ({ default: m.Progress })))
 const ProfileScreen = lazy(() => import('@/screens/Profile').then((m) => ({ default: m.ProfileScreen })))
+const Habits = lazy(() => import('@/screens/Habits').then((m) => ({ default: m.Habits })))
+const Learn = lazy(() => import('@/screens/Learn').then((m) => ({ default: m.Learn })))
 
 /**
  * Punto de entrada de la app. Resuelve las capas en orden:
@@ -120,6 +122,8 @@ function ProfiledApp({ userId, email }: { userId: string; email: string }) {
                 <Route path="/metas/:goalId" element={<GoalDetail />} />
                 <Route path="/calendario" element={<Calendar />} />
                 <Route path="/progreso" element={<Progress />} />
+                <Route path="/aprender" element={<Learn />} />
+                <Route path="/habitos" element={<Habits />} />
                 <Route path="/revision" element={<Review />} />
                 <Route path="/perfil" element={<ProfileScreen />} />
               </Route>

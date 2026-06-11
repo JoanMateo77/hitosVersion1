@@ -18,6 +18,7 @@ interface SessionRow {
   status: string
   paused_at: string | null
   paused_total_seconds: number | null
+  accomplishment: string | null
   created_at: string
 }
 
@@ -39,6 +40,7 @@ function mapSession(row: SessionRow): Session {
     status: row.status as SessionStatus,
     pausedAt: row.paused_at,
     pausedTotalSeconds: row.paused_total_seconds ?? 0,
+    accomplishment: row.accomplishment ?? null,
     createdAt: row.created_at,
   }
 }
@@ -168,6 +170,27 @@ export function finishSession(
     ended_at: new Date().toISOString(),
     paused_at: null,
   })
+}
+
+/** Diario de avances: guarda qué lograste en una sesión (texto corto, opcional). */
+export function setSessionAccomplishment(
+  sessionId: string,
+  accomplishment: string | null,
+): Promise<Session> {
+  return patchSession(sessionId, { accomplishment })
+}
+
+/** Avances registrados de una meta (sesiones con nota), de la más reciente atrás. */
+export async function listAccomplishments(goalId: string, limit = 30): Promise<Session[]> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('*')
+    .eq('goal_id', goalId)
+    .not('accomplishment', 'is', null)
+    .order('session_date', { ascending: false })
+    .limit(limit)
+  if (error) throw new Error(error.message)
+  return (data as SessionRow[]).map(mapSession)
 }
 
 /**

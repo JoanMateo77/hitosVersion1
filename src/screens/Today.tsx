@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import type { CalendarEvent, Goal, ScheduleBlock, Session, Task } from '@/lib/types'
+import type { CalendarEvent, Goal, Habit, HabitCheck, ScheduleBlock, Session, Task } from '@/lib/types'
 import { listGoals, markGoalReviewed, setGoalStatus } from '@/services/goals'
 import { createUserTask, deleteTask, listTasksForDate, setTaskStatus, updateTaskTitle } from '@/services/tasks'
 import { listScheduleForUser } from '@/services/schedule'
@@ -16,6 +16,9 @@ import {
   resumeClosedSession,
 } from '@/services/sessions'
 import { listEventsInRange } from '@/services/events'
+import { listHabits, listHabitChecksInRange, setHabitCheck } from '@/services/habits'
+import { habitsDueOn, habitStreak } from '@/domain/habits'
+import { HabitRow } from '@/components/HabitRow'
 import { compareEvents } from '@/domain/calendar'
 import { findForgottenGoal, goalsDueForReview } from '@/domain/dailyPlan'
 import { currentStreakCommitted, formatClock, pickSuggestion, remainingSeconds } from '@/domain/sessions'
@@ -55,6 +58,8 @@ export function Today() {
   const [history, setHistory] = useState<Session[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [habits, setHabits] = useState<Habit[]>([])
+  const [habitChecks, setHabitChecks] = useState<HabitCheck[]>([])
   const [refreshKey, setRefreshKey] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -83,7 +88,7 @@ export function Today() {
         // Sesiones que quedaron corriendo de otros días → "sin confirmar".
         if (shouldGenerate) await closeStaleSessions(userId, today).catch(() => {})
 
-        const [loadedGoals, loadedBlocks, loadedTasks, loadedEvents, loadedHistory] =
+        const [loadedGoals, loadedBlocks, loadedTasks, loadedEvents, loadedHistory, loadedHabits, loadedChecks] =
           await Promise.all([
             listGoals(userId),
             listScheduleForUser(userId),
@@ -91,6 +96,8 @@ export function Today() {
             listEventsInRange(userId, today, today),
             // 120 días para la racha; incluye la semana en curso.
             listSessionsInRange(userId, addDays(today, -119), addDays(today, -1)),
+            listHabits(userId).catch(() => []),
+            listHabitChecksInRange(userId, addDays(today, -119), today).catch(() => []),
           ])
 
         // Las sesiones de hoy nacen del compromiso, no de heurísticas.
@@ -110,6 +117,8 @@ export function Today() {
           setHistory(loadedHistory)
           setTasks(loadedTasks)
           setEvents(loadedEvents)
+          setHabits(loadedHabits)
+          setHabitChecks(loadedChecks)
         }
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : 'No se pudo cargar tu día.')
@@ -186,6 +195,47 @@ export function Today() {
       ) ?? null,
     [history, today, goalById],
   )
+
+  // ----- Hábitos de hoy: rutinas de un toque -----
+  const todayHabits = useMemo(() => habitsDueOn(habits, today), [habits, today])
+  const habitDoneToday = useMemo(
+    () => new Set(habitChecks.filter((c) => c.date === today).map((c) => c.habitId)),
+    [habitChecks, today],
+  )
+  const habitStreaks = useMemo(() => {
+    const byHabit = new Map<string, Set<string>>()
+    for (const c of habitChecks) {
+      const set = byHabit.get(c.habitId) ?? new Set<string>()
+      set.add(c.date)
+      byHabit.set(c.habitId, set)
+    }
+    const m = new Map<string, number>()
+    for (const h of todayHabits) {
+      m.set(h.id, habitStreak(byHabit.get(h.id) ?? new Set(), h.weekdays, today))
+    }
+    return m
+  }, [habitChecks, todayHabits, today])
+
+  function toggleHabit(h: Habit) {
+    const wasDone = habitDoneToday.has(h.id)
+    // Optimista: la marca cambia al instante; si falla la red, se revierte.
+    setHabitChecks((prev) =>
+      wasDone
+        ? prev.filter((c) => !(c.habitId === h.id && c.date === today))
+        : [...prev, { habitId: h.id, date: today }],
+    )
+    void withErrorHandling(
+      async () => {
+        await setHabitCheck(userId, h.id, today, !wasDone)
+      },
+      () =>
+        setHabitChecks((prev) =>
+          wasDone
+            ? [...prev, { habitId: h.id, date: today }]
+            : prev.filter((c) => !(c.habitId === h.id && c.date === today)),
+        ),
+    )
+  }
 
   const userTasks = useMemo(
     () => tasks.filter((t) => t.source === 'user' && t.status !== 'postponed'),
@@ -602,6 +652,35 @@ export function Today() {
                 </button>
               </div>
             </div>
+          )}
+
+          {/* ----- Hábitos de hoy: un toque y listo ----- */}
+          {todayHabits.length > 0 ? (
+            <section aria-label="Tus hábitos de hoy">
+              <div className="section-head">
+                <span className="kicker">Tus hábitos de hoy</span>
+                <button className="btn--link" onClick={() => navigate('/habitos')}>
+                  Gestionar
+                </button>
+              </div>
+              <div className="stack stack--sm">
+                {todayHabits.map((h) => (
+                  <HabitRow
+                    key={h.id}
+                    habit={h}
+                    done={habitDoneToday.has(h.id)}
+                    streak={habitStreaks.get(h.id) ?? 0}
+                    onToggle={() => toggleHabit(h)}
+                  />
+                ))}
+              </div>
+            </section>
+          ) : (
+            habits.length === 0 && (
+              <button className="btn btn--ghost btn--sm" style={{ alignSelf: 'flex-start' }} onClick={() => navigate('/habitos')}>
+                <IconPlus size={16} /> Sumar un hábito diario
+              </button>
+            )
           )}
 
           {actionError && (

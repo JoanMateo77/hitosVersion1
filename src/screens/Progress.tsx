@@ -121,6 +121,16 @@ export function Progress() {
         <h1 className="screen__title">Progreso</h1>
       </header>
 
+      {/* La pestaña Crecer tiene dos caras: tu progreso y lo que aprendes. */}
+      <div className="seg mb-4" role="group" aria-label="Sección de Crecer">
+        <button className="seg__btn seg__btn--active" aria-pressed="true">
+          Progreso
+        </button>
+        <button className="seg__btn" aria-pressed="false" onClick={() => navigate('/aprender')}>
+          Aprender
+        </button>
+      </div>
+
       <div className="progress-grid">
       {/* ----- Tu semana ----- */}
       <section className="card stack stack--sm" aria-label="Tu semana">

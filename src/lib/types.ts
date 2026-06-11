@@ -190,5 +190,50 @@ export interface Session {
   /** Pausa del cronómetro: cuándo se pausó y cuánto acumula en pausas. */
   pausedAt: string | null
   pausedTotalSeconds: number
+  /** Diario de avances: qué lograste en esta sesión (opcional). */
+  accomplishment: string | null
   createdAt: string
+}
+
+/* ===== Hábitos diarios (zona nueva 2026-06) ================================ */
+
+/** Rutina de un toque: sin etapas ni cronómetro. Marcar = cumplido hoy. */
+export interface Habit {
+  id: string
+  userId: string
+  title: string
+  area: NicheId
+  /** Días en que aplica (lunes=0 … domingo=6). Vacío = todos los días. */
+  weekdays: number[]
+  createdAt: string
+  archivedAt: string | null
+}
+
+/** Marca diaria de un hábito cumplido. */
+export interface HabitCheck {
+  habitId: string
+  date: string
+}
+
+/* ===== Aprender (micro-lecciones de crecimiento) =========================== */
+
+/** Lección de 2 minutos: una idea + cómo aplicarla hoy. */
+export interface LearnLesson {
+  id: string
+  title: string
+  /** La idea central, en 2-4 frases claras. */
+  idea: string
+  /** Cómo aplicarla hoy mismo, concreto. */
+  apply: string
+  /** Acción sugerida: convertir la lección en un hábito o una meta. */
+  cta?: { kind: 'habit' | 'goal'; title: string; area: NicheId }
+}
+
+/** Colección de lecciones con un hilo conductor. */
+export interface LearnCollection {
+  id: string
+  title: string
+  blurb: string
+  area: NicheId
+  lessons: LearnLesson[]
 }

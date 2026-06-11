@@ -13,6 +13,7 @@ import {
 import { listActiveGoalSchedule, listScheduleForGoal, replaceSchedule } from '@/services/schedule'
 import {
   generateSessionsForDate,
+  listAccomplishments,
   listSessionsInRange,
   sessionStatsForGoal,
 } from '@/services/sessions'
@@ -69,6 +70,8 @@ export function GoalDetail() {
   const [milestones, setMilestones] = useState<Milestone[]>([])
   const [blocks, setBlocks] = useState<ScheduleBlock[]>([])
   const [weekSessions, setWeekSessions] = useState<Session[]>([])
+  /** Diario de avances: sesiones con nota de qué se logró. */
+  const [advances, setAdvances] = useState<Session[]>([])
   const [stats, setStats] = useState({ done: 0, minutes: 0 })
   const [weekMinutes, setWeekMinutes] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -91,13 +94,14 @@ export function GoalDetail() {
         setLoading(true)
         const id = goalId ?? ''
         const weekStart = startOfWeek(todayISO())
-        const [g, ms, blks, weekSess, st, mins] = await Promise.all([
+        const [g, ms, blks, weekSess, st, mins, adv] = await Promise.all([
           getGoal(id),
           listMilestones(id),
           listScheduleForGoal(id),
           listSessionsInRange(userId, weekStart, addDays(weekStart, 6)),
           sessionStatsForGoal(id),
           minutesByGoalInRange(userId, weekStart, addDays(weekStart, 6)),
+          listAccomplishments(id),
         ])
         if (!active) return
         setGoal(g)
@@ -106,6 +110,7 @@ export function GoalDetail() {
         setWeekSessions(weekSess.filter((s) => s.goalId === id))
         setStats(st)
         setWeekMinutes(mins.get(id) ?? 0)
+        setAdvances(adv)
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : 'No se pudo cargar la meta.')
       } finally {
@@ -446,6 +451,32 @@ export function GoalDetail() {
               </div>
             )}
           </div>
+
+          {/* ----- Tus avances: el diario de lo que lograste sesión a sesión ----- */}
+          {advances.length > 0 && (
+            <div>
+              <div className="section-head">
+                <h2 style={{ fontSize: 'var(--fs-lg)' }}>Tus avances</h2>
+                <span className="small muted">{advances.length}</span>
+              </div>
+              <ul className="timeline">
+                {advances.map((s) => (
+                  <li key={s.id} className="timeline__item">
+                    <span className="timeline__dot timeline__dot--done" aria-hidden="true" />
+                    <div className="timeline__card" style={{ cursor: 'default' }}>
+                      <span className="timeline__title">{s.accomplishment}</span>
+                      <span className="faint tiny">
+                        {formatLongDate(s.date)}
+                        {s.actualValue
+                          ? ` · ${s.targetKind === 'time' ? formatDuration(s.actualValue) : `${s.actualValue} ${s.unit ?? ''}`}`
+                          : ''}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         <div className="detail-grid__side stack stack--lg">

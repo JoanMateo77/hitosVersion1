@@ -8,6 +8,7 @@ import {
   getSession,
   pauseSession,
   resumeSession,
+  setSessionAccomplishment,
   startSession,
 } from '@/services/sessions'
 import { elapsedSeconds, formatClock, isTimeReached, pickSuggestion, remainingSeconds } from '@/domain/sessions'
@@ -126,8 +127,10 @@ export function SessionRun() {
   /** Objetivo cumplido pero el usuario quiere seguir: el reloj cuenta hacia arriba. */
   const [keepGoing, setKeepGoing] = useState(false)
   const [milestones, setMilestones] = useState<Milestone[]>([])
-  /** Tras guardar el cierre: ofrecer marcar la etapa actual (sesión → etapa). */
+  /** Tras guardar el cierre: registrar el avance y ofrecer marcar la etapa. */
   const [finishedStatus, setFinishedStatus] = useState<'done' | 'partial' | null>(null)
+  /** Diario de avances: qué lograste en esta sesión (opcional). */
+  const [note, setNote] = useState('')
 
   useEffect(() => {
     let active = true
@@ -267,9 +270,9 @@ export function SessionRun() {
     setSaving(true)
     try {
       await finishSession(session.id, { status, actualValue })
-      // Conexión sesión → etapa: si hubo trabajo real y hay una etapa en curso,
-      // ofrecemos marcarla antes de volver. "No pude" vuelve directo.
-      if (status !== 'missed' && currentMilestone) {
+      // Hubo trabajo real: pantalla de cierre para registrar el avance (y la
+      // etapa, si hay una en curso). "No pude" vuelve directo, sin fricción.
+      if (status !== 'missed') {
         setFinishedStatus(status)
         setSaving(false)
       } else {
@@ -281,10 +284,22 @@ export function SessionRun() {
     }
   }
 
+  /** Guarda la nota de avance (si la hay) — nunca bloquea la salida. */
+  async function saveNote() {
+    const text = note.trim()
+    if (text && session) await setSessionAccomplishment(session.id, text).catch(() => {})
+  }
+
   async function completeMilestoneAndLeave() {
-    if (!currentMilestone) return navigate('/', { replace: true })
     setSaving(true)
-    await setMilestoneDone(currentMilestone.id, true).catch(() => {})
+    await saveNote()
+    if (currentMilestone) await setMilestoneDone(currentMilestone.id, true).catch(() => {})
+    navigate('/', { replace: true })
+  }
+
+  async function leaveWithNote() {
+    setSaving(true)
+    await saveNote()
     navigate('/', { replace: true })
   }
 
@@ -302,7 +317,7 @@ export function SessionRun() {
           {goal.title} · {targetLabel}
         </span>
 
-        {finishedStatus && currentMilestone ? (
+        {finishedStatus ? (
           <div className="stack stack--sm center" style={{ width: '100%', alignItems: 'center' }}>
             <span className="empty__icon" style={{ width: 56, height: 56 }}>
               <IconCheck size={26} />
@@ -310,15 +325,44 @@ export function SessionRun() {
             <h2 style={{ fontSize: 'var(--fs-lg)', textAlign: 'center' }}>
               {finishedStatus === 'done' ? 'Sesión cumplida' : 'Parcial guardado'}
             </h2>
-            <p className="small muted center" style={{ maxWidth: 360 }}>
-              ¿Completaste la etapa “{currentMilestone.title}”?
-            </p>
-            <button className="btn btn--primary btn--block" disabled={saving} onClick={() => void completeMilestoneAndLeave()}>
-              Sí, cumplida
-            </button>
-            <button className="btn btn--ghost btn--block" onClick={() => navigate('/', { replace: true })}>
-              Aún no
-            </button>
+
+            {/* Diario de avances: en el futuro podrás recordar cómo llegaste. */}
+            <div className="field" style={{ width: '100%', maxWidth: 400, textAlign: 'left' }}>
+              <label className="field__label" htmlFor="session-note">
+                ¿Qué lograste en este tiempo? (opcional)
+              </label>
+              <input
+                id="session-note"
+                className="input"
+                placeholder="Ej: terminé el capítulo 3, corrí 5 km…"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                maxLength={200}
+                autoCapitalize="sentences"
+                autoCorrect="on"
+                enterKeyHint="done"
+                inputMode="text"
+              />
+              <span className="field__hint">Queda en tu meta, para ver el camino recorrido.</span>
+            </div>
+
+            {currentMilestone ? (
+              <>
+                <p className="small muted center" style={{ maxWidth: 360 }}>
+                  ¿Completaste la etapa “{currentMilestone.title}”?
+                </p>
+                <button className="btn btn--primary btn--block" disabled={saving} onClick={() => void completeMilestoneAndLeave()}>
+                  Sí, cumplida
+                </button>
+                <button className="btn btn--ghost btn--block" disabled={saving} onClick={() => void leaveWithNote()}>
+                  Aún no
+                </button>
+              </>
+            ) : (
+              <button className="btn btn--primary btn--block" disabled={saving} onClick={() => void leaveWithNote()}>
+                Guardar y volver
+              </button>
+            )}
           </div>
         ) : (
           <>

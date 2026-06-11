@@ -33,7 +33,7 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lines.slice(0, 4)
 }
 
-function drawCard(card: AchievementCard): HTMLCanvasElement {
+async function drawCard(card: AchievementCard): Promise<HTMLCanvasElement> {
   const canvas = document.createElement('canvas')
   canvas.width = W
   canvas.height = H
@@ -49,16 +49,16 @@ function drawCard(card: AchievementCard): HTMLCanvasElement {
   ctx.fillStyle = halo
   ctx.fillRect(0, 0, W, H)
 
-  // Check de la marca (esquina superior izquierda) — misma geometría que favicon.svg.
-  ctx.save()
-  ctx.translate(190, 180)
-  ctx.rotate((33 * Math.PI) / 180)
-  ctx.fillStyle = '#ea580c'
-  ctx.beginPath()
-  ctx.roundRect(6, -72, 36, 144, 10)
-  ctx.roundRect(-55, 36, 97, 36, 10)
-  ctx.fill()
-  ctx.restore()
+  // Marca (esquina superior izquierda): el MISMO favicon de la app, estampado.
+  // Una sola fuente de verdad — la tarjeta nunca diverge del ícono.
+  try {
+    const icon = new Image()
+    icon.src = '/favicon.svg'
+    await icon.decode()
+    ctx.drawImage(icon, 96, 92, 168, 168)
+  } catch {
+    /* sin ícono la tarjeta sigue siendo válida */
+  }
 
   // Kicker
   ctx.fillStyle = '#75664e'
@@ -94,7 +94,7 @@ function drawCard(card: AchievementCard): HTMLCanvasElement {
 export async function shareAchievement(card: AchievementCard): Promise<'shared' | 'downloaded'> {
   // Sin las fuentes de marca cargadas, el canvas caería a Georgia/sans.
   await document.fonts?.ready?.catch?.(() => {})
-  const canvas = drawCard(card)
+  const canvas = await drawCard(card)
   const text = `${card.kicker}: ${card.title} — ${card.stats}. Hecho con Lógralo.`
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))

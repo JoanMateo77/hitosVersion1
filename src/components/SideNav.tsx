@@ -14,7 +14,7 @@ const NAV = [
   { to: '/', label: 'Hoy', Icon: IconToday },
   { to: '/metas', label: 'Metas', Icon: IconGoals },
   { to: '/calendario', label: 'Agenda', Icon: IconCalendar },
-  { to: '/progreso', label: 'Progreso', Icon: IconProgress },
+  { to: '/progreso', label: 'Crecer', Icon: IconProgress },
   { to: '/perfil', label: 'Perfil', Icon: IconProfile },
 ] as const
 
