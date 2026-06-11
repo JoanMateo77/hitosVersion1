@@ -26,7 +26,7 @@ export function Auth() {
         // Solo avisamos si de verdad quedó pendiente de confirmar email; si el login
         // es inmediato, useAuth mete al usuario a la app sin un aviso a medias.
         if (needsConfirmation) {
-          setNotice('Listo, tu cuenta está creada. Revisá tu casilla para confirmar el email.')
+          setNotice('Listo, tu cuenta está creada. Revisa tu casilla para confirmar el email.')
         }
       } else {
         await signIn(email.trim(), password)
@@ -49,7 +49,7 @@ export function Auth() {
     setLoading(true)
     try {
       await resetPassword(target)
-      setNotice('Te mandamos un email para recuperar tu contraseña. Revisá tu casilla.')
+      setNotice('Te mandamos un email para recuperar tu contraseña. Revisa tu casilla.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo enviar el email.')
     } finally {
@@ -123,7 +123,7 @@ export function Auth() {
 
         <div className="auth-form-card">
           <form className="stack stack--lg" onSubmit={handleSubmit}>
-            <h1 className="auth-form__title">{isSignup ? 'Creá tu cuenta' : 'Entrá'}</h1>
+            <h1 className="auth-form__title">{isSignup ? 'Crea tu cuenta' : 'Entra'}</h1>
 
             <div className="field">
               <label className="field__label" htmlFor="email">
@@ -137,7 +137,7 @@ export function Auth() {
                 autoComplete="email"
                 autoCapitalize="none"
                 spellCheck={false}
-                placeholder="vos@email.com"
+                placeholder="tu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -188,7 +188,7 @@ export function Auth() {
           <p className="center muted" style={{ marginTop: 'var(--s5)' }}>
             {isSignup ? '¿Ya tienes cuenta?' : '¿Primera vez?'}{' '}
             <button type="button" className="btn--link" onClick={switchMode}>
-              {isSignup ? 'Entrá' : 'Creá tu cuenta'}
+              {isSignup ? 'Entra' : 'Crea tu cuenta'}
             </button>
           </p>
         </div>

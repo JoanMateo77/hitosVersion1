@@ -1774,15 +1774,19 @@ select.input {
   position: relative;
   isolation: isolate;
 }
+/* Lavado de marca SIMÉTRICO: un solo halo centrado arriba. (El segundo radial
+   descentrado verde hacía ver la pantalla "torcida", sobre todo en oscuro.) */
 .screen--full::before {
   content: '';
   position: absolute;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background:
-    radial-gradient(60% 45% at 50% 0%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 70%),
-    radial-gradient(45% 35% at 85% 12%, color-mix(in srgb, var(--success) 10%, transparent), transparent 70%);
+  background: radial-gradient(
+    56% 42% at 50% 0%,
+    color-mix(in srgb, var(--primary) 13%, transparent),
+    transparent 70%
+  );
 }
 .screen--full .brand {
   font-size: var(--fs-3xl);
@@ -1950,24 +1954,47 @@ select.input {
 }
 
 @media (min-width: 1024px) {
-  /* --- Pantallas de flujo: panel centrado --- */
+  /* --- Pantallas de flujo: PANEL real de escritorio ---
+     En monitores, el flujo deja de ser una columna de celular flotando en el
+     vacío: vive en un panel con superficie, borde y sombra, centrado en ambos
+     ejes — como un diálogo de producto, no como un teléfono estirado. */
   .app:has(.flow-screen) {
     max-width: none;
   }
   .flow-screen {
     width: 100%;
-    max-width: 600px;
+    max-width: 640px;
     /* No estirar a toda la altura: el bloque se sizea al contenido y se centra
        vertical (los botones quedan junto al contenido, sin hueco). */
     flex: 0 0 auto;
     margin-inline: auto;
     margin-block: auto;
-    padding-left: var(--s6);
-    padding-right: var(--s6);
+    padding: var(--s8);
+    background: var(--bg-elev);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow);
   }
   /* Sugerencias muestran las ideas en dos columnas: necesitan más ancho. */
   .flow-screen--wide {
     max-width: 820px;
+  }
+
+  /* El cronómetro: panel enfocado con el halo del color de la meta y el anillo
+     a tamaño de escritorio. */
+  .flow-screen--session {
+    max-width: 620px;
+    background:
+      radial-gradient(
+        120% 80% at 50% 0%,
+        color-mix(in srgb, var(--niche, var(--primary)) 9%, transparent),
+        transparent 65%
+      ),
+      var(--bg-elev);
+    border-color: color-mix(in srgb, var(--niche, var(--primary)) 22%, var(--border-soft));
+  }
+  .flow-screen--session .ring {
+    width: min(300px, 100%);
   }
   .flow-screen .suggestions-grid {
     display: grid;

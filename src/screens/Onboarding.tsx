@@ -93,21 +93,7 @@ export function Onboarding() {
       {step === 'promise' && (
         <section className="stack stack--lg" style={{ marginTop: 'var(--s8)', flex: 1 }}>
           <header className="center stack stack--sm" style={{ alignItems: 'center' }}>
-            <span
-              aria-hidden="true"
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 18,
-                background: 'var(--gradient-brand)',
-                color: 'var(--on-primary)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <IconHito size={34} />
-            </span>
+            <IconHito size={64} />
             <h1 className="screen__title">Lógralo</h1>
             <p className="screen__subtitle center">Tu meta, con un compromiso real.</p>
           </header>

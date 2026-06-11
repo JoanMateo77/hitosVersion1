@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useId, type CSSProperties } from 'react'
 
 /** Set de íconos como SVG inline (sin dependencias). Heredan currentColor.
  *
@@ -103,31 +103,38 @@ export function IconSparkles({ size = 20, className, style }: IconProps) {
   )
 }
 
-/** Logo de marca de Hito: un camino ascendente con hitos, el último alcanzado. */
+/** Logo de marca de Lógralo: la baldosa naranja con el check construido en blanco.
+ *  Misma geometría que public/favicon.svg — la marca se ve IGUAL en la app,
+ *  la pestaña del navegador y el ícono instalado. */
 export function IconHito({
   size = 22,
   className,
   style,
   animate = false,
 }: IconProps & { animate?: boolean }) {
+  // Cada instancia necesita su propio id de gradiente (puede haber varias en pantalla).
+  const gid = useId()
   return (
     <svg
       width={size}
       height={size}
-      viewBox="-1 -1 26 26"
+      viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
-      strokeWidth={size <= 22 ? 1.85 : 2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
       className={animate ? [className, 'celebrate-pop'].filter(Boolean).join(' ') : className}
       style={style}
       aria-hidden="true"
     >
-      {/* El check de Lógralo: dos barras gruesas en L, rotadas 40°. */}
-      <g transform="translate(12 12.3) scale(0.79) rotate(40) translate(-12 -12)" stroke="none">
-        <rect x="12.7" y="3" width="4.9" height="18" rx="1.5" fill="currentColor" />
-        <rect x="5.5" y="16.1" width="12.1" height="4.9" rx="1.5" fill="currentColor" />
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#f97316" />
+          <stop offset="1" stopColor="#ea580c" />
+        </linearGradient>
+      </defs>
+      <rect width="24" height="24" rx="5.44" fill={`url(#${gid})`} />
+      {/* El check construido: dos barras gruesas en L, rotadas 40° (= favicon.svg). */}
+      <g transform="translate(12 12.28) scale(0.84) rotate(40) translate(-12 -12)">
+        <rect x="12.66" y="3" width="4.88" height="18" rx="1.41" fill="#ffffff" />
+        <rect x="5.53" y="16.13" width="12" height="4.88" rx="1.41" fill="#ffffff" />
       </g>
     </svg>
   )

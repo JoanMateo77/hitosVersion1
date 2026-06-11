@@ -289,10 +289,7 @@ export function SessionRun() {
   }
 
   return (
-    <div
-      className="screen screen--full flow-screen"
-      style={{ ...nicheAccent(goal.area), width: '100%', maxWidth: 560, margin: '0 auto' }}
-    >
+    <div className="screen screen--full flow-screen flow-screen--session" style={nicheAccent(goal.area)}>
       <div className="row" style={{ marginBottom: 'var(--s4)' }}>
         <button className="iconbtn" onClick={() => navigate('/')} aria-label="Volver a tu día">
           <IconBack />
