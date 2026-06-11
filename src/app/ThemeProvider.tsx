@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { applyTheme, readTheme, type Theme } from '@/app/theme'
 
 interface ThemeContextValue {
@@ -19,6 +19,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setThemeState(next)
     applyTheme(next)
   }, [])
+  // En modo Sistema, seguir los cambios de apariencia del SO en vivo.
+  useEffect(() => {
+    if (theme !== 'sistema') return
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = () => applyTheme('sistema')
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [theme])
   return <ThemeContext.Provider value={{ theme, setTheme }}>{children}</ThemeContext.Provider>
 }
 

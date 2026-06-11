@@ -1,15 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Hito">
-  <rect width="512" height="512" fill="#0b1220" />
-  <polyline
-    points="138,358 256,282 374,184"
-    fill="none"
-    stroke="#334155"
-    stroke-width="16"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  />
-  <circle cx="138" cy="358" r="26" fill="#475569" />
-  <circle cx="256" cy="282" r="26" fill="#2dd4a7" />
-  <circle cx="374" cy="184" r="46" fill="#34d399" opacity="0.25" />
-  <circle cx="374" cy="184" r="36" fill="#34d399" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Lógralo">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f97316"/>
+      <stop offset="1" stop-color="#ea580c"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#g)"/>
+  <path d="M132 268 L222 360 L388 152" fill="none" stroke="#ffffff" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

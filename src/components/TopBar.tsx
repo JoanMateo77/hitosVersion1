@@ -9,7 +9,7 @@ export function TopBar() {
         <span className="brand__mark">
           <IconHito size={20} />
         </span>
-        Hito
+        Lógralo
       </span>
       <ThemeSwitcher variant="compact" />
     </header>

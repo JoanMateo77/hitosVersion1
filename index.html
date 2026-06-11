@@ -17,16 +17,20 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <!-- Theme-color declarativo por scheme: el status bar acierta antes de que el script corra. -->
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f0e6" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#05060f" />
-    <!-- Aplica el tema guardado antes de pintar, para no parpadear claro/neón.
-         Default = "claro" paper warm; usuarios con tema "oscuro" viejo caen a claro. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf5ec" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#16110c" />
+    <!-- Aplica la variante guardada antes de pintar (sin parpadeo). Una identidad,
+         dos variantes: claro/oscuro cálido; "sistema" sigue al SO. Los temas viejos
+         (negro, neón) migran a oscuro. -->
     <script>
       try {
         var raw = localStorage.getItem('hito-theme')
-        var t = (raw === 'claro' || raw === 'neon') ? raw : 'claro'
+        var pref = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'oscuro' : 'claro'
+        var t = raw === 'claro' || raw === 'oscuro' ? raw
+          : raw === 'negro' || raw === 'neon' ? 'oscuro'
+          : pref
         document.documentElement.dataset.theme = t
-        var c = { claro: '#f5f0e6', neon: '#05060f' }[t]
+        var c = { claro: '#faf5ec', oscuro: '#16110c' }[t]
         var metas = document.querySelectorAll('meta[name="theme-color"]')
         if (c) metas.forEach(function (m) { m.setAttribute('content', c) })
       } catch (e) {}
@@ -34,12 +38,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Hito" />
+    <meta name="apple-mobile-web-app-title" content="Lógralo" />
     <meta
       name="description"
-      content="Hito: define metas, recibí un plan del día y avanzá un paso por vez."
+      content="Lógralo: metas con un compromiso real — sesiones, etapas y progreso que no se inventa."
     />
-    <title>Hito — metas con guía</title>
+    <title>Lógralo — metas con compromiso</title>
   </head>
   <body>
     <div id="root"></div>

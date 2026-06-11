@@ -97,7 +97,7 @@ export function Auth() {
         <span className="brand__mark auth-hero__mark" style={{ color: 'var(--primary)' }}>
           <IconHito size={96} animate />
         </span>
-        <span className="brand auth-hero__brand">Hito</span>
+        <span className="brand auth-hero__brand">Lógralo</span>
         <h1 className="auth-hero__headline">Un hito por día hacia lo que te proponés.</h1>
         <p className="auth-hero__lede">
           Definí tu meta, te armo el plan diario, y avanzás un paso a la vez. Sin apps de hábitos
@@ -114,7 +114,7 @@ export function Auth() {
             className="brand"
             style={{ justifyContent: 'center', fontSize: 'var(--fs-3xl)', marginTop: 'var(--s2)' }}
           >
-            Hito
+            Lógralo
           </span>
           <p className="muted" style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--fs-lg)' }}>
             Un hito por día hacia lo que te proponés.

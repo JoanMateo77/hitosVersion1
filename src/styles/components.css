@@ -1110,20 +1110,6 @@ select.input {
 }
 
 /* ---- Realces del tema neón --------------------------------------------- */
-[data-theme='neon'] .btn--primary,
-[data-theme='neon'] .seg__btn--active {
-  box-shadow: var(--glow);
-}
-[data-theme='neon'] .brand__mark {
-  filter: drop-shadow(0 0 7px var(--primary));
-}
-[data-theme='neon'] .bottomnav__item--active {
-  text-shadow: 0 0 10px var(--primary);
-}
-[data-theme='neon'] .check--done {
-  box-shadow: 0 0 12px var(--success);
-}
-
 /* ---- Skeletons de carga ------------------------------------------------- */
 .skeleton {
   background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 37%, var(--surface) 63%);
@@ -1538,10 +1524,6 @@ select.input {
     left: var(--sidenav-width);
   }
 }
-[data-theme='neon'] .sidenav__item--active {
-  text-shadow: 0 0 10px var(--primary);
-}
-
 /* ============================================================================
    Pulido visual — jerarquía, elevación, estados táctiles y micro-interacciones.
    Extiende reglas previas (gana por orden de cascada) y todo deriva de los
@@ -1709,7 +1691,7 @@ select.input {
   background: var(--surface-2);
 }
 .progress__bar {
-  background: linear-gradient(90deg, var(--primary), var(--success));
+  background: var(--success);
   transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -1788,26 +1770,6 @@ select.input {
 }
 
 /* Refinamiento NEÓN: la luz sigue a la marca y a lo interactivo, no al texto plano */
-[data-theme='neon'] .card,
-[data-theme='neon'] .task,
-[data-theme='neon'] .ev,
-[data-theme='neon'] .goal-card {
-  box-shadow: var(--neon-rim);
-  border-color: color-mix(in srgb, var(--primary) 12%, var(--border));
-}
-[data-theme='neon'] .btn--primary {
-  box-shadow: var(--glow), 0 4px 16px color-mix(in srgb, var(--primary) 30%, transparent);
-}
-[data-theme='neon'] .focus-card {
-  box-shadow: var(--neon-rim);
-}
-[data-theme='neon'] .progress__bar {
-  box-shadow: 0 0 10px color-mix(in srgb, var(--success) 60%, transparent);
-}
-[data-theme='neon'] .cal-cell--selected {
-  box-shadow: 0 0 12px color-mix(in srgb, var(--primary) 35%, transparent);
-}
-
 /* Refinamiento CLARO: separar tarjetas por sombra (no solo borde) */
 [data-theme='claro'] .card {
   box-shadow: var(--shadow);

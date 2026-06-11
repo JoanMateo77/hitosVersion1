@@ -124,16 +124,13 @@ export function IconHito({
       style={style}
       aria-hidden="true"
     >
+      {/* El check de Lógralo: la promesa cumplida, trazo redondeado. */}
       <path
-        d="M4 17.5C8 14 9 12 11.5 12C14 12 15 9 20 5.5"
-        opacity="0.55"
+        d="M4.5 13.5L10 19L20 6"
+        strokeWidth={size <= 22 ? 2.6 : 3}
         pathLength={animate ? 1 : undefined}
         className={animate ? 'hito-logo__path' : undefined}
       />
-      <circle cx="4" cy="17.5" r="1.6" fill="currentColor" stroke="none" />
-      <circle cx="11.5" cy="12" r="1.6" fill="currentColor" stroke="none" />
-      <circle cx="20" cy="5.5" r="3.2" fill="currentColor" stroke="none" />
-      <circle cx="20" cy="5.5" r="1.2" fill="var(--bg, #04140d)" stroke="none" />
     </svg>
   )
 }

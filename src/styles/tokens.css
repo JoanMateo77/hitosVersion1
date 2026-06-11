@@ -1,7 +1,8 @@
 /* Design tokens — única fuente de verdad de color, espaciado y tipografía.
-   Tres temas conmutables vía [data-theme] en <html>: oscuro (default), claro, neón.
-   Lo que NO depende del tema (espaciado, radios, tipografía, layout) vive en :root;
-   el color vive en cada bloque de tema. */
+   UNA identidad (Lógralo), dos variantes vía [data-theme]: claro cálido (default)
+   y oscuro cálido. Paleta FUNCIONAL: naranja = acción (empezar, CTA, racha),
+   verde = logrado (checks, barras, hitos), ámbar = atención sin culpa.
+   Lo que NO depende del tema (espaciado, radios, tipografía) vive en :root. */
 :root {
   /* Radios */
   --radius-sm: 9px;
@@ -77,7 +78,7 @@
      reconoce por su tono, y el verde deja de hacer TODOS los trabajos. salud usa
      el verde de marca (se adapta al tema); el resto son tonos medios que se leen
      bien en claro, negro y neón. Se aplican vía --niche (helper nicheAccent). */
-  --niche-salud: var(--primary);
+  --niche-salud: #16a777;
   --niche-finanzas: #e0992f;
   --niche-carrera: #4a8ee6;
   --niche-aprendizaje: #7b6cf0;
@@ -87,125 +88,78 @@
   --niche-otra: #98a0ab;
 }
 
-/* ===== Tema CLARO (default) ==============================================
-   Paleta "paper warm": un fondo cálido tipo papel envejecido (no blanco quemado),
-   cards apenas más claras para destacar sin gritar, primary verde forest #16a777.
-   La idea: leer durante una hora sin sentir que la pantalla te empuja. */
+/* ===== Variante CLARA (default) ==========================================
+   Base crema cálida: cómoda para leer y planificar. El naranja vive SOLO en la
+   acción; el verde, SOLO en lo cumplido. */
 :root,
 [data-theme='claro'] {
   color-scheme: light;
 
-  --bg: #f5f0e6;
-  --bg-elev: #fbf8f1;
-  --surface: #fbf8f1;
-  --surface-2: #ece6d6;
-  --surface-3: #e0d8c4;
-  --border: #ccc2a9;
-  --border-soft: #ddd5c0;
+  --bg: #faf5ec;
+  --bg-elev: #fffdf8;
+  --surface: #fffdf8;
+  --surface-2: #f3ead9;
+  --surface-3: #e9dcc4;
+  --border: #d9cbae;
+  --border-soft: #e8ddc8;
 
-  --text: #1c241a;
-  --text-muted: #4f5947;
-  /* Oscurecido de #7e8773 (3.5:1) a ~4.8:1 sobre surface/bg para cumplir WCAG AA
-     en texto chico (deadlines, "N acciones", "Etapa X de N", labels de nav). */
-  --text-faint: #646d59;
+  --text: #261d12;
+  --text-muted: #5f5340;
+  --text-faint: #75664e;
 
-  --primary: #16a777;
-  --primary-strong: #0e8a5e;
-  --primary-soft: rgba(22, 167, 119, 0.12);
+  /* ACCIÓN: naranja amanecer (Headspace-style, dosificado). */
+  --primary: #ea580c;
+  --primary-strong: #c2410c;
+  --primary-soft: rgba(234, 88, 12, 0.12);
   --on-primary: #ffffff;
 
   --accent: #936b3f;
   --accent-soft: rgba(147, 107, 63, 0.12);
 
-  --success: #16a777;
-  --success-soft: rgba(22, 167, 119, 0.14);
+  /* LOGRADO: verde crecimiento. */
+  --success: #15803d;
+  --success-soft: rgba(21, 128, 61, 0.13);
   --danger: #b73a4b;
   --danger-soft: rgba(183, 58, 75, 0.1);
   --warning: #a06013;
   --warning-soft: rgba(160, 96, 19, 0.1);
 
-  --shadow-sm: 0 1px 2px rgba(60, 50, 30, 0.06),
-    0 6px 18px -10px rgba(22, 167, 119, 0.18);
-  --shadow: 0 2px 4px rgba(60, 50, 30, 0.08),
-    0 14px 36px -12px rgba(22, 167, 119, 0.2);
-  --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(22, 167, 119, 0.14), transparent 60%),
+  --shadow-sm: 0 1px 2px rgba(80, 55, 25, 0.06),
+    0 6px 18px -10px rgba(194, 120, 50, 0.18);
+  --shadow: 0 2px 4px rgba(80, 55, 25, 0.08),
+    0 14px 36px -12px rgba(194, 120, 50, 0.2);
+  --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(234, 88, 12, 0.1), transparent 60%),
     radial-gradient(120% 80% at 100% 100%, rgba(147, 107, 63, 0.1), transparent 60%);
 }
 
-/* ===== Tema NEÓN =========================================================
-   Mantiene la familia verde (no salta a cian). El verde encendido manda; el cyan
-   queda como acento secundario para variaciones puntuales. */
-[data-theme='neon'] {
+/* ===== Variante OSCURA (cálida) ===========================================
+   Oscuro de madera tostada, no negro frío: misma personalidad que el claro.
+   El naranja sube un punto de brillo; el verde también. */
+[data-theme='oscuro'] {
   color-scheme: dark;
 
-  --bg: #05060f;
-  --bg-elev: #0a0c1a;
-  --surface: #0e1126;
-  --surface-2: #151a36;
-  --surface-3: #1c2347;
-  --border: #243056;
-  --border-soft: #1a2138;
+  --bg: #16110c;
+  --bg-elev: #1c1610;
+  --surface: #221b13;
+  --surface-2: #2b2218;
+  --surface-3: #362a1c;
+  --border: #46382a;
+  --border-soft: #2e2517;
 
-  --text: #eafaff;
-  --text-muted: #93a6cf;
-  /* Aclarado de #5d6e95 (3.7:1) a ~4.8:1 sobre el fondo oscuro del tema neón. */
-  --text-faint: #7080a8;
+  --text: #f2ece4;
+  --text-muted: #c0b39e;
+  --text-faint: #97896f;
 
-  --primary: #34f5c5;
-  --primary-strong: #14d8a7;
-  --primary-soft: rgba(52, 245, 197, 0.14);
-  --on-primary: #04140d;
+  --primary: #f97316;
+  --primary-strong: #fb923c;
+  --primary-soft: rgba(249, 115, 22, 0.16);
+  --on-primary: #ffffff;
 
-  --accent: #22d3ee;
-  --accent-soft: rgba(34, 211, 238, 0.14);
+  --accent: #d9b88a;
+  --accent-soft: rgba(217, 184, 138, 0.12);
 
-  --success: #34f5c5;
-  --success-soft: rgba(52, 245, 197, 0.14);
-  --danger: #ff5c8a;
-  --danger-soft: rgba(255, 92, 138, 0.14);
-  --warning: #fde047;
-  --warning-soft: rgba(253, 224, 71, 0.14);
-
-  --shadow-sm: 0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent),
-    0 0 18px rgba(52, 245, 197, 0.16);
-  --shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent),
-    0 0 32px rgba(52, 245, 197, 0.26);
-  --glow: 0 0 14px color-mix(in srgb, var(--primary) 40%, transparent);
-  --neon-rim: inset 0 0 0 1px color-mix(in srgb, var(--primary) 14%, transparent);
-  --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(52, 245, 197, 0.22), transparent 60%),
-    radial-gradient(120% 80% at 100% 100%, rgba(34, 211, 238, 0.18), transparent 60%);
-}
-
-/* ===== Tema NEGRO (neutro) ===============================================
-   Full black, sin neón ni glow. Superficies grises neutras separadas por borde,
-   acentos neutros (gris) y el verde de marca en versión calma para lo esencial
-   (acción principal, estado activo). Modo "sobrio" para concentrarse. */
-[data-theme='negro'] {
-  color-scheme: dark;
-
-  --bg: #000000;
-  --bg-elev: #0a0a0b;
-  --surface: #111113;
-  --surface-2: #1a1a1d;
-  --surface-3: #242428;
-  --border: #2c2c32;
-  --border-soft: #1e1e22;
-
-  --text: #f4f4f5;
-  --text-muted: #a1a1aa;
-  --text-faint: #7e7e87;
-
-  --primary: #2dd4a0;
-  --primary-strong: #25b88a;
-  --primary-soft: rgba(45, 212, 160, 0.12);
-  --on-primary: #04140d;
-
-  /* Acento NEUTRO (gris claro), no un segundo color: el negro es sobrio. */
-  --accent: #d4d4d8;
-  --accent-soft: rgba(212, 212, 216, 0.1);
-
-  --success: #2dd4a0;
-  --success-soft: rgba(45, 212, 160, 0.12);
+  --success: #34c46d;
+  --success-soft: rgba(52, 196, 109, 0.14);
   --danger: #f26d85;
   --danger-soft: rgba(242, 109, 133, 0.12);
   --warning: #e3b341;
@@ -213,6 +167,5 @@
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
   --shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.7);
-  /* Wash blanco muy sutil (neutro), sin tinte verde/cyan. */
-  --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(255, 255, 255, 0.045), transparent 60%);
+  --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(249, 115, 22, 0.07), transparent 60%);
 }

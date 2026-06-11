@@ -30,7 +30,7 @@ export function SideNav() {
         <span className="brand__mark">
           <IconHito size={22} />
         </span>
-        Hito
+        Lógralo
       </span>
 
       <div className="sidenav__identity">
@@ -42,7 +42,7 @@ export function SideNav() {
             {email}
           </span>
           <span className="kicker sidenav__day">
-            Día {days} en Hito
+            Día {days} en Lógralo
           </span>
         </div>
       </div>
