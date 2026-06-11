@@ -86,3 +86,21 @@ export async function updateProfilePrefs(
   if (error) throw new Error(error.message)
   return mapProfile(data as ProfileRow)
 }
+
+/** Actualiza "Tu ritmo": defaults que alimentan el wizard y los horarios. */
+export async function updateRhythm(
+  userId: string,
+  rhythm: { preferredMoment: Profile['preferredMoment']; defaultSessionMinutes: number | null },
+): Promise<Profile> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      preferred_moment: rhythm.preferredMoment,
+      default_session_minutes: rhythm.defaultSessionMinutes,
+    })
+    .eq('id', userId)
+    .select('*')
+    .single()
+  if (error) throw new Error(error.message)
+  return mapProfile(data as ProfileRow)
+}

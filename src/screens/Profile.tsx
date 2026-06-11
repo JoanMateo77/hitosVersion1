@@ -1,199 +1,196 @@
 import { useState } from 'react'
 import { useSession } from '@/app/session'
-import { signOut } from '@/services/auth'
-import { updateProfilePrefs } from '@/services/profile'
+import { deleteAccount, signOut } from '@/services/auth'
+import { updateRhythm } from '@/services/profile'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
-import { NICHES, getNiche } from '@/domain/niches'
-import type { FocusMode, NicheId, Profile } from '@/lib/types'
+import { useToast } from '@/app/toast'
+import type { PreferredMoment } from '@/lib/types'
 
-const FOCUS_LABEL: Record<string, string> = {
-  single: 'Una meta (modo enfocado)',
-  multi: 'Varias metas en paralelo',
-}
+const MOMENTS: { id: PreferredMoment; label: string; emoji: string }[] = [
+  { id: 'morning', label: 'Mañana', emoji: '🌅' },
+  { id: 'midday', label: 'Mediodía', emoji: '☀️' },
+  { id: 'evening', label: 'Noche', emoji: '🌙' },
+]
 
 export function ProfileScreen() {
   const { userId, email, profile, setProfile } = useSession()
-  const [editing, setEditing] = useState(false)
+  const { toast } = useToast()
   const [signingOut, setSigningOut] = useState(false)
-  const [signOutError, setSignOutError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
-  const niche = profile.primaryNiche ? getNiche(profile.primaryNiche) : null
+  const initial = (email[0] ?? '?').toUpperCase()
+  const minutes = profile.defaultSessionMinutes ?? 25
+
+  async function saveRhythm(patch: {
+    preferredMoment?: PreferredMoment | null
+    defaultSessionMinutes?: number
+  }) {
+    setError(null)
+    try {
+      const updated = await updateRhythm(userId, {
+        preferredMoment: patch.preferredMoment !== undefined ? patch.preferredMoment : profile.preferredMoment,
+        defaultSessionMinutes:
+          patch.defaultSessionMinutes !== undefined ? patch.defaultSessionMinutes : profile.defaultSessionMinutes,
+      })
+      setProfile(updated)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo guardar. Inténtalo de nuevo.')
+    }
+  }
 
   async function handleSignOut() {
     setSigningOut(true)
-    setSignOutError(null)
+    setError(null)
     try {
       await signOut()
-      // useAuth detecta el cambio de sesión y App vuelve al login.
     } catch (err) {
-      setSignOutError(
-        err instanceof Error ? err.message : 'No se pudo cerrar sesión. Inténtalo de nuevo.',
-      )
+      setError(err instanceof Error ? err.message : 'No se pudo cerrar sesión. Inténtalo de nuevo.')
       setSigningOut(false)
+    }
+  }
+
+  async function handleDelete() {
+    setDeleting(true)
+    setError(null)
+    try {
+      await deleteAccount()
+      // onAuthChange detecta el cierre de sesión y la app vuelve al login.
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo eliminar la cuenta.')
+      setDeleting(false)
+      setConfirmDelete(false)
+      toast('No se pudo eliminar la cuenta.', 'warning')
     }
   }
 
   return (
     <div className="screen">
-      <header className="row row--between screen__header">
-        <h1 className="screen__title">Perfil</h1>
-        {!editing && (
-          <button className="btn btn--ghost btn--sm" onClick={() => setEditing(true)}>
-            Editar
-          </button>
-        )}
+      <header className="screen__header row" style={{ alignItems: 'center', gap: 'var(--s3)' }}>
+        <span
+          aria-hidden="true"
+          style={{
+            width: 46,
+            height: 46,
+            borderRadius: '50%',
+            background: 'var(--gradient-brand)',
+            color: 'var(--on-primary)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 700,
+            fontSize: 18,
+            flex: 'none',
+          }}
+        >
+          {initial}
+        </span>
+        <div style={{ minWidth: 0 }}>
+          <h1 className="screen__title" style={{ fontSize: 'var(--fs-xl)' }}>
+            Perfil
+          </h1>
+          <p className="muted small nowrap-ellipsis" style={{ margin: 0 }}>
+            {email}
+          </p>
+        </div>
       </header>
 
-      <div className="card stack stack--sm" style={{ marginBottom: 'var(--s4)' }}>
-        <span className="field__label">Apariencia</span>
-        <ThemeSwitcher variant="compact" />
-      </div>
-
-      {editing ? (
-        <ProfileEditor
-          userId={userId}
-          initialFocus={profile.focusMode}
-          initialNiche={profile.primaryNiche ?? 'otra'}
-          onCancel={() => setEditing(false)}
-          onSaved={(p) => {
-            setProfile(p)
-            setEditing(false)
-          }}
-        />
-      ) : (
-        <div className="card stack">
-          <InfoRow label="Email" value={email} />
-          <InfoRow
-            label="Cómo trabajás"
-            value={FOCUS_LABEL[profile.focusMode] ?? profile.focusMode}
-          />
-          {niche && <InfoRow label="Tu foco" value={`${niche.emoji} ${niche.label}`} />}
+      {/* ----- Tu ritmo: defaults que alimentan el wizard y los horarios ----- */}
+      <section className="card stack stack--sm" aria-label="Tu ritmo">
+        <span className="kicker">Tu ritmo</span>
+        <div className="field">
+          <span className="field__label">¿Cuándo te es más fácil cumplir?</span>
+          <div className="row wrap">
+            {MOMENTS.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                className={`chip${profile.preferredMoment === m.id ? ' chip--selected' : ''}`}
+                aria-pressed={profile.preferredMoment === m.id}
+                onClick={() =>
+                  void saveRhythm({ preferredMoment: profile.preferredMoment === m.id ? null : m.id })
+                }
+              >
+                <span aria-hidden="true">{m.emoji}</span> {m.label}
+              </button>
+            ))}
+          </div>
+          <span className="field__hint">Sugiere la hora de tus sesiones nuevas.</span>
         </div>
-      )}
+        <div className="field">
+          <span className="field__label">Sesión por defecto</span>
+          <div className="row" style={{ alignItems: 'center' }}>
+            <button
+              type="button"
+              className="iconbtn"
+              aria-label="Restar 5 minutos"
+              disabled={minutes <= 5}
+              onClick={() => void saveRhythm({ defaultSessionMinutes: Math.max(5, minutes - 5) })}
+            >
+              −
+            </button>
+            <strong style={{ minWidth: 76, textAlign: 'center' }}>{minutes} min</strong>
+            <button
+              type="button"
+              className="iconbtn"
+              aria-label="Sumar 5 minutos"
+              onClick={() => void saveRhythm({ defaultSessionMinutes: minutes + 5 })}
+            >
+              +
+            </button>
+          </div>
+          <span className="field__hint">El punto de partida al comprometer días nuevos.</span>
+        </div>
+      </section>
 
-      {!editing && (
-        <button
-          className="btn btn--danger btn--block"
-          style={{ marginTop: 'var(--s5)' }}
-          onClick={handleSignOut}
-          disabled={signingOut}
-        >
+      {/* ----- Apariencia ----- */}
+      <section className="card stack stack--sm" style={{ marginTop: 'var(--s4)' }} aria-label="Apariencia">
+        <span className="kicker">Apariencia</span>
+        <ThemeSwitcher variant="compact" />
+      </section>
+
+      {/* ----- Cuenta ----- */}
+      <section className="card stack stack--sm" style={{ marginTop: 'var(--s4)' }} aria-label="Cuenta">
+        <span className="kicker">Cuenta</span>
+        <button className="btn btn--ghost btn--block" onClick={handleSignOut} disabled={signingOut}>
           {signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
         </button>
-      )}
-      {signOutError && (
+        {!confirmDelete ? (
+          <button
+            className="btn--link"
+            style={{ color: 'var(--danger)', alignSelf: 'center' }}
+            onClick={() => setConfirmDelete(true)}
+          >
+            Eliminar mi cuenta
+          </button>
+        ) : (
+          <div className="card card--tight stack stack--sm" style={{ borderColor: 'var(--danger)' }}>
+            <strong className="small">¿Eliminar tu cuenta definitivamente?</strong>
+            <p className="small muted" style={{ margin: 0 }}>
+              Se borran tus metas, sesiones, etapas y todo tu historial. No hay vuelta atrás.
+            </p>
+            <div className="row wrap">
+              <button className="btn btn--danger btn--sm" onClick={handleDelete} disabled={deleting}>
+                {deleting ? 'Eliminando…' : 'Sí, eliminar todo'}
+              </button>
+              <button className="btn btn--ghost btn--sm" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {error && (
         <div className="alert alert--error" role="alert" style={{ marginTop: 'var(--s3)' }}>
-          {signOutError}
+          {error}
         </div>
       )}
 
       <p className="faint tiny center" style={{ marginTop: 'var(--s8)' }}>
-        Hito es gratis. Si algún día te sirve de verdad, vas a poder apoyar el proyecto. 💚
+        Lógralo es gratis. Si algún día te sirve de verdad, podrás apoyar el proyecto. 🧡
       </p>
-    </div>
-  )
-}
-
-/** Edición de las preferencias que cambian el comportamiento de la app. */
-function ProfileEditor({
-  userId,
-  initialFocus,
-  initialNiche,
-  onCancel,
-  onSaved,
-}: {
-  userId: string
-  initialFocus: FocusMode
-  initialNiche: NicheId
-  onCancel: () => void
-  onSaved: (profile: Profile) => void
-}) {
-  const [focusMode, setFocusMode] = useState<FocusMode>(initialFocus)
-  const [niche, setNiche] = useState<NicheId>(initialNiche)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  // Sin cambios no tiene sentido escribir en Supabase: deshabilitamos Guardar.
-  const dirty = focusMode !== initialFocus || niche !== initialNiche
-
-  async function save() {
-    setSaving(true)
-    setError(null)
-    try {
-      const updated = await updateProfilePrefs(userId, { focusMode, primaryNiche: niche })
-      onSaved(updated)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo guardar. Inténtalo de nuevo.')
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div className="stack stack--lg">
-      <div className="field">
-        <span className="field__label">¿Cómo quieres trabajar?</span>
-        <div className="seg" role="group" aria-label="¿Cómo quieres trabajar?" style={{ alignSelf: 'flex-start' }}>
-          <button
-            type="button"
-            className={`seg__btn${focusMode === 'single' ? ' seg__btn--active' : ''}`}
-            aria-pressed={focusMode === 'single'}
-            onClick={() => setFocusMode('single')}
-          >
-            Una meta
-          </button>
-          <button
-            type="button"
-            className={`seg__btn${focusMode === 'multi' ? ' seg__btn--active' : ''}`}
-            aria-pressed={focusMode === 'multi'}
-            onClick={() => setFocusMode('multi')}
-          >
-            Varias metas
-          </button>
-        </div>
-        <span className="field__hint">
-          {focusMode === 'single'
-            ? 'Modo enfocado: el plan del día prioriza una sola meta por vez.'
-            : 'Multi-meta: el plan reparte acciones entre todas tus metas activas.'}
-        </span>
-      </div>
-
-      <div className="field">
-        <span className="field__label">Tu foco principal</span>
-        <div className="row wrap" role="group" aria-label="Tu foco principal">
-          {NICHES.map((n) => (
-            <button
-              key={n.id}
-              type="button"
-              className={`chip${niche === n.id ? ' chip--selected' : ''}`}
-              aria-pressed={niche === n.id}
-              onClick={() => setNiche(n.id)}
-            >
-              <span aria-hidden="true">{n.emoji}</span> {n.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {error && <div className="alert alert--error" role="alert">{error}</div>}
-
-      <div className="stack stack--sm">
-        <button className="btn btn--primary btn--block" onClick={save} disabled={saving || !dirty}>
-          {saving ? 'Guardando…' : 'Guardar cambios'}
-        </button>
-        <button className="btn btn--ghost btn--block" onClick={onCancel} disabled={saving}>
-          Cancelar
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="row row--between" style={{ gap: 'var(--s4)' }}>
-      <span className="faint small">{label}</span>
-      <span className="nowrap-ellipsis" style={{ textAlign: 'right' }}>
-        {value}
-      </span>
     </div>
   )
 }
