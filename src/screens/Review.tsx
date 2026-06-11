@@ -84,7 +84,7 @@ export function Review() {
 
   if (total === 0) {
     return (
-      <div className="screen">
+      <div className="screen review-focus">
         <header className="screen__header">
           <h1 className="screen__title">Revisión guiada</h1>
         </header>
@@ -113,7 +113,7 @@ export function Review() {
     ].filter(Boolean) as string[]
 
     return (
-      <div className="screen">
+      <div className="screen review-focus">
         <div className="empty">
           <IconCelebrate size={56} style={{ color: 'var(--primary)' }} />
           <h1 className="screen__title" style={{ marginTop: 'var(--s4)' }}>
@@ -172,7 +172,7 @@ export function Review() {
   }
 
   return (
-    <div className="screen">
+    <div className="screen review-focus">
       <header className="screen__header">
         <p className="muted small">
           Revisión guiada · Meta {index + 1} de {total}

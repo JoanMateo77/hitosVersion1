@@ -121,6 +121,7 @@ export function Progress() {
         <h1 className="screen__title">Progreso</h1>
       </header>
 
+      <div className="progress-grid">
       {/* ----- Tu semana ----- */}
       <section className="card stack stack--sm" aria-label="Tu semana">
         <div className="row row--between">
@@ -219,7 +220,7 @@ export function Progress() {
 
       {/* ----- Tus metas ----- */}
       {activeGoals.length > 0 && (
-        <section className="section" aria-label="Tus metas">
+        <section aria-label="Tus metas">
           <div className="section-head">
             <span className="kicker">Tus metas</span>
           </div>
@@ -275,11 +276,7 @@ export function Progress() {
 
       {/* ----- Últimas 8 semanas ----- */}
       {anyHistory && (
-        <section
-          className="card stack stack--sm"
-          style={{ marginTop: 'var(--s5)' }}
-          aria-label="Últimas 8 semanas"
-        >
+        <section className="card stack stack--sm" aria-label="Últimas 8 semanas">
           <span className="kicker">Últimas 8 semanas</span>
           <div className="row" style={{ alignItems: 'flex-end', gap: 6, height: 56 }}>
             {weeks.map((w, i) => (
@@ -303,9 +300,10 @@ export function Progress() {
           </p>
         </section>
       )}
+      </div>
 
       {/* ----- Tu camino ----- */}
-      <h2 className="section-title">Tu camino</h2>
+      <h2 className="section-title section">Tu camino</h2>
       {timeline.length === 0 ? (
         <div className="empty">
           <span className="empty__icon">

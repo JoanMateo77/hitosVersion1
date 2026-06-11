@@ -78,8 +78,15 @@ export function Calendar() {
   // ?d=YYYY-MM-DD (p. ej. al tocar un evento en Today) abre ese día directo.
   const dParam = params.get('d')
   const initialDate = dParam && /^\d{4}-\d{2}-\d{2}$/.test(dParam) ? dParam : null
-  // La agenda abre en el DÍA: lo inmediato primero; semana/mes a un toque.
-  const [view, setView] = useState<View>('day')
+  // En el teléfono la agenda abre en el DÍA (lo inmediato primero); en
+  // escritorio abre en MES, que ahí es la vista de calendario completa.
+  const [view, setView] = useState<View>(() => {
+    try {
+      return window.matchMedia('(min-width: 1024px)').matches ? 'month' : 'day'
+    } catch {
+      return 'day'
+    }
+  })
   const [anchor, setAnchor] = useState(initialDate ?? todayISO()) // mes / semana de referencia
   const [selected, setSelected] = useState(initialDate ?? todayISO()) // día activo
   const [events, setEvents] = useState<CalendarEvent[]>([])
@@ -343,41 +350,43 @@ export function Calendar() {
       {!ready ? (
         <LoadingScreen error={error ?? undefined} />
       ) : view === 'month' ? (
-        <>
-          <div className="cal-grid" style={{ marginBottom: 'var(--s2)' }}>
-            {WEEKDAY_LABELS.map((w) => (
-              <div key={w} className="cal-dow">
-                {w}
-              </div>
-            ))}
+        <div className="cal-month">
+          <div className="cal-month__grid">
+            <div className="cal-grid" style={{ marginBottom: 'var(--s2)' }}>
+              {WEEKDAY_LABELS.map((w) => (
+                <div key={w} className="cal-dow">
+                  {w}
+                </div>
+              ))}
+            </div>
+            <div className="cal-grid">
+              {grid.flat().map((day) => {
+                const evs = eventsByDate.get(day) ?? []
+                const cls = ['cal-cell']
+                if (!inSameMonth(day, anchor)) cls.push('cal-cell--out')
+                if (isToday(day)) cls.push('cal-cell--today')
+                if (day === selected) cls.push('cal-cell--selected')
+                return (
+                  <button key={day} className={cls.join(' ')} onClick={() => selectDay(day)}>
+                    <span>{dayOfMonth(day)}</span>
+                    <span className="cal-cell__dots">
+                      {daySessions(day).length > 0 && <span className="cal-dot cal-dot--session" />}
+                      {evs.slice(0, 3).map((e) => (
+                        <span key={e.id} className="cal-dot" />
+                      ))}
+                      {deadlinesByDate.has(day) && <span className="cal-dot cal-dot--goal" />}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
-          <div className="cal-grid">
-            {grid.flat().map((day) => {
-              const evs = eventsByDate.get(day) ?? []
-              const cls = ['cal-cell']
-              if (!inSameMonth(day, anchor)) cls.push('cal-cell--out')
-              if (isToday(day)) cls.push('cal-cell--today')
-              if (day === selected) cls.push('cal-cell--selected')
-              return (
-                <button key={day} className={cls.join(' ')} onClick={() => selectDay(day)}>
-                  <span>{dayOfMonth(day)}</span>
-                  <span className="cal-cell__dots">
-                    {daySessions(day).length > 0 && <span className="cal-dot cal-dot--session" />}
-                    {evs.slice(0, 3).map((e) => (
-                      <span key={e.id} className="cal-dot" />
-                    ))}
-                    {deadlinesByDate.has(day) && <span className="cal-dot cal-dot--goal" />}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-          <div style={{ marginTop: 'var(--s5)' }}>
+          <div className="cal-month__day">
             <DaySection {...dayProps(selected)} />
           </div>
-        </>
+        </div>
       ) : view === 'week' ? (
-        <div className="stack">
+        <div className="stack cal-week">
           {week.map((day) => (
             <DaySection key={day} {...dayProps(day)} />
           ))}
