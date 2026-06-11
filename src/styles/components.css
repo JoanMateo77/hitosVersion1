@@ -399,7 +399,7 @@
   font-weight: 600;
 }
 /* Tag teñido por nicho: fondo suave del color del área + texto mezclado con el
-   color de texto del tema para que se lea bien en claro, negro y neón. */
+   color de texto del tema para que se lea bien en claro y oscuro. */
 .tag--niche {
   background: color-mix(in srgb, var(--niche, var(--primary)) 14%, transparent);
   color: color-mix(in srgb, var(--niche, var(--primary)) 62%, var(--text));
@@ -801,31 +801,12 @@
   .hito-logo--draw .hito-logo__path {
     animation: hito-logo-draw 0.7s ease-out;
   }
-  .hito-logo--draw circle {
-    transform-box: fill-box;
-    transform-origin: center;
-    animation: hito-logo-dot 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
-  }
-  .hito-logo--draw circle:nth-of-type(2) {
-    animation-delay: 0.18s;
-  }
-  .hito-logo--draw circle:nth-of-type(3),
-  .hito-logo--draw circle:nth-of-type(4) {
-    animation-delay: 0.34s;
-  }
 }
 @keyframes hito-logo-draw {
   from {
     stroke-dashoffset: 1;
   }
 }
-@keyframes hito-logo-dot {
-  from {
-    transform: scale(0);
-    opacity: 0;
-  }
-}
-
 /* ---- Spinner — tres hitos del camino caminando -------------------------- */
 .spinner {
   display: inline-flex;

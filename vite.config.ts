@@ -14,7 +14,7 @@ export default defineConfig({
         id: '/',
         name: 'Lógralo — metas con compromiso',
         short_name: 'Lógralo',
-        description: 'Definí metas, recibí un plan del día y avanzá un paso por vez.',
+        description: 'Lógralo: metas con compromiso real — sesiones, etapas y progreso que no se inventa.',
         lang: 'es',
         dir: 'ltr',
         theme_color: '#faf5ec',

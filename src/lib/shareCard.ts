@@ -92,6 +92,8 @@ function drawCard(card: AchievementCard): HTMLCanvasElement {
  * si no, texto plano; si tampoco, descarga la imagen. Devuelve qué pasó.
  */
 export async function shareAchievement(card: AchievementCard): Promise<'shared' | 'downloaded'> {
+  // Sin las fuentes de marca cargadas, el canvas caería a Georgia/sans.
+  await document.fonts?.ready?.catch?.(() => {})
   const canvas = drawCard(card)
   const text = `${card.kicker}: ${card.title} — ${card.stats}. Hecho con Lógralo.`
 

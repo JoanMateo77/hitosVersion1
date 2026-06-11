@@ -2,7 +2,7 @@ import { THEMES, useTheme } from '@/app/ThemeProvider'
 
 type Variant = 'compact' | 'stack'
 
-/** Selector de tema reutilizable (claro / negro / neón). */
+/** Selector de apariencia (claro / oscuro / sistema). */
 export function ThemeSwitcher({ variant = 'compact' }: { variant?: Variant }) {
   const { theme, setTheme } = useTheme()
 

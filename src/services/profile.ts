@@ -74,21 +74,6 @@ export async function completeOnboarding(
   return mapProfile(data as ProfileRow)
 }
 
-/** Actualiza las preferencias editables del perfil: modo de foco + nicho. */
-export async function updateProfilePrefs(
-  userId: string,
-  prefs: { focusMode: FocusMode; primaryNiche: NicheId },
-): Promise<Profile> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({ focus_mode: prefs.focusMode, primary_niche: prefs.primaryNiche })
-    .eq('id', userId)
-    .select('*')
-    .single()
-  if (error) throw new Error(error.message)
-  return mapProfile(data as ProfileRow)
-}
-
 /** Actualiza "Tu ritmo": defaults que alimentan el wizard y los horarios. */
 export async function updateRhythm(
   userId: string,

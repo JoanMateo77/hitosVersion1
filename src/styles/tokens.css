@@ -77,7 +77,7 @@
   /* Color por NICHO (área): le da significado al color — cada meta/tarea se
      reconoce por su tono, y el verde deja de hacer TODOS los trabajos. salud usa
      el verde de marca (se adapta al tema); el resto son tonos medios que se leen
-     bien en claro, negro y neón. Se aplican vía --niche (helper nicheAccent). */
+     bien en claro y oscuro. Se aplican vía --niche (helper nicheAccent). */
   --niche-salud: #16a777;
   --niche-finanzas: #e0992f;
   --niche-carrera: #4a8ee6;

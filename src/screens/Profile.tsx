@@ -3,7 +3,6 @@ import { useSession } from '@/app/session'
 import { deleteAccount, signOut } from '@/services/auth'
 import { updateRhythm } from '@/services/profile'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
-import { useToast } from '@/app/toast'
 import type { PreferredMoment } from '@/lib/types'
 
 const MOMENTS: { id: PreferredMoment; label: string; emoji: string }[] = [
@@ -14,14 +13,14 @@ const MOMENTS: { id: PreferredMoment; label: string; emoji: string }[] = [
 
 export function ProfileScreen() {
   const { userId, email, profile, setProfile } = useSession()
-  const { toast } = useToast()
   const [signingOut, setSigningOut] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   const initial = (email[0] ?? '?').toUpperCase()
-  const minutes = profile.defaultSessionMinutes ?? 25
+  // Local y optimista: los +/- rápidos no deben leer estado viejo del perfil.
+  const [minutes, setMinutes] = useState(profile.defaultSessionMinutes ?? 25)
 
   async function saveRhythm(patch: {
     preferredMoment?: PreferredMoment | null
@@ -61,7 +60,6 @@ export function ProfileScreen() {
       setError(err instanceof Error ? err.message : 'No se pudo eliminar la cuenta.')
       setDeleting(false)
       setConfirmDelete(false)
-      toast('No se pudo eliminar la cuenta.', 'warning')
     }
   }
 
@@ -126,7 +124,11 @@ export function ProfileScreen() {
               className="iconbtn"
               aria-label="Restar 5 minutos"
               disabled={minutes <= 5}
-              onClick={() => void saveRhythm({ defaultSessionMinutes: Math.max(5, minutes - 5) })}
+              onClick={() => {
+                const next = Math.max(5, minutes - 5)
+                setMinutes(next)
+                void saveRhythm({ defaultSessionMinutes: next })
+              }}
             >
               −
             </button>
@@ -135,7 +137,11 @@ export function ProfileScreen() {
               type="button"
               className="iconbtn"
               aria-label="Sumar 5 minutos"
-              onClick={() => void saveRhythm({ defaultSessionMinutes: minutes + 5 })}
+              onClick={() => {
+                const next = minutes + 5
+                setMinutes(next)
+                void saveRhythm({ defaultSessionMinutes: next })
+              }}
             >
               +
             </button>
