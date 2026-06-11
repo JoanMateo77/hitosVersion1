@@ -53,10 +53,10 @@ export function GoalSuggestions() {
       </button>
 
       <header className="screen__header" style={{ marginTop: 'var(--s4)' }}>
-        <h1 className="screen__title">Ideas para vos</h1>
+        <h1 className="screen__title">Ideas para ti</h1>
         <p className="screen__subtitle">
-          Metas concretas para tu foco {nicheInfo.emoji} {nicheInfo.label}. Adoptá una con un toque o
-          escribí la tuya.
+          Metas concretas para tu foco {nicheInfo.emoji} {nicheInfo.label}. Adopta una con un toque o
+          escribe la tuya.
         </p>
       </header>
 

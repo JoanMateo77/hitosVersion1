@@ -76,7 +76,7 @@ export function Progress() {
   return (
     <div className="screen">
       <header className="screen__header">
-        <p className="muted small">Cómo venís avanzando</p>
+        <p className="muted small">Cómo vas avanzando</p>
         <h1 className="screen__title">Progreso</h1>
       </header>
 
@@ -98,7 +98,7 @@ export function Progress() {
             Todavía no cerraste ninguna meta
           </p>
           <p className="muted">
-            Cuando logres o archives una meta, queda acá como parte de tu camino.
+            Cuando logres o archives una meta, queda aquí como parte de tu camino.
           </p>
         </div>
       ) : (

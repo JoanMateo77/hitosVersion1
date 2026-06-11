@@ -94,7 +94,7 @@ export function Review() {
             Nada para revisar por ahora
           </p>
           <p className="muted" style={{ marginBottom: 'var(--s4)' }}>
-            Cuando una de tus metas toque revisión, la repasamos acá.
+            Cuando una de tus metas toque revisión, la repasamos aquí.
           </p>
           <button className="btn btn--primary" onClick={() => navigate('/')}>
             Volver a hoy

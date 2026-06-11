@@ -36,7 +36,7 @@ export const NICHE_GOAL_SUGGESTIONS: Record<NicheId, GoalSeed[]> = {
   relaciones: [
     { title: 'Tener una cena en familia cada semana', templateKey: 'relaciones' },
     { title: 'Retomar contacto con 5 amistades', templateKey: 'relaciones' },
-    { title: 'Llamar a alguien que querés una vez por semana', templateKey: 'relaciones' },
+    { title: 'Llamar a alguien que quieres una vez por semana', templateKey: 'relaciones' },
   ],
   creatividad: [
     { title: 'Publicar mi primer proyecto en 60 días', templateKey: 'crear_publicar' },

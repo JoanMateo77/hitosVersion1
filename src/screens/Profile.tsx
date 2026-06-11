@@ -27,7 +27,7 @@ export function ProfileScreen() {
       // useAuth detecta el cambio de sesión y App vuelve al login.
     } catch (err) {
       setSignOutError(
-        err instanceof Error ? err.message : 'No se pudo cerrar sesión. Probá de nuevo.',
+        err instanceof Error ? err.message : 'No se pudo cerrar sesión. Inténtalo de nuevo.',
       )
       setSigningOut(false)
     }
@@ -122,7 +122,7 @@ function ProfileEditor({
       const updated = await updateProfilePrefs(userId, { focusMode, primaryNiche: niche })
       onSaved(updated)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo guardar. Probá de nuevo.')
+      setError(err instanceof Error ? err.message : 'No se pudo guardar. Inténtalo de nuevo.')
       setSaving(false)
     }
   }
@@ -130,8 +130,8 @@ function ProfileEditor({
   return (
     <div className="stack stack--lg">
       <div className="field">
-        <span className="field__label">¿Cómo querés trabajar?</span>
-        <div className="seg" role="group" aria-label="¿Cómo querés trabajar?" style={{ alignSelf: 'flex-start' }}>
+        <span className="field__label">¿Cómo quieres trabajar?</span>
+        <div className="seg" role="group" aria-label="¿Cómo quieres trabajar?" style={{ alignSelf: 'flex-start' }}>
           <button
             type="button"
             className={`seg__btn${focusMode === 'single' ? ' seg__btn--active' : ''}`}

@@ -655,7 +655,7 @@ function EventEditor({
         <input
           className="input"
           autoFocus
-          placeholder="¿Qué tenés? Ej: Clase de inglés"
+          placeholder="¿Qué tienes? Ej: Clase de inglés"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={200}
@@ -724,7 +724,7 @@ function EventEditor({
           <div className="field">
             <span className="field__label">¿Es para una meta?</span>
             <span className="field__hint">
-              Opcional. Ligarlo te muestra cuánto le dedicás a esa meta.
+              Opcional. Vincularlo suma a lo agendado de esa meta.
             </span>
             <select className="input" value={goalId} onChange={(e) => setGoalId(e.target.value)}>
               <option value="">Sin meta</option>

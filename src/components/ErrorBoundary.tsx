@@ -27,7 +27,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="stack stack--lg center" style={{ flex: 1, justifyContent: 'center' }}>
             <div style={{ fontSize: 44 }}>😵‍💫</div>
             <h1 className="screen__title">Algo se rompió</h1>
-            <p className="muted">Tuvimos un problema inesperado. Probá volver al inicio o recargar.</p>
+            <p className="muted">Tuvimos un problema inesperado. Intenta volver al inicio o recargar.</p>
             <div className="stack stack--sm" style={{ width: '100%', maxWidth: 280 }}>
               <button
                 className="btn btn--primary btn--block"

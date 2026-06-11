@@ -48,7 +48,7 @@ export function Onboarding() {
       // En vez de un formulario vacío, lo primero que ve es ideas concretas (5.1).
       navigate('/ideas', { replace: true })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo guardar. Probá de nuevo.')
+      setError(err instanceof Error ? err.message : 'No se pudo guardar. Inténtalo de nuevo.')
       setSaving(false)
     }
   }
@@ -65,7 +65,7 @@ export function Onboarding() {
               Dos preguntas rápidas para adaptar Hito a vos.
             </p>
           </header>
-          <h2 style={{ fontSize: 'var(--fs-lg)' }}>¿Cómo querés arrancar?</h2>
+          <h2 style={{ fontSize: 'var(--fs-lg)' }}>¿Cómo quieres empezar?</h2>
           <div className="stack">
             <OptionRow
               emoji="🎯"
@@ -100,7 +100,7 @@ export function Onboarding() {
           <header>
             <h1 className="screen__title">¿Cuál es tu foco?</h1>
             <p className="screen__subtitle">
-              El área de tu vida en la que querés avanzar ahora. Después podés sumar otras.
+              El área de tu vida en la que quieres avanzar ahora. Después puedes sumar otras.
             </p>
           </header>
 

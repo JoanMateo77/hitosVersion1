@@ -32,7 +32,7 @@ export function Auth() {
         await signIn(email.trim(), password)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Algo salió mal. Probá de nuevo.')
+      setError(err instanceof Error ? err.message : 'Algo salió mal. Inténtalo de nuevo.')
     } finally {
       setLoading(false)
     }
@@ -41,7 +41,7 @@ export function Auth() {
   async function handleReset() {
     const target = email.trim()
     if (!target) {
-      setError('Escribí tu email arriba para recuperar tu contraseña.')
+      setError('Escribe tu email arriba para recuperar tu contraseña.')
       return
     }
     setError(null)
@@ -98,9 +98,9 @@ export function Auth() {
           <IconHito size={96} animate />
         </span>
         <span className="brand auth-hero__brand">Lógralo</span>
-        <h1 className="auth-hero__headline">Un hito por día hacia lo que te proponés.</h1>
+        <h1 className="auth-hero__headline">Tu meta, con un compromiso real.</h1>
         <p className="auth-hero__lede">
-          Definí tu meta, te armo el plan diario, y avanzás un paso a la vez. Sin apps de hábitos
+          Define tu meta, comprométete con días y tiempos reales, y avanza un paso a la vez. Sin apps de hábitos
           genéricas. Tu camino, claro.
         </p>
       </aside>
@@ -117,7 +117,7 @@ export function Auth() {
             Lógralo
           </span>
           <p className="muted" style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--fs-lg)' }}>
-            Un hito por día hacia lo que te proponés.
+            Tu meta, con un compromiso real.
           </p>
         </header>
 
@@ -186,7 +186,7 @@ export function Auth() {
           </form>
 
           <p className="center muted" style={{ marginTop: 'var(--s5)' }}>
-            {isSignup ? '¿Ya tenés cuenta?' : '¿Primera vez?'}{' '}
+            {isSignup ? '¿Ya tienes cuenta?' : '¿Primera vez?'}{' '}
             <button type="button" className="btn--link" onClick={switchMode}>
               {isSignup ? 'Entrá' : 'Creá tu cuenta'}
             </button>

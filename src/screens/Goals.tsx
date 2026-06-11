@@ -137,9 +137,9 @@ export function Goals() {
       {goals.length === 0 ? (
         <div className="empty">
           <IconGoals size={48} className="muted" />
-          <p className="empty__title" style={{ marginTop: 'var(--s4)' }}>Todavía no tenés metas</p>
+          <p className="empty__title" style={{ marginTop: 'var(--s4)' }}>Todavía no tienes metas</p>
           <p className="muted" style={{ marginBottom: 'var(--s4)' }}>
-            Mirá ideas para tu foco y adoptá una, o escribí la tuya.
+            Mira ideas para tu foco y adopta una, o escribe la tuya.
           </p>
           <div className="stack stack--sm" style={{ alignItems: 'center' }}>
             <button className="btn btn--primary" onClick={() => navigate('/ideas')}>
@@ -156,7 +156,7 @@ export function Goals() {
             <ul className="goals-grid">{live.map(renderCard)}</ul>
           ) : (
             <p className="muted" style={{ marginTop: 'var(--s4)' }}>
-              No tenés metas en marcha ahora.{' '}
+              No tienes metas en marcha ahora.{' '}
               <button
                 className="btn--link"
                 style={{ padding: 0 }}

@@ -65,7 +65,7 @@ export const NICHE_QUESTIONS: NicheQuestion[] = [
   },
   {
     id: 'postergado',
-    prompt: '¿Qué venís postergando hace tiempo?',
+    prompt: '¿Qué vienes postergando hace tiempo?',
     options: [
       { label: 'Empezar a moverme y cuidarme', niche: 'salud' },
       { label: 'Ordenar mis gastos o ahorrar', niche: 'finanzas' },
