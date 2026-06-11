@@ -1,4 +1,7 @@
 import type { CSSProperties } from 'react'
+// El logo viaja DENTRO del bundle (hash de Vite): cada versión de la app trae
+// su logo amarrado — un service worker viejo ya no puede mostrar uno desfasado.
+import logoUrl from '@/assets/logo.svg'
 
 /** Set de íconos como SVG inline (sin dependencias). Heredan currentColor.
  *
@@ -114,9 +117,7 @@ export function IconHito({
 }: IconProps & { animate?: boolean }) {
   return (
     <img
-      // El ?v= salta el precache del service worker viejo: sin él, una PWA con
-      // SW desactualizado seguiría mostrando el logo anterior dentro de la app.
-      src="/favicon.svg?v=3"
+      src={logoUrl}
       width={size}
       height={size}
       className={animate ? [className, 'celebrate-pop'].filter(Boolean).join(' ') : className}

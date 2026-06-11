@@ -4,6 +4,8 @@
  * nombre. Canvas puro, sin dependencias.
  */
 
+import logoUrl from '@/assets/logo.svg'
+
 interface AchievementCard {
   /** "Logré mi meta" / "Etapa cumplida" */
   kicker: string
@@ -53,7 +55,7 @@ async function drawCard(card: AchievementCard): Promise<HTMLCanvasElement> {
   // Una sola fuente de verdad — la tarjeta nunca diverge del ícono.
   try {
     const icon = new Image()
-    icon.src = '/favicon.svg?v=3'
+    icon.src = logoUrl
     await icon.decode()
     ctx.drawImage(icon, 96, 92, 168, 168)
   } catch {
