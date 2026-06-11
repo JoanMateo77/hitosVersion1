@@ -19,8 +19,9 @@ import { listEventsInRange } from '@/services/events'
 import { compareEvents } from '@/domain/calendar'
 import { findForgottenGoal, goalsDueForReview } from '@/domain/dailyPlan'
 import { currentStreakCommitted, formatClock, pickSuggestion, remainingSeconds } from '@/domain/sessions'
+import { WEEKDAY_LABELS, weekdayMon0 } from '@/domain/commitment'
 import { getTemplate } from '@/domain/templates'
-import { addDays, formatTime12, formatWeekday, todayISO } from '@/lib/date'
+import { addDays, formatTime12, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { TaskItem } from '@/components/TaskItem'
 import { SessionCard } from '@/components/SessionCard'
@@ -55,6 +56,8 @@ export function Today() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [newTitle, setNewTitle] = useState('')
   const [pickingSpontaneous, setPickingSpontaneous] = useState(false)
+  // Día pasado expandido desde la tira semanal ("ayer sí la hice").
+  const [stripDay, setStripDay] = useState<string | null>(null)
   const { cheerMessage, cheer } = useCheer()
   const { toast } = useToast()
 
@@ -243,6 +246,26 @@ export function Today() {
     )
   }
 
+  /** Estado agregado de un día para la tira semanal. */
+  function stripState(date: string): 'done' | 'partial' | 'missed' | 'future' | 'free' {
+    const isCommitted = blocks.some((b) => b.weekday === weekdayMon0(date))
+    const day = (date === today ? sessions : history).filter((x) => x.date === date)
+    if (date > today) return isCommitted ? 'future' : 'free'
+    if (day.some((x) => x.status === 'done')) return 'done'
+    if (day.some((x) => x.status === 'partial')) return 'partial'
+    if (date === today) return isCommitted || day.length > 0 ? 'future' : 'free'
+    return day.length > 0 || isCommitted ? 'missed' : 'free'
+  }
+
+  /** Corrección honesta de un día pasado: "esa sesión sí la hice". */
+  function fixPastSession(x: Session) {
+    void withErrorHandling(async () => {
+      const updated = await finishSession(x.id, { status: 'done', actualValue: x.targetValue })
+      setHistory((prev) => prev.map((h) => (h.id === x.id ? updated : h)))
+      toast('Día corregido. Tu racha lo refleja.', 'success')
+    })
+  }
+
   function addSpontaneous(goal: Goal) {
     setPickingSpontaneous(false)
     void withErrorHandling(async () => {
@@ -347,6 +370,77 @@ export function Today() {
           </p>
         )}
       </header>
+
+      <div className="weekstrip" role="group" aria-label="Tu semana">
+        {Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(today), i)).map((d, i) => {
+          const st = stripState(d)
+          const isToday = d === today
+          const clickable = d < today && st !== 'free'
+          return (
+            <button
+              key={d}
+              type="button"
+              className={`weekstrip__day${isToday ? ' weekstrip__day--today' : ''}`}
+              disabled={!clickable}
+              aria-label={`${WEEKDAY_LABELS[i]} ${d.slice(8)}: ${
+                st === 'done' ? 'cumplido' : st === 'partial' ? 'parcial' : st === 'missed' ? 'sin cumplir' : st === 'future' ? 'por venir' : 'libre'
+              }`}
+              onClick={() => setStripDay(stripDay === d ? null : d)}
+            >
+              <span className="weekstrip__label">{WEEKDAY_LABELS[i]}</span>
+              <span
+                className={`weekstrip__dot weekstrip__dot--${st}`}
+                aria-hidden="true"
+              />
+            </button>
+          )
+        })}
+      </div>
+
+      {stripDay && (
+        <div className="card card--tight stack stack--sm" style={{ marginBottom: 'var(--s4)' }}>
+          <div className="row row--between">
+            <span className="kicker">{formatWeekday(stripDay)}</span>
+            <button className="btn--link" style={{ fontSize: 'var(--fs-xs)' }} onClick={() => setStripDay(null)}>
+              Cerrar
+            </button>
+          </div>
+          {history.filter((x) => x.date === stripDay).length === 0 ? (
+            <p className="small muted" style={{ margin: 0 }}>
+              Ese día no hubo sesiones.
+            </p>
+          ) : (
+            history
+              .filter((x) => x.date === stripDay)
+              .map((x) => {
+                const g = goalById.get(x.goalId)
+                if (!g) return null
+                const closedOk = x.status === 'done'
+                return (
+                  <div key={x.id} className="row row--between" style={{ alignItems: 'center' }}>
+                    <span className="small">
+                      {getTemplate(g.templateKey).emoji} {g.title} ·{' '}
+                      <span className="muted">
+                        {x.status === 'done'
+                          ? 'hecha ✓'
+                          : x.status === 'partial'
+                            ? `parcial (${x.actualValue ?? 0})`
+                            : x.status === 'missed'
+                              ? 'no pudiste'
+                              : 'sin registrar'}
+                      </span>
+                    </span>
+                    {!closedOk && (
+                      <button className="btn btn--sm btn--ghost" onClick={() => fixPastSession(x)}>
+                        ✓ Sí la hice
+                      </button>
+                    )}
+                  </div>
+                )
+              })
+          )}
+        </div>
+      )}
 
       {runningSession && goalById.get(runningSession.goalId) && (
         <button

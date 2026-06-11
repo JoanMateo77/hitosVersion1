@@ -2303,3 +2303,53 @@ select.input {
 .mstone__input {
   flex: 1;
 }
+
+/* --- Tira semanal en Hoy (Fase 2/4) --- */
+.weekstrip {
+  display: flex;
+  gap: 4px;
+  margin-bottom: var(--s4);
+}
+.weekstrip__day {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.weekstrip__day:disabled {
+  cursor: default;
+}
+.weekstrip__day--today {
+  background: var(--surface-2);
+}
+.weekstrip__label {
+  font-size: 10px;
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+}
+.weekstrip__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.weekstrip__dot--done {
+  background: var(--success);
+}
+.weekstrip__dot--partial {
+  background: var(--warning);
+}
+.weekstrip__dot--missed {
+  background: var(--surface-3);
+}
+.weekstrip__dot--future {
+  border: 1.5px dashed var(--border);
+}
+.weekstrip__dot--free {
+  border: 1px solid var(--border-soft);
+}
