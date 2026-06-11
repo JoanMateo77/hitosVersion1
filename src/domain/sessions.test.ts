@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  bestStreakCommitted,
   currentStreakCommitted,
   elapsedSeconds,
   isStaleRunning,
@@ -157,6 +158,18 @@ describe('weekConsistency', () => {
   it('las espontáneas cumplidas también cuentan como hechas', () => {
     const sessions = [session({ date: '2026-06-09', status: 'done', scheduleId: null })]
     expect(weekConsistency(blocks, sessions, '2026-06-08')).toEqual({ done: 1, committed: 3 })
+  })
+})
+
+describe('bestStreakCommitted', () => {
+  const committed = new Set([0, 2, 4]) // Lu, Mi, Vi
+  it('encuentra la mejor racha histórica saltando días no comprometidos', () => {
+    // Semana 1 completa (Lu 1, Mi 3, Vi 5 jun), hueco, luego Vi 12 jun solo
+    const done = new Set(['2026-06-01', '2026-06-03', '2026-06-05', '2026-06-12'])
+    expect(bestStreakCommitted(done, committed, '2026-06-01', '2026-06-14')).toBe(3)
+  })
+  it('sin compromiso devuelve 0', () => {
+    expect(bestStreakCommitted(new Set(['2026-06-01']), new Set(), '2026-06-01', '2026-06-14')).toBe(0)
   })
 })
 

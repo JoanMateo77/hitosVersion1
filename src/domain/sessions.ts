@@ -121,6 +121,34 @@ export function currentStreakCommitted(
   return streak
 }
 
+/**
+ * La mejor racha histórica sobre días comprometidos dentro de una ventana.
+ * Recorre de fromISO a toISO contando rachas como currentStreakCommitted.
+ */
+export function bestStreakCommitted(
+  doneDates: Set<string>,
+  committedWeekdays: Set<number>,
+  fromISO: string,
+  toISO: string,
+): number {
+  if (committedWeekdays.size === 0) return 0
+  let best = 0
+  let run = 0
+  let cursor = fromISO
+  while (cursor <= toISO) {
+    if (committedWeekdays.has(weekdayMon0Local(cursor))) {
+      if (doneDates.has(cursor)) {
+        run++
+        if (run > best) best = run
+      } else {
+        run = 0
+      }
+    }
+    cursor = addDays(cursor, 1)
+  }
+  return best
+}
+
 /** Bloques del compromiso que tocan en una fecha (proyección a futuro). */
 export function dueBlocksForDate(blocks: ScheduleBlock[], dateISO: string): ScheduleBlock[] {
   return blocks.filter((b) => b.weekday === weekdayMon0Local(dateISO))

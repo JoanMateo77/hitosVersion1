@@ -143,3 +143,16 @@ export async function milestoneProgressByGoal(
   }
   return map
 }
+
+/** Hitos cumplidos recientes del usuario (timeline de Progreso). */
+export async function listDoneMilestones(userId: string, limit: number): Promise<Milestone[]> {
+  const { data, error } = await supabase
+    .from('milestones')
+    .select('*')
+    .eq('user_id', userId)
+    .not('done_at', 'is', null)
+    .order('done_at', { ascending: false })
+    .limit(limit)
+  if (error) throw new Error(error.message)
+  return (data as MilestoneRow[]).map(mapMilestone)
+}
