@@ -793,19 +793,7 @@
    traza y los 3 hitos popean hacia la meta. El estado BASE es el logo TERMINADO;
    la animación vive dentro de prefers-reduced-motion:no-preference, así quien pide
    menos movimiento ve el logo íntegro y nunca a medio dibujar. */
-.hito-logo--draw .hito-logo__path {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 0; /* base: trazo completo */
-}
 @media (prefers-reduced-motion: no-preference) {
-  .hito-logo--draw .hito-logo__path {
-    animation: hito-logo-draw 0.7s ease-out;
-  }
-}
-@keyframes hito-logo-draw {
-  from {
-    stroke-dashoffset: 1;
-  }
 }
 /* ---- Spinner — tres hitos del camino caminando -------------------------- */
 .spinner {

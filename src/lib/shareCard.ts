@@ -49,16 +49,16 @@ function drawCard(card: AchievementCard): HTMLCanvasElement {
   ctx.fillStyle = halo
   ctx.fillRect(0, 0, W, H)
 
-  // Check de la marca (esquina superior izquierda)
-  ctx.strokeStyle = '#ea580c'
-  ctx.lineWidth = 26
-  ctx.lineCap = 'round'
-  ctx.lineJoin = 'round'
+  // Check de la marca (esquina superior izquierda): dos barras en L, 40°.
+  ctx.save()
+  ctx.translate(190, 180)
+  ctx.rotate((40 * Math.PI) / 180)
+  ctx.fillStyle = '#ea580c'
   ctx.beginPath()
-  ctx.moveTo(96, 180)
-  ctx.lineTo(160, 244)
-  ctx.lineTo(280, 110)
-  ctx.stroke()
+  ctx.roundRect(14, -86, 40, 150, 12)
+  ctx.roundRect(-46, 24, 100, 40, 12)
+  ctx.fill()
+  ctx.restore()
 
   // Kicker
   ctx.fillStyle = '#75664e'

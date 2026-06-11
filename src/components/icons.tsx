@@ -120,17 +120,15 @@ export function IconHito({
       strokeWidth={size <= 22 ? 1.85 : 2}
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={animate ? [className, 'hito-logo--draw'].filter(Boolean).join(' ') : className}
+      className={animate ? [className, 'celebrate-pop'].filter(Boolean).join(' ') : className}
       style={style}
       aria-hidden="true"
     >
-      {/* El check de Lógralo: la promesa cumplida, trazo redondeado. */}
-      <path
-        d="M4.5 13.5L10 19L20 6"
-        strokeWidth={size <= 22 ? 2.6 : 3}
-        pathLength={animate ? 1 : undefined}
-        className={animate ? 'hito-logo__path' : undefined}
-      />
+      {/* El check de Lógralo: dos barras gruesas en L, rotadas 40°. */}
+      <g transform="translate(12 12.3) scale(0.79) rotate(40) translate(-12 -12)" stroke="none">
+        <rect x="12.7" y="3" width="4.9" height="18" rx="1.5" fill="currentColor" />
+        <rect x="5.5" y="16.1" width="12.1" height="4.9" rx="1.5" fill="currentColor" />
+      </g>
     </svg>
   )
 }
