@@ -18,7 +18,7 @@ import {
   sessionStatsForGoal,
 } from '@/services/sessions'
 import { listEventsInRange, minutesByGoalInRange } from '@/services/events'
-import { listHabitChecksInRange, listHabits } from '@/services/habits'
+import { listHabitChecksInRange, listHabits, setHabitCheck } from '@/services/habits'
 import { habitStreak } from '@/domain/habits'
 import { getTemplate } from '@/domain/templates'
 import { NICHES, getNiche } from '@/domain/niches'
@@ -30,6 +30,7 @@ import {
   WEEKDAY_LABELS,
   formatCommitmentSummary,
   validateCommitment,
+  weekdayMon0,
   type CommitmentBlockDraft,
 } from '@/domain/commitment'
 import {
@@ -50,6 +51,7 @@ import { shareAchievement } from '@/lib/shareCard'
 import {
   IconBack,
   IconCelebrate,
+  IconCheck,
   IconClock,
   IconCompass,
   IconDots,
@@ -348,6 +350,29 @@ export function GoalDetail() {
   const sortedWeekEvents = [...weekEvents].sort(
     (a, b) => a.date.localeCompare(b.date) || (a.startTime ?? '99').localeCompare(b.startTime ?? '99'),
   )
+  // El hábito de hoy se marca aquí mismo, sin salir de la meta.
+  const todayDate = todayISO()
+  const habitAppliesToday = (h: Habit) =>
+    h.weekdays.length === 0 || h.weekdays.includes(weekdayMon0(todayDate))
+  const habitDoneToday = (h: Habit) => (habitDates.get(h.id) ?? new Set()).has(todayDate)
+
+  /** Marca/desmarca el cumplimiento de HOY de un hábito vinculado (optimista). */
+  function toggleLinkedHabit(h: Habit) {
+    const wasDone = habitDoneToday(h)
+    setHabitChecks((prev) =>
+      wasDone
+        ? prev.filter((c) => !(c.habitId === h.id && c.date === todayDate))
+        : [...prev, { habitId: h.id, date: todayDate }],
+    )
+    setHabitCheck(userId, h.id, todayDate, !wasDone).catch(() => {
+      setHabitChecks((prev) =>
+        wasDone
+          ? [...prev, { habitId: h.id, date: todayDate }]
+          : prev.filter((c) => !(c.habitId === h.id && c.date === todayDate)),
+      )
+      toast('No se pudo guardar el hábito.', 'warning')
+    })
+  }
 
   return (
     <div className="screen" style={nicheAccent(goal.area)}>
@@ -540,23 +565,39 @@ export function GoalDetail() {
           {linkedHabits.length > 0 && (
             <div className="card stack stack--sm">
               <span className="kicker">Hábitos que suman</span>
-              {linkedHabits.map((h) => (
-                <button
-                  key={h.id}
-                  type="button"
-                  className="row row--between"
-                  style={{ alignItems: 'center', width: '100%', textAlign: 'left' }}
-                  aria-label={`Ver hábito: ${h.title}`}
-                  onClick={() => navigate('/habitos')}
-                >
-                  <span className="small nowrap-ellipsis">{h.title}</span>
-                  {(habitStreaks.get(h.id) ?? 0) >= 2 && (
-                    <span className="streak-chip" style={{ flex: 'none' }}>
-                      <IconFlame size={12} /> {habitStreaks.get(h.id)}
-                    </span>
-                  )}
-                </button>
-              ))}
+              {linkedHabits.map((h) => {
+                const done = habitDoneToday(h)
+                return (
+                  <div key={h.id} className="row" style={{ alignItems: 'center', gap: 'var(--s3)' }}>
+                    {habitAppliesToday(h) && (
+                      <button
+                        className={`check${done ? ' check--done' : ''}`}
+                        onClick={() => toggleLinkedHabit(h)}
+                        aria-label={
+                          done ? `Desmarcar hábito de hoy: ${h.title}` : `Marcar hábito de hoy: ${h.title}`
+                        }
+                        aria-pressed={done}
+                      >
+                        <IconCheck size={16} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="row row--between"
+                      style={{ alignItems: 'center', flex: 1, minWidth: 0, textAlign: 'left' }}
+                      aria-label={`Ver hábito: ${h.title}`}
+                      onClick={() => navigate('/habitos')}
+                    >
+                      <span className="small nowrap-ellipsis">{h.title}</span>
+                      {(habitStreaks.get(h.id) ?? 0) >= 2 && (
+                        <span className="streak-chip" style={{ flex: 'none' }}>
+                          <IconFlame size={12} /> {habitStreaks.get(h.id)}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           )}
 
