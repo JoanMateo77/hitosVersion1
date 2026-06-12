@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import type { Goal, Milestone, Session } from '@/lib/types'
+import type { Goal, Habit, HabitCheck, Milestone, Session } from '@/lib/types'
 import { listGoals, markGoalReviewed, setGoalStatus } from '@/services/goals'
 import { listMilestones, setMilestoneDone } from '@/services/milestones'
 import { listSessionsInRange } from '@/services/sessions'
+import { listHabitChecksInRange, listHabits } from '@/services/habits'
 import { goalsDueForReview } from '@/domain/dailyPlan'
 import { addDays, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
 import { LoadingScreen } from '@/components/LoadingScreen'
@@ -33,6 +34,9 @@ export function Review() {
   const [milestonesByGoal, setMilestonesByGoal] = useState<Map<string, Milestone[]>>(new Map())
   // Sesiones de los últimos 30 días: contexto para decidir con datos, no de memoria.
   const [sessions, setSessions] = useState<Session[]>([])
+  // Hábitos vinculados a metas + sus marcas de esta semana: también cuentan.
+  const [habits, setHabits] = useState<Habit[]>([])
+  const [habitChecks, setHabitChecks] = useState<HabitCheck[]>([])
   const [index, setIndex] = useState(0)
   const [skipped, setSkipped] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -49,14 +53,21 @@ export function Review() {
   useEffect(() => {
     let active = true
     const today = todayISO()
-    Promise.all([listGoals(userId), listSessionsInRange(userId, addDays(today, -29), today)])
-      .then(async ([gs, sess]) => {
+    Promise.all([
+      listGoals(userId),
+      listSessionsInRange(userId, addDays(today, -29), today),
+      listHabits(userId).catch(() => [] as Habit[]),
+      listHabitChecksInRange(userId, startOfWeek(today), today).catch(() => [] as HabitCheck[]),
+    ])
+      .then(async ([gs, sess, allHabits, checks]) => {
         const due = goalsDueForReview(gs)
         // Hitos reales de cada meta a revisar (pocas): el avance se marca ahí.
         const lists = await Promise.all(due.map((g) => listMilestones(g.id)))
         if (!active) return
         setGoals(due)
         setSessions(sess)
+        setHabits(allHabits)
+        setHabitChecks(checks)
         setMilestonesByGoal(new Map(due.map((g, i) => [g.id, lists[i]])))
         setLoading(false)
       })
@@ -173,6 +184,11 @@ export function Review() {
   )
   const weekCount = goalDone.filter((s) => s.date >= startOfWeek(todayISO())).length
   const lastDoneDate = goalDone.map((s) => s.date).sort().pop() ?? null
+  // Los hábitos vinculados a esta meta también cuentan en el contexto.
+  const linkedHabitIds = new Set(
+    habits.filter((h) => h.goalId === goal.id && h.archivedAt === null).map((h) => h.id),
+  )
+  const habitChecksCount = habitChecks.filter((c) => linkedHabitIds.has(c.habitId)).length
 
   function markPendingDone(m: Milestone) {
     return setMilestoneDone(m.id, true).then((updated) => {
@@ -213,6 +229,10 @@ export function Review() {
           {lastDoneDate
             ? ` · última el ${formatWeekday(lastDoneDate)}`
             : ' · ninguna en los últimos 30 días'}
+          {linkedHabitIds.size > 0 &&
+            ` · hábitos vinculados: ${habitChecksCount} ${
+              habitChecksCount === 1 ? 'marca' : 'marcas'
+            } esta semana`}
         </span>
       </div>
 
