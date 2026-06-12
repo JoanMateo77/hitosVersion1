@@ -17,7 +17,9 @@ import {
   listSessionsInRange,
   sessionStatsForGoal,
 } from '@/services/sessions'
-import { minutesByGoalInRange } from '@/services/events'
+import { listEventsInRange, minutesByGoalInRange } from '@/services/events'
+import { listHabitChecksInRange, listHabits } from '@/services/habits'
+import { habitStreak } from '@/domain/habits'
 import { getTemplate } from '@/domain/templates'
 import { NICHES, getNiche } from '@/domain/niches'
 import { nicheAccent } from '@/lib/nicheAccent'
@@ -39,7 +41,7 @@ import {
   startOfWeek,
   todayISO,
 } from '@/lib/date'
-import type { Goal, GoalStatus, Milestone, NicheId, ScheduleBlock, Session } from '@/lib/types'
+import type { CalendarEvent, Goal, GoalStatus, Habit, HabitCheck, Milestone, NicheId, ScheduleBlock, Session } from '@/lib/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { MilestoneChecklist } from '@/components/MilestoneChecklist'
 import { CommitmentStep } from '@/components/wizard/CommitmentStep'
@@ -51,6 +53,7 @@ import {
   IconClock,
   IconCompass,
   IconDots,
+  IconFlame,
   IconQuote,
   IconShare,
 } from '@/components/icons'
@@ -75,6 +78,10 @@ export function GoalDetail() {
   const [advances, setAdvances] = useState<Session[]>([])
   const [stats, setStats] = useState({ done: 0, minutes: 0 })
   const [weekMinutes, setWeekMinutes] = useState(0)
+  // Integración entre zonas: hábitos vinculados y eventos de la semana de ESTA meta.
+  const [habits, setHabits] = useState<Habit[]>([])
+  const [habitChecks, setHabitChecks] = useState<HabitCheck[]>([])
+  const [weekEvents, setWeekEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
@@ -95,7 +102,7 @@ export function GoalDetail() {
         setLoading(true)
         const id = goalId ?? ''
         const weekStart = startOfWeek(todayISO())
-        const [g, ms, blks, weekSess, st, mins, adv] = await Promise.all([
+        const [g, ms, blks, weekSess, st, mins, adv, allHabits, checks, evs] = await Promise.all([
           getGoal(id),
           listMilestones(id),
           listScheduleForGoal(id),
@@ -103,6 +110,14 @@ export function GoalDetail() {
           sessionStatsForGoal(id),
           minutesByGoalInRange(userId, weekStart, addDays(weekStart, 6)),
           listAccomplishments(id),
+          // Integraciones: degradan a vacío sin romper el detalle.
+          listHabits(userId).catch(() => [] as Habit[]),
+          listHabitChecksInRange(userId, addDays(todayISO(), -119), todayISO()).catch(
+            () => [] as HabitCheck[],
+          ),
+          listEventsInRange(userId, weekStart, addDays(weekStart, 6)).catch(
+            () => [] as CalendarEvent[],
+          ),
         ])
         if (!active) return
         setGoal(g)
@@ -112,6 +127,9 @@ export function GoalDetail() {
         setStats(st)
         setWeekMinutes(mins.get(id) ?? 0)
         setAdvances(adv)
+        setHabits(allHabits)
+        setHabitChecks(checks)
+        setWeekEvents(evs.filter((e) => e.goalId === id))
       } catch (err) {
         if (active) setError(friendlyError(err, 'No se pudo cargar la meta.'))
       } finally {
@@ -313,6 +331,24 @@ export function GoalDetail() {
   const consistency = weekConsistency(blocks, weekSessions, startOfWeek(todayISO()))
   const isActive = goal.status === 'active'
 
+  // Hábitos que suman a esta meta, con su racha — la zona de hábitos deja de ser una isla.
+  const linkedHabits = habits.filter((h) => h.goalId === goal.id && h.archivedAt === null)
+  const habitDates = new Map<string, Set<string>>()
+  for (const c of habitChecks) {
+    const set = habitDates.get(c.habitId) ?? new Set<string>()
+    set.add(c.date)
+    habitDates.set(c.habitId, set)
+  }
+  const habitStreaks = new Map(
+    linkedHabits.map((h) => [
+      h.id,
+      habitStreak(habitDates.get(h.id) ?? new Set(), h.weekdays, todayISO()),
+    ]),
+  )
+  const sortedWeekEvents = [...weekEvents].sort(
+    (a, b) => a.date.localeCompare(b.date) || (a.startTime ?? '99').localeCompare(b.startTime ?? '99'),
+  )
+
   return (
     <div className="screen" style={nicheAccent(goal.area)}>
       <BackButton onClick={goBack} />
@@ -500,6 +536,43 @@ export function GoalDetail() {
               <InfoRow label="Agendado esta semana" value={`${formatDuration(weekMinutes)} en tu agenda`} />
             )}
           </div>
+
+          {linkedHabits.length > 0 && (
+            <div className="card stack stack--sm">
+              <span className="kicker">Hábitos que suman</span>
+              {linkedHabits.map((h) => (
+                <button
+                  key={h.id}
+                  type="button"
+                  className="row row--between"
+                  style={{ alignItems: 'center', width: '100%', textAlign: 'left' }}
+                  aria-label={`Ver hábito: ${h.title}`}
+                  onClick={() => navigate('/habitos')}
+                >
+                  <span className="small nowrap-ellipsis">{h.title}</span>
+                  {(habitStreaks.get(h.id) ?? 0) >= 2 && (
+                    <span className="streak-chip" style={{ flex: 'none' }}>
+                      <IconFlame size={12} /> {habitStreaks.get(h.id)}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {sortedWeekEvents.length > 0 && (
+            <div className="card stack stack--sm">
+              <span className="kicker">En tu agenda esta semana</span>
+              {sortedWeekEvents.map((e) => (
+                <button key={e.id} className="ev" onClick={() => navigate(`/calendario?d=${e.date}`)}>
+                  <span className="ev__time">
+                    {e.allDay || !e.startTime ? 'Día' : formatTime12(e.startTime)}
+                  </span>
+                  <span className="ev__title">{e.title}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {weekMinutes === 0 && (
             <p className="faint tiny row row--sm" style={{ alignItems: 'center' }}>
