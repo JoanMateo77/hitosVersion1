@@ -22,7 +22,7 @@ import { habitsDueOn, habitStreak } from '@/domain/habits'
 import { HabitRow } from '@/components/HabitRow'
 import { compareEvents } from '@/domain/calendar'
 import { carryoverCandidates, findForgottenGoal, goalsDueForReview } from '@/domain/dailyPlan'
-import { currentStreakCommitted, formatClock, pickSuggestion, remainingSeconds } from '@/domain/sessions'
+import { bestStreakCommitted, currentStreakCommitted, formatClock, pickSuggestion, remainingSeconds } from '@/domain/sessions'
 import { WEEKDAY_LABELS, weekdayMon0 } from '@/domain/commitment'
 import { getTemplate } from '@/domain/templates'
 import { addDays, formatTime12, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
@@ -195,6 +195,32 @@ export function Today() {
     const committedWeekdays = new Set(blocks.map((b) => b.weekday))
     return currentStreakCommitted(doneDates, committedWeekdays, today)
   }, [history, sessions, blocks, today])
+
+  // Racha recién rota: veníamos con racha (≥2) y el último día comprometido quedó
+  // sin cumplir. El chip desaparecía sin explicación — el silencio es peor.
+  const streakBroken = useMemo(() => {
+    if (streak !== 0 || blocks.length === 0) return null
+    const doneDates = new Set<string>()
+    for (const s of history) if (doneish(s)) doneDates.add(s.date)
+    for (const s of sessions) if (doneish(s)) doneDates.add(s.date)
+    if (doneDates.size === 0) return null
+    const lastDone = [...doneDates].sort().pop()!
+    if (lastDone < addDays(today, -14)) return null
+    const committed = new Set(blocks.map((b) => b.weekday))
+    const best = bestStreakCommitted(doneDates, committed, addDays(today, -119), today)
+    if (best < 2) return null
+    return { best, lastDone }
+  }, [streak, history, sessions, blocks, today])
+
+  const [streakNoticeDismissed, setStreakNoticeDismissed] = useState(false)
+  const showStreakNotice =
+    streakBroken !== null &&
+    !streakNoticeDismissed &&
+    safeGetItem(`logralo.streak-broken.${streakBroken.lastDone}`) !== '1'
+  function dismissStreakNotice() {
+    if (streakBroken) safeSetItem(`logralo.streak-broken.${streakBroken.lastDone}`, '1')
+    setStreakNoticeDismissed(true)
+  }
 
   // Una sesión de otro día que quedó sin confirmar: el aviso más importante.
   const toResolve = useMemo(
@@ -583,6 +609,21 @@ export function Today() {
             </div>
           )}
 
+          {showStreakNotice && streakBroken && (
+            <div className="card card--tight row row--between" role="status" style={{ alignItems: 'center' }}>
+              <span className="small row row--sm" style={{ alignItems: 'center' }}>
+                <IconFlame size={16} className="muted" style={{ flex: 'none' }} />
+                <span>
+                  Tu racha se reinició. Tu récord sigue siendo <strong>{streakBroken.best} días</strong> —
+                  hoy se empieza otra.
+                </span>
+              </span>
+              <button className="btn btn--sm btn--subtle" onClick={dismissStreakNotice}>
+                Entendido
+              </button>
+            </div>
+          )}
+
           {notice === 'resolve' && toResolve && (
             <button
               className="card card--tight card--warn row row--between"
@@ -850,4 +891,20 @@ export function Today() {
       </div>
     </div>
   )
+}
+
+/** localStorage tolerante (Safari privado, storage lleno): nunca rompe el render. */
+function safeGetItem(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+function safeSetItem(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    /* ignore */
+  }
 }
