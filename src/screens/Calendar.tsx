@@ -14,7 +14,7 @@ import { WEEKDAY_LABELS, groupByDate, inSameMonth, monthGrid, weekDays } from '@
 import { WEEKDAY_PLURALS } from '@/domain/commitment'
 import { dueBlocksForDate } from '@/domain/sessions'
 import { listScheduleForUser, updateBlockStartTime } from '@/services/schedule'
-import { listSessionsInRange, setSessionPlannedTime } from '@/services/sessions'
+import { createSpontaneousSession, listSessionsInRange, setSessionPlannedTime } from '@/services/sessions'
 import { nicheAccent } from '@/lib/nicheAccent'
 import {
   addDays,
@@ -29,6 +29,7 @@ import {
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { IconArrowReturn, IconBack, IconClose, IconFlag, IconPlus } from '@/components/icons'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
+import { NicheIcon } from '@/components/NicheGlyph'
 import { useToast } from '@/app/toast'
 import { Hint } from '@/components/Hint'
 
@@ -70,9 +71,19 @@ function sessionStateLabel(state: DayAgendaSession['state']): string {
  * el lunes. No sincroniza con Google (queda fuera del alcance de este MVP).
  */
 export function Calendar() {
-  const { userId } = useSession()
+  const { userId, profile } = useSession()
   const navigate = useNavigate()
   const { toast } = useToast()
+
+  // Hora sugerida para el TimeSheet según el momento preferido del perfil.
+  const suggestedTime =
+    profile.preferredMoment === 'morning'
+      ? '08:00'
+      : profile.preferredMoment === 'midday'
+        ? '13:00'
+        : profile.preferredMoment === 'evening'
+          ? '19:00'
+          : null
 
   const [params] = useSearchParams()
   // ?d=YYYY-MM-DD (p. ej. al tocar un evento en Today) abre ese día directo.
@@ -97,6 +108,8 @@ export function Calendar() {
   const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState<{ event: CalendarEvent | null; date: string } | null>(null)
+  // Día para el que se está sumando una sesión espontánea desde la agenda.
+  const [planning, setPlanning] = useState<string | null>(null)
 
   const grid = useMemo(() => monthGrid(anchor), [anchor])
   const week = useMemo(() => weekDays(anchor), [anchor])
@@ -226,6 +239,25 @@ export function Calendar() {
     }
   }
 
+  /** Suma una sesión espontánea a una meta en el día elegido desde la agenda. */
+  async function planSession(goal: Goal) {
+    const date = planning
+    setPlanning(null)
+    if (!date) return
+    try {
+      const ownBlock = blocks.find((b) => b.goalId === goal.id)
+      const created = await createSpontaneousSession(userId, goal.id, date, {
+        targetKind: ownBlock?.targetKind ?? 'time',
+        targetValue: ownBlock?.targetValue ?? profile.defaultSessionMinutes ?? 25,
+        unit: ownBlock?.unit ?? null,
+      })
+      setSessions((prev) => [...prev, created])
+      toast(`Sesión agregada para “${goal.title}”.`, 'success')
+    } catch {
+      toast('No se pudo agregar la sesión.')
+    }
+  }
+
   function shift(dir: 1 | -1) {
     if (view === 'day') setSelected((s) => addDays(s, dir))
     else if (view === 'week') setAnchor((a) => addDays(a, dir * 7))
@@ -295,6 +327,8 @@ export function Calendar() {
     onAdd: () => setEditing({ event: null, date: day }),
     onOpen: (e: CalendarEvent) => setEditing({ event: e, date: e.date }),
     onGoal: (g: Goal) => navigate(`/metas/${g.id}`),
+    onPlanSession:
+      day >= today && activeGoals.length > 0 ? () => setPlanning(day) : undefined,
   })
 
   return (
@@ -374,6 +408,7 @@ export function Calendar() {
                       {evs.slice(0, 3).map((e) => (
                         <span key={e.id} className="cal-dot" />
                       ))}
+                      {evs.length > 3 && <span className="cal-cell__more">+{evs.length - 3}</span>}
                       {deadlinesByDate.has(day) && <span className="cal-dot cal-dot--goal" />}
                     </span>
                   </button>
@@ -399,8 +434,18 @@ export function Calendar() {
         <TimeSheet
           goal={timeSheet.goal}
           block={timeSheet.block}
+          suggested={suggestedTime}
           onClose={() => setTimeSheet(null)}
           onSave={(t) => void saveSessionTime(t)}
+        />
+      )}
+
+      {planning && (
+        <PlanSessionSheet
+          date={planning}
+          goals={activeGoals}
+          onPick={(g) => void planSession(g)}
+          onClose={() => setPlanning(null)}
         />
       )}
 
@@ -430,6 +475,7 @@ function DaySection({
   onAdd,
   onOpen,
   onGoal,
+  onPlanSession,
 }: {
   day: string
   sessions: DayAgendaSession[]
@@ -440,6 +486,8 @@ function DaySection({
   onAdd: () => void
   onOpen: (e: CalendarEvent) => void
   onGoal: (g: Goal) => void
+  /** Sumar una sesión espontánea este día (solo hoy o futuro, con metas activas). */
+  onPlanSession?: () => void
 }) {
   const empty = sessions.length === 0 && events.length === 0 && deadlines.length === 0
   return (
@@ -517,7 +565,70 @@ function DaySection({
           })}
         </div>
       )}
+
+      {onPlanSession && (
+        <button
+          type="button"
+          className="btn--link"
+          style={{ alignSelf: 'flex-start' }}
+          onClick={onPlanSession}
+        >
+          + Sesión para una meta
+        </button>
+      )}
     </section>
+  )
+}
+
+/** Hoja para sumar una sesión espontánea a una meta en el día elegido. */
+function PlanSessionSheet({
+  date,
+  goals,
+  onPick,
+  onClose,
+}: {
+  date: string
+  goals: Goal[]
+  onPick: (g: Goal) => void
+  onClose: () => void
+}) {
+  const panelRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(panelRef, onClose)
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [])
+  return (
+    <div className="sheet" role="dialog" aria-modal="true">
+      <div className="sheet__backdrop" onClick={onClose} />
+      <div ref={panelRef} className="sheet__panel stack stack--lg">
+        <div className="row row--between">
+          <h2 style={{ fontSize: 'var(--fs-lg)' }}>¿A qué meta le sumas una sesión?</h2>
+          <button type="button" className="iconbtn iconbtn--sm" onClick={onClose} aria-label="Cerrar">
+            <IconClose />
+          </button>
+        </div>
+        <p className="small muted" style={{ margin: 0 }}>
+          Se agrega para el {formatWeekday(date)}, además de tu compromiso.
+        </p>
+        <div className="stack stack--sm">
+          {goals.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              className="chip"
+              style={{ justifyContent: 'flex-start' }}
+              onClick={() => onPick(g)}
+            >
+              <NicheIcon area={g.area} size={14} /> {g.title}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -525,15 +636,18 @@ function DaySection({
 function TimeSheet({
   goal,
   block,
+  suggested,
   onClose,
   onSave,
 }: {
   goal: Goal
   block: ScheduleBlock
+  /** Hora sugerida según el momento preferido del perfil (editable). */
+  suggested: string | null
   onClose: () => void
   onSave: (time: string | null) => void
 }) {
-  const [time, setTime] = useState(block.startTime ?? '')
+  const [time, setTime] = useState(block.startTime ?? suggested ?? '')
   const panelRef = useRef<HTMLDivElement>(null)
   useFocusTrap(panelRef, onClose)
   useEffect(() => {

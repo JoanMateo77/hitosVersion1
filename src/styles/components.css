@@ -1001,6 +1001,7 @@
 }
 .cal-cell__dots {
   display: flex;
+  align-items: center;
   gap: 3px;
   min-height: 5px;
 }
@@ -1012,6 +1013,11 @@
 }
 .cal-dot--goal {
   background: var(--primary);
+}
+.cal-cell__more {
+  font-size: 9px;
+  line-height: 1;
+  color: var(--text-muted);
 }
 
 .cal-day {
