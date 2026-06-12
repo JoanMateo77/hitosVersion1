@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
+import { useToast } from '@/app/toast'
 import type { Habit, NicheId } from '@/lib/types'
 import {
   createHabit,
@@ -60,6 +61,7 @@ function daysLabel(weekdays: number[]): string {
  */
 export function Habits() {
   const { userId } = useSession()
+  const { toast } = useToast()
   const [params] = useSearchParams()
   const today = todayISO()
   const weekStart = startOfWeek(today)
@@ -141,6 +143,7 @@ export function Habits() {
       setArea('otra')
       setDays([])
       setFormOpen(false)
+      toast(`Hábito creado: ${habit.title}`, 'success')
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'No se pudo crear el hábito. Inténtalo de nuevo.')
     } finally {
@@ -261,7 +264,7 @@ export function Habits() {
             )}
           </div>
 
-          {formError && <div className="alert alert--warn">{formError}</div>}
+          {formError && <div className="alert alert--warn" role="alert">{formError}</div>}
 
           <div className="row">
             <button className="btn btn--primary" disabled={saving} onClick={() => void handleCreate()}>
