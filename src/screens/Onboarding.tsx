@@ -80,13 +80,19 @@ export function Onboarding() {
 
   return (
     <div className="screen screen--full flow-screen">
-      <div className="stepper" aria-hidden="true" style={{ marginTop: 'var(--s2)' }}>
-        {STEPS.map((s, i) => (
-          <span
-            key={s}
-            className={`stepper__dot ${i < stepIndex ? 'stepper__dot--done' : i === stepIndex ? 'stepper__dot--active' : ''}`}
-          />
-        ))}
+      <div className="row" style={{ marginTop: 'var(--s2)', alignItems: 'center', gap: 'var(--s3)' }}>
+        <div className="stepper" aria-hidden="true">
+          {STEPS.map((s, i) => (
+            <span
+              key={s}
+              className={`stepper__dot ${i < stepIndex ? 'stepper__dot--done' : i === stepIndex ? 'stepper__dot--active' : ''}`}
+            />
+          ))}
+        </div>
+        {/* Orientación explícita: los puntos solos no dicen cuánto falta. */}
+        <span className="faint tiny">
+          Paso {stepIndex + 1} de {STEPS.length}
+        </span>
       </div>
 
       {/* ----- 1 · La promesa ----- */}

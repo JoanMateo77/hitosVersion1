@@ -3,18 +3,18 @@ import {
   IconCalendar,
   IconFlame,
   IconGoals,
-  IconProfile,
   IconProgress,
   IconToday,
 } from '@/components/icons'
 
+// 5 pestañas máximo: Perfil vive en el avatar del TopBar para que cada zona
+// táctil quede cómoda en pantallas chicas.
 const TABS = [
   { to: '/', label: 'Hoy', Icon: IconToday },
   { to: '/habitos', label: 'Hábitos', Icon: IconFlame },
   { to: '/metas', label: 'Metas', Icon: IconGoals },
   { to: '/calendario', label: 'Agenda', Icon: IconCalendar },
   { to: '/progreso', label: 'Crecer', Icon: IconProgress },
-  { to: '/perfil', label: 'Perfil', Icon: IconProfile },
 ] as const
 
 export function BottomNav() {

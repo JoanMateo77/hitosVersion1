@@ -1291,6 +1291,28 @@ select.input {
   user-select: none;
 }
 
+/* Acceso a Perfil en móvil (saca la 6.ª pestaña de la barra inferior) */
+.topbar__avatar {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border-soft);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+}
+.topbar__avatar--active {
+  background: var(--primary);
+  color: var(--on-primary);
+  border-color: var(--primary);
+}
+
 /* Barra lateral (escritorio): oculta por defecto, se enciende en el breakpoint */
 .sidenav {
   display: none;

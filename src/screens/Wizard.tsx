@@ -301,6 +301,10 @@ export function Wizard() {
             />
           ))}
         </div>
+        {/* Orientación explícita: los puntos solos no dicen cuánto falta. */}
+        <span className="faint tiny" style={{ flex: 'none' }}>
+          Paso {step + 1} de {STEPS}
+        </span>
       </div>
 
       <div className="stack stack--lg" style={{ flex: 1 }}>

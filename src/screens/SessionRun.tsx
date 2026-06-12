@@ -333,8 +333,9 @@ export function SessionRun() {
   return (
     <div className="screen screen--full flow-screen flow-screen--session" style={nicheAccent(goal.area)}>
       <div className="row" style={{ marginBottom: 'var(--s4)' }}>
-        <button className="iconbtn" onClick={() => navigate('/')} aria-label="Volver a tu día">
-          <IconBack />
+        {/* Con texto: en esta pantalla sin navegación, una flecha sola no orienta. */}
+        <button className="btn btn--ghost btn--sm" onClick={() => navigate('/')} aria-label="Volver a tu día">
+          <IconBack size={16} /> Tu día
         </button>
       </div>
 
