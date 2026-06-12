@@ -119,6 +119,26 @@ export function SessionRun() {
   const [saving, setSaving] = useState(false)
   // Fallo no crítico (pausa/reanudar sin red): avisamos sin tirar la pantalla.
   const [syncNotice, setSyncNotice] = useState<string | null>(null)
+  // Al volver a la pestaña tras >2 min con el reloj corriendo, lo decimos: el
+  // tiempo siguió por timestamps y un salto mudo del reloj desconcierta.
+  const [awayNotice, setAwayNotice] = useState<string | null>(null)
+  const hiddenAt = useRef<number | null>(null)
+  useEffect(() => {
+    function onVisibility() {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt.current = Date.now()
+        return
+      }
+      const away = hiddenAt.current !== null ? Date.now() - hiddenAt.current : 0
+      hiddenAt.current = null
+      if (away > 120_000) {
+        setNow(new Date())
+        setAwayNotice(`El reloj siguió mientras no estabas (+${Math.round(away / 60_000)} min).`)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [])
   const [now, setNow] = useState(() => new Date())
   /** Contador local para sesiones de cantidad (se persiste al cerrar). */
   const [count, setCount] = useState(0)
@@ -243,6 +263,7 @@ export function SessionRun() {
     if (!session) return
     setSaving(true)
     setSyncNotice(null)
+    setAwayNotice(null)
     try {
       setSession(await pauseSession(session.id, new Date().toISOString()))
     } catch {
@@ -257,6 +278,7 @@ export function SessionRun() {
     if (!session?.pausedAt) return
     setSaving(true)
     setSyncNotice(null)
+    setAwayNotice(null)
     const accumulated =
       session.pausedTotalSeconds +
       Math.max(0, Math.floor((Date.now() - new Date(session.pausedAt).getTime()) / 1000))
@@ -475,6 +497,11 @@ export function SessionRun() {
               <div className="alert alert--warn" role="alert" style={{ width: '100%', maxWidth: 360 }}>
                 {syncNotice}
               </div>
+            )}
+            {awayNotice && ticking && (
+              <p className="small muted center" role="status" style={{ maxWidth: 360 }}>
+                {awayNotice}
+              </p>
             )}
             {!earlyFinish ? (
               <div className="row" style={{ width: '100%' }}>
