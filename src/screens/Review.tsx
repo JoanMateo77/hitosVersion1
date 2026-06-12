@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import type { Goal, Milestone } from '@/lib/types'
+import type { Goal, Milestone, Session } from '@/lib/types'
 import { listGoals, markGoalReviewed, setGoalStatus } from '@/services/goals'
 import { listMilestones, setMilestoneDone } from '@/services/milestones'
+import { listSessionsInRange } from '@/services/sessions'
 import { goalsDueForReview } from '@/domain/dailyPlan'
+import { addDays, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { useToast } from '@/app/toast'
 import { Roadmap } from '@/components/Roadmap'
@@ -29,7 +31,10 @@ export function Review() {
 
   const [goals, setGoals] = useState<Goal[]>([])
   const [milestonesByGoal, setMilestonesByGoal] = useState<Map<string, Milestone[]>>(new Map())
+  // Sesiones de los últimos 30 días: contexto para decidir con datos, no de memoria.
+  const [sessions, setSessions] = useState<Session[]>([])
   const [index, setIndex] = useState(0)
+  const [skipped, setSkipped] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [working, setWorking] = useState(false)
@@ -43,13 +48,15 @@ export function Review() {
 
   useEffect(() => {
     let active = true
-    listGoals(userId)
-      .then(async (gs) => {
+    const today = todayISO()
+    Promise.all([listGoals(userId), listSessionsInRange(userId, addDays(today, -29), today)])
+      .then(async ([gs, sess]) => {
         const due = goalsDueForReview(gs)
         // Hitos reales de cada meta a revisar (pocas): el avance se marca ahí.
         const lists = await Promise.all(due.map((g) => listMilestones(g.id)))
         if (!active) return
         setGoals(due)
+        setSessions(sess)
         setMilestonesByGoal(new Map(due.map((g, i) => [g.id, lists[i]])))
         setLoading(false)
       })
@@ -110,6 +117,7 @@ export function Review() {
       tally.achieved > 0 && `${tally.achieved} ${tally.achieved === 1 ? 'lograda' : 'logradas'}`,
       tally.kept > 0 && `${tally.kept} en marcha`,
       tally.paused > 0 && `${tally.paused} en pausa`,
+      skipped > 0 && `${skipped} para después`,
     ].filter(Boolean) as string[]
 
     return (
@@ -120,7 +128,8 @@ export function Review() {
             Revisión lista
           </h1>
           <p className="muted">
-            Repasaste {total} {total === 1 ? 'meta' : 'metas'}. Así se mantiene el rumbo.
+            Repasaste {total - skipped} de {total} {total === 1 ? 'meta' : 'metas'}. Así se mantiene
+            el rumbo.
           </p>
           {chips.length > 0 && (
             <div
@@ -158,6 +167,13 @@ export function Review() {
   const firstPending = goalMilestones.find((m) => m.doneAt === null) ?? null
   const canAdvance = firstPending !== null
 
+  // Contexto para decidir: cuánto trabajaste esta meta últimamente.
+  const goalDone = sessions.filter(
+    (s) => s.goalId === goal.id && (s.status === 'done' || s.status === 'partial'),
+  )
+  const weekCount = goalDone.filter((s) => s.date >= startOfWeek(todayISO())).length
+  const lastDoneDate = goalDone.map((s) => s.date).sort().pop() ?? null
+
   function markPendingDone(m: Milestone) {
     return setMilestoneDone(m.id, true).then((updated) => {
       setMilestonesByGoal((prev) => {
@@ -190,6 +206,14 @@ export function Review() {
             : `ETAPA ${stage + 1} DE ${milestones.length}`}
         </span>
         <Roadmap milestones={milestones} currentIndex={stage} />
+        <span className="faint tiny">
+          {weekCount > 0
+            ? `${weekCount} ${weekCount === 1 ? 'sesión cumplida' : 'sesiones cumplidas'} esta semana`
+            : 'Sin sesiones esta semana'}
+          {lastDoneDate
+            ? ` · última el ${formatWeekday(lastDoneDate)}`
+            : ' · ninguna en los últimos 30 días'}
+        </span>
       </div>
 
       {error && (
@@ -268,6 +292,18 @@ export function Review() {
           }
         >
           Pausar esta meta
+        </button>
+        <button
+          className="btn--link"
+          style={{ alignSelf: 'center' }}
+          disabled={working}
+          onClick={() => {
+            // Saltar no marca revisada: la meta vuelve a pedir revisión la próxima vez.
+            setSkipped((n) => n + 1)
+            setIndex((i) => i + 1)
+          }}
+        >
+          Saltar por ahora
         </button>
       </div>
     </div>
