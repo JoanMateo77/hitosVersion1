@@ -59,7 +59,7 @@ export function GoalCreated() {
   if (!goal) return <Navigate to="/" replace />
   // Una meta ya no activa (lograda/archivada/pausada) alcanzada por URL directa no
   // debe mostrar "¡Meta creada!": la mandamos a su detalle real.
-  if (goal.status !== 'active') return <Navigate to={`/meta/${goal.id}`} replace />
+  if (goal.status !== 'active') return <Navigate to={`/metas/${goal.id}`} replace />
 
   const template = getTemplate(goal.templateKey)
   // Próximo día comprometido (hoy..+6): el contrato se vuelve una cita concreta.

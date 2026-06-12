@@ -11,6 +11,7 @@ import { LoadingScreen } from '@/components/LoadingScreen'
 import { AppShell } from '@/components/AppShell'
 import { ConfigNeeded } from '@/screens/ConfigNeeded'
 import { Auth } from '@/screens/Auth'
+import { UpdatePassword } from '@/screens/UpdatePassword'
 
 // Pantallas cargadas bajo demanda (code-splitting por ruta): bajan el bundle
 // inicial y aceleran el primer render. <Suspense> muestra el loader mientras carga.
@@ -50,7 +51,7 @@ export default function App() {
 }
 
 function AuthedApp() {
-  const { user, loading } = useAuth()
+  const { user, loading, recovery, clearRecovery } = useAuth()
 
   if (loading) {
     return (
@@ -63,6 +64,14 @@ function AuthedApp() {
     return (
       <div className="app">
         <Auth />
+      </div>
+    )
+  }
+  // Sesión entrada por el enlace de recuperación: primero la contraseña nueva.
+  if (recovery) {
+    return (
+      <div className="app">
+        <UpdatePassword onDone={clearRecovery} />
       </div>
     )
   }

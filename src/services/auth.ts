@@ -43,6 +43,12 @@ export async function resetPassword(email: string): Promise<void> {
   if (error) throw new Error(translateAuthError(error.message))
 }
 
+/** Define la contraseña nueva tras entrar por el enlace de recuperación. */
+export async function updatePassword(password: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password })
+  if (error) throw new Error(translateAuthError(error.message))
+}
+
 export async function signOut(): Promise<void> {
   const { error } = await supabase.auth.signOut()
   if (error) throw new Error(error.message)
@@ -65,9 +71,9 @@ export async function getSession(): Promise<Session | null> {
 }
 
 /** Suscribe a cambios de sesión (login/logout/refresh). Devuelve un unsubscribe. */
-export function onAuthChange(cb: (user: User | null) => void): () => void {
-  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-    cb(session?.user ?? null)
+export function onAuthChange(cb: (user: User | null, event: string) => void): () => void {
+  const { data } = supabase.auth.onAuthStateChange((event, session) => {
+    cb(session?.user ?? null, event)
   })
   return () => data.subscription.unsubscribe()
 }
