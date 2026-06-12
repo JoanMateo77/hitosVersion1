@@ -41,4 +41,9 @@ export default tseslint.config(
     files: ['**/*.test.{ts,tsx}'],
     languageOptions: { globals: { ...globals.node } },
   },
+  {
+    // Service workers (public/): corren en otro contexto global que el browser.
+    files: ['public/**/*.js'],
+    languageOptions: { globals: { ...globals.serviceworker } },
+  },
 )
