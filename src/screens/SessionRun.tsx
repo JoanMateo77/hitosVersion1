@@ -117,6 +117,8 @@ export function SessionRun() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  // Fallo no crítico (pausa/reanudar sin red): avisamos sin tirar la pantalla.
+  const [syncNotice, setSyncNotice] = useState<string | null>(null)
   const [now, setNow] = useState(() => new Date())
   /** Contador local para sesiones de cantidad (se persiste al cerrar). */
   const [count, setCount] = useState(0)
@@ -240,10 +242,12 @@ export function SessionRun() {
   async function doPause() {
     if (!session) return
     setSaving(true)
+    setSyncNotice(null)
     try {
       setSession(await pauseSession(session.id, new Date().toISOString()))
     } catch {
-      /* sin red: el reloj sigue por timestamps, no es crítico */
+      // El reloj sigue corriendo (la pausa no llegó al servidor): que se sepa.
+      setSyncNotice('No se pudo pausar (¿sin conexión?). Inténtalo de nuevo.')
     } finally {
       setSaving(false)
     }
@@ -252,6 +256,7 @@ export function SessionRun() {
   async function doResume() {
     if (!session?.pausedAt) return
     setSaving(true)
+    setSyncNotice(null)
     const accumulated =
       session.pausedTotalSeconds +
       Math.max(0, Math.floor((Date.now() - new Date(session.pausedAt).getTime()) / 1000))
@@ -259,7 +264,7 @@ export function SessionRun() {
       setSession(await resumeSession(session.userId, session.id, accumulated))
       setNow(new Date())
     } catch {
-      /* idem pausa */
+      setSyncNotice('No se pudo reanudar (¿sin conexión?). Inténtalo de nuevo.')
     } finally {
       setSaving(false)
     }
@@ -466,6 +471,11 @@ export function SessionRun() {
               </span>
             </SessionRing>
             {goal.why && <p className="small muted center" style={{ maxWidth: 360 }}>“{goal.why}”</p>}
+            {syncNotice && (
+              <div className="alert alert--warn" role="alert" style={{ width: '100%', maxWidth: 360 }}>
+                {syncNotice}
+              </div>
+            )}
             {!earlyFinish ? (
               <div className="row" style={{ width: '100%' }}>
                 {session.pausedAt ? (
