@@ -16,6 +16,7 @@ import { dueBlocksForDate } from '@/domain/sessions'
 import { listScheduleForUser, updateBlockStartTime } from '@/services/schedule'
 import { createSpontaneousSession, listSessionsInRange, setSessionPlannedTime } from '@/services/sessions'
 import { nicheAccent } from '@/lib/nicheAccent'
+import { friendlyError } from '@/lib/errors'
 import {
   addDays,
   addMonths,
@@ -138,7 +139,7 @@ export function Calendar() {
         setBlocks(blks)
         setSessions(sess)
       } catch (err) {
-        if (active) setError(err instanceof Error ? err.message : 'No se pudo cargar tu agenda.')
+        if (active) setError(friendlyError(err, 'No se pudo cargar tu agenda.'))
       } finally {
         if (active) setReady(true)
       }

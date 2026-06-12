@@ -135,9 +135,20 @@ export function GoalCreated() {
         )}
       </div>
 
-      <button className="btn btn--primary btn--block" onClick={() => navigate('/', { replace: true })}>
-        Ver mi plan de hoy
-      </button>
+      <div className="stack stack--sm">
+        <button className="btn btn--primary btn--block" onClick={() => navigate('/', { replace: true })}>
+          Ver mi plan de hoy
+        </button>
+        {/* Escape discreto: un typo recién creado se corrige sin rodeos. */}
+        <button
+          type="button"
+          className="btn--link"
+          style={{ alignSelf: 'center' }}
+          onClick={() => navigate(`/metas/${goal.id}`, { replace: true })}
+        >
+          Ver o ajustar esta meta
+        </button>
+      </div>
     </div>
   )
 }

@@ -16,6 +16,7 @@ import { NICHES } from '@/domain/niches'
 import { WEEKDAY_LABELS } from '@/domain/commitment'
 import { addDays, startOfWeek, todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
+import { friendlyError } from '@/lib/errors'
 import { NicheGlyph, NicheIcon } from '@/components/NicheGlyph'
 import { SkeletonList } from '@/components/Skeleton'
 import { IconArrowReturn, IconDots, IconFlame, IconLightbulb, IconPlus } from '@/components/icons'
@@ -97,7 +98,7 @@ export function Habits() {
         setGoals(loadedGoals)
       })
       .catch((err: unknown) => {
-        if (active) setLoadError(err instanceof Error ? err.message : 'No se pudieron cargar tus hábitos.')
+        if (active) setLoadError(friendlyError(err, 'No se pudieron cargar tus hábitos.'))
       })
     return () => {
       active = false
@@ -159,7 +160,7 @@ export function Habits() {
       setFormOpen(false)
       toast(`Hábito creado: ${habit.title}`, 'success')
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'No se pudo crear el hábito. Inténtalo de nuevo.')
+      setFormError(friendlyError(err, 'No se pudo crear el hábito. Inténtalo de nuevo.'))
     } finally {
       setSaving(false)
     }
@@ -180,7 +181,7 @@ export function Habits() {
       setHabits((prev) => prev?.map((h) => (h.id === habit.id ? updated : h)) ?? prev)
     } catch (err) {
       setHabits((prev) => prev?.map((h) => (h.id === habit.id ? habit : h)) ?? prev)
-      setActionError(err instanceof Error ? err.message : 'No se pudieron guardar los días.')
+      setActionError(friendlyError(err, 'No se pudieron guardar los días.'))
     }
   }
 
@@ -194,7 +195,7 @@ export function Habits() {
       setHabits((prev) => prev?.map((h) => (h.id === habit.id ? updated : h)) ?? prev)
     } catch (err) {
       setHabits((prev) => prev?.map((h) => (h.id === habit.id ? habit : h)) ?? prev)
-      setActionError(err instanceof Error ? err.message : 'No se pudo vincular la meta.')
+      setActionError(friendlyError(err, 'No se pudo vincular la meta.'))
     }
   }
 
@@ -205,7 +206,7 @@ export function Habits() {
       setHabits((prev) => prev?.map((h) => (h.id === habit.id ? updated : h)) ?? prev)
       setMenuId(null)
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'No se pudo actualizar el hábito.')
+      setActionError(friendlyError(err, 'No se pudo actualizar el hábito.'))
     }
   }
 
