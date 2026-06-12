@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { getGoal } from '@/services/goals'
+import { listLessonReads, pushLessonReads, setLessonRead } from '@/services/learn'
 import type { LearnLesson, NicheId } from '@/lib/types'
 import { LEARN_COLLECTIONS } from '@/content/learn'
 import { seedWizardDraft } from '@/lib/wizardDraft'
@@ -47,10 +48,32 @@ function saveRead(ids: Set<string>): void {
  */
 export function Learn() {
   const navigate = useNavigate()
-  const { profile } = useSession()
+  const { userId, profile } = useSession()
   const [read, setRead] = useState<Set<string>>(loadRead)
   const [collectionId, setCollectionId] = useState<string | null>(null)
   const [lessonId, setLessonId] = useState<string | null>(null)
+
+  // Sync suave con la cuenta: la BD es la verdad compartida entre dispositivos y
+  // localStorage el cache. Sin red (o sin migración 0011) todo sigue funcionando.
+  useEffect(() => {
+    let active = true
+    listLessonReads(userId)
+      .then((server) => {
+        if (!active) return
+        setRead((local) => {
+          const merged = new Set([...local, ...server])
+          saveRead(merged)
+          // Lo leído en este dispositivo que el servidor no tiene, se sube.
+          const localOnly = [...local].filter((id) => !server.has(id))
+          void pushLessonReads(userId, localOnly).catch(() => {})
+          return merged
+        })
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [userId])
 
   // Foco del usuario: el área de su meta prioritaria ⭐, o el nicho del perfil.
   // El contenido encuentra al usuario en su contexto, no al revés.
@@ -74,9 +97,12 @@ export function Learn() {
   function toggleRead(id: string) {
     setRead((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      const willBeRead = !next.has(id)
+      if (willBeRead) next.add(id)
+      else next.delete(id)
       saveRead(next)
+      // Mejor esfuerzo hacia la cuenta: si falla, el cache local ya quedó bien.
+      void setLessonRead(userId, id, willBeRead).catch(() => {})
       return next
     })
   }
