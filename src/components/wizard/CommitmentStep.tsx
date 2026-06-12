@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import type { ScheduleBlock, TargetKind } from '@/lib/types'
 import {
   WEEKDAY_LABELS,
@@ -33,6 +34,12 @@ export function CommitmentStep({
   const selectedDays = [...new Set(blocks.map((b) => b.weekday))].sort()
   const warning = overcommitWarning(existing, blocks)
 
+  // Memoria por tipo de medida: si vuelves de Cantidad a Tiempo (mismos días),
+  // recuperas lo que habías escrito en vez de los defaults. No convertimos entre
+  // tipos: "30 minutos" y "30 páginas" siguen sin ser intercambiables.
+  const kindMemory = useRef<Partial<Record<TargetKind, CommitmentBlockDraft[]>>>({})
+  const daysSignature = (bs: CommitmentBlockDraft[]) => bs.map((b) => b.weekday).sort().join(',')
+
   function toggleDay(weekday: number) {
     if (selectedDays.includes(weekday)) {
       onChange(blocks.filter((b) => b.weekday !== weekday))
@@ -50,9 +57,14 @@ export function CommitmentStep({
     ])
   }
 
-  // Cambiar de tipo reinicia los valores a defaults: es intencional, porque
-  // "30 minutos" y "30 páginas" no son magnitudes intercambiables.
   function setKind(next: TargetKind) {
+    if (next === kind) return
+    kindMemory.current[kind] = blocks
+    const remembered = kindMemory.current[next]
+    if (remembered && daysSignature(remembered) === daysSignature(blocks)) {
+      onChange(remembered)
+      return
+    }
     onChange(
       blocks.map((b) => ({
         ...b,
