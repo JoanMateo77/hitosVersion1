@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { LearnLesson } from '@/lib/types'
+import { useSession } from '@/app/session'
+import { getGoal } from '@/services/goals'
+import type { LearnLesson, NicheId } from '@/lib/types'
 import { LEARN_COLLECTIONS } from '@/content/learn'
 import { seedWizardDraft } from '@/lib/wizardDraft'
 import { NicheGlyph } from '@/components/NicheGlyph'
@@ -45,9 +47,26 @@ function saveRead(ids: Set<string>): void {
  */
 export function Learn() {
   const navigate = useNavigate()
+  const { profile } = useSession()
   const [read, setRead] = useState<Set<string>>(loadRead)
   const [collectionId, setCollectionId] = useState<string | null>(null)
   const [lessonId, setLessonId] = useState<string | null>(null)
+
+  // Foco del usuario: el área de su meta prioritaria ⭐, o el nicho del perfil.
+  // El contenido encuentra al usuario en su contexto, no al revés.
+  const [focusArea, setFocusArea] = useState<NicheId | null>(profile.primaryNiche)
+  useEffect(() => {
+    if (!profile.priorityGoalId) return
+    let active = true
+    getGoal(profile.priorityGoalId)
+      .then((g) => {
+        if (active && g) setFocusArea(g.area)
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [profile.priorityGoalId])
 
   const collection = LEARN_COLLECTIONS.find((c) => c.id === collectionId) ?? null
   const lesson = collection?.lessons.find((l) => l.id === lessonId) ?? null
@@ -194,6 +213,12 @@ export function Learn() {
   }
 
   /* ----- Vista de colecciones (raíz) -------------------------------------- */
+  // Las colecciones de tu foco van primero (sort estable: el resto no cambia).
+  const collections = focusArea
+    ? [...LEARN_COLLECTIONS].sort(
+        (a, b) => (a.area === focusArea ? 0 : 1) - (b.area === focusArea ? 0 : 1),
+      )
+    : LEARN_COLLECTIONS
   return (
     <div className="screen">
       <header className="screen__header">
@@ -220,7 +245,7 @@ export function Learn() {
         </div>
       ) : (
         <div className="stack stack--sm">
-          {LEARN_COLLECTIONS.map((c) => {
+          {collections.map((c) => {
             const readCount = c.lessons.filter((l) => read.has(l.id)).length
             return (
               <button
@@ -233,6 +258,7 @@ export function Learn() {
                 <span className="row row--sm" style={{ alignItems: 'center', minWidth: 0 }}>
                   <NicheGlyph area={c.area} size="sm" />
                   <strong className="nowrap-ellipsis">{c.title}</strong>
+                  {focusArea === c.area && <span className="tag">Para tu foco</span>}
                 </span>
                 <p className="muted small" style={{ margin: 0 }}>
                   {c.blurb}
