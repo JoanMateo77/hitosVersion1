@@ -182,6 +182,9 @@ export function GoalDetail() {
 
   async function toggleMilestone(m: Milestone) {
     const willBeDone = m.doneAt === null
+    // Guard: el checklist se deshabilita mientras el cambio viaja, para que un
+    // doble tap no dispare dos requests con estado viejo.
+    setUpdating(true)
     try {
       const updated = await setMilestoneDone(m.id, willBeDone)
       const next = milestones.map((x) => (x.id === m.id ? updated : x))
@@ -195,6 +198,8 @@ export function GoalDetail() {
       }
     } catch {
       toast('No se pudo guardar el cambio.', 'warning')
+    } finally {
+      setUpdating(false)
     }
   }
 
