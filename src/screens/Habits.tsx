@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { useToast } from '@/app/toast'
-import type { Habit, NicheId } from '@/lib/types'
+import type { Goal, Habit, NicheId } from '@/lib/types'
+import { listGoals } from '@/services/goals'
 import {
   createHabit,
   listHabitChecksInRange,
@@ -15,9 +16,9 @@ import { NICHES } from '@/domain/niches'
 import { WEEKDAY_LABELS } from '@/domain/commitment'
 import { addDays, startOfWeek, todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
-import { NicheGlyph } from '@/components/NicheGlyph'
+import { NicheGlyph, NicheIcon } from '@/components/NicheGlyph'
 import { SkeletonList } from '@/components/Skeleton'
-import { IconDots, IconFlame, IconLightbulb, IconPlus } from '@/components/icons'
+import { IconArrowReturn, IconDots, IconFlame, IconLightbulb, IconPlus } from '@/components/icons'
 
 /** Mapa de estado de día → modificador de weekstrip (due se dibuja como "future":
  *  todavía se puede cumplir, igual que una sesión pendiente). */
@@ -69,14 +70,20 @@ export function Habits() {
   // --- Datos: hábitos + checks de los últimos 120 días (rachas y semana) ---
   const [habits, setHabits] = useState<Habit[] | null>(null)
   const [checksByHabit, setChecksByHabit] = useState<Map<string, Set<string>>>(new Map())
+  // Metas activas: para vincular un hábito a una meta (opcional).
+  const [goals, setGoals] = useState<Goal[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
     const to = todayISO()
-    Promise.all([listHabits(userId), listHabitChecksInRange(userId, addDays(to, -CHECK_HISTORY_DAYS), to)])
-      .then(([loaded, checks]) => {
+    Promise.all([
+      listHabits(userId),
+      listHabitChecksInRange(userId, addDays(to, -CHECK_HISTORY_DAYS), to),
+      listGoals(userId).catch(() => [] as Goal[]),
+    ])
+      .then(([loaded, checks, loadedGoals]) => {
         if (!active) return
         // Indexamos los checks por hábito una sola vez: racha y semana leen Sets.
         const byHabit = new Map<string, Set<string>>()
@@ -87,6 +94,7 @@ export function Habits() {
         }
         setHabits(loaded)
         setChecksByHabit(byHabit)
+        setGoals(loadedGoals)
       })
       .catch((err: unknown) => {
         if (active) setLoadError(err instanceof Error ? err.message : 'No se pudieron cargar tus hábitos.')
@@ -96,11 +104,15 @@ export function Habits() {
     }
   }, [userId])
 
+  const activeGoals = goals.filter((g) => g.status === 'active')
+  const goalById = new Map(goals.map((g) => [g.id, g]))
+
   // --- Formulario de creación ---
   const [formOpen, setFormOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [area, setArea] = useState<NicheId>('otra')
   const [days, setDays] = useState<number[]>([])
+  const [goalId, setGoalId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -118,6 +130,7 @@ export function Habits() {
     setTitle(idea.title)
     setArea(idea.area)
     setDays([])
+    setGoalId(null)
     setFormError(null)
     setFormOpen(true)
   }
@@ -137,11 +150,12 @@ export function Habits() {
     setSaving(true)
     setFormError(null)
     try {
-      const habit = await createHabit(userId, { title: cleanTitle, area, weekdays: days })
+      const habit = await createHabit(userId, { title: cleanTitle, area, weekdays: days, goalId })
       setHabits((prev) => [...(prev ?? []), habit])
       setTitle('')
       setArea('otra')
       setDays([])
+      setGoalId(null)
       setFormOpen(false)
       toast(`Hábito creado: ${habit.title}`, 'success')
     } catch (err) {
@@ -167,6 +181,20 @@ export function Habits() {
     } catch (err) {
       setHabits((prev) => prev?.map((h) => (h.id === habit.id ? habit : h)) ?? prev)
       setActionError(err instanceof Error ? err.message : 'No se pudieron guardar los días.')
+    }
+  }
+
+  /** Vincula (o desvincula) un hábito a una meta, con cambio optimista. */
+  async function changeHabitGoal(habit: Habit, nextGoalId: string | null) {
+    if (habit.goalId === nextGoalId) return
+    setActionError(null)
+    setHabits((prev) => prev?.map((h) => (h.id === habit.id ? { ...h, goalId: nextGoalId } : h)) ?? prev)
+    try {
+      const updated = await updateHabit(habit.id, { goalId: nextGoalId })
+      setHabits((prev) => prev?.map((h) => (h.id === habit.id ? updated : h)) ?? prev)
+    } catch (err) {
+      setHabits((prev) => prev?.map((h) => (h.id === habit.id ? habit : h)) ?? prev)
+      setActionError(err instanceof Error ? err.message : 'No se pudo vincular la meta.')
     }
   }
 
@@ -264,6 +292,36 @@ export function Habits() {
             )}
           </div>
 
+          {activeGoals.length > 0 && (
+            <div className="stack stack--sm">
+              <span className="kicker">¿Suma a una meta? (opcional)</span>
+              <div className="row wrap" role="group" aria-label="Meta vinculada">
+                <button
+                  type="button"
+                  className={`chip${goalId === null ? ' chip--selected' : ''}`}
+                  aria-pressed={goalId === null}
+                  onClick={() => setGoalId(null)}
+                >
+                  Ninguna
+                </button>
+                {activeGoals.map((g) => (
+                  <button
+                    key={g.id}
+                    type="button"
+                    className={`chip${goalId === g.id ? ' chip--selected' : ''}`}
+                    aria-pressed={goalId === g.id}
+                    onClick={() => setGoalId(g.id)}
+                  >
+                    <NicheIcon area={g.area} size={14} /> {g.title}
+                  </button>
+                ))}
+              </div>
+              <p className="faint tiny" style={{ margin: 0 }}>
+                El hábito aparece en el detalle de su meta y cuenta en la revisión semanal.
+              </p>
+            </div>
+          )}
+
           {formError && <div className="alert alert--warn" role="alert">{formError}</div>}
 
           <div className="row">
@@ -301,7 +359,14 @@ export function Habits() {
                       <NicheGlyph area={habit.area} size="sm" />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ margin: 0, fontWeight: 600, wordBreak: 'break-word' }}>{habit.title}</p>
-                        <span className="faint tiny">{daysLabel(habit.weekdays)}</span>
+                        <span className="row row--sm wrap" style={{ alignItems: 'center', rowGap: 2 }}>
+                          <span className="faint tiny">{daysLabel(habit.weekdays)}</span>
+                          {habit.goalId && goalById.get(habit.goalId) && (
+                            <span className="tag">
+                              <IconArrowReturn size={11} /> {goalById.get(habit.goalId)!.title}
+                            </span>
+                          )}
+                        </span>
                       </div>
                       {streak >= 2 && (
                         <span className="streak-chip" title={`Racha de ${streak} días`}>
@@ -350,6 +415,32 @@ export function Habits() {
                           <p className="faint tiny" style={{ margin: 0 }}>
                             Sin días marcados, aplica todos los días.
                           </p>
+                        )}
+                        {activeGoals.length > 0 && (
+                          <>
+                            <span className="kicker">¿Suma a una meta?</span>
+                            <div className="row wrap" role="group" aria-label={`Meta de: ${habit.title}`}>
+                              <button
+                                type="button"
+                                className={`chip${habit.goalId === null ? ' chip--selected' : ''}`}
+                                aria-pressed={habit.goalId === null}
+                                onClick={() => void changeHabitGoal(habit, null)}
+                              >
+                                Ninguna
+                              </button>
+                              {activeGoals.map((g) => (
+                                <button
+                                  key={g.id}
+                                  type="button"
+                                  className={`chip${habit.goalId === g.id ? ' chip--selected' : ''}`}
+                                  aria-pressed={habit.goalId === g.id}
+                                  onClick={() => void changeHabitGoal(habit, g.id)}
+                                >
+                                  <NicheIcon area={g.area} size={14} /> {g.title}
+                                </button>
+                              ))}
+                            </div>
+                          </>
                         )}
                         <button
                           className="btn btn--subtle btn--sm"
