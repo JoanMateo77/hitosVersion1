@@ -17,6 +17,7 @@ import { listScheduleForUser, updateBlockStartTime } from '@/services/schedule'
 import { createSpontaneousSession, listSessionsInRange, setSessionPlannedTime } from '@/services/sessions'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { friendlyError } from '@/lib/errors'
+import { clearFormDraft, loadFormDraft, saveFormDraft } from '@/lib/formDraft'
 import {
   addDays,
   addMonths,
@@ -708,17 +709,55 @@ function EventEditor({
   onSubmit: (input: EventInput) => Promise<void>
   onDelete: () => Promise<void>
 }) {
-  const [title, setTitle] = useState(initial?.title ?? '')
-  const [eventDate, setEventDate] = useState(initial?.date ?? date)
-  const [allDay, setAllDay] = useState(initial?.allDay ?? true)
-  const [startTime, setStartTime] = useState(initial?.startTime ?? '')
-  const [endTime, setEndTime] = useState(initial?.endTime ?? '')
-  const [goalId, setGoalId] = useState(initial?.goalId ?? '')
-  const [notes, setNotes] = useState(initial?.notes ?? '')
+  // Borrador a prueba de la recarga automática de la PWA: lo que escribiste
+  // vuelve al reabrir el editor. Guardar, borrar o cerrar a propósito lo limpia.
+  const draftKey = `logralo.event-edit.${initial?.id ?? `new-${date}`}`
+  const [draft] = useState(() =>
+    loadFormDraft<{
+      title: string
+      eventDate: string
+      allDay: boolean
+      startTime: string
+      endTime: string
+      goalId: string
+      notes: string
+    }>(draftKey),
+  )
+  const [title, setTitle] = useState(
+    typeof draft?.title === 'string' ? draft.title : (initial?.title ?? ''),
+  )
+  const [eventDate, setEventDate] = useState(
+    typeof draft?.eventDate === 'string' ? draft.eventDate : (initial?.date ?? date),
+  )
+  const [allDay, setAllDay] = useState(
+    typeof draft?.allDay === 'boolean' ? draft.allDay : (initial?.allDay ?? true),
+  )
+  const [startTime, setStartTime] = useState(
+    typeof draft?.startTime === 'string' ? draft.startTime : (initial?.startTime ?? ''),
+  )
+  const [endTime, setEndTime] = useState(
+    typeof draft?.endTime === 'string' ? draft.endTime : (initial?.endTime ?? ''),
+  )
+  const [goalId, setGoalId] = useState(
+    typeof draft?.goalId === 'string' ? draft.goalId : (initial?.goalId ?? ''),
+  )
+  const [notes, setNotes] = useState(
+    typeof draft?.notes === 'string' ? draft.notes : (initial?.notes ?? ''),
+  )
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const panelRef = useRef<HTMLFormElement>(null)
-  useFocusTrap(panelRef, onClose)
+
+  function close() {
+    clearFormDraft(draftKey)
+    onClose()
+  }
+  useFocusTrap(panelRef, close)
+
+  useEffect(() => {
+    saveFormDraft(draftKey, { title, eventDate, allDay, startTime, endTime, goalId, notes })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, eventDate, allDay, startTime, endTime, goalId, notes])
 
   // Body-lock mientras el sheet está abierto: el fondo no scrollea, no hay leakage
   // de gestos. Restauramos el estado anterior al cerrar para no pisar usos previos.
@@ -750,28 +789,32 @@ function EventEditor({
       endTime: allDay ? null : endTime || null,
       goalId: goalId || null,
       notes: notes.trim() || null,
-    }).catch((e2: unknown) => {
-      setErr(e2 instanceof Error ? e2.message : 'No se pudo guardar.')
-      setSaving(false)
     })
+      .then(() => clearFormDraft(draftKey))
+      .catch((e2: unknown) => {
+        setErr(friendlyError(e2, 'No se pudo guardar.'))
+        setSaving(false)
+      })
   }
 
   function handleDelete() {
     setSaving(true)
     setErr(null)
-    onDelete().catch((e2: unknown) => {
-      setErr(e2 instanceof Error ? e2.message : 'No se pudo borrar.')
-      setSaving(false)
-    })
+    onDelete()
+      .then(() => clearFormDraft(draftKey))
+      .catch((e2: unknown) => {
+        setErr(friendlyError(e2, 'No se pudo borrar.'))
+        setSaving(false)
+      })
   }
 
   return (
     <div className="sheet" role="dialog" aria-modal="true">
-      <div className="sheet__backdrop" onClick={onClose} />
+      <div className="sheet__backdrop" onClick={close} />
       <form ref={panelRef} className="sheet__panel stack stack--lg" onSubmit={handleSubmit}>
         <div className="row row--between">
           <h2 style={{ fontSize: 'var(--fs-lg)' }}>{initial ? 'Editar evento' : 'Nuevo evento'}</h2>
-          <button type="button" className="iconbtn iconbtn--sm" onClick={onClose} aria-label="Cerrar">
+          <button type="button" className="iconbtn iconbtn--sm" onClick={close} aria-label="Cerrar">
             <IconClose />
           </button>
         </div>
