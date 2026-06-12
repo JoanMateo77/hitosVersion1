@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { currentStreak, findForgottenGoal, goalsDueForReview } from '@/domain/dailyPlan'
-import type { Goal } from '@/lib/types'
+import { carryoverCandidates, currentStreak, findForgottenGoal, goalsDueForReview } from '@/domain/dailyPlan'
+import type { Goal, Task } from '@/lib/types'
 
 // 2026-05-25 = lunes · 2026-05-26 = martes · 2026-05-24 = domingo
 function goal(p: Partial<Goal> = {}): Goal {
@@ -55,5 +55,37 @@ describe('currentStreak', () => {
   })
   it('es 0 si ni hoy ni ayer hubo actividad', () => {
     expect(currentStreak(['2026-05-28'], '2026-06-01')).toBe(0)
+  })
+})
+
+function task(p: Partial<Task> = {}): Task {
+  return {
+    id: 't1',
+    userId: 'u',
+    goalId: null,
+    title: 'Tarea',
+    planDate: '2026-06-11',
+    source: 'user',
+    status: 'pending',
+    createdAt: '2026-06-11T12:00:00Z',
+    doneAt: null,
+    ...p,
+  }
+}
+
+describe('carryoverCandidates', () => {
+  it('devuelve solo tareas propias pendientes', () => {
+    const tasks = [
+      task({ id: 'a' }),
+      task({ id: 'b', status: 'done' }),
+      task({ id: 'c', status: 'postponed' }),
+      task({ id: 'd', source: 'goal' }),
+      task({ id: 'e', source: 'suggested' }),
+    ]
+    expect(carryoverCandidates(tasks).map((t) => t.id)).toEqual(['a'])
+  })
+
+  it('lista vacía si no hay nada pendiente', () => {
+    expect(carryoverCandidates([task({ status: 'done' })])).toEqual([])
   })
 })

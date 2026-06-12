@@ -1,4 +1,4 @@
-import type { Goal } from '@/lib/types'
+import type { Goal, Task } from '@/lib/types'
 import { addDays, daysUntil, todayISO } from '@/lib/date'
 import { getTemplate } from '@/domain/templates'
 
@@ -83,4 +83,14 @@ export function goalsDueForReview(goals: Goal[], now: Date = new Date()): Goal[]
     const every = getTemplate(g.templateKey).reviewEveryDays
     return daysUntil(today, todayISO(new Date(g.lastReviewedAt))) >= every
   })
+}
+
+/**
+ * Tareas propias (source='user') que quedaron pendientes de un día anterior:
+ * candidatas a traerse a hoy. Las acciones derivadas de metas no se arrastran
+ * (su continuidad la maneja el compromiso de sesiones), y las pospuestas ya
+ * fueron decisión del usuario.
+ */
+export function carryoverCandidates(tasks: Task[]): Task[] {
+  return tasks.filter((t) => t.source === 'user' && t.status === 'pending')
 }

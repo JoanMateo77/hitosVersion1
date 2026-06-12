@@ -67,6 +67,18 @@ export async function setTaskStatus(taskId: string, status: TaskStatus): Promise
   return mapTask(data as TaskRow)
 }
 
+/** Mueve una tarea a otra fecha (traer lo pendiente de ayer a hoy). */
+export async function moveTaskToDate(taskId: string, dateISO: string): Promise<Task> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .update({ plan_date: dateISO })
+    .eq('id', taskId)
+    .select('*')
+    .single()
+  if (error) throw new Error(error.message)
+  return mapTask(data as TaskRow)
+}
+
 export async function updateTaskTitle(taskId: string, title: string): Promise<Task> {
   const { data, error } = await supabase
     .from('tasks')

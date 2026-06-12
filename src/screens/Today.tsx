@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import type { CalendarEvent, Goal, Habit, HabitCheck, ScheduleBlock, Session, Task } from '@/lib/types'
 import { listGoals, markGoalReviewed, setGoalStatus } from '@/services/goals'
-import { createUserTask, deleteTask, listTasksForDate, setTaskStatus, updateTaskTitle } from '@/services/tasks'
+import { createUserTask, deleteTask, listTasksForDate, moveTaskToDate, setTaskStatus, updateTaskTitle } from '@/services/tasks'
 import { listScheduleForUser } from '@/services/schedule'
 import {
   closeStaleSessions,
@@ -20,7 +20,7 @@ import { listHabits, listHabitChecksInRange, setHabitCheck } from '@/services/ha
 import { habitsDueOn, habitStreak } from '@/domain/habits'
 import { HabitRow } from '@/components/HabitRow'
 import { compareEvents } from '@/domain/calendar'
-import { findForgottenGoal, goalsDueForReview } from '@/domain/dailyPlan'
+import { carryoverCandidates, findForgottenGoal, goalsDueForReview } from '@/domain/dailyPlan'
 import { currentStreakCommitted, formatClock, pickSuggestion, remainingSeconds } from '@/domain/sessions'
 import { WEEKDAY_LABELS, weekdayMon0 } from '@/domain/commitment'
 import { getTemplate } from '@/domain/templates'
@@ -58,6 +58,8 @@ export function Today() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [history, setHistory] = useState<Session[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
+  // Tareas propias de ayer que quedaron pendientes (carryover honesto, sin culpa).
+  const [yesterdayPending, setYesterdayPending] = useState<Task[]>([])
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [habits, setHabits] = useState<Habit[]>([])
   const [habitChecks, setHabitChecks] = useState<HabitCheck[]>([])
@@ -89,7 +91,7 @@ export function Today() {
         // Sesiones que quedaron corriendo de otros días → "sin confirmar".
         if (shouldGenerate) await closeStaleSessions(userId, today).catch(() => {})
 
-        const [loadedGoals, loadedBlocks, loadedTasks, loadedEvents, loadedHistory, loadedHabits, loadedChecks] =
+        const [loadedGoals, loadedBlocks, loadedTasks, loadedEvents, loadedHistory, loadedHabits, loadedChecks, loadedYesterday] =
           await Promise.all([
             listGoals(userId),
             listScheduleForUser(userId),
@@ -99,6 +101,7 @@ export function Today() {
             listSessionsInRange(userId, addDays(today, -119), addDays(today, -1)),
             listHabits(userId).catch(() => []),
             listHabitChecksInRange(userId, addDays(today, -119), today).catch(() => []),
+            listTasksForDate(userId, addDays(today, -1)).catch(() => []),
           ])
 
         // Las sesiones de hoy nacen del compromiso, no de heurísticas.
@@ -120,6 +123,7 @@ export function Today() {
           setEvents(loadedEvents)
           setHabits(loadedHabits)
           setHabitChecks(loadedChecks)
+          setYesterdayPending(carryoverCandidates(loadedYesterday))
         }
       } catch (err) {
         if (active) setError(friendlyError(err, 'No se pudo cargar tu día.'))
@@ -384,6 +388,30 @@ export function Today() {
       const created = await createUserTask(userId, title, today)
       setTasks((prev) => [...prev, created])
     })
+  }
+
+  function bringYesterdayTasks() {
+    const pending = yesterdayPending
+    setYesterdayPending([])
+    void withErrorHandling(
+      async () => {
+        const moved = await Promise.all(pending.map((t) => moveTaskToDate(t.id, today)))
+        setTasks((prev) => [...prev, ...moved])
+        toast(moved.length === 1 ? 'Tarea traída a hoy.' : 'Tareas traídas a hoy.', 'success')
+      },
+      () => setYesterdayPending(pending),
+    )
+  }
+
+  function dismissYesterdayTasks() {
+    const pending = yesterdayPending
+    setYesterdayPending([])
+    void withErrorHandling(
+      async () => {
+        await Promise.all(pending.map((t) => setTaskStatus(t.id, 'postponed')))
+      },
+      () => setYesterdayPending(pending),
+    )
   }
 
   function acceptForgotten(goal: Goal) {
@@ -696,6 +724,24 @@ export function Today() {
             <div className="section-head">
               <span className="kicker">Lo que sumaste tú</span>
             </div>
+            {yesterdayPending.length > 0 && (
+              <div className="card card--tight stack stack--sm mb-3">
+                <span className="small">
+                  {yesterdayPending.length === 1
+                    ? 'Te quedó 1 tarea pendiente de ayer:'
+                    : `Te quedaron ${yesterdayPending.length} tareas pendientes de ayer:`}{' '}
+                  <span className="muted">{yesterdayPending.map((t) => t.title).join(' · ')}</span>
+                </span>
+                <div className="row wrap">
+                  <button className="btn btn--sm btn--primary" onClick={bringYesterdayTasks}>
+                    Traer a hoy
+                  </button>
+                  <button className="btn btn--sm btn--subtle" onClick={dismissYesterdayTasks}>
+                    Descartar
+                  </button>
+                </div>
+              </div>
+            )}
             {userTasks.length > 0 && (
               <ul className="stack stack--sm mb-3">
                 {userTasks.map((task) => (
