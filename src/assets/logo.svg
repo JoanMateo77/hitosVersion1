@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Lógralo">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fb7b42"/>
+      <stop offset="0.45" stop-color="#f4541d"/>
+      <stop offset="1" stop-color="#e23a0e"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="0.06" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="0.2" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.7" stop-color="#7c1d04" stop-opacity="0"/>
+      <stop offset="1" stop-color="#7c1d04" stop-opacity="0.28"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.12" r="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="10"/></filter>
+  </defs>
+  <rect width="512" height="512" rx="122" fill="url(#g)"/>
+  <rect width="512" height="512" rx="122" fill="url(#glow)"/>
+  <rect width="512" height="512" rx="122" fill="url(#shade)"/>
+  <rect x="3" y="3" width="506" height="506" rx="119" fill="none" stroke="url(#rim)" stroke-width="6"/>
+  <g transform="rotate(32 256 256)">
+    <g filter="url(#soft)" opacity="0.3" transform="translate(4 14)">
+      <rect x="280" y="114" width="66" height="264" rx="10" fill="#8a2104"/>
+      <rect x="151" y="312" width="118" height="66" rx="10" fill="#8a2104"/>
+    </g>
+    <rect x="280" y="114" width="66" height="264" rx="10" fill="#ffffff"/>
+    <rect x="151" y="312" width="118" height="66" rx="10" fill="#ffffff"/>
+  </g>
+</svg>

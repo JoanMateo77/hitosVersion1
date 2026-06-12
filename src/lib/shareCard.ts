@@ -4,7 +4,7 @@
  * nombre. Canvas puro, sin dependencias.
  */
 
-import logoUrl from '@/assets/logo.png'
+import logoUrl from '@/assets/logo.svg'
 
 interface AchievementCard {
   /** "Logré mi meta" / "Etapa cumplida" */
