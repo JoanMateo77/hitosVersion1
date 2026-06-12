@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 // El logo viaja DENTRO del bundle (hash de Vite): cada versión de la app trae
 // su logo amarrado — un service worker viejo ya no puede mostrar uno desfasado.
-import logoUrl from '@/assets/logo.svg'
+import logoUrl from '@/assets/logo.png'
 
 /** Set de íconos como SVG inline (sin dependencias). Heredan currentColor.
  *
@@ -106,10 +106,10 @@ export function IconSparkles({ size = 20, className, style }: IconProps) {
   )
 }
 
-/** Logo de marca de Lógralo: la versión vectorial DEFINITIVA aprobada por el
- *  dueño (src/assets/logo.svg — check en dos piezas a 32°, basada en su
- *  referencia). De este único archivo salen favicon.png y los íconos
- *  instalados: cero divergencias entre la app, la pestaña y el teléfono. */
+/** Logo de marca de Lógralo. Es el PNG ORIGINAL aprobado por el dueño
+ *  (src/assets/logo.png, recortado de su referencia), el mismo archivo del
+ *  que salen favicon.png y los íconos instalados: cero réplicas, cero
+ *  divergencias entre la app, la pestaña y el teléfono. */
 export function IconHito({
   size = 22,
   className,
