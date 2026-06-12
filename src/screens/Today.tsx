@@ -25,6 +25,7 @@ import { currentStreakCommitted, formatClock, pickSuggestion, remainingSeconds }
 import { WEEKDAY_LABELS, weekdayMon0 } from '@/domain/commitment'
 import { getTemplate } from '@/domain/templates'
 import { addDays, formatTime12, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
+import { friendlyError } from '@/lib/errors'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { TaskItem } from '@/components/TaskItem'
 import { SessionCard } from '@/components/SessionCard'
@@ -121,7 +122,7 @@ export function Today() {
           setHabitChecks(loadedChecks)
         }
       } catch (err) {
-        if (active) setError(err instanceof Error ? err.message : 'No se pudo cargar tu día.')
+        if (active) setError(friendlyError(err, 'No se pudo cargar tu día.'))
       } finally {
         if (active) setLoading(false)
       }
@@ -267,7 +268,7 @@ export function Today() {
       await fn()
     } catch (err) {
       rollback?.()
-      setActionError(err instanceof Error ? err.message : 'No se pudo guardar el cambio.')
+      setActionError(friendlyError(err, 'No se pudo guardar el cambio.'))
     }
   }
 

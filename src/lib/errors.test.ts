@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isUniqueViolation } from '@/lib/errors'
+import { friendlyError, isUniqueViolation } from '@/lib/errors'
 
 describe('isUniqueViolation', () => {
   it('reconoce el código 23505 de Postgres', () => {
@@ -24,5 +24,45 @@ describe('isUniqueViolation', () => {
 
   it('NO matchea un mensaje que menciona "duplicate" pero no es de unicidad', () => {
     expect(isUniqueViolation(new Error('could not load duplicate template'))).toBe(false)
+  })
+})
+
+describe('friendlyError', () => {
+  const fallback = 'No se pudo cargar tu día.'
+
+  it('traduce errores de red', () => {
+    expect(friendlyError(new Error('Failed to fetch'), fallback)).toBe(
+      'Hubo un problema de conexión. Revisa tu internet e inténtalo de nuevo.',
+    )
+    expect(friendlyError(new Error('NetworkError when attempting to fetch resource'), fallback)).toBe(
+      'Hubo un problema de conexión. Revisa tu internet e inténtalo de nuevo.',
+    )
+  })
+
+  it('traduce sesión expirada (JWT/refresh token/PGRST301)', () => {
+    expect(friendlyError(new Error('JWT expired'), fallback)).toBe(
+      'Tu sesión expiró. Vuelve a entrar para continuar.',
+    )
+    expect(friendlyError(new Error('Invalid Refresh Token: Already Used'), fallback)).toBe(
+      'Tu sesión expiró. Vuelve a entrar para continuar.',
+    )
+    expect(friendlyError(new Error('PGRST301: JWT expired'), fallback)).toBe(
+      'Tu sesión expiró. Vuelve a entrar para continuar.',
+    )
+  })
+
+  it('traduce errores de permisos (RLS)', () => {
+    expect(friendlyError(new Error('permission denied for table goals'), fallback)).toBe(
+      'No tienes permisos para hacer eso. Vuelve a entrar e inténtalo de nuevo.',
+    )
+    expect(
+      friendlyError(new Error('new row violates row-level security policy'), fallback),
+    ).toBe('No tienes permisos para hacer eso. Vuelve a entrar e inténtalo de nuevo.')
+  })
+
+  it('cae al fallback del caller para errores desconocidos', () => {
+    expect(friendlyError(new Error('duplicate key value violates unique constraint'), fallback)).toBe(fallback)
+    expect(friendlyError('algo raro', fallback)).toBe(fallback)
+    expect(friendlyError(null, fallback)).toBe(fallback)
   })
 })

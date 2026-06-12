@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { friendlyError } from '@/lib/errors'
 
 export interface AsyncData<T> {
   data: T | null
@@ -32,7 +33,7 @@ export function useAsyncData<T>(loader: () => Promise<T>, deps: unknown[]): Asyn
         if (active) setData(result)
       })
       .catch((err: unknown) => {
-        if (active) setError(err instanceof Error ? err.message : 'Error inesperado.')
+        if (active) setError(friendlyError(err, 'No se pudieron cargar los datos. Inténtalo de nuevo.'))
       })
       .finally(() => {
         if (active) setLoading(false)

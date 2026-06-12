@@ -21,6 +21,7 @@ import { minutesByGoalInRange } from '@/services/events'
 import { getTemplate } from '@/domain/templates'
 import { NICHES, getNiche } from '@/domain/niches'
 import { nicheAccent } from '@/lib/nicheAccent'
+import { friendlyError } from '@/lib/errors'
 import { isGoalClosed } from '@/domain/goals'
 import { milestoneProgress, weekConsistency } from '@/domain/sessions'
 import {
@@ -112,7 +113,7 @@ export function GoalDetail() {
         setWeekMinutes(mins.get(id) ?? 0)
         setAdvances(adv)
       } catch (err) {
-        if (active) setError(err instanceof Error ? err.message : 'No se pudo cargar la meta.')
+        if (active) setError(friendlyError(err, 'No se pudo cargar la meta.'))
       } finally {
         if (active) setLoading(false)
       }

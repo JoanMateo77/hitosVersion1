@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useScrollToTop } from '@/hooks/useScrollToTop'
 import { isSupabaseConfigured } from '@/lib/supabase'
+import { friendlyError } from '@/lib/errors'
 import { useAuth } from '@/app/useAuth'
 import { SessionProvider } from '@/app/session'
 import { ensureProfile } from '@/services/profile'
@@ -76,9 +77,7 @@ function ProfiledApp({ userId, email }: { userId: string; email: string }) {
     let active = true
     ensureProfile(userId)
       .then((p) => active && setProfile(p))
-      .catch((e: unknown) =>
-        active && setError(e instanceof Error ? e.message : 'No se pudo cargar tu perfil.'),
-      )
+      .catch((e: unknown) => active && setError(friendlyError(e, 'No se pudo cargar tu perfil.')))
     return () => {
       active = false
     }
