@@ -14,6 +14,7 @@ import {
   listSessionsInRange,
   reopenSession,
   resumeClosedSession,
+  setSessionAccomplishment,
 } from '@/services/sessions'
 import { listEventsInRange } from '@/services/events'
 import { listHabits, listHabitChecksInRange, setHabitCheck } from '@/services/habits'
@@ -69,6 +70,9 @@ export function Today() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [newTitle, setNewTitle] = useState('')
   const [pickingSpontaneous, setPickingSpontaneous] = useState(false)
+  // Tras un ✓ rápido ofrecemos anotar el avance: es el camino más usado y el
+  // diario de la meta no debería quedarse sin entradas justo ahí.
+  const [notePrompt, setNotePrompt] = useState<{ sessionId: string; text: string } | null>(null)
   // Día pasado expandido desde la tira semanal ("ayer sí la hice").
   const [stripDay, setStripDay] = useState<string | null>(null)
   const { cheerMessage, cheer } = useCheer()
@@ -279,6 +283,7 @@ export function Today() {
   function quickDone(s: Session) {
     const prev = { status: s.status, actualValue: s.actualValue, endedAt: s.endedAt }
     patchSession(s.id, { status: 'done', actualValue: s.targetValue })
+    setNotePrompt({ sessionId: s.id, text: '' })
     const willBeDone = todaySessions.filter((x) => doneish(x.session)).length + 1
     if (willBeDone === todaySessions.length && todaySessions.length > 0) {
       cheer('Cumpliste tu compromiso de hoy. Bien hecho.')
@@ -290,8 +295,22 @@ export function Today() {
         const updated = await finishSession(s.id, { status: 'done', actualValue: s.targetValue })
         patchSession(s.id, updated)
       },
-      () => patchSession(s.id, prev),
+      () => {
+        patchSession(s.id, prev)
+        setNotePrompt(null)
+      },
     )
+  }
+
+  function saveQuickNote() {
+    const prompt = notePrompt
+    setNotePrompt(null)
+    const text = prompt?.text.trim()
+    if (!prompt || !text) return
+    void withErrorHandling(async () => {
+      await setSessionAccomplishment(prompt.sessionId, text)
+      toast('Avance anotado.', 'success')
+    })
   }
 
   function resumeClosed(s: Session) {
@@ -631,16 +650,45 @@ export function Today() {
                 {todaySessions
                   .filter(({ session }) => session.id !== runningSession?.id)
                   .map(({ session, goal }) => (
-                    <SessionCard
-                      key={session.id}
-                      session={session}
-                      goal={goal}
-                      suggestion={pickSuggestion(getTemplate(goal.templateKey), goal.id, today)}
-                      onOpen={() => navigate(`/sesion/${session.id}`)}
-                      onQuickDone={() => quickDone(session)}
-                      onReopen={() => reopen(session)}
-                      onResume={() => resumeClosed(session)}
-                    />
+                    <div key={session.id} className="stack stack--sm">
+                      <SessionCard
+                        session={session}
+                        goal={goal}
+                        suggestion={pickSuggestion(getTemplate(goal.templateKey), goal.id, today)}
+                        onOpen={() => navigate(`/sesion/${session.id}`)}
+                        onQuickDone={() => quickDone(session)}
+                        onReopen={() => reopen(session)}
+                        onResume={() => resumeClosed(session)}
+                      />
+                      {notePrompt?.sessionId === session.id && (
+                        <div className="card card--tight stack stack--sm">
+                          <label className="field__label" htmlFor={`quick-note-${session.id}`}>
+                            ¿Qué lograste? (opcional)
+                          </label>
+                          <div className="row">
+                            <input
+                              id={`quick-note-${session.id}`}
+                              className="input"
+                              autoFocus
+                              maxLength={200}
+                              placeholder="Ej: terminé el capítulo 3…"
+                              value={notePrompt.text}
+                              onChange={(e) => setNotePrompt({ sessionId: session.id, text: e.target.value })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') saveQuickNote()
+                                if (e.key === 'Escape') setNotePrompt(null)
+                              }}
+                            />
+                            <button className="btn btn--sm btn--primary" onClick={saveQuickNote}>
+                              Guardar
+                            </button>
+                            <button className="btn btn--sm btn--subtle" onClick={() => setNotePrompt(null)}>
+                              Omitir
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ))}
               </div>
             </section>
