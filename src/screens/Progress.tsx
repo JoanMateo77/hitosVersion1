@@ -122,11 +122,11 @@ export function Progress() {
       </header>
 
       {/* La pestaña Crecer tiene dos caras: tu progreso y lo que aprendes. */}
-      <div className="seg mb-4" role="group" aria-label="Sección de Crecer">
-        <button className="seg__btn seg__btn--active" aria-pressed="true">
+      <div className="seg mb-4" role="tablist" aria-label="Progreso o Aprender">
+        <button type="button" role="tab" aria-selected={true} className="seg__btn seg__btn--active">
           Progreso
         </button>
-        <button className="seg__btn" aria-pressed="false" onClick={() => navigate('/aprender')}>
+        <button type="button" role="tab" aria-selected={false} className="seg__btn" onClick={() => navigate('/aprender')}>
           Aprender
         </button>
       </div>
