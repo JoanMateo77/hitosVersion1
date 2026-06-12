@@ -24,6 +24,7 @@ import { getTemplate } from '@/domain/templates'
 import { NICHES, getNiche } from '@/domain/niches'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { friendlyError } from '@/lib/errors'
+import { clearFormDraft, loadFormDraft, saveFormDraft } from '@/lib/formDraft'
 import { isGoalClosed } from '@/domain/goals'
 import { milestoneProgress, weekConsistency } from '@/domain/sessions'
 import {
@@ -317,7 +318,13 @@ export function GoalDetail() {
   if (editing) {
     return (
       <div className="screen">
-        <BackButton onClick={() => setEditing(false)} />
+        <BackButton
+          onClick={() => {
+            // Volver atrás es descartar a propósito: el borrador no debe volver.
+            clearFormDraft(`logralo.goal-edit.${goal.id}`)
+            setEditing(false)
+          }}
+        />
         <header className="screen__header" style={{ marginTop: 'var(--s4)' }}>
           <h1 className="screen__title">Editar meta</h1>
         </header>
@@ -752,13 +759,31 @@ function GoalEditor({
   onCancel: () => void
   onSave: (edit: GoalEdit) => Promise<void>
 }) {
-  const [title, setTitle] = useState(goal.title)
-  const [why, setWhy] = useState(goal.why ?? '')
-  const [targetDate, setTargetDate] = useState(goal.targetDate ?? '')
-  const [area, setArea] = useState<NicheId>(goal.area)
-  const [criteria, setCriteria] = useState(goal.successCriteria ?? '')
+  // Borrador a prueba de la recarga automática de la PWA (espejo del Wizard):
+  // restaura campo por campo validando tipos; guardar o cancelar lo limpia.
+  const draftKey = `logralo.goal-edit.${goal.id}`
+  const [draft] = useState(() =>
+    loadFormDraft<{ title: string; why: string; targetDate: string; area: NicheId; criteria: string }>(
+      draftKey,
+    ),
+  )
+  const [title, setTitle] = useState(typeof draft?.title === 'string' ? draft.title : goal.title)
+  const [why, setWhy] = useState(typeof draft?.why === 'string' ? draft.why : (goal.why ?? ''))
+  const [targetDate, setTargetDate] = useState(
+    typeof draft?.targetDate === 'string' ? draft.targetDate : (goal.targetDate ?? ''),
+  )
+  const [area, setArea] = useState<NicheId>(
+    draft && NICHES.some((n) => n.id === draft.area) ? (draft.area as NicheId) : goal.area,
+  )
+  const [criteria, setCriteria] = useState(
+    typeof draft?.criteria === 'string' ? draft.criteria : (goal.successCriteria ?? ''),
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    saveFormDraft(draftKey, { title, why, targetDate, area, criteria })
+  }, [draftKey, title, why, targetDate, area, criteria])
 
   function submit() {
     if (!title.trim()) return
@@ -770,10 +795,17 @@ function GoalEditor({
       targetDate: targetDate || null,
       area,
       successCriteria: criteria.trim() || null,
-    }).catch((e: unknown) => {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar. Inténtalo de nuevo.')
-      setSaving(false)
     })
+      .then(() => clearFormDraft(draftKey))
+      .catch((e: unknown) => {
+        setError(friendlyError(e, 'No se pudo guardar. Inténtalo de nuevo.'))
+        setSaving(false)
+      })
+  }
+
+  function cancel() {
+    clearFormDraft(draftKey)
+    onCancel()
   }
 
   return (
@@ -869,7 +901,7 @@ function GoalEditor({
         <button className="btn btn--primary btn--block" disabled={!title.trim() || saving} onClick={submit}>
           {saving ? 'Guardando…' : 'Guardar cambios'}
         </button>
-        <button className="btn btn--ghost btn--block" disabled={saving} onClick={onCancel}>
+        <button className="btn btn--ghost btn--block" disabled={saving} onClick={cancel}>
           Cancelar
         </button>
       </div>
