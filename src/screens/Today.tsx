@@ -30,6 +30,7 @@ import { friendlyError } from '@/lib/errors'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { TaskItem } from '@/components/TaskItem'
 import { SessionCard } from '@/components/SessionCard'
+import { Hint } from '@/components/Hint'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
 import {
@@ -687,6 +688,14 @@ export function Today() {
                   {closedCount} de {todaySessions.length}
                 </span>
               </div>
+              {todaySessions.some((x) => x.session.status === 'partial') && (
+                <div style={{ marginBottom: 'var(--s3)' }}>
+                  <Hint id="session-partial-2026-06">
+                    Una sesión <strong>parcial</strong> cuenta lo que hiciste y no rompe tu racha.
+                    Puedes retomarla para completarla.
+                  </Hint>
+                </div>
+              )}
               <div className="stack stack--sm">
                 {todaySessions
                   .filter(({ session }) => session.id !== runningSession?.id)
