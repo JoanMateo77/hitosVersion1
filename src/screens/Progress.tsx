@@ -1,10 +1,12 @@
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import type { Goal, Milestone, Session } from '@/lib/types'
+import type { Goal, Habit, HabitCheck, Milestone, Session } from '@/lib/types'
 import { listGoals } from '@/services/goals'
 import { listDoneMilestones, milestoneProgressByGoal } from '@/services/milestones'
 import { listScheduleForUser } from '@/services/schedule'
 import { listSessionsInRange } from '@/services/sessions'
+import { listHabitChecksInRange, listHabits } from '@/services/habits'
+import { habitStreak, habitWeek } from '@/domain/habits'
 import { getNiche } from '@/domain/niches'
 import { isGoalClosed } from '@/domain/goals'
 import { bestStreakCommitted, currentStreakCommitted, weekConsistency } from '@/domain/sessions'
@@ -30,14 +32,20 @@ export function Progress() {
   const weekStart = startOfWeek(today)
 
   const { data, loading, error } = useAsyncData(async () => {
-    const [goals, blocks, sessions, progressByGoal, doneMilestones] = await Promise.all([
-      listGoals(userId),
-      listScheduleForUser(userId),
-      listSessionsInRange(userId, addDays(today, -(HISTORY_DAYS - 1)), today),
-      milestoneProgressByGoal(userId),
-      listDoneMilestones(userId, 10),
-    ])
-    return { goals, blocks, sessions, progressByGoal, doneMilestones }
+    const [goals, blocks, sessions, progressByGoal, doneMilestones, habits, habitChecks] =
+      await Promise.all([
+        listGoals(userId),
+        listScheduleForUser(userId),
+        listSessionsInRange(userId, addDays(today, -(HISTORY_DAYS - 1)), today),
+        milestoneProgressByGoal(userId),
+        listDoneMilestones(userId, 10),
+        // Los hábitos también son progreso: degradan a vacío sin romper la pantalla.
+        listHabits(userId).catch(() => [] as Habit[]),
+        listHabitChecksInRange(userId, addDays(today, -(HISTORY_DAYS - 1)), today).catch(
+          () => [] as HabitCheck[],
+        ),
+      ])
+    return { goals, blocks, sessions, progressByGoal, doneMilestones, habits, habitChecks }
   }, [userId])
 
   if (loading) {
@@ -52,10 +60,25 @@ export function Progress() {
   }
   if (error || !data) return <LoadingScreen error={error ?? 'No se pudo cargar tu progreso.'} />
 
-  const { goals, blocks, sessions, progressByGoal, doneMilestones } = data
+  const { goals, blocks, sessions, progressByGoal, doneMilestones, habits, habitChecks } = data
   const goalById = new Map(goals.map((g) => [g.id, g]))
   const activeGoals = goals.filter((g) => g.status === 'active')
   const doneish = (s: Session) => s.status === 'done' || s.status === 'partial'
+
+  // ----- Tus hábitos: semana y racha por hábito (mismo lenguaje visual que Hábitos) -----
+  const activeHabits = habits.filter((h) => h.archivedAt === null)
+  const habitDates = new Map<string, Set<string>>()
+  for (const c of habitChecks) {
+    const set = habitDates.get(c.habitId) ?? new Set<string>()
+    set.add(c.date)
+    habitDates.set(c.habitId, set)
+  }
+  const HABIT_DOT: Record<'done' | 'missed' | 'due' | 'free', string> = {
+    done: 'done',
+    missed: 'missed',
+    due: 'future',
+    free: 'free',
+  }
 
   // ----- Tu semana -----
   const weekSessions = sessions.filter((s) => s.date >= weekStart)
@@ -277,6 +300,56 @@ export function Progress() {
                       : 'Sin etapas'}
                     {minutes > 0 ? ` · ${formatDuration(minutes)} invertidas` : ''}
                   </span>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* ----- Tus hábitos ----- */}
+      {activeHabits.length > 0 && (
+        <section aria-label="Tus hábitos">
+          <div className="section-head">
+            <span className="kicker">Tus hábitos</span>
+            <button className="btn--link" onClick={() => navigate('/habitos')}>
+              Gestionar
+            </button>
+          </div>
+          <div className="stack stack--sm">
+            {activeHabits.map((h) => {
+              const dates = habitDates.get(h.id) ?? new Set<string>()
+              const streakH = habitStreak(dates, h.weekdays, today)
+              const week7 = habitWeek(dates, h, weekStart)
+              const linkedGoal = h.goalId ? goalById.get(h.goalId) : null
+              return (
+                <button
+                  key={h.id}
+                  className="card card--tight stack stack--sm"
+                  style={{ ...nicheAccent(h.area), width: '100%', textAlign: 'left' }}
+                  onClick={() => navigate('/habitos')}
+                >
+                  <div className="row row--between" style={{ alignItems: 'center' }}>
+                    <span className="row row--sm" style={{ alignItems: 'center', minWidth: 0 }}>
+                      <NicheGlyph area={h.area} size="sm" />
+                      <strong className="nowrap-ellipsis">{h.title}</strong>
+                      {linkedGoal && <span className="tag">{linkedGoal.title}</span>}
+                    </span>
+                    {streakH >= 2 && (
+                      <span className="streak-chip" style={{ flex: 'none' }}>
+                        <IconFlame size={13} /> {streakH}
+                      </span>
+                    )}
+                  </div>
+                  <div className="row" style={{ gap: 4 }} aria-label="Tu semana">
+                    {week7.map((state, i) => (
+                      <span
+                        key={i}
+                        className={`weekstrip__dot weekstrip__dot--${HABIT_DOT[state]}`}
+                        title={WEEKDAY_LABELS[i]}
+                      />
+                    ))}
+                  </div>
                 </button>
               )
             })}
