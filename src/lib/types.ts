@@ -205,6 +205,8 @@ export interface Habit {
   area: NicheId
   /** Días en que aplica (lunes=0 … domingo=6). Vacío = todos los días. */
   weekdays: number[]
+  /** Meta a la que suma este hábito (opcional). */
+  goalId: string | null
   createdAt: string
   archivedAt: string | null
 }

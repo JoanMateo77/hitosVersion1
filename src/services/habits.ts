@@ -7,6 +7,8 @@ interface HabitRow {
   title: string
   area: string
   weekdays: number[]
+  /** Opcional hasta correr la migración 0010: el mapeo tolera su ausencia. */
+  goal_id?: string | null
   created_at: string
   archived_at: string | null
 }
@@ -23,6 +25,7 @@ function mapHabit(row: HabitRow): Habit {
     title: row.title,
     area: row.area as NicheId,
     weekdays: row.weekdays ?? [],
+    goalId: row.goal_id ?? null,
     createdAt: row.created_at,
     archivedAt: row.archived_at,
   }
@@ -49,18 +52,18 @@ export async function listHabits(userId: string): Promise<Habit[]> {
 
 export async function createHabit(
   userId: string,
-  input: { title: string; area: NicheId; weekdays: number[] },
+  input: { title: string; area: NicheId; weekdays: number[]; goalId?: string | null },
 ): Promise<Habit> {
-  const { data, error } = await supabase
-    .from('habits')
-    .insert({
-      user_id: userId,
-      title: input.title,
-      area: input.area,
-      weekdays: input.weekdays,
-    })
-    .select('*')
-    .single()
+  const row: Record<string, unknown> = {
+    user_id: userId,
+    title: input.title,
+    area: input.area,
+    weekdays: input.weekdays,
+  }
+  // Solo viaja si se eligió meta: crear hábitos sueltos sigue funcionando
+  // aunque la migración 0010 (goal_id) no haya corrido todavía.
+  if (input.goalId) row.goal_id = input.goalId
+  const { data, error } = await supabase.from('habits').insert(row).select('*').single()
   if (error) throw new Error(error.message)
   return mapHabit(data as HabitRow)
 }
@@ -78,13 +81,14 @@ async function patchHabit(habitId: string, patch: Record<string, unknown>): Prom
 
 export function updateHabit(
   habitId: string,
-  patch: Partial<{ title: string; area: NicheId; weekdays: number[] }>,
+  patch: Partial<{ title: string; area: NicheId; weekdays: number[]; goalId: string | null }>,
 ): Promise<Habit> {
   // Solo se envían las columnas presentes para no pisar valores con undefined.
   const row: Record<string, unknown> = {}
   if (patch.title !== undefined) row.title = patch.title
   if (patch.area !== undefined) row.area = patch.area
   if (patch.weekdays !== undefined) row.weekdays = patch.weekdays
+  if (patch.goalId !== undefined) row.goal_id = patch.goalId
   return patchHabit(habitId, row)
 }
 
