@@ -114,11 +114,22 @@ export function Wizard() {
   const [templateKey, setTemplateKey] = useState(draft.templateKey ?? '')
   const [why, setWhy] = useState(draft.why ?? '')
   const [targetDate, setTargetDate] = useState(draft.targetDate ?? '')
-  const [area, setArea] = useState<NicheId>(draft.area ?? 'otra')
+  const [area, setArea] = useState<NicheId>(draft.area ?? profile.primaryNiche ?? 'otra')
   const [criteria, setCriteria] = useState(draft.criteria ?? '')
   // Título con el que ya autodetectamos plantilla/área. Evita pisar una elección
   // manual del paso 1 al volver al paso 0 y avanzar sin cambiar el título.
   const [detectedFromTitle, setDetectedFromTitle] = useState(draft.title ?? '')
+  // Nicho que filtra las plantillas del paso 1: el del título si hubo señal, si no
+  // el del perfil. Se fija al detectar, así la lista no se reordena al elegir.
+  const [templateNiche, setTemplateNiche] = useState<NicheId>(() =>
+    draft.templateKey && draft.templateKey !== 'personalizada'
+      ? getTemplate(draft.templateKey).defaultArea
+      : (profile.primaryNiche ?? 'otra'),
+  )
+  // Sin señal clara del título, "Personalizada (la armo yo)" va primero.
+  const [customFirst, setCustomFirst] = useState(
+    () => !draft.templateKey || draft.templateKey === 'personalizada',
+  )
 
   const [blocks, setBlocks] = useState<CommitmentBlockDraft[]>(draft.blocks ?? [])
   const [milestones, setMilestones] = useState<MilestoneDraft[]>(draft.milestones ?? [])
@@ -158,7 +169,6 @@ export function Wizard() {
       !templateKey &&
       !why &&
       !targetDate &&
-      area === 'otra' &&
       !criteria &&
       blocks.length === 0 &&
       milestones.length === 0
@@ -201,6 +211,10 @@ export function Wizard() {
       setTemplateKey(detected.key)
       setArea(detected.defaultArea)
       setDetectedFromTitle(title)
+      setTemplateNiche(
+        detected.key !== 'personalizada' ? detected.defaultArea : (profile.primaryNiche ?? 'otra'),
+      )
+      setCustomFirst(detected.key === 'personalizada')
     }
     // Al salir del tipo elegido (paso 1 → 2), sembrar las etapas desde la
     // plantilla. Se re-siembran si la plantilla cambió y el usuario no las editó;
@@ -251,6 +265,16 @@ export function Wizard() {
       setSaving(false)
     }
   }
+
+  // Lista del paso 1, estable mientras el paso está abierto.
+  const stepTemplates = (() => {
+    const list = templatesForNiche(templateNiche)
+    if (!customFirst) return list
+    return [
+      ...list.filter((t) => t.key === 'personalizada'),
+      ...list.filter((t) => t.key !== 'personalizada'),
+    ]
+  })()
 
   const commitmentError = validateCommitment(blocks)
   const canContinue =
@@ -312,7 +336,7 @@ export function Wizard() {
         {step === 1 && (
           <Question title="¿Qué tipo de meta es?" hint="Elegimos una por ti según tu meta. Cámbiala si no encaja.">
             <div className="stack stack--sm">
-              {templatesForNiche(profile.primaryNiche ?? 'otra').map((t) => (
+              {stepTemplates.map((t) => (
                 <OptionRow
                   key={t.key}
                   icon={<NicheIcon area={t.defaultArea} size={20} />}
