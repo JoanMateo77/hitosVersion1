@@ -31,7 +31,7 @@ export function TaskItem({
   const isGoalTask = task.source === 'goal' || task.source === 'suggested'
   const removeLabel = isGoalTask ? 'Saltar por hoy' : 'Borrar tarea'
   const removeHint = isGoalTask
-    ? 'La saltás sólo hoy. Mañana volvé si toca por frecuencia.'
+    ? 'La saltas solo hoy. Mañana vuelve a aparecer si toca por frecuencia.'
     : 'Borrar esta tarea.'
 
   function save() {
