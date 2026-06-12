@@ -22,7 +22,7 @@ import { habitsDueOn, habitStreak } from '@/domain/habits'
 import { HabitRow } from '@/components/HabitRow'
 import { compareEvents } from '@/domain/calendar'
 import { carryoverCandidates, findForgottenGoal, goalsDueForReview } from '@/domain/dailyPlan'
-import { bestStreakCommitted, currentStreakCommitted, formatClock, pickSuggestion, remainingSeconds } from '@/domain/sessions'
+import { bestStreakCommitted, currentStreakCommitted, formatClock, pickSuggestion, remainingSeconds, weekConsistency } from '@/domain/sessions'
 import { WEEKDAY_LABELS, weekdayMon0 } from '@/domain/commitment'
 import { getTemplate } from '@/domain/templates'
 import { addDays, formatTime12, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
@@ -196,6 +196,12 @@ export function Today() {
     const committedWeekdays = new Set(blocks.map((b) => b.weekday))
     return currentStreakCommitted(doneDates, committedWeekdays, today)
   }, [history, sessions, blocks, today])
+
+  // Resumen numérico de la semana: la tira muestra estados, esto muestra la cuenta.
+  const week = useMemo(
+    () => weekConsistency(blocks, [...history, ...sessions], startOfWeek(today)),
+    [blocks, history, sessions, today],
+  )
 
   // Racha recién rota: veníamos con racha (≥2) y el último día comprometido quedó
   // sin cumplir. El chip desaparecía sin explicación — el silencio es peor.
@@ -538,6 +544,14 @@ export function Today() {
                 )
               })}
             </div>
+
+            {week.committed > 0 && (
+              <p className="faint tiny" style={{ marginTop: 'var(--s2)', marginBottom: 0 }}>
+                {week.done >= week.committed
+                  ? `Compromiso semanal cumplido: ${week.done} ${week.done === 1 ? 'sesión' : 'sesiones'}.`
+                  : `${week.done} de ${week.committed} sesiones de tu compromiso esta semana.`}
+              </p>
+            )}
 
             {stripDay && (
               <div className="card card--tight stack stack--sm">
