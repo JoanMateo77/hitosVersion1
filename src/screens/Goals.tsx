@@ -11,7 +11,7 @@ import { isGoalClosed } from '@/domain/goals'
 import { relativeDeadline } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import type { Goal, GoalStatus } from '@/lib/types'
-import { useAsyncData } from '@/hooks/useAsyncData'
+import { useCachedData } from '@/hooks/useCachedData'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
 import { IconCalendar, IconChevronRight, IconGoals, IconPlus, IconStar } from '@/components/icons'
@@ -43,14 +43,18 @@ export function Goals() {
   const { userId, profile, setProfile } = useSession()
   const navigate = useNavigate()
 
-  const { data, loading, error } = useAsyncData(async () => {
-    const [goals, counts, progress] = await Promise.all([
-      listGoals(userId),
-      countDoneByGoal(userId),
-      milestoneProgressByGoal(userId),
-    ])
-    return { goals, counts, progress }
-  }, [userId])
+  const { data, loading, error } = useCachedData(
+    `goals:${userId}`,
+    async () => {
+      const [goals, counts, progress] = await Promise.all([
+        listGoals(userId),
+        countDoneByGoal(userId),
+        milestoneProgressByGoal(userId),
+      ])
+      return { goals, counts, progress }
+    },
+    [userId],
+  )
 
   // Blendy: tocar una meta hace que la tarjeta se EXPANDA (morph FLIP) en su detalle,
   // saliendo desde su posición real en la grilla (izq/der/arriba) hacia el centro.
