@@ -13,7 +13,7 @@ import { bestStreakCommitted, currentStreakCommitted, weekConsistency } from '@/
 import { weekdayMon0, WEEKDAY_LABELS } from '@/domain/commitment'
 import { addDays, formatDuration, formatLongDate, startOfWeek, todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
-import { useAsyncData } from '@/hooks/useAsyncData'
+import { useCachedData } from '@/hooks/useCachedData'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
 import { IconCheck, IconFlame, IconProgress } from '@/components/icons'
@@ -31,22 +31,26 @@ export function Progress() {
   const today = todayISO()
   const weekStart = startOfWeek(today)
 
-  const { data, loading, error } = useAsyncData(async () => {
-    const [goals, blocks, sessions, progressByGoal, doneMilestones, habits, habitChecks] =
-      await Promise.all([
-        listGoals(userId),
-        listScheduleForUser(userId),
-        listSessionsInRange(userId, addDays(today, -(HISTORY_DAYS - 1)), today),
-        milestoneProgressByGoal(userId),
-        listDoneMilestones(userId, 10),
-        // Los hábitos también son progreso: degradan a vacío sin romper la pantalla.
-        listHabits(userId).catch(() => [] as Habit[]),
-        listHabitChecksInRange(userId, addDays(today, -(HISTORY_DAYS - 1)), today).catch(
-          () => [] as HabitCheck[],
-        ),
-      ])
-    return { goals, blocks, sessions, progressByGoal, doneMilestones, habits, habitChecks }
-  }, [userId])
+  const { data, loading, error } = useCachedData(
+    `progress:${userId}`,
+    async () => {
+      const [goals, blocks, sessions, progressByGoal, doneMilestones, habits, habitChecks] =
+        await Promise.all([
+          listGoals(userId),
+          listScheduleForUser(userId),
+          listSessionsInRange(userId, addDays(today, -(HISTORY_DAYS - 1)), today),
+          milestoneProgressByGoal(userId),
+          listDoneMilestones(userId, 10),
+          // Los hábitos también son progreso: degradan a vacío sin romper la pantalla.
+          listHabits(userId).catch(() => [] as Habit[]),
+          listHabitChecksInRange(userId, addDays(today, -(HISTORY_DAYS - 1)), today).catch(
+            () => [] as HabitCheck[],
+          ),
+        ])
+      return { goals, blocks, sessions, progressByGoal, doneMilestones, habits, habitChecks }
+    },
+    [userId],
+  )
 
   if (loading) {
     return (
