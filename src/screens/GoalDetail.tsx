@@ -61,6 +61,22 @@ import {
   IconShare,
 } from '@/components/icons'
 import { NicheGlyph } from '@/components/NicheGlyph'
+import { sessionCache } from '@/lib/sessionCache'
+import { useCacheMirror } from '@/hooks/useCacheMirror'
+
+/** Instantánea de datos cacheada por sesión para pintar el detalle al instante. */
+type GoalSnapshot = {
+  goal: Goal | null
+  milestones: Milestone[]
+  blocks: ScheduleBlock[]
+  weekSessions: Session[]
+  advances: Session[]
+  stats: { done: number; minutes: number }
+  weekMinutes: number
+  habits: Habit[]
+  habitChecks: HabitCheck[]
+  weekEvents: CalendarEvent[]
+}
 
 export function GoalDetail() {
   const { goalId } = useParams<{ goalId: string }>()
@@ -73,19 +89,24 @@ export function GoalDetail() {
   // historial in-app) location.key === 'default': caemos a /metas.
   const goBack = () => (location.key === 'default' ? navigate('/metas') : navigate(-1))
 
-  const [goal, setGoal] = useState<Goal | null>(null)
-  const [milestones, setMilestones] = useState<Milestone[]>([])
-  const [blocks, setBlocks] = useState<ScheduleBlock[]>([])
-  const [weekSessions, setWeekSessions] = useState<Session[]>([])
+  // Cache de sesión: al volver al detalle se pinta al instante lo último y se revalida
+  // por detrás (sin skeleton). Clave por meta; siempre se entra desde otra pantalla.
+  const cacheKey = `goal:${goalId ?? ''}`
+  const cached = sessionCache.get<GoalSnapshot>(cacheKey)
+
+  const [goal, setGoal] = useState<Goal | null>(cached?.goal ?? null)
+  const [milestones, setMilestones] = useState<Milestone[]>(cached?.milestones ?? [])
+  const [blocks, setBlocks] = useState<ScheduleBlock[]>(cached?.blocks ?? [])
+  const [weekSessions, setWeekSessions] = useState<Session[]>(cached?.weekSessions ?? [])
   /** Diario de avances: sesiones con nota de qué se logró. */
-  const [advances, setAdvances] = useState<Session[]>([])
-  const [stats, setStats] = useState({ done: 0, minutes: 0 })
-  const [weekMinutes, setWeekMinutes] = useState(0)
+  const [advances, setAdvances] = useState<Session[]>(cached?.advances ?? [])
+  const [stats, setStats] = useState(cached?.stats ?? { done: 0, minutes: 0 })
+  const [weekMinutes, setWeekMinutes] = useState(cached?.weekMinutes ?? 0)
   // Integración entre zonas: hábitos vinculados y eventos de la semana de ESTA meta.
-  const [habits, setHabits] = useState<Habit[]>([])
-  const [habitChecks, setHabitChecks] = useState<HabitCheck[]>([])
-  const [weekEvents, setWeekEvents] = useState<CalendarEvent[]>([])
-  const [loading, setLoading] = useState(true)
+  const [habits, setHabits] = useState<Habit[]>(cached?.habits ?? [])
+  const [habitChecks, setHabitChecks] = useState<HabitCheck[]>(cached?.habitChecks ?? [])
+  const [weekEvents, setWeekEvents] = useState<CalendarEvent[]>(cached?.weekEvents ?? [])
+  const [loading, setLoading] = useState(cached === undefined)
   const [error, setError] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -102,7 +123,8 @@ export function GoalDetail() {
     let active = true
     async function load() {
       try {
-        setLoading(true)
+        // Solo skeleton en carga en frío (sin cache): al volver ya hay datos que mostrar.
+        if (sessionCache.get(cacheKey) === undefined) setLoading(true)
         const id = goalId ?? ''
         const weekStart = startOfWeek(todayISO())
         const [g, ms, blks, weekSess, st, mins, adv, allHabits, checks, evs] = await Promise.all([
@@ -143,7 +165,22 @@ export function GoalDetail() {
     return () => {
       active = false
     }
-  }, [userId, goalId])
+  }, [userId, goalId, cacheKey])
+
+  // Mantiene el cache al día con lo mostrado (incluidos cambios optimistas). El guard
+  // `goal.id === goalId` evita escribir datos de otra meta bajo esta clave.
+  useCacheMirror(cacheKey, !loading && !error && goal?.id === goalId, {
+    goal,
+    milestones,
+    blocks,
+    weekSessions,
+    advances,
+    stats,
+    weekMinutes,
+    habits,
+    habitChecks,
+    weekEvents,
+  })
 
   async function changeStatus(status: GoalStatus) {
     if (!goal) return
