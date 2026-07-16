@@ -49,24 +49,44 @@ import { useCheer } from '@/hooks/useCheer'
 import { useToast } from '@/app/toast'
 import { ensureCommitmentBackfill } from '@/services/backfill'
 import { syncTimezone } from '@/lib/push'
+import { sessionCache } from '@/lib/sessionCache'
+import { useCacheMirror } from '@/hooks/useCacheMirror'
+
+/** Instantánea de datos cacheada por sesión para pintar Hoy al instante al volver. */
+type TodaySnapshot = {
+  goals: Goal[]
+  blocks: ScheduleBlock[]
+  sessions: Session[]
+  history: Session[]
+  tasks: Task[]
+  yesterdayPending: Task[]
+  events: CalendarEvent[]
+  habits: Habit[]
+  habitChecks: HabitCheck[]
+}
 
 export function Today() {
   const { userId, profile } = useSession()
   const navigate = useNavigate()
   const today = todayISO()
 
-  const [goals, setGoals] = useState<Goal[]>([])
-  const [blocks, setBlocks] = useState<ScheduleBlock[]>([])
-  const [sessions, setSessions] = useState<Session[]>([])
-  const [history, setHistory] = useState<Session[]>([])
-  const [tasks, setTasks] = useState<Task[]>([])
+  // Cache de sesión: al volver a Hoy se pinta al instante lo último y se revalida por
+  // detrás (sin skeleton). La clave incluye la fecha: un día nuevo carga en frío.
+  const cacheKey = `today:${userId}:${today}`
+  const cached = sessionCache.get<TodaySnapshot>(cacheKey)
+
+  const [goals, setGoals] = useState<Goal[]>(cached?.goals ?? [])
+  const [blocks, setBlocks] = useState<ScheduleBlock[]>(cached?.blocks ?? [])
+  const [sessions, setSessions] = useState<Session[]>(cached?.sessions ?? [])
+  const [history, setHistory] = useState<Session[]>(cached?.history ?? [])
+  const [tasks, setTasks] = useState<Task[]>(cached?.tasks ?? [])
   // Tareas propias de ayer que quedaron pendientes (carryover honesto, sin culpa).
-  const [yesterdayPending, setYesterdayPending] = useState<Task[]>([])
-  const [events, setEvents] = useState<CalendarEvent[]>([])
-  const [habits, setHabits] = useState<Habit[]>([])
-  const [habitChecks, setHabitChecks] = useState<HabitCheck[]>([])
+  const [yesterdayPending, setYesterdayPending] = useState<Task[]>(cached?.yesterdayPending ?? [])
+  const [events, setEvents] = useState<CalendarEvent[]>(cached?.events ?? [])
+  const [habits, setHabits] = useState<Habit[]>(cached?.habits ?? [])
+  const [habitChecks, setHabitChecks] = useState<HabitCheck[]>(cached?.habitChecks ?? [])
   const [refreshKey, setRefreshKey] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(cached === undefined)
   const [error, setError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [newTitle, setNewTitle] = useState('')
@@ -90,7 +110,8 @@ export function Today() {
 
     async function init() {
       try {
-        setLoading(true)
+        // Solo skeleton en carga en frío (sin cache): al volver ya hay datos que mostrar.
+        if (sessionCache.get(cacheKey) === undefined) setLoading(true)
         setError(null)
 
         // Sesiones que quedaron corriendo de otros días → "sin confirmar".
@@ -141,7 +162,7 @@ export function Today() {
     return () => {
       active = false
     }
-  }, [userId, today, refreshKey])
+  }, [userId, today, refreshKey, cacheKey])
 
   // Al volver a la app (cambiar de pestaña, reabrir la PWA) refrescamos el día.
   useEffect(() => {
@@ -151,6 +172,20 @@ export function Today() {
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
+
+  // Mantiene el cache al día con lo que se muestra (incluidos los cambios optimistas),
+  // para que al volver a Hoy se pinte al instante.
+  useCacheMirror(cacheKey, !loading && !error, {
+    goals,
+    blocks,
+    sessions,
+    history,
+    tasks,
+    yesterdayPending,
+    events,
+    habits,
+    habitChecks,
+  })
 
   const goalById = useMemo(() => new Map(goals.map((g) => [g.id, g])), [goals])
   // Sesión en curso: protagonista arriba de todo, con el reloj latiendo.
