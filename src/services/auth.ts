@@ -1,5 +1,6 @@
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { sessionCache } from '@/lib/sessionCache'
 
 /** Traduce los errores de auth de Supabase a mensajes claros en español. */
 function translateAuthError(message: string): string {
@@ -50,6 +51,7 @@ export async function updatePassword(password: string): Promise<void> {
 }
 
 export async function signOut(): Promise<void> {
+  sessionCache.clear()
   const { error } = await supabase.auth.signOut()
   if (error) throw new Error(error.message)
 }
@@ -59,6 +61,7 @@ export async function signOut(): Promise<void> {
  * tablas hijas caen por ON DELETE CASCADE). Después cerramos la sesión local.
  */
 export async function deleteAccount(): Promise<void> {
+  sessionCache.clear()
   const { error } = await supabase.rpc('delete_my_account')
   if (error) throw new Error(translateAuthError(error.message))
   await supabase.auth.signOut().catch(() => {})
