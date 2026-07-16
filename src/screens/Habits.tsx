@@ -17,6 +17,8 @@ import { WEEKDAY_LABELS } from '@/domain/commitment'
 import { addDays, startOfWeek, todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { friendlyError } from '@/lib/errors'
+import { sessionCache } from '@/lib/sessionCache'
+import { useCacheMirror } from '@/hooks/useCacheMirror'
 import { NicheGlyph, NicheIcon } from '@/components/NicheGlyph'
 import { SkeletonList } from '@/components/Skeleton'
 import { IconArrowReturn, IconDots, IconFlame, IconLightbulb, IconPlus } from '@/components/icons'
@@ -56,6 +58,9 @@ function daysLabel(weekdays: number[]): string {
   return weekdays.map((d) => WEEKDAY_LABELS[d]).join(' · ')
 }
 
+/** Instantánea de datos cacheada por sesión para pintar la pantalla al instante. */
+type HabitsSnapshot = { habits: Habit[]; checksByHabit: Map<string, Set<string>>; goals: Goal[] }
+
 /**
  * Pantalla de gestión de hábitos (zona nueva): crear, ver la semana de cada
  * uno, editar días y archivar. Marcar el cumplimiento del día vive en Hoy
@@ -69,10 +74,15 @@ export function Habits() {
   const weekStart = startOfWeek(today)
 
   // --- Datos: hábitos + checks de los últimos 120 días (rachas y semana) ---
-  const [habits, setHabits] = useState<Habit[] | null>(null)
-  const [checksByHabit, setChecksByHabit] = useState<Map<string, Set<string>>>(new Map())
+  // Cache de sesión: al volver, se pinta al instante lo último y se revalida por detrás.
+  const cacheKey = `habits:${userId}`
+  const cached = sessionCache.get<HabitsSnapshot>(cacheKey)
+  const [habits, setHabits] = useState<Habit[] | null>(cached?.habits ?? null)
+  const [checksByHabit, setChecksByHabit] = useState<Map<string, Set<string>>>(
+    cached?.checksByHabit ?? new Map(),
+  )
   // Metas activas: para vincular un hábito a una meta (opcional).
-  const [goals, setGoals] = useState<Goal[]>([])
+  const [goals, setGoals] = useState<Goal[]>(cached?.goals ?? [])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -104,6 +114,9 @@ export function Habits() {
       active = false
     }
   }, [userId])
+
+  // Mantiene el cache al día con lo que se muestra (incluidos los cambios optimistas).
+  useCacheMirror(cacheKey, habits !== null, { habits: habits ?? [], checksByHabit, goals })
 
   const activeGoals = goals.filter((g) => g.status === 'active')
   const goalById = new Map(goals.map((g) => [g.id, g]))
