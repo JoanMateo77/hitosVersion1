@@ -34,8 +34,13 @@ import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { NicheIcon } from '@/components/NicheGlyph'
 import { useToast } from '@/app/toast'
 import { Hint } from '@/components/Hint'
+import { sessionCache } from '@/lib/sessionCache'
+import { useCacheMirror } from '@/hooks/useCacheMirror'
 
 type View = 'day' | 'week' | 'month'
+
+/** Instantánea de datos cacheada por sesión (por rango de fechas) para pintar al instante. */
+type CalSnapshot = { events: CalendarEvent[]; goals: Goal[]; blocks: ScheduleBlock[]; sessions: Session[] }
 
 /** Una sesión tal como se ve en la agenda: real (fila en BD) o proyectada del compromiso. */
 interface DayAgendaSession {
@@ -102,17 +107,6 @@ export function Calendar() {
   })
   const [anchor, setAnchor] = useState(initialDate ?? todayISO()) // mes / semana de referencia
   const [selected, setSelected] = useState(initialDate ?? todayISO()) // día activo
-  const [events, setEvents] = useState<CalendarEvent[]>([])
-  const [goals, setGoals] = useState<Goal[]>([])
-  const [blocks, setBlocks] = useState<ScheduleBlock[]>([])
-  const [sessions, setSessions] = useState<Session[]>([])
-  const [timeSheet, setTimeSheet] = useState<{ goal: Goal; block: ScheduleBlock; session: Session | null } | null>(null)
-  const [ready, setReady] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [editing, setEditing] = useState<{ event: CalendarEvent | null; date: string } | null>(null)
-  // Día para el que se está sumando una sesión espontánea desde la agenda.
-  const [planning, setPlanning] = useState<string | null>(null)
-
   const grid = useMemo(() => monthGrid(anchor), [anchor])
   const week = useMemo(() => weekDays(anchor), [anchor])
 
@@ -122,6 +116,24 @@ export function Calendar() {
     if (view === 'day') return [selected, selected]
     return [grid[0][0], grid[5][6]]
   }, [view, week, grid, selected])
+
+  // Cache de sesión por rango: al volver a la agenda se pinta al instante lo último.
+  const cacheKey = `cal:${userId}:${from}:${to}`
+  const cached = sessionCache.get<CalSnapshot>(cacheKey)
+
+  const [events, setEvents] = useState<CalendarEvent[]>(cached?.events ?? [])
+  const [goals, setGoals] = useState<Goal[]>(cached?.goals ?? [])
+  const [blocks, setBlocks] = useState<ScheduleBlock[]>(cached?.blocks ?? [])
+  const [sessions, setSessions] = useState<Session[]>(cached?.sessions ?? [])
+  const [timeSheet, setTimeSheet] = useState<{ goal: Goal; block: ScheduleBlock; session: Session | null } | null>(null)
+  const [ready, setReady] = useState(cached !== undefined)
+  const [error, setError] = useState<string | null>(null)
+  const [editing, setEditing] = useState<{ event: CalendarEvent | null; date: string } | null>(null)
+  // Día para el que se está sumando una sesión espontánea desde la agenda.
+  const [planning, setPlanning] = useState<string | null>(null)
+  // A qué rango pertenecen los datos actuales: al cambiar de mes sin recargar aún, evita
+  // reflejar datos del mes anterior bajo la clave del nuevo rango.
+  const loadedKeyRef = useRef<string | null>(cached !== undefined ? cacheKey : null)
 
   useEffect(() => {
     let active = true
@@ -139,6 +151,7 @@ export function Calendar() {
         setGoals(gs)
         setBlocks(blks)
         setSessions(sess)
+        loadedKeyRef.current = cacheKey
       } catch (err) {
         if (active) setError(friendlyError(err, 'No se pudo cargar tu agenda.'))
       } finally {
@@ -149,7 +162,16 @@ export function Calendar() {
     return () => {
       active = false
     }
-  }, [userId, from, to])
+  }, [userId, from, to, cacheKey])
+
+  // Refleja al cache lo mostrado (incluidos cambios optimistas), solo cuando los datos
+  // corresponden al rango actual, para que al volver a la agenda se pinte al instante.
+  useCacheMirror(cacheKey, ready && !error && loadedKeyRef.current === cacheKey, {
+    events,
+    goals,
+    blocks,
+    sessions,
+  })
 
   const eventsByDate = useMemo(() => groupByDate(events), [events])
   const goalById = useMemo(() => new Map(goals.map((g) => [g.id, g] as const)), [goals])
