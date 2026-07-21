@@ -1,0 +1,330 @@
+[
+ {
+  "g": "rompe la experiencia",
+  "t": "Cerrar con \"Hoy no pude\" te felicita: Hoy dice \"Cumpliste tu compromiso de hoy\" y cuenta 1 de 1",
+  "p": "Hoy (/) tras cerrar en /sesion/:id",
+  "e": "Tono del copy / Funcionalidad",
+  "ev": "Sesión de 'Correr todos los días' cerrada con 'Hoy no pude'. Al volver a Hoy, texto literal capturado en móvil y escritorio: titular 'Cumpliste tu compromiso de hoy.', contador de sección 'TUS SESIONES DE HOY — 1 de 1', fila 'Hoy no pudiste — está bien', línea semanal '0 de 10 sesiones de tu compromiso esta semana.' y aria del día 'Ma 21: por venir'. Cinco lecturas contradictorias en una pantalla. La captura zB-34 muestra además que la tarjeta se pinta con borde izquierdo verde y título tachado, idéntica a una sesión completada.",
+  "fx": "Que el titular y el contador de Hoy distingan sesiones cumplidas de sesiones resueltas. Con un 'missed' del día: titular neutro ('Hoy no pudiste — mañana se empieza de nuevo'), contador '0 de 1', y tratamiento visual distinto del verde de cumplida. La frase del cierre ('Decir “no pude” no rompe nada') ya tiene el tono correcto; Hoy debería continuarla, no contradecirla."
+ },
+ {
+  "g": "rompe la experiencia",
+  "t": "Tras \"Deshacer\", el panel \"¿Qué lograste?\" sigue vivo y anota un avance en una sesión que Hoy cuenta como no hecha",
+  "p": "Hoy (/)",
+  "e": "Funcionalidad / Hilo narrativo",
+  "ev": "Secuencia: ✓ rápido en Hoy → aparece el panel '¿Qué lograste? (opcional)' con Guardar/Omitir → pulso 'Deshacer'. La sesión vuelve a pendiente (la fila muestra otra vez el play y el ✓ vacío, el contador vuelve a '0 de 1'), pero el panel de la nota sigue en pantalla (captura zB-30: play verde + círculo vacío + '¿Qué lograste?' + Guardar/Omitir a la vez). Escribí 'NOTA HUERFANA de prueba', pulsé 'Guardar', salió el toast 'Avance anotado.' y en /metas/ea004d51… quedó registrado bajo 'Tus avances — NOTA HUERFANA de prueba — 21 de julio de 2026' mientras Hoy seguía marcando '0 de 1 sesión' y '0 de 10 sesiones de tu compromiso esta semana'.",
+  "fx": "Cerrar el panel de nota cuando 'Deshacer' devuelve la sesión a pendiente, y no aceptar avances sobre sesiones sin cerrar."
+ },
+ {
+  "g": "rompe la experiencia",
+  "t": "La sesión que agregas desde la agenda queda muerta: no se le puede poner hora, no se puede abrir y no se puede quitar",
+  "p": "Agenda (/calendario)",
+  "e": "8. Funcionalidad / 9. Flujo (callejón sin salida)",
+  "ev": "Con '+ Sesión para una meta' agregué una sesión de 'Aprender inglés' al sábado 15 de agosto. Toast: 'Sesión agregada para “Aprender inglés”.'. La tarjeta aparece con '—' donde va la hora y estado 'pendiente'. La toqué: isDisabled() = false, clase 'ev ev--session', pero la URL sigue en /calendario y no aparece ninguna hoja ('¿A qué hora' → false). En el mismo día toqué la sesión comprometida de al lado y sí abrió la hoja de hora ('¿A qué hora' → true). No hay ningún otro control en la pantalla para editarla o borrarla.",
+  "fx": "Que tocar una sesión suelta abra una hoja propia con hora para ese día y 'Quitar esta sesión'. Mientras tanto, como mínimo, no renderizarla como botón si no hace nada, y unificar su estado con el de sus vecinas."
+ },
+ {
+  "g": "rompe la experiencia",
+  "t": "El número de la semana en Progreso cuenta metas que no están en la lista, y por eso nunca puede completarse",
+  "p": "Progreso (/progreso)",
+  "e": "8. Funcionalidad (¿los números son correctos?) / 7. Hilo narrativo",
+  "ev": "Primera captura: el anillo dice '0/10 sesiones' y justo debajo 'TUS METAS' lista 'Correr todos los días 0/7 esta semana' y 'Aprender inglés 0/2 esta semana' — 9, no 10. En /metas encontré una tercera meta, 'Meta de prueba D', con chip 'Pausada'; su detalle dice 'TU COMPROMISO · Ju 8:00 am · 30 min · Tu compromiso: 1 sesión · 30 min por semana' (7+2+1=10). Esa meta no aparece en 'Tus metas' de Progreso y su sesión del jueves tampoco aparece en la agenda (el jueves 23 solo muestra 'Correr todos los días'). Más tarde, con otra meta ya cerrada, el desfase creció: anillo '1/12' con solo dos metas de 0/2 listadas.",
+  "fx": "Calcular 'Tu semana' solo con los compromisos de metas activas (las mismas que se listan debajo). Si se decide seguir contando las pausadas, listarlas también con su chip 'Pausada' para que la suma se pueda reconstruir."
+ },
+ {
+  "g": "rompe la experiencia",
+  "t": "\"Sigo con esto\", la acción principal de la revisión, falla siempre y muestra un error crudo de base de datos en inglés",
+  "p": "/revision",
+  "e": "8. Funcionalidad / 4. Tono del copy",
+  "ev": "Al pulsar \"Sigo con esto\" aparece dentro de la pantalla un recuadro rojo con el texto literal: «Could not find the 'last_reviewed_at' column of 'goals' in the schema cache». En red: HTTP 400 a https://…supabase.co/rest/v1/goals?id=eq.<id>&select=* y en consola «Failed to load resource: the server responded with a status of 400». La revisión no avanza a la meta siguiente y el contador de Hoy nunca baja (sigue en \"2 metas para revisar\" después de todos los intentos). Capturas D-13-error-sigo-con-esto.png y D-50-cumpli-etapa-error.png.",
+  "fx": "Aplicar la migración 0003_review.sql en el proyecto Supabase. Y, en cualquier caso, no pintar el mensaje de error del servidor tal cual: el catch de Review.tsx (act(), línea ~92) debe mostrar copy propio (\"No se pudo guardar tu revisión. Inténtalo de nuevo.\") y dejar el detalle técnico en consola."
+ },
+ {
+  "g": "rompe la experiencia",
+  "t": "\"Cumplí la etapa\" avanza la etapa pero acto seguido muestra error; volver a pulsarlo salta etapas sin avisar",
+  "p": "/revision",
+  "e": "8. Funcionalidad / 9. Flujo",
+  "ev": "Sobre una meta desechable propia: la tarjeta pasó de \"ETAPA 1 DE 5\" a \"ETAPA 2 DE 5\" (el hito quedó cumplido de verdad, luego se ve \"Etapa 4 de 5\" en /metas) y al mismo tiempo apareció el error «Could not find the 'last_reviewed_at' column…». La revisión NO pasó a la meta siguiente. Pulsando el mismo botón dos veces más: \"ETAPA 2 DE 5\" → \"ETAPA 3 DE 5\" → \"ETAPA 4 DE 5\", siempre con el error visible y sin confirmación ni deshacer. Capturas D-50-cumpli-etapa-error.png, D-51-doble-avance.png, D-53-metas-con-pausada.png.",
+  "fx": "Además de aplicar la migración: ordenar la acción para que el fallo del marcado de revisión no deje el cambio a medias (avanzar de meta si el hito se guardó, o revertir), y deshabilitar el botón tras el primer avance para que un segundo toque no salte otra etapa."
+ },
+ {
+  "g": "vale la pena",
+  "t": "La pantalla se llama \"Rutinas de un toque\" pero no tiene ningún toque: no se puede marcar un hábito desde /habitos",
+  "p": "/habitos vs /",
+  "e": "Gramática de acciones / Vocabulario",
+  "ev": "Volcado del DOM de la fila de hábito en /habitos: el único elemento interactivo es <button class=\"iconbtn iconbtn--sm\" aria-label=\"Opciones del hábito: Estirar 5 minutos\">. Los 7 puntos de la semana son <span class=\"weekstrip__dot\" title=\"Lu\"> sin rol ni tabindex. El inventario completo de [role],button,input,label,[onclick],[tabindex] visibles en la pantalla devuelve solo: 'Nuevo', el '…' del hábito y los 10 chips de ideas populares. Mientras tanto el kicker de la pantalla dice literalmente 'RUTINAS DE UN TOQUE' y el marcado real vive en Hoy, con aria 'Marcar el hábito: Estirar 5 minutos'.",
+  "fx": "Poner el mismo control .check de Hoy en la fila de /habitos (o cambiar el kicker si la decisión es que /habitos sea solo de gestión). Hoy la promesa del título y el gesto disponible no coinciden, y el usuario que entra por la pestaña 'Hábitos' a marcar su hábito no encuentra dónde."
+ },
+ {
+  "g": "vale la pena",
+  "t": "Un hábito creado hace un minuto ya arrastra un día incumplido",
+  "p": "/habitos y / (panel del día pasado)",
+  "e": "Tono del copy / Funcionalidad",
+  "ev": "Creé 'HABITO DESECHABLE zB' el martes 21 y de inmediato leí sus puntos: [Lu:--missed, Ma:--future, Mi:--future, Ju:--future, Vi:--future, Sa:--future, Do:--future]. Los tres hábitos de la cuenta muestran Lu como --missed, que se pinta como punto relleno (distinto del círculo punteado de --future, ver zB-51). El propio Hoy contradice esa lectura: al pulsar el lunes en el weekstrip se abre el panel 'LUNES, 20 DE JULIO — Ese día no hubo sesiones.'",
+  "fx": "No marcar como incumplidos los días anteriores a la creación del hábito (ni los anteriores al alta de la cuenta): pintarlos como neutros/no aplicables. Y dar al punto un aria-label o un rótulo legible en móvil, hoy la única pista es un title que en táctil nunca se muestra."
+ },
+ {
+  "g": "vale la pena",
+  "t": "Dos gramáticas distintas para la misma acción: anotar el avance",
+  "p": "/ y /sesion/:id",
+  "e": "Gramática de acciones",
+  "ev": "Misma acción —dejar una nota de lo que lograste— con dos formas incompatibles. En Hoy tras el ✓ rápido: '¿Qué lograste? (opcional)' + input + botones 'Guardar' y 'Omitir' (captura zB-30). En SessionRun tras el cronómetro: '¿Qué lograste en este tiempo? (opcional)' + input + pista 'Queda en tu meta…' y ningún botón de guardar, solo 'Sí, cumplida' / 'Aún no' de la etapa (captura zB-15). Además el ✓ rápido nunca pregunta por la etapa y el cronómetro siempre lo hace, para la misma meta y el mismo día.",
+  "fx": "Unificar: mismo texto de pregunta, mismo par Guardar/Omitir, y la pregunta de la etapa en los dos caminos o en ninguno. Hoy el usuario aprende un gesto y al día siguiente, si usa el otro botón, no le sirve."
+ },
+ {
+  "g": "vale la pena",
+  "t": "\"Retomar\" borra el parcial ya guardado y el día vuelve a cero sin avisarlo",
+  "p": "Hoy (/) → /sesion/:id",
+  "e": "Flujo / Funcionalidad",
+  "ev": "Con la sesión cerrada como parcial, Hoy mostraba 'Parcial · 25 de 30 min', titular 'Cumpliste tu compromiso de hoy.' y '1 de 9 sesiones de tu compromiso esta semana'. Pulsé 'Retomar' (aria 'Retomar la sesión de Correr todos los días donde quedó'). Al volver a Hoy: titular '0 de 1 sesión', '0 de 9 sesiones de tu compromiso esta semana', el parcial desapareció de la lista y la sesión pasó al hero 'EN CURSO'. Además el cronómetro reabierto marcaba 24:12 restantes, o sea siguió del tiempo real transcurrido, no de los 25 min guardados que la tarjeta anunciaba.",
+  "fx": "Avisar antes de retomar ('vas a reabrir una sesión ya registrada como parcial') o mantener el parcial contabilizado hasta que el nuevo cierre lo reemplace. Y alinear el reloj con lo anunciado en la tarjeta."
+ },
+ {
+  "g": "vale la pena",
+  "t": "Un hábito no se puede renombrar; una etapa sí",
+  "p": "/habitos vs /metas/:id",
+  "e": "Gramática de acciones",
+  "ev": "El menú '…' del hábito contiene solo: chips de días (Lu…Do), chips de meta (Ninguna / metas activas) y 'Archivar'. Inventario completo de button/input/select/textarea visibles con el menú abierto: no hay ningún input. El nombre del hábito se renderiza como <p style=\"margin:0;font-weight:600\">Estirar 5 minutos</p>, sin rol de botón. En contraste, en el detalle de meta cada etapa expone <button aria-label=\"Editar el texto de la etapa: …\"> y la meta entera tiene 'Editar'.",
+  "fx": "Añadir el nombre como campo editable en el menú '…', con el mismo gesto que ya usan las etapas (pulsar el título para editarlo)."
+ },
+ {
+  "g": "vale la pena",
+  "t": "El botón Volver de Ideas siempre aterriza en Hoy, nunca en la pantalla de la que viniste",
+  "p": "/ideas (GoalSuggestions)",
+  "e": "Orientación y retorno / Flujo",
+  "ev": "Dos recorridos in-app reales: (1) /metas → \"Nueva\" → wizard paso 1, escribo \"Meta a medio escribir\" → \"No sé qué poner — ver ideas\" → /ideas → Volver → aterrizo en http://localhost:5173/ (Hoy: \"Martes, 21 de julio | Tu día\"). (2) Meta lograda → \"Ver ideas para tu próxima meta\" → /ideas?area=aprendizaje → Volver → otra vez http://localhost:5173/. Código coincidente: GoalSuggestions.tsx:52 `onClick={() => navigate('/')}`, fijo. Contraste dentro de mi zona: GoalDetail.tsx:90 sí respeta el origen (`location.key === 'default' ? '/metas' : navigate(-1)`) y verificado en vivo: /metas → tarjeta → Abrir meta → Volver → /metas.",
+  "fx": "Que el Volver de /ideas use el mismo patrón que GoalDetail: `location.key === 'default' ? navigate('/') : navigate(-1)`. Así vuelve al wizard a medio llenar o a la meta lograda desde donde se pidió \"la próxima meta\"."
+ },
+ {
+  "g": "vale la pena",
+  "t": "Quitar una etapa borra al instante, sin confirmación ni deshacer, detrás de una ✕ sin etiqueta visible",
+  "p": "/metas/:goalId → ⋯ de una etapa",
+  "e": "Gramática de acciones / Funcionalidad",
+  "ev": "Añadí \"ETAPA DE PRUEBA AUDITORIA\" (5→6 etapas, el progreso pasó a \"Etapa 1 de 6\"). Abrí ⋯ de esa etapa y toqué la ✕: desapareció al instante, sin diálogo, sin toast y sin \"deshacer\" en pantalla (busqué la palabra: false). Recargué: 5 etapas, la de prueba ya no existe. En la MISMA pantalla, \"Marcar como lograda\" sí confirma con cuidado (\"Te quedan 5 etapas sin marcar\" + tres opciones).",
+  "fx": "Toast con \"Etapa quitada — Deshacer\" (patrón que la app ya usa en Hoy para deshacer el cierre de una sesión), o confirmación in situ para la ✕."
+ },
+ {
+  "g": "vale la pena",
+  "t": "El detalle de meta no ofrece ninguna forma de trabajar la meta: ni empezar una sesión ni registrar un avance",
+  "p": "/metas/:goalId",
+  "e": "Hilo narrativo (meta → etapa → sesión → avance)",
+  "ev": "Inventario completo de controles del detalle de una meta ACTIVA con compromiso Lu/Mi: Volver, Editar (meta), Editar (compromiso), 5 checks de etapa, 5 títulos de etapa editables, 5 ⋯ de etapa, \"+ Agregar etapa\", enlace \"agenda\", \"Pausar esta meta\", \"Más opciones\". Ningún control menciona sesión, empezar, cronómetro ni avance. La sección \"Tus avances\" existe y se llena sola (la vi con contenido real en otra meta: \"NOTA HUERFANA de prueba · 21 de julio de 2026 · 30 min\"), pero nace en Hoy/SessionRun; desde la meta solo se puede mirar.",
+  "fx": "Añadir en el detalle una acción de sesión coherente con Hoy (\"Empezar la sesión de hoy\" cuando toca, \"Sumar una sesión\" cuando no) y permitir anotar un avance desde la propia meta."
+ },
+ {
+  "g": "vale la pena",
+  "t": "Al adoptar una idea caes en el paso 3 del wizard sin que la pantalla nombre nunca la meta adoptada",
+  "p": "/ideas → /meta/nueva (paso 3)",
+  "e": "Orientación y retorno / Flujo",
+  "ev": "En /ideas toco \"Aprender a programar haciendo un proyecto\" → /meta/nueva mostrando \"Paso 3 de 6 · ¿Cuánto y cuándo cada semana?\". El texto completo de esa pantalla no contiene el título adoptado en ningún lugar (verificado sobre el innerText). Además, al llegar ya se muestra el mensaje \"Elige al menos un día para tu compromiso\" antes de que el usuario haya tocado nada.",
+  "fx": "Mostrar en el paso de compromiso qué meta se está comprometiendo (un kicker con el título adoptado) y no mostrar el aviso de validación hasta el primer intento de continuar."
+ },
+ {
+  "g": "vale la pena",
+  "t": "En 'Últimas 8 semanas' la barra de esta semana dice 100% y el pie del mismo gráfico dice 8%",
+  "p": "Progreso (/progreso)",
+  "e": "8. Funcionalidad (números) / 6. Densidad y ritmo",
+  "ev": "Captura p-prog-10-8semanas-zoom.png: la última barra llega al tope de la caja. Medido en el DOM: aria-label 'Semana del 20 de julio de 2026: 100% cumplido', height 100% (56px de 56px). El pie del mismo card dice '% de sesiones cumplidas por semana · esta semana: 10%' y, en otra corrida con más datos, '8%'. El anillo de arriba decía '1/10' y '1/12' respectivamente. Tres cifras distintas para la misma semana en la misma pantalla.",
+  "fx": "Usar el mismo denominador (compromiso de la semana) para la barra y para el pie, o rotular explícitamente qué mide cada uno."
+ },
+ {
+  "g": "vale la pena",
+  "t": "Dentro de Aprender no hay ninguna pestaña marcada: la app no dice dónde estás",
+  "p": "Aprender (/aprender), móvil y escritorio",
+  "e": "5. Orientación y retorno",
+  "ev": "En /aprender el inventario de controles devuelve 'Crecer' con clase 'bottomnav__item' (sin '--active'); ningún otro ítem lleva '--active'. En escritorio pasa lo mismo con 'sidenav__item'. Se ve en p-apr-01-inicial-mov.png (los cinco íconos de abajo en gris) y en p-apr-11-leccion-esc.png (los seis ítems de la barra lateral en gris). En /progreso, en cambio, 'Crecer' sí aparece con '--active' y en naranja.",
+  "fx": "Marcar 'Crecer' como activo también en /aprender (que el NavLink coincida con ambas rutas de la sección)."
+ },
+ {
+  "g": "vale la pena",
+  "t": "Los tres niveles de Aprender comparten una sola URL: el 'atrás' del sistema te saca de la sección",
+  "p": "Aprender (/aprender)",
+  "e": "5. Orientación y retorno / 9. Flujo",
+  "ev": "Entré a /aprender → colección 'Hábitos que se quedan' → lección 'Empieza por quién quieres ser'. En los tres niveles page.url() sigue siendo http://localhost:5173/aprender. Al hacer page.goBack() desde la lección, la app aterriza en http://localhost:5173/ (pantalla 'Tu día'), saltándose los dos niveles intermedios.",
+  "fx": "Rutas propias para colección y lección (/aprender/:coleccion/:leccion) o al menos entradas en el history para que el atrás retroceda un nivel."
+ },
+ {
+  "g": "vale la pena",
+  "t": "La vista Semana se titula con el mes del lunes, aunque la semana termine en otro mes, y con el mismo título que la vista Mes",
+  "p": "Agenda (/calendario), vista Semana",
+  "e": "5. Orientación y retorno / 3. Anatomía",
+  "ev": "En vista Semana, avanzando una semana, el h1 dice 'Julio de 2026' mientras las tarjetas listadas son 'Lunes, 27 de julio' … 'Domingo, 2 de agosto'. En la vista Mes el h1 es también 'Julio de 2026'. Confirmado en móvil (p-agenda-05-semana-sig-mov.png) y en escritorio (h1 medido: 'Julio de 2026' en Semana y en Mes).",
+  "fx": "Titular la semana con su rango ('20 – 26 de julio', y '27 de julio – 2 de agosto' cuando cruza de mes)."
+ },
+ {
+  "g": "vale la pena",
+  "t": "'Tu camino' muestra hitos de metas pausadas sin decir que están pausadas, y esas metas no aparecen en 'Tus metas'",
+  "p": "Progreso (/progreso)",
+  "e": "7. Hilo narrativo",
+  "ev": "En Progreso, 'Tu camino' lista tres tarjetas con la firma 'Meta de prueba D · 21 de julio de 2026' con check verde. En 'Tus metas', arriba en la misma pantalla, esa meta no está. En /metas aparece con chip 'Pausada' y su detalle confirma el estado ('Pausada' + botón 'Reactivar'). Tocar una de esas tarjetas lleva a /metas/a2b9ac00…, el detalle de la meta pausada.",
+  "fx": "Añadir el chip 'Pausada' a las entradas de 'Tu camino' que vengan de metas no activas, o agruparlas aparte."
+ },
+ {
+  "g": "vale la pena",
+  "t": "Una lección no lleva a la siguiente: hay que salir y volver a entrar seis veces",
+  "p": "Aprender · lección",
+  "e": "9. Flujo (pasos de más)",
+  "ev": "Al final de la lección 'Empieza por quién quieres ser' los únicos botones visibles son 'Volver a Hábitos que se quedan', 'Marcar como leída' y 'Crear el hábito: Leer mi frase de identidad al despertar'. No hay 'Siguiente'. Lo mismo en escritorio ('Profundo en bloques cortos': mismos tres botones, ver p-apr-11-leccion-esc.png).",
+  "fx": "Un 'Siguiente lección' al pie, y al terminar la colección un cierre que devuelva a colecciones."
+ },
+ {
+  "g": "vale la pena",
+  "t": "En móvil los textos de etapas consecutivas del camino se solapan y se leen encimados",
+  "p": "/revision (componente Roadmap, compartido)",
+  "e": "6. Densidad y ritmo",
+  "ev": "A 360px, en la tarjeta de contexto de la revisión: la línea \"aguantas corriendo hoy\" queda pisada por \"Completar 2 semanas\" y \"semana\" queda pisada por \"Notar un cambio objetivo\". Medí el DOM: las filas .roadmap__label-row están cada 64px pero el texto de una etapa de 3 líneas ocupa ~72px, así que desborda sobre la siguiente. Captura recortada D-70-roadmap-solape.png (y también visible en D-02, D-13, D-50, D-52).",
+  "fx": "Quitar la altura fija de fila del Roadmap: que cada etapa mida según su contenido (grid con align-items:start y gap) en lugar de un paso vertical fijo de 64px."
+ },
+ {
+  "g": "vale la pena",
+  "t": "La revisión guiada pide decidir sobre metas creadas hace minutos, con un contexto que las hace parecer abandonadas",
+  "p": "/revision y aviso de /",
+  "e": "9. Flujo / 7. Hilo narrativo",
+  "ev": "Creé \"Meta de prueba D\" y, dos minutos después, /revision la ofreció como \"Meta 1 de 3\" con el contexto «Sin sesiones esta semana · ninguna en los últimos 30 días» y las opciones \"Cumplí la etapa\" y \"Pausar esta meta\". Lo mismo pasó con \"Aprender inglés\", creada el día anterior: Hoy mostraba \"Revisión guiada — 1 meta para revisar\" desde el primer día de la cuenta. Capturas D-01-hoy-movil.png, D-02-revision-movil.png, D-50-cumpli-etapa-error.png.",
+  "fx": "Que una meta no entre en la cola de revisión hasta que haya cumplido su primer periodo (p. ej. reviewEveryDays desde createdAt cuando no hay lastReviewedAt), y que el contexto \"ninguna en los últimos 30 días\" no se muestre en metas más nuevas que ese periodo."
+ },
+ {
+  "g": "vale la pena",
+  "t": "El resumen celebra con confeti aunque no hayas revisado nada",
+  "p": "/revision (resumen)",
+  "e": "4. Tono del copy",
+  "ev": "Tras pulsar \"Saltar por ahora\" en las 2 metas, la pantalla final muestra un icono de confeti, el título \"Revisión lista\" y el texto «Repasaste 0 de 2 metas. Así se mantiene el rumbo.», con el chip \"2 para después\". Captura D-06-tras-5-saltos.png.",
+  "fx": "Condicionar el remate: con 0 revisadas, sin confeti y con copy operativo (\"Lo dejamos para después. Las tienes en Hoy cuando quieras.\"); reservar la celebración para cuando haya al menos una decisión tomada."
+ },
+ {
+  "g": "vale la pena",
+  "t": "/revision y /aprender dejan la navegación sin ninguna pestaña marcada y sin control de salida",
+  "p": "/revision y /aprender",
+  "e": "5. Orientación y retorno",
+  "ev": "Recorrí las 8 rutas midiendo la clase activa de los enlaces de navegación. En / , /habitos, /metas, /calendario, /progreso y /perfil hay exactamente un ítem marcado; en /revision y /aprender no hay ninguno, ni en la barra inferior de móvil ni en la lateral de escritorio. Se ve en D-41-aprender-movil-sin-tab-activa.png (ningún icono naranja) frente a D-40-progreso-movil.png (\"Crecer\" naranja) y en D-30-esc-aprender.png / D-30-esc-revision.png. Además, el inventario de controles de /revision no contiene ningún botón ni enlace de volver (tampoco con aria-label).",
+  "fx": "Marcar \"Crecer\" como activa también en /aprender (es la misma sección, con toggle interno) y dar a /revision una identidad de tarea: o marcar la pestaña de origen, o añadir un botón de salir (\"Dejarlo para después\" / volver a Hoy) visible durante todo el recorrido, no solo en el resumen."
+ },
+ {
+  "g": "cosmetico",
+  "t": "\"Hice una parte\" no puede registrar menos de 5 minutos aunque el cronómetro diga que llevas 4",
+  "p": "SessionRun — cierre parcial (/sesion/:id)",
+  "e": "Funcionalidad / Tono del copy",
+  "ev": "Panel de cierre con la pista literal 'Llevas 4 min de 30.'. Al pulsar 'Hice una parte…' el stepper arranca en '5 min' y pulsar 'Restar' (aria 'Restar') dos veces lo deja igual: '5 min', '5 min'. El tope superior es 25 min (target−5). Es decir, la app midió 4 minutos y te obliga a declarar 5.",
+  "fx": "Que el valor inicial sea el tiempo medido y que el suelo sea 1 min (o el paso mínimo), en vez de forzar 5. Si el suelo de 5 es deliberado, decirlo en la pista en lugar de mostrar un botón Restar que no hace nada."
+ },
+ {
+  "g": "cosmetico",
+  "t": "\"Deshacer\" una sesión no revierte la etapa que esa sesión marcó como cumplida",
+  "p": "Hoy (/) → /metas/:id",
+  "e": "Hilo narrativo / Funcionalidad",
+  "ev": "Cerré la sesión con 'La completé' + 'Sí, cumplida': la meta pasó a 'Etapa 2 de 5' y quedó el avance. Pulsé 'Deshacer' en Hoy. En /metas/ea004d51… las métricas volvieron a cero ('0/7 sesiones esta semana', '0 sesiones totales', '0 min invertidas') pero la meta seguía en 'Etapa 2 de 5' y el avance 'Corrí 4 km sin parar y medí mi pulso' seguía listado.",
+  "fx": "Que 'Deshacer' revierta también la etapa marcada en ese cierre, o que avise de lo que no revierte ('la etapa marcada sigue cumplida')."
+ },
+ {
+  "g": "cosmetico",
+  "t": "Con la sesión corriendo, \"TUS SESIONES DE HOY\" queda como un encabezado con contador y ninguna fila",
+  "p": "Hoy (/)",
+  "e": "Densidad y ritmo / Anatomía",
+  "ev": "Con la sesión en curso, Hoy muestra el hero 'EN CURSO · CORRER TODOS LOS DÍAS / 28:14 / Toca para abrir el cronómetro' arriba y más abajo la sección 'TUS SESIONES DE HOY — 0 de 1' seguida directamente de 'Sumar un hábito diario': el contador anuncia una sesión que no está en la lista porque se mudó al hero.",
+  "fx": "Ocultar la sección mientras la sesión está en el hero, o dejar en la lista una fila-referencia que apunte al hero. Un contador '0 de 1' sobre una lista vacía se lee como un error de carga."
+ },
+ {
+  "g": "cosmetico",
+  "t": "\"1 sesiones totales\": plural sin concordancia en la tarjeta de progreso",
+  "p": "/metas/:id (observado desde el cierre de sesión)",
+  "e": "Tono del copy",
+  "ev": "En /metas/ea004d51… tras completar la primera sesión, el bloque 'TU PROGRESO' mostró literalmente '1' sobre la etiqueta 'sesiones totales'. Con 0 y con 2 la etiqueta es correcta; el caso 1 no se singulariza. Nota: en Hoy sí se singulariza bien ('0 de 1 sesión').",
+  "fx": "Singularizar la etiqueta como ya se hace en Hoy."
+ },
+ {
+  "g": "cosmetico",
+  "t": "El peek no cierra con Escape, mientras la hoja de la Agenda sí",
+  "p": "/metas → peek",
+  "e": "Gramática de acciones",
+  "ev": "En /metas abro el peek y pulso Escape: `document.querySelectorAll('.goal-peek').length` sigue en 1 (captura metas-04). Sí cierra con \"Cerrar\" y tocando el fondo (ambos verificados: pasan a 0). Contraste medido en la misma sesión: en /calendario abro \"Agregar evento\" y pulso Escape → el panel se cierra (el texto de la pantalla cambia). Calendar usa useFocusTrap (Calendar.tsx:620/676/777); Goals.tsx no.",
+  "fx": "Reusar useFocusTrap en GoalPeek: cierre con Escape, trampa de foco y devolución del foco a la tarjeta."
+ },
+ {
+  "g": "cosmetico",
+  "t": "La frase de la agenda se lee en desorden en el detalle de meta",
+  "p": "/metas/:goalId (columna lateral)",
+  "e": "Anatomía / Densidad",
+  "ev": "Recorte del propio elemento (metas-12). Se lee en dos líneas y tres columnas: \"También puedes bloquear | (agenda) | y vincularlo a\" / \"tiempo extra en tu | | esta meta.\" El texto real es \"También puedes bloquear tiempo extra en tu agenda y vincularlo a esta meta\", pero el layout `p.faint.tiny.row.row--sm` con un botón inline parte la oración en tres cajas flex que envuelven por separado. Ocurre en móvil 360px y también en escritorio 1440px (columna lateral).",
+  "fx": "Quitar el `row` del párrafo y dejar el enlace inline dentro del texto (o poner el ícono con position absolute), para que la oración fluya como una sola línea de texto."
+ },
+ {
+  "g": "cosmetico",
+  "t": "Dos botones \"Editar\" en la misma pantalla con alcances distintos",
+  "p": "/metas/:goalId",
+  "e": "Vocabulario / Gramática de acciones",
+  "ev": "Inventario de controles del detalle: `{texto:\"Editar\", clase:\"btn btn--ghost btn--sm\"}` arriba a la derecha (abre la pantalla \"Editar meta\": título, porqué, fecha, área, criterio) y `{texto:\"Editar\", clase:\"btn--link\"}` dentro de la tarjeta \"TU COMPROMISO\" (abre el editor de días/minutos/hora inline). Mismo verbo, misma pantalla, dos cosas distintas y dos controles visualmente distintos.",
+  "fx": "Nombrar el alcance: \"Editar meta\" arriba y \"Cambiar compromiso\" en la tarjeta (o el mismo control ⋯ en ambos casos)."
+ },
+ {
+  "g": "cosmetico",
+  "t": "\"lograla\" sin tilde en la confirmación de meta lograda",
+  "p": "/metas/:goalId → Más opciones → Marcar como lograda",
+  "e": "Tono del copy",
+  "ev": "Texto literal leído en pantalla al pedir \"Marcar como lograda\" con etapas pendientes: \"Ya las cumplí — márcalas y lograla\". Debe ser \"lógrala\" (y el nombre de la app es justamente \"Lógralo\").",
+  "fx": "\"Ya las cumplí — márcalas y lógrala\"."
+ },
+ {
+  "g": "cosmetico",
+  "t": "La estrella de prioridad no dice qué hace y su efecto no se ve en la lista de metas",
+  "p": "/metas (lista)",
+  "e": "Hilo narrativo / Gramática de acciones",
+  "ev": "Toqué la estrella de \"Aprender inglés\": aria pasa de \"Marcar como prioritaria\" a \"Quitar prioridad\", la estrella se rellena de naranja y persiste tras recargar. Pero en la lista nada más cambia: la meta sigue en la segunda posición (debajo de \"Correr todos los días\"), no aparece ninguna etiqueta ni texto, y no hay toast. El efecto real está en otra pantalla (Today.tsx:215 ordena las sesiones del día; Learn.tsx:82 la usa), nunca explicado aquí.",
+  "fx": "Al marcar, mostrar un toast que explique la consecuencia (\"Prioritaria: sus sesiones van primero en Hoy\") y/o subir la meta prioritaria al primer lugar de la lista."
+ },
+ {
+  "g": "cosmetico",
+  "t": "\"Ver hábito\" desde la meta lleva a la lista completa de hábitos, sin resaltar cuál y sin retorno",
+  "p": "/metas/:goalId → Hábitos que suman",
+  "e": "Orientación y retorno",
+  "ev": "En el detalle de \"Aprender inglés\", la tarjeta \"HÁBITOS QUE SUMAN\" tiene botones `aria-label=\"Ver hábito: Estirar 5 minutos\"`. Al tocarlo aterrizo en /habitos con los 3 hábitos de la cuenta, ninguno resaltado ni desplazado a la vista, y sin ningún control que devuelva a la meta (solo la barra inferior → Metas → tarjeta → peek → Abrir meta).",
+  "fx": "Llevar a /habitos con el hábito resaltado (p. ej. `?h=<id>` y scroll+destello), o abrir el hábito en un panel dentro de la propia meta."
+ },
+ {
+  "g": "cosmetico",
+  "t": "El compromiso se llama \"momento\" y \"sesión\" dentro de la misma tarjeta",
+  "p": "/metas/:goalId → TU COMPROMISO → Editar",
+  "e": "Vocabulario",
+  "ev": "Editor de compromiso abierto desde el detalle: los controles dicen \"+ añadir otro momento\" y `aria-label=\"Hora del momento (opcional)\"`, mientras el resumen dos líneas más abajo dice \"Tu compromiso: 2 sesiones · 1 h por semana\" y la tarjeta de progreso dice \"0/2 sesiones esta semana\". La misma unidad se llama momento y sesión en la misma vista.",
+  "fx": "Unificar en \"sesión\": \"+ añadir otra sesión\", \"Hora de la sesión (opcional)\". El componente es compartido con el Wizard, así que el arreglo alinea también la entrada."
+ },
+ {
+  "g": "cosmetico",
+  "t": "La lista de metas llama \"Progreso\" a la pantalla que la navegación llama \"Crecer\"",
+  "p": "/metas (con metas cerradas)",
+  "e": "Vocabulario",
+  "ev": "Con una meta lograda, /metas muestra el enlace \"Ver 1 meta lograda o archivada en Progreso\". Al tocarlo aterrizo en /progreso, cuya pantalla se titula \"Progreso\" con kicker \"CÓMO VAS AVANZANDO\" — pero la pestaña de la barra inferior y el menú lateral la llaman \"Crecer\". El usuario recibe tres nombres para el mismo destino.",
+  "fx": "Usar el mismo nombre en el enlace que en la navegación (\"…en Crecer\"), o renombrar la pestaña a \"Progreso\"."
+ },
+ {
+  "g": "cosmetico",
+  "t": "El toggle Progreso|Aprender cambia el estilo del encabezado al pulsarlo",
+  "p": "Progreso ↔ Aprender",
+  "e": "3. Anatomía de pantalla",
+  "ev": "Medido en el DOM: en /progreso el eyebrow es 'Cómo vas avanzando' con clase 'muted small' (text-transform none, 13px, letter-spacing normal); en /aprender es 'Crece cada día' con clase 'kicker' (uppercase, 11px, letter-spacing 1.54px). En /calendario es 'Tu agenda' con 'muted small' y en /metas no hay eyebrow. Las dos primeras son las dos mitades del mismo toggle, así que el cambio se ve en un solo clic.",
+  "fx": "Un solo componente de encabezado (kicker + h1) para todas las pantallas raíz."
+ },
+ {
+  "g": "cosmetico",
+  "t": "La leyenda de la semana no nombra el estado que la propia tira está mostrando",
+  "p": "Progreso (/progreso)",
+  "e": "8. Funcionalidad / 4. Tono del copy",
+  "ev": "En 'TU SEMANA' el lunes se pinta como un cuadrado beige relleno y el martes verde; la leyenda dice 'Verde: cumplido · ámbar: parcial · punteado: por venir'. El beige (día pasado no cumplido) no está en la leyenda. Captura p-prog-09-tusemana-zoom.png.",
+  "fx": "Añadir el cuarto estado a la leyenda con una palabra sin culpa ('gris: quedó pendiente')."
+ },
+ {
+  "g": "cosmetico",
+  "t": "El evento con horario guarda la hora de fin pero nunca la muestra",
+  "p": "Agenda (/calendario)",
+  "e": "8. Funcionalidad",
+  "ev": "Creé 'Cita con el dentista' con inicio 15:30 y fin 16:30. La tarjeta en la agenda muestra solo '3:30 pm'. Al reabrir el evento, el formulario trae un input[type=time] con val '15:30' y otro con val '16:30': el dato está guardado, simplemente no se pinta.",
+  "fx": "Mostrar el rango ('3:30 – 4:30 pm') o la duración, igual que las sesiones muestran '30 min'."
+ },
+ {
+  "g": "cosmetico",
+  "t": "En escritorio, el selector de tema aparece dos veces a la vez y con dos presentaciones distintas",
+  "p": "/perfil (escritorio)",
+  "e": "2. Gramática de acciones",
+  "ev": "En /perfil a 1440px se ven simultáneamente el trío Claro/Oscuro/Sistema al pie de la barra lateral (icono + etiqueta de texto) y el mismo trío dentro de la tarjeta APARIENCIA (segmentado). En móvil solo existe el de la tarjeta, y ahí los tres botones son solo icono, sin etiqueta visible ni aria-label (solo title, invisible al tacto). Captura D-30-esc-perfil.png y D-20-perfil-movil.png.",
+  "fx": "Dejar un solo lugar para el tema. Si se mantiene en la barra lateral, quitar la tarjeta APARIENCIA de Perfil en escritorio (o al revés); y en la versión compacta, mostrar la etiqueta del modo activo para que no sea solo un icono."
+ }
+]
