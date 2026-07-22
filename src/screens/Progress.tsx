@@ -85,10 +85,14 @@ export function Progress() {
   }
 
   // ----- Tu semana -----
+  // Solo cuentan los bloques de metas ACTIVAS: las pausadas no aparecen en la
+  // lista "Tus metas" de abajo, así que sumar su compromiso hacía que el total
+  // de la semana nunca cuadrara con lo listado (y nunca pudiera completarse).
+  const activeBlocks = blocks.filter((b) => goalById.get(b.goalId)?.status === 'active')
   const weekSessions = sessions.filter((s) => s.date >= weekStart)
-  const week = weekConsistency(blocks, weekSessions, weekStart)
+  const week = weekConsistency(activeBlocks, weekSessions, weekStart)
   const doneDates = new Set(sessions.filter(doneish).map((s) => s.date))
-  const committedWeekdays = new Set(blocks.map((b) => b.weekday))
+  const committedWeekdays = new Set(activeBlocks.map((b) => b.weekday))
   const streak = currentStreakCommitted(doneDates, committedWeekdays, today)
   const best = Math.max(
     streak,
@@ -383,7 +387,9 @@ export function Progress() {
           </div>
           <p className="faint tiny">
             % de sesiones cumplidas por semana · esta semana:{' '}
-            {week.committed > 0 ? Math.round((week.done / week.committed) * 100) : 0}%
+            {/* Mismo dato que la última barra (weeks[7]): antes el pie usaba otro
+                denominador y podía decir 8% mientras la barra pintaba 100%. */}
+            {Math.round(weeks[weeks.length - 1].ratio * 100)}%
           </p>
         </section>
       )}
@@ -439,6 +445,9 @@ export function Progress() {
                 <span className="faint tiny">
                   {e.kind === 'milestone' ? e.goal.title : getNiche(e.goal.area).label} ·{' '}
                   {formatLongDate(e.date.slice(0, 10))}
+                  {/* Si la meta de este hito está en pausa, decirlo: si no, aparece
+                      en el camino pero no en "Tus metas", y confunde. */}
+                  {e.goal.status === 'paused' && ' · en pausa'}
                 </span>
               </button>
             </li>

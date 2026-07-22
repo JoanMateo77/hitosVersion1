@@ -97,6 +97,27 @@ export function formatMonthYear(dateISO: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
+const DAY_MONTH = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short' })
+const DAY_ONLY = new Intl.DateTimeFormat('es', { day: 'numeric' })
+
+/**
+ * Rango de una semana, legible aunque cruce de mes o de año:
+ *   misma quincena de mes → "14–20 de julio de 2026"
+ *   cruza de mes          → "28 jul – 3 ago 2026"
+ * Distinto de formatMonthYear (que titula la vista Mes), para que Semana y Mes
+ * no compartan el mismo título.
+ */
+export function formatWeekRange(startISO: string, endISO: string): string {
+  const start = parseISO(startISO)
+  const end = parseISO(endISO)
+  const year = end.getFullYear()
+  if (start.getMonth() === end.getMonth()) {
+    const s = `${DAY_ONLY.format(start)}–${DAY_ONLY.format(end)} de ${MONTH_YEAR.format(end)}`
+    return s.charAt(0).toUpperCase() + s.slice(1)
+  }
+  return `${DAY_MONTH.format(start)} – ${DAY_MONTH.format(end)} ${year}`.replace('.', '')
+}
+
 /** ¿La fecha ISO es hoy? */
 export function isToday(dateISO: string): boolean {
   return dateISO === todayISO()

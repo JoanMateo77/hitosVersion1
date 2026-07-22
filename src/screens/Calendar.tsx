@@ -14,7 +14,12 @@ import { WEEKDAY_LABELS, groupByDate, inSameMonth, monthGrid, weekDays } from '@
 import { WEEKDAY_PLURALS } from '@/domain/commitment'
 import { dueBlocksForDate } from '@/domain/sessions'
 import { listScheduleForUser, updateBlockStartTime } from '@/services/schedule'
-import { createSpontaneousSession, listSessionsInRange, setSessionPlannedTime } from '@/services/sessions'
+import {
+  createSpontaneousSession,
+  deleteSession,
+  listSessionsInRange,
+  setSessionPlannedTime,
+} from '@/services/sessions'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { friendlyError } from '@/lib/errors'
 import { clearFormDraft, loadFormDraft, saveFormDraft } from '@/lib/formDraft'
@@ -25,6 +30,7 @@ import {
   formatMonthYear,
   formatTime12,
   formatWeekday,
+  formatWeekRange,
   isToday,
   todayISO,
 } from '@/lib/date'
@@ -125,7 +131,9 @@ export function Calendar() {
   const [goals, setGoals] = useState<Goal[]>(cached?.goals ?? [])
   const [blocks, setBlocks] = useState<ScheduleBlock[]>(cached?.blocks ?? [])
   const [sessions, setSessions] = useState<Session[]>(cached?.sessions ?? [])
-  const [timeSheet, setTimeSheet] = useState<{ goal: Goal; block: ScheduleBlock; session: Session | null } | null>(null)
+  // block null = sesión espontánea (una sola fecha, sin recurrencia): se le pone
+  // hora a esa sesión y se puede quitar. block presente = compromiso recurrente.
+  const [timeSheet, setTimeSheet] = useState<{ goal: Goal; block: ScheduleBlock | null; session: Session | null } | null>(null)
   const [ready, setReady] = useState(cached !== undefined)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState<{ event: CalendarEvent | null; date: string } | null>(null)
@@ -238,7 +246,11 @@ export function Calendar() {
       navigate(`/sesion/${it.session.id}`)
       return
     }
-    if (it.block) setTimeSheet({ goal: it.goal, block: it.block, session: it.session })
+    // Con bloque (compromiso) o sin él (sesión espontánea), abrimos la hoja:
+    // antes una sesión suelta no abría nada y quedaba muerta.
+    if (it.block || it.session) {
+      setTimeSheet({ goal: it.goal, block: it.block, session: it.session })
+    }
   }
 
   async function saveSessionTime(time: string | null) {
@@ -246,20 +258,41 @@ export function Calendar() {
     setTimeSheet(null)
     if (!ts) return
     try {
-      const updatedBlock = await updateBlockStartTime(ts.block.id, time)
-      setBlocks((prev) => prev.map((b) => (b.id === updatedBlock.id ? updatedBlock : b)))
+      if (ts.block) {
+        // Compromiso recurrente: la hora se fija para todos los días del bloque.
+        const updatedBlock = await updateBlockStartTime(ts.block.id, time)
+        setBlocks((prev) => prev.map((b) => (b.id === updatedBlock.id ? updatedBlock : b)))
+      }
       if (ts.session) {
         const updatedSession = await setSessionPlannedTime(ts.session.id, time)
         setSessions((prev) => prev.map((sx) => (sx.id === updatedSession.id ? updatedSession : sx)))
       }
       toast(
-        time
-          ? `Listo: todos los ${WEEKDAY_PLURALS[ts.block.weekday]} a las ${formatTime12(time)}.`
-          : 'Hora quitada.',
+        !time
+          ? 'Hora quitada.'
+          : ts.block
+            ? `Listo: todos los ${WEEKDAY_PLURALS[ts.block.weekday]} a las ${formatTime12(time)}.`
+            : `Hora fijada: ${formatTime12(time)}.`,
         'success',
       )
     } catch {
       toast('No se pudo guardar la hora.')
+    }
+  }
+
+  /** Quita una sesión espontánea agregada desde la agenda. */
+  async function removeSession() {
+    const ts = timeSheet
+    setTimeSheet(null)
+    if (!ts?.session) return
+    const removed = ts.session
+    setSessions((prev) => prev.filter((sx) => sx.id !== removed.id))
+    try {
+      await deleteSession(removed.id)
+      toast('Sesión quitada.', 'success')
+    } catch {
+      setSessions((prev) => [...prev, removed])
+      toast('No se pudo quitar la sesión.')
     }
   }
 
@@ -339,7 +372,11 @@ export function Calendar() {
   }
 
   const headerTitle =
-    view === 'day' ? formatWeekday(selected) : formatMonthYear(view === 'week' ? week[0] : anchor)
+    view === 'day'
+      ? formatWeekday(selected)
+      : view === 'week'
+        ? formatWeekRange(week[0], week[6])
+        : formatMonthYear(anchor)
 
   const dayProps = (day: string) => ({
     day,
@@ -458,9 +495,11 @@ export function Calendar() {
         <TimeSheet
           goal={timeSheet.goal}
           block={timeSheet.block}
+          session={timeSheet.session}
           suggested={suggestedTime}
           onClose={() => setTimeSheet(null)}
           onSave={(t) => void saveSessionTime(t)}
+          onDelete={timeSheet.session && !timeSheet.block ? () => void removeSession() : undefined}
         />
       )}
 
@@ -660,18 +699,25 @@ function PlanSessionSheet({
 function TimeSheet({
   goal,
   block,
+  session,
   suggested,
   onClose,
   onSave,
+  onDelete,
 }: {
   goal: Goal
-  block: ScheduleBlock
+  /** null = sesión espontánea de una sola fecha; presente = compromiso recurrente. */
+  block: ScheduleBlock | null
+  session: Session | null
   /** Hora sugerida según el momento preferido del perfil (editable). */
   suggested: string | null
   onClose: () => void
   onSave: (time: string | null) => void
+  /** Solo para sesiones espontáneas: permite quitarlas. */
+  onDelete?: () => void
 }) {
-  const [time, setTime] = useState(block.startTime ?? suggested ?? '')
+  const initialTime = block?.startTime ?? session?.plannedTime ?? suggested ?? ''
+  const [time, setTime] = useState(initialTime)
   const panelRef = useRef<HTMLDivElement>(null)
   useFocusTrap(panelRef, onClose)
   useEffect(() => {
@@ -681,6 +727,8 @@ function TimeSheet({
       document.body.style.overflow = prev
     }
   }, [])
+  const target = block ?? session
+  const hadTime = block ? block.startTime : session?.plannedTime
   return (
     <div className="sheet" role="dialog" aria-modal="true">
       <div className="sheet__backdrop" onClick={onClose} />
@@ -692,8 +740,10 @@ function TimeSheet({
           </button>
         </div>
         <p className="small muted" style={{ margin: 0 }}>
-          Sesión de <strong>{goal.title}</strong> · todos los {WEEKDAY_PLURALS[block.weekday]} ·{' '}
-          {block.targetKind === 'time' ? `${block.targetValue} min` : `${block.targetValue} ${block.unit ?? ''}`}
+          Sesión de <strong>{goal.title}</strong>
+          {block ? ` · todos los ${WEEKDAY_PLURALS[block.weekday]}` : ' · solo este día'}
+          {target &&
+            ` · ${target.targetKind === 'time' ? `${target.targetValue} min` : `${target.targetValue} ${target.unit ?? ''}`}`}
         </p>
         <input
           className="input"
@@ -703,11 +753,16 @@ function TimeSheet({
           aria-label="Hora de la sesión"
         />
         <button className="btn btn--primary btn--block" disabled={!time} onClick={() => onSave(time)}>
-          Guardar para todos los {WEEKDAY_PLURALS[block.weekday]}
+          {block ? `Guardar para todos los ${WEEKDAY_PLURALS[block.weekday]}` : 'Guardar la hora'}
         </button>
-        {block.startTime && (
+        {hadTime && (
           <button className="btn btn--ghost btn--block" onClick={() => onSave(null)}>
             Quitar hora
+          </button>
+        )}
+        {onDelete && (
+          <button className="btn btn--ghost btn--block" onClick={onDelete}>
+            Quitar esta sesión
           </button>
         )}
       </div>

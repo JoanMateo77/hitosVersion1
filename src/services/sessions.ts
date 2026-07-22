@@ -277,6 +277,12 @@ export function setSessionPlannedTime(sessionId: string, time: string | null): P
   return patchSession(sessionId, { planned_time: time })
 }
 
+/** Borra una sesión (para quitar una sesión espontánea agregada desde la agenda). */
+export async function deleteSession(sessionId: string): Promise<void> {
+  const { error } = await supabase.from('sessions').delete().eq('id', sessionId)
+  if (error) throw new Error(error.message)
+}
+
 /** Totales históricos de una meta: sesiones cumplidas y minutos invertidos reales. */
 export async function sessionStatsForGoal(
   goalId: string,
