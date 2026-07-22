@@ -469,7 +469,7 @@ export function GoalDetail() {
             </div>
             <div className="row wrap" style={{ gap: 'var(--s5)', marginTop: 'var(--s2)' }}>
               <Stat value={`${consistency.done}/${consistency.committed}`} label="sesiones esta semana" />
-              <Stat value={String(stats.done)} label="sesiones totales" />
+              <Stat value={String(stats.done)} label={stats.done === 1 ? 'sesión total' : 'sesiones totales'} />
               <Stat value={formatDuration(stats.minutes)} label="invertidas" />
             </div>
           </div>
@@ -701,7 +701,7 @@ export function GoalDetail() {
                     </strong>
                     <div className="stack stack--sm">
                       <button className="btn btn--primary btn--sm" disabled={updating} onClick={() => void achieveMarkingPending()}>
-                        Ya las cumplí — márcalas y lograla
+                        Ya las cumplí — márcalas y lógrala
                       </button>
                       <button className="btn btn--ghost btn--sm" disabled={updating} onClick={() => void changeStatus('done')}>
                         Cerrarla igual
@@ -732,8 +732,8 @@ export function GoalDetail() {
                       kicker: 'Logré mi meta',
                       title: goal.title,
                       stats: [
-                        progress.total > 0 ? `${progress.done} etapas` : null,
-                        stats.done > 0 ? `${stats.done} sesiones` : null,
+                        progress.total > 0 ? `${progress.done} ${progress.done === 1 ? 'etapa' : 'etapas'}` : null,
+                        stats.done > 0 ? `${stats.done} ${stats.done === 1 ? 'sesión' : 'sesiones'}` : null,
                         stats.minutes > 0 ? `${formatDuration(stats.minutes)} invertidas` : null,
                       ]
                         .filter(Boolean)

@@ -121,6 +121,8 @@ export function Learn() {
   /* ----- Vista de lección ------------------------------------------------ */
   if (collection && lesson) {
     const isRead = read.has(lesson.id)
+    const lessonIndex = collection.lessons.findIndex((l) => l.id === lesson.id)
+    const nextLesson = collection.lessons[lessonIndex + 1] ?? null
     return (
       <div className="screen">
         <header className="screen__header row" style={{ alignItems: 'center', gap: 'var(--s3)' }}>
@@ -176,6 +178,27 @@ export function Learn() {
               {lesson.cta.kind === 'habit'
                 ? `Crear el hábito: ${lesson.cta.title}`
                 : `Crear la meta: ${lesson.cta.title}`}
+            </button>
+          )}
+
+          {/* Avanzar dentro de la colección sin salir y volver a entrar cada vez.
+              En la última lección, cerrar la colección en vez de dejar sin salida. */}
+          {nextLesson ? (
+            <button
+              type="button"
+              className="btn btn--ghost btn--block"
+              onClick={() => setLessonId(nextLesson.id)}
+            >
+              Siguiente lección: {nextLesson.title} →
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn--link"
+              style={{ alignSelf: 'center' }}
+              onClick={() => setLessonId(null)}
+            >
+              Terminaste {collection.title} · volver a la colección
             </button>
           )}
         </div>

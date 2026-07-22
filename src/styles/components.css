@@ -1496,6 +1496,12 @@ select.input {
   .bottomnav {
     display: none;
   }
+  /* En escritorio el control de tema vive en la barra lateral; ocultamos las
+     copias que solo tienen sentido en móvil (p. ej. la tarjeta de Apariencia
+     del Perfil) para no mostrar dos selectores de tema a la vez. */
+  .hide-on-desktop {
+    display: none;
+  }
   .sidenav {
     display: flex;
     flex-direction: column;

@@ -214,8 +214,8 @@ export function ProfileScreen() {
         )}
       </section>
 
-      {/* ----- Apariencia ----- */}
-      <section className="card stack stack--sm" aria-label="Apariencia">
+      {/* ----- Apariencia (solo móvil: en escritorio el tema vive en la barra lateral) ----- */}
+      <section className="card stack stack--sm hide-on-desktop" aria-label="Apariencia">
         <span className="kicker">Apariencia</span>
         <ThemeSwitcher variant="compact" />
       </section>
