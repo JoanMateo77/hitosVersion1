@@ -16,6 +16,7 @@ export function Auth() {
   // Ofrecer reenviar el correo de confirmación cuando el usuario queda atrapado:
   // acaba de registrarse (perdió el email) o intenta entrar sin haberlo confirmado.
   const [showResend, setShowResend] = useState(false)
+  const [confirmPassword, setConfirmPassword] = useState('')
 
   const isSignup = mode === 'signup'
 
@@ -24,6 +25,13 @@ export function Auth() {
     setError(null)
     setNotice(null)
     setShowResend(false)
+    // Al crear la cuenta, confirmamos que ambas contraseñas coincidan ANTES de
+    // enviar: así el error de tipeo se atrapa en el acto, no tras un viaje al
+    // servidor con un mensaje confuso.
+    if (isSignup && password !== confirmPassword) {
+      setError('Las contraseñas no coinciden.')
+      return
+    }
     setLoading(true)
     try {
       if (isSignup) {
@@ -90,6 +98,7 @@ export function Auth() {
     setError(null)
     setNotice(null)
     setShowResend(false)
+    setConfirmPassword('')
   }
 
   return (
@@ -197,6 +206,30 @@ export function Auth() {
                 minLength={6}
               />
             </div>
+
+            {isSignup && (
+              <div className="field">
+                <label className="field__label" htmlFor="confirm-password">
+                  Repite tu contraseña
+                </label>
+                <input
+                  id="confirm-password"
+                  className="input"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  placeholder="La misma de arriba"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+                {confirmPassword.length > 0 && confirmPassword !== password && (
+                  <p className="field__hint tiny" style={{ color: 'var(--warning)', margin: 'var(--s1) 0 0' }}>
+                    Las contraseñas no coinciden todavía.
+                  </p>
+                )}
+              </div>
+            )}
 
             {!isSignup && (
               <button
