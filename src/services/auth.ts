@@ -32,7 +32,14 @@ export async function signUp(
   email: string,
   password: string,
 ): Promise<{ needsConfirmation: boolean }> {
-  const { data, error } = await supabase.auth.signUp({ email, password })
+  // emailRedirectTo fija a dónde vuelve el enlace de confirmación: al origen real
+  // de la app, no al "Site URL" por defecto de Supabase (que apuntaba a un puerto
+  // equivocado y dejaba al usuario en una página en blanco al confirmar).
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { emailRedirectTo: `${window.location.origin}/` },
+  })
   if (error) throw new Error(translateAuthError(error.message))
   return { needsConfirmation: data.session === null }
 }

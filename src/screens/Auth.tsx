@@ -10,6 +10,7 @@ export function Auth() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   // Ofrecer reenviar el correo de confirmación cuando el usuario queda atrapado:
@@ -169,13 +170,25 @@ export function Auth() {
             </div>
 
             <div className="field">
-              <label className="field__label" htmlFor="password">
-                Contraseña
-              </label>
+              <div className="row row--between" style={{ alignItems: 'baseline' }}>
+                <label className="field__label" htmlFor="password">
+                  Contraseña
+                </label>
+                {/* Ver la contraseña evita el error más común al escribirla a ciegas,
+                    sobre todo al crear la cuenta. */}
+                <button
+                  type="button"
+                  className="btn--link tiny"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-pressed={showPassword}
+                >
+                  {showPassword ? 'Ocultar' : 'Mostrar'}
+                </button>
+              </div>
               <input
                 id="password"
                 className="input"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 autoComplete={isSignup ? 'new-password' : 'current-password'}
                 placeholder={isSignup ? 'Mínimo 6 caracteres' : 'Tu contraseña'}
                 value={password}
