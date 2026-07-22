@@ -9,9 +9,10 @@ import {
   listHabitChecksInRange,
   listHabits,
   setHabitArchived,
+  setHabitCheck,
   updateHabit,
 } from '@/services/habits'
-import { habitStreak, habitWeek } from '@/domain/habits'
+import { habitAppliesOn, habitStreak, habitWeek } from '@/domain/habits'
 import { NICHES } from '@/domain/niches'
 import { WEEKDAY_LABELS } from '@/domain/commitment'
 import { addDays, startOfWeek, todayISO } from '@/lib/date'
@@ -62,9 +63,9 @@ function daysLabel(weekdays: number[]): string {
 type HabitsSnapshot = { habits: Habit[]; checksByHabit: Map<string, Set<string>>; goals: Goal[] }
 
 /**
- * Pantalla de gestión de hábitos (zona nueva): crear, ver la semana de cada
- * uno, editar días y archivar. Marcar el cumplimiento del día vive en Hoy
- * (HabitRow); aquí se administra la rutina, no se ejecuta.
+ * Pantalla de hábitos: crear, ver la semana de cada uno, editar días y archivar.
+ * Los que aplican HOY se pueden marcar aquí con el check redondo (misma gramática
+ * de un toque que en Hoy), para que "Rutinas de un toque" cumpla su promesa.
  */
 export function Habits() {
   const { userId } = useSession()
@@ -181,6 +182,38 @@ export function Habits() {
 
   // --- Acciones sobre hábitos existentes ---
   const [menuId, setMenuId] = useState<string | null>(null)
+
+  /**
+   * Marca (o desmarca) el hábito para HOY, con la misma gramática de un toque
+   * que en Hoy: la pantalla se llama "Rutinas de un toque" y aquí también se
+   * cumple. Optimista; si el servidor falla, revierte el check.
+   */
+  async function toggleToday(habit: Habit) {
+    const set = checksByHabit.get(habit.id) ?? new Set<string>()
+    const wasDone = set.has(today)
+    setActionError(null)
+    setChecksByHabit((prev) => {
+      const next = new Map(prev)
+      const s = new Set(next.get(habit.id) ?? [])
+      if (wasDone) s.delete(today)
+      else s.add(today)
+      next.set(habit.id, s)
+      return next
+    })
+    try {
+      await setHabitCheck(userId, habit.id, today, !wasDone)
+    } catch (err) {
+      setChecksByHabit((prev) => {
+        const next = new Map(prev)
+        const s = new Set(next.get(habit.id) ?? [])
+        if (wasDone) s.add(today)
+        else s.delete(today)
+        next.set(habit.id, s)
+        return next
+      })
+      setActionError(friendlyError(err, 'No se pudo marcar el hábito.'))
+    }
+  }
 
   async function toggleHabitDay(habit: Habit, weekday: number) {
     const next = habit.weekdays.includes(weekday)
@@ -367,9 +400,21 @@ export function Habits() {
                 const checks = checksByHabit.get(habit.id) ?? EMPTY_CHECKS
                 const streak = habitStreak(checks, habit.weekdays, today)
                 const week = habitWeek(checks, habit, weekStart)
+                const dueToday = habitAppliesOn(habit, today)
+                const doneToday = checks.has(today)
                 return (
                   <li key={habit.id} className="card card--tight stack stack--sm" style={nicheAccent(habit.area)}>
                     <div className="row" style={{ alignItems: 'center' }}>
+                      {dueToday && (
+                        <button
+                          type="button"
+                          className={`check${doneToday ? ' check--done' : ''}`}
+                          style={{ flex: 'none' }}
+                          aria-pressed={doneToday}
+                          aria-label={`${doneToday ? 'Desmarcar' : 'Marcar'} hoy el hábito: ${habit.title}`}
+                          onClick={() => void toggleToday(habit)}
+                        />
+                      )}
                       <NicheGlyph area={habit.area} size="sm" />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ margin: 0, fontWeight: 600, wordBreak: 'break-word' }}>{habit.title}</p>

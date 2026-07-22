@@ -1,4 +1,4 @@
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { suggestionsForNiche, type GoalSeed } from '@/domain/recommendations'
 import { getTemplate } from '@/domain/templates'
@@ -18,7 +18,12 @@ import { NicheIcon } from '@/components/NicheGlyph'
 export function GoalSuggestions() {
   const { profile } = useSession()
   const navigate = useNavigate()
+  const location = useLocation()
   const [params] = useSearchParams()
+
+  // Volver al origen real (Metas, Detalle, Hoy…). En un deep-link directo, sin
+  // historial in-app (location.key === 'default'), caemos a /metas.
+  const goBack = () => (location.key === 'default' ? navigate('/metas') : navigate(-1))
 
   // El ?area= (flujo "próximo paso") tiene prioridad; si no, el foco del perfil.
   // Validamos el ?area= contra el catálogo: un valor basura cae al foco del perfil,
@@ -49,7 +54,7 @@ export function GoalSuggestions() {
 
   return (
     <div className="screen screen--full flow-screen flow-screen--wide">
-      <button className="iconbtn" onClick={() => navigate('/')} aria-label="Volver">
+      <button className="iconbtn" onClick={goBack} aria-label="Volver">
         <IconBack />
       </button>
 

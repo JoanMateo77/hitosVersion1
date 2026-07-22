@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import {
   IconCalendar,
@@ -16,13 +16,14 @@ const NAV = [
   { to: '/habitos', label: 'Hábitos', Icon: IconFlame },
   { to: '/metas', label: 'Metas', Icon: IconGoals },
   { to: '/calendario', label: 'Agenda', Icon: IconCalendar },
-  { to: '/progreso', label: 'Crecer', Icon: IconProgress },
+  { to: '/progreso', label: 'Crecer', Icon: IconProgress, alsoMatch: '/aprender' },
   { to: '/perfil', label: 'Perfil', Icon: IconProfile },
 ] as const
 
 /** Barra lateral (solo escritorio): marca + identidad del usuario + navegación + tema. */
 export function SideNav() {
   const { email, profile } = useSession()
+  const { pathname } = useLocation()
   const initial = (email.charAt(0) || '·').toUpperCase()
   const days = daysSince(profile.createdAt)
 
@@ -50,17 +51,27 @@ export function SideNav() {
       </div>
 
       <nav className="sidenav__nav">
-        {NAV.map(({ to, label, Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
-            className={({ isActive }) => `sidenav__item${isActive ? ' sidenav__item--active' : ''}`}
-          >
-            <Icon size={20} />
-            <span>{label}</span>
-          </NavLink>
-        ))}
+        {NAV.map((item) => {
+          const alsoMatch = 'alsoMatch' in item ? item.alsoMatch : undefined
+          const { to, label, Icon } = item
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              className={({ isActive }) =>
+                `sidenav__item${
+                  isActive || (alsoMatch && pathname.startsWith(alsoMatch))
+                    ? ' sidenav__item--active'
+                    : ''
+                }`
+              }
+            >
+              <Icon size={20} />
+              <span>{label}</span>
+            </NavLink>
+          )
+        })}
       </nav>
 
       <div className="sidenav__footer">

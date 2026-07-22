@@ -218,10 +218,14 @@ export function Today() {
         }),
     [sessions, goalById, profile.priorityGoalId],
   )
-  const closedCount = todaySessions.filter((x) =>
+  const doneish = (s: Session) => s.status === 'done' || s.status === 'partial'
+  // "Resuelta" = ya cerrada (incluye "no pude"); "cumplida" = done o partial.
+  // Distinguirlas evita que cerrar con "hoy no pude" felicite y cuente como hecha.
+  const resolvedCount = todaySessions.filter((x) =>
     ['done', 'partial', 'missed'].includes(x.session.status),
   ).length
-  const doneish = (s: Session) => s.status === 'done' || s.status === 'partial'
+  const doneCount = todaySessions.filter((x) => doneish(x.session)).length
+  const allResolved = todaySessions.length > 0 && resolvedCount === todaySessions.length
 
   // Racha sobre días comprometidos (los días sin compromiso no la rompen).
   const streak = useMemo(() => {
@@ -391,6 +395,10 @@ export function Today() {
 
   function reopen(s: Session) {
     const prev = { ...s }
+    // Si estaba abierto el panel "¿Qué lograste?" de esta sesión, lo cerramos:
+    // deshacer la vuelve a pendiente, y una nota sobre una sesión no hecha
+    // quedaría huérfana (avance fantasma).
+    if (notePrompt?.sessionId === s.id) setNotePrompt(null)
     patchSession(s.id, { status: 'pending', actualValue: null, startedAt: null, endedAt: null })
     void withErrorHandling(
       async () => {
@@ -547,9 +555,13 @@ export function Today() {
         <h1 className="screen__title">Tu día</h1>
         {todaySessions.length > 0 && (
           <p className="screen__subtitle">
-            {closedCount === todaySessions.length
-              ? 'Cumpliste tu compromiso de hoy.'
-              : `${closedCount} de ${todaySessions.length} ${todaySessions.length === 1 ? 'sesión' : 'sesiones'}`}
+            {!allResolved
+              ? `${doneCount} de ${todaySessions.length} ${todaySessions.length === 1 ? 'sesión' : 'sesiones'}`
+              : doneCount === todaySessions.length
+                ? 'Cumpliste tu compromiso de hoy.'
+                : doneCount === 0
+                  ? 'Hoy no pudiste — mañana se empieza de nuevo.'
+                  : `Cerraste el día: ${doneCount} de ${todaySessions.length} ${doneCount === 1 ? 'cumplida' : 'cumplidas'}.`}
           </p>
         )}
       </header>
@@ -734,7 +746,7 @@ export function Today() {
               <div className="section-head">
                 <span className="kicker">Tus sesiones de hoy</span>
                 <span className="small muted">
-                  {closedCount} de {todaySessions.length}
+                  {doneCount} de {todaySessions.length}
                 </span>
               </div>
               {todaySessions.some((x) => x.session.status === 'partial') && (

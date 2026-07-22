@@ -133,6 +133,10 @@ function ProfiledApp({ userId, email }: { userId: string; email: string }) {
               <Route path="/meta/creada/:goalId" element={<GoalCreated />} />
               <Route path="/ideas" element={<GoalSuggestions />} />
               <Route path="/sesion/:sessionId" element={<SessionRun />} />
+              {/* Revisión: flujo de foco a pantalla completa (como la sesión), con
+                  su propia salida. Fuera del AppShell para no mostrar una barra de
+                  navegación sin ninguna pestaña marcada. */}
+              <Route path="/revision" element={<Review />} />
               <Route element={<AppShell />}>
                 <Route path="/" element={<Today />} />
                 <Route path="/metas" element={<Goals />} />
@@ -141,7 +145,6 @@ function ProfiledApp({ userId, email }: { userId: string; email: string }) {
                 <Route path="/progreso" element={<Progress />} />
                 <Route path="/aprender" element={<Learn />} />
                 <Route path="/habitos" element={<Habits />} />
-                <Route path="/revision" element={<Review />} />
                 <Route path="/perfil" element={<ProfileScreen />} />
               </Route>
             </Route>

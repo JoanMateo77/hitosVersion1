@@ -286,6 +286,8 @@ export function GoalDetail() {
   }
 
   async function removeMilestone(m: Milestone) {
+    // Confirmar antes de borrar: quitar una etapa es destructivo y no hay deshacer.
+    if (!window.confirm(`¿Quitar la etapa “${m.title}”? No se puede deshacer.`)) return
     setMilestones((prev) => prev.filter((x) => x.id !== m.id))
     await deleteMilestone(m.id).catch(() => toast('No se pudo quitar la etapa.', 'warning'))
   }

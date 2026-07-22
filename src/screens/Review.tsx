@@ -135,16 +135,26 @@ export function Review() {
       skipped > 0 && `${skipped} para después`,
     ].filter(Boolean) as string[]
 
+    // Solo celebramos si de verdad revisaste algo: si saltaste todo, un cierre
+    // neutro (nada que festejar) en vez de confeti inmerecido.
+    const reviewedCount = total - skipped
+    const reviewedAny = reviewedCount > 0
+
     return (
       <div className="screen review-focus">
         <div className="empty">
-          <IconCelebrate size={56} style={{ color: 'var(--primary)' }} />
+          {reviewedAny ? (
+            <IconCelebrate size={56} style={{ color: 'var(--primary)' }} />
+          ) : (
+            <IconSprout size={56} style={{ color: 'var(--muted)' }} />
+          )}
           <h1 className="screen__title" style={{ marginTop: 'var(--s4)' }}>
-            Revisión lista
+            {reviewedAny ? 'Revisión lista' : 'Lo dejaste para después'}
           </h1>
           <p className="muted">
-            Repasaste {total - skipped} de {total} {total === 1 ? 'meta' : 'metas'}. Así se mantiene
-            el rumbo.
+            {reviewedAny
+              ? `Repasaste ${reviewedCount} de ${total} ${total === 1 ? 'meta' : 'metas'}. Así se mantiene el rumbo.`
+              : 'No revisaste ninguna meta esta vez. Cuando quieras, la retomas desde aquí.'}
           </p>
           {chips.length > 0 && (
             <div
@@ -209,6 +219,14 @@ export function Review() {
 
   return (
     <div className="screen review-focus">
+      <button
+        type="button"
+        className="btn--link"
+        style={{ alignSelf: 'flex-start' }}
+        onClick={() => navigate('/')}
+      >
+        ← Tu día
+      </button>
       <header className="screen__header">
         <p className="muted small">
           Revisión guiada · Meta {index + 1} de {total}
