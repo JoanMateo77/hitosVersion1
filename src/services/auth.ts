@@ -9,6 +9,11 @@ function translateAuthError(message: string): string {
   if (m.includes('user already registered')) return 'Ya existe una cuenta con ese email.'
   if (m.includes('password should be at least')) return 'La contraseña debe tener al menos 6 caracteres.'
   if (m.includes('unable to validate email')) return 'Revisa que el email sea válido.'
+  // Supabase responde "Email address ... is invalid" (code email_address_invalid)
+  // cuando el dominio o la dirección no le sirven. Antes caía al genérico "algo salió
+  // mal", que invitaba a reintentar en vano.
+  if (m.includes('email_address_invalid') || (m.includes('email address') && m.includes('invalid')))
+    return 'Ese email no es válido. Prueba con otra dirección.'
   if (m.includes('email not confirmed')) return 'Confirma tu email antes de entrar.'
   if (
     m.includes('for security purposes') ||
@@ -30,6 +35,16 @@ export async function signUp(
   const { data, error } = await supabase.auth.signUp({ email, password })
   if (error) throw new Error(translateAuthError(error.message))
   return { needsConfirmation: data.session === null }
+}
+
+/** Reenvía el correo de confirmación a quien se registró y perdió el email. */
+export async function resendConfirmation(email: string): Promise<void> {
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email,
+    options: { emailRedirectTo: `${window.location.origin}/` },
+  })
+  if (error) throw new Error(translateAuthError(error.message))
 }
 
 export async function signIn(email: string, password: string): Promise<void> {

@@ -73,7 +73,8 @@ export function Review() {
       })
       .catch((err: unknown) => {
         if (!active) return
-        setError(err instanceof Error ? err.message : 'No se pudieron cargar tus metas.')
+        console.error('Fallo al cargar la revisión:', err)
+        setError('No se pudieron cargar tus metas. Inténtalo de nuevo en un momento.')
         setLoading(false)
       })
     return () => {
@@ -89,9 +90,12 @@ export function Review() {
         setTally((t) => ({ ...t, [key]: t[key] + 1 }))
         setIndex((i) => i + 1)
       })
-      .catch((err: unknown) =>
-        setError(err instanceof Error ? err.message : 'No se pudo guardar. Inténtalo de nuevo.'),
-      )
+      .catch((err: unknown) => {
+        // Nunca mostramos el mensaje crudo del servidor (llegaba a pintarse el
+        // error de Postgres en inglés). Copy propio, siempre en español.
+        console.error('Fallo al guardar la revisión:', err)
+        setError('No se pudo guardar tu revisión. Inténtalo de nuevo en un momento.')
+      })
       .finally(() => setWorking(false))
   }
 

@@ -21,6 +21,7 @@ import { listActiveGoalSchedule, createScheduleBlocks } from '@/services/schedul
 import { generateSessionsForDate } from '@/services/sessions'
 import { createMilestones } from '@/services/milestones'
 import { WIZARD_DRAFT_KEY } from '@/lib/wizardDraft'
+import { clearWizardIntent } from '@/app/onboardingIntent'
 import { CommitmentStep } from '@/components/wizard/CommitmentStep'
 import { MilestonesStep } from '@/components/wizard/MilestonesStep'
 
@@ -141,6 +142,12 @@ export function Wizard() {
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Consumimos la intención del onboarding: si llegamos aquí venimos de "Crear
+  // mi primera meta", y ya no queremos que el redirect de /onboarding reaparezca.
+  useEffect(() => {
+    clearWizardIntent()
+  }, [])
 
   // Carga los bloques de otras metas ACTIVAS del usuario (guardia de
   // sobrecompromiso): las metas logradas o archivadas ya no ocupan agenda.

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { resetPassword, signIn, signUp } from '@/services/auth'
+import { resendConfirmation, resetPassword, signIn, signUp } from '@/services/auth'
 import { IconHito } from '@/components/icons'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 
@@ -12,6 +12,9 @@ export function Auth() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  // Ofrecer reenviar el correo de confirmación cuando el usuario queda atrapado:
+  // acaba de registrarse (perdió el email) o intenta entrar sin haberlo confirmado.
+  const [showResend, setShowResend] = useState(false)
 
   const isSignup = mode === 'signup'
 
@@ -19,6 +22,7 @@ export function Auth() {
     e.preventDefault()
     setError(null)
     setNotice(null)
+    setShowResend(false)
     setLoading(true)
     try {
       if (isSignup) {
@@ -27,12 +31,35 @@ export function Auth() {
         // es inmediato, useAuth mete al usuario a la app sin un aviso a medias.
         if (needsConfirmation) {
           setNotice('Listo, tu cuenta está creada. Revisa tu casilla para confirmar el email.')
+          setShowResend(true)
         }
       } else {
         await signIn(email.trim(), password)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Algo salió mal. Inténtalo de nuevo.')
+      const message = err instanceof Error ? err.message : 'Algo salió mal. Inténtalo de nuevo.'
+      setError(message)
+      if (message.includes('Confirma tu email')) setShowResend(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleResend() {
+    const target = email.trim()
+    if (!target) {
+      setError('Escribe tu email arriba para reenviar la confirmación.')
+      return
+    }
+    setError(null)
+    setNotice(null)
+    setLoading(true)
+    try {
+      await resendConfirmation(target)
+      setNotice('Te reenviamos el correo de confirmación. Revisa tu casilla.')
+      setShowResend(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo reenviar el correo.')
     } finally {
       setLoading(false)
     }
@@ -61,6 +88,7 @@ export function Auth() {
     setMode(isSignup ? 'signin' : 'signup')
     setError(null)
     setNotice(null)
+    setShowResend(false)
   }
 
   return (
@@ -174,6 +202,17 @@ export function Auth() {
               <div className="alert alert--success" role="status" aria-live="polite">
                 {notice}
               </div>
+            )}
+            {showResend && (
+              <button
+                type="button"
+                className="btn--link"
+                style={{ alignSelf: 'center' }}
+                onClick={handleResend}
+                disabled={loading}
+              >
+                Reenviar correo de confirmación
+              </button>
             )}
 
             <button className="btn btn--primary btn--block" type="submit" disabled={loading}>

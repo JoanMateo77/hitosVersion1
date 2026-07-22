@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
+import { GOTO_WIZARD_KEY } from '@/app/onboardingIntent'
 import { completeOnboarding } from '@/services/profile'
 import { NICHES, NICHE_QUESTIONS, getNiche, scoreNiche } from '@/domain/niches'
 import type { NicheId, PreferredMoment } from '@/lib/types'
@@ -30,7 +30,6 @@ const TIME_PRESETS = [15, 30, 60]
  */
 export function Onboarding() {
   const { userId, setProfile } = useSession()
-  const navigate = useNavigate()
 
   const [step, setStep] = useState<Step>('promise')
   const [niche, setNiche] = useState<NicheId | null>(null)
@@ -68,8 +67,13 @@ export function Onboarding() {
         preferredMoment: moment,
         defaultSessionMinutes: minutes,
       })
+      // No navegamos a mano: al marcar el perfil como onboarded, la ruta
+      // /onboarding redirige sola. Dejamos escrita la intención (ir al asistente
+      // o mirar la app) para que ese redirect sepa a dónde llevar — así se evita
+      // la carrera entre navigate() y la propagación del perfil.
+      if (destination === '/meta/nueva') sessionStorage.setItem(GOTO_WIZARD_KEY, '1')
+      else sessionStorage.removeItem(GOTO_WIZARD_KEY)
       setProfile(updated)
-      navigate(destination, { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar. Inténtalo de nuevo.')
       setSaving(false)

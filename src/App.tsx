@@ -5,6 +5,7 @@ import { isSupabaseConfigured } from '@/lib/supabase'
 import { friendlyError } from '@/lib/errors'
 import { useAuth } from '@/app/useAuth'
 import { SessionProvider } from '@/app/session'
+import { wantsWizardAfterOnboarding } from '@/app/onboardingIntent'
 import { ensureProfile } from '@/services/profile'
 import type { Profile } from '@/lib/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
@@ -117,7 +118,15 @@ function ProfiledApp({ userId, email }: { userId: string; email: string }) {
           <Routes>
             <Route
               path="/onboarding"
-              element={onboarded ? <Navigate to="/" replace /> : <Onboarding />}
+              element={
+                onboarded ? (
+                  // Terminado el onboarding, la ruta redirige sola. Si el usuario
+                  // pidió crear su primera meta, lo lleva al asistente; si no, a Hoy.
+                  <Navigate to={wantsWizardAfterOnboarding() ? '/meta/nueva' : '/'} replace />
+                ) : (
+                  <Onboarding />
+                )
+              }
             />
             <Route element={<RequireOnboarded onboarded={onboarded} />}>
               <Route path="/meta/nueva" element={<Wizard />} />
