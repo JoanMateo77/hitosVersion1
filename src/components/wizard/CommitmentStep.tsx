@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import type { ScheduleBlock, TargetKind } from '@/lib/types'
 import {
+  COUNT_UNITS,
   WEEKDAY_LABELS,
   WEEKDAY_PRESETS,
   blockEndTime,
@@ -303,17 +304,27 @@ export function CommitmentStep({
           Cantidad
         </button>
         {kind === 'count' && (
-          <input
+          <select
             className="input"
-            style={{ maxWidth: 140 }}
-            aria-label="Unidad (por ejemplo páginas)"
-            placeholder="páginas, km…"
+            style={{ maxWidth: 160 }}
+            aria-label="Qué vas a medir"
             value={unit}
-            maxLength={30}
-            onChange={(e) =>
-              onChange(blocks.map((b) => ({ ...b, unit: e.target.value.trim() || null })))
-            }
-          />
+            onChange={(e) => onChange(blocks.map((b) => ({ ...b, unit: e.target.value || null })))}
+          >
+            <option value="" disabled>
+              ¿Qué mides?
+            </option>
+            {/* Unidad de texto libre de metas viejas: se muestra, pero al cambiarla
+                solo se puede elegir del catálogo (datos consistentes para gráficas). */}
+            {unit && !COUNT_UNITS.includes(unit as (typeof COUNT_UNITS)[number]) && (
+              <option value={unit}>{unit}</option>
+            )}
+            {COUNT_UNITS.map((u) => (
+              <option key={u} value={u}>
+                {u}
+              </option>
+            ))}
+          </select>
         )}
       </div>
 

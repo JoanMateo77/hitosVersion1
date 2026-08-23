@@ -45,8 +45,10 @@ export function GoalSuggestions() {
       title: seed.title,
       templateKey: seed.templateKey,
       // Filamos la meta bajo el nicho que el usuario está mirando, no bajo el
-      // área por defecto de la plantilla (que a veces difiere).
-      area: niche,
+      // área por defecto de la plantilla (que a veces difiere). Excepción: en
+      // "otra" las sugerencias son de varias áreas — ahí manda la plantilla,
+      // para que la meta quede bajo su área real (color y gráficas correctos).
+      area: niche === 'otra' ? getTemplate(seed.templateKey).defaultArea : niche,
       milestones: buildMilestonesFromTemplate(getTemplate(seed.templateKey), 0),
     })
     navigate('/meta/nueva')
@@ -61,8 +63,9 @@ export function GoalSuggestions() {
       <header className="screen__header" style={{ marginTop: 'var(--s4)' }}>
         <h1 className="screen__title">Ideas para ti</h1>
         <p className="screen__subtitle">
-          Metas concretas para tu foco en {nicheInfo.label}. Adopta una con un toque o escribe la
-          tuya.
+          {niche === 'otra'
+            ? 'Metas listas para empezar, cada una con sus etapas sugeridas. Elige una o escribe la tuya.'
+            : `Sugerencias de ${nicheInfo.label.toLowerCase()}, con etapas listas para empezar. Elige una o escribe la tuya.`}
         </p>
       </header>
 

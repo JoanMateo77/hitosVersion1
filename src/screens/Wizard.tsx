@@ -333,13 +333,16 @@ export function Wizard() {
               style={{ alignSelf: 'flex-start', alignItems: 'center' }}
               onClick={() => navigate('/ideas')}
             >
-              <IconLightbulb size={14} /> No sé qué poner — ver ideas
+              <IconLightbulb size={14} /> Ver ideas de metas
             </button>
           </Question>
         )}
 
         {step === 1 && (
-          <Question title="¿Qué tipo de meta es?" hint="Elegimos una por ti según tu meta. Cámbiala si no encaja.">
+          <Question
+            title="¿Qué tipo de meta es?"
+            hint="El tipo define las etapas que te sugerimos. Preseleccionamos el más parecido a tu meta; cámbialo si no encaja."
+          >
             <div className="stack stack--sm">
               {stepTemplates.map((t) => (
                 <OptionRow
@@ -375,7 +378,10 @@ export function Wizard() {
         {step === 2 && commitmentError && <p className="faint tiny">{commitmentError}</p>}
 
         {step === 3 && (
-          <Question title="Estas son tus etapas" hint="Las sugerimos según tu tipo de meta. Edítalas a tu medida.">
+          <Question
+            title="Estas son tus etapas"
+            hint="El camino sugerido para tu tipo de meta, en orden. Edita, reordena o agrega las que necesites."
+          >
             <MilestonesStep
               milestones={milestones}
               onChange={(ms) => {
@@ -388,8 +394,8 @@ export function Wizard() {
 
         {step === 4 && (
           <Question
-            title="Tu ancla"
-            hint="Por qué lo haces, para cuándo y cómo sabrás que lo lograste. Todo opcional."
+            title="¿Por qué y para cuándo?"
+            hint="Tu motivo, la fecha límite y cómo sabrás que la lograste. Los tres son opcionales."
           >
             <textarea
               className="textarea"
@@ -403,7 +409,7 @@ export function Wizard() {
               enterKeyHint="enter"
             />
             <Hint id="wizard-why-2026-05">
-              Lo escribes una vez y lo verás bajo cada tarea derivada de esta meta. Tu ancla cuando aflojas.
+              Tu motivo aparecerá bajo cada sesión de esta meta, como recordatorio en los días difíciles.
             </Hint>
             <input
               className="input"
@@ -434,7 +440,10 @@ export function Wizard() {
         )}
 
         {step === 5 && (
-          <Question title="Revisa tu meta" hint="Todo listo. Cuando confirmes, crearemos tu meta con su compromiso.">
+          <Question
+            title="Revisa tu meta"
+            hint="Confirma los detalles. Al crearla, tus sesiones aparecerán en Hoy y en tu agenda según el horario que elegiste."
+          >
             <ReviewCard
               title={title}
               templateLabel={getTemplate(templateKey || 'personalizada').label}
@@ -448,15 +457,18 @@ export function Wizard() {
         )}
       </div>
 
-      {error && <div className="alert alert--error" style={{ marginBottom: 'var(--s3)' }}>{error}</div>}
-
-      <button
-        className="btn btn--primary btn--block"
-        disabled={!canContinue || saving}
-        onClick={isLast ? submit : next}
-      >
-        {isLast ? (saving ? 'Creando…' : 'Crear meta') : 'Continuar'}
-      </button>
+      {/* CTA pegajoso: en pasos largos (tipos, horario) el botón queda siempre a la
+          vista — elegir una opción no debe obligar a scrollear hasta el fondo. */}
+      <div className="wizard-cta">
+        {error && <div className="alert alert--error" style={{ marginBottom: 'var(--s3)' }}>{error}</div>}
+        <button
+          className="btn btn--primary btn--block"
+          disabled={!canContinue || saving}
+          onClick={isLast ? submit : next}
+        >
+          {isLast ? (saving ? 'Creando…' : 'Crear meta') : 'Continuar'}
+        </button>
+      </div>
     </div>
   )
 }

@@ -40,6 +40,23 @@ export const WEEKDAY_PRESETS: { label: string; days: number[] }[] = [
   { label: 'Fin de semana', days: [5, 6] },
 ]
 
+/**
+ * Unidades permitidas para metas de cantidad. Catálogo cerrado a propósito:
+ * con texto libre cada quien escribía algo distinto ("pags", "páginas", "pg")
+ * y los datos quedaban imposibles de agrupar para progreso y gráficas.
+ */
+export const COUNT_UNITS = [
+  'páginas',
+  'km',
+  'palabras',
+  'ejercicios',
+  'lecciones',
+  'llamadas',
+  'postulaciones',
+  'ventas',
+  'piezas',
+] as const
+
 /** "08:30" → 510. Asume formato HH:MM válido (inputs nativos). */
 export function timeToMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number)
@@ -169,6 +186,9 @@ export function validateCommitment(blocks: CommitmentBlockDraft[]): string | nul
   if (blocks.length === 0) return 'Elige al menos un día para tu compromiso.'
   if (blocks.some((b) => b.targetValue <= 0)) {
     return 'Cada momento necesita una duración o cantidad mayor a cero.'
+  }
+  if (blocks.some((b) => b.targetKind === 'count' && !b.unit)) {
+    return 'Elige qué vas a medir (páginas, km…) para poder seguir tu progreso.'
   }
   return null
 }

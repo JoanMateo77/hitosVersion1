@@ -147,6 +147,17 @@ describe('WEEKDAY_LABELS', () => {
   })
 })
 
+describe('validateCommitment con cantidad', () => {
+  it('exige unidad del catálogo en metas de cantidad', () => {
+    const sinUnidad: CommitmentBlockDraft[] = [
+      { weekday: 0, targetKind: 'count', targetValue: 10, unit: null, startTime: null },
+    ]
+    expect(validateCommitment(sinUnidad)).toMatch(/qué vas a medir/i)
+    const conUnidad = sinUnidad.map((b) => ({ ...b, unit: 'páginas' }))
+    expect(validateCommitment(conUnidad)).toBeNull()
+  })
+})
+
 describe('horario por rangos (helpers de UI)', () => {
   it('convierte HH:MM a minutos y de vuelta, envolviendo medianoche', () => {
     expect(timeToMinutes('08:30')).toBe(510)
