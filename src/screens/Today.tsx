@@ -574,8 +574,9 @@ export function Today() {
                         : `Ver ${dayName.charAt(0).toLowerCase()}${dayName.slice(1)} en la agenda`
                     }
                     // Pasado: la agenda de ese día muestra qué hiciste. Futuro: ahí se
-                    // planifica. Hoy no navega: ya estás en Hoy.
-                    onClick={() => navigate(`/agenda?d=${d}`)}
+                    // planifica. Hoy no navega: ya estás en Hoy. La ruta de la Agenda
+                    // es /calendario (el nombre visible "Agenda" no es la URL).
+                    onClick={() => navigate(`/calendario?d=${d}`)}
                   >
                     <span className="weekstrip__label">{WEEKDAY_LABELS[i]}</span>
                     <span className={`weekstrip__dot weekstrip__dot--${st}`} aria-hidden="true" />

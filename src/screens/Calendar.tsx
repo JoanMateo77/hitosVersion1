@@ -381,6 +381,23 @@ export function Calendar() {
     toast('Evento borrado.')
   }
 
+  // Orientación temporal del día seleccionado (vista día y panel de día del mes):
+  // deja claro si estás mirando el pasado (lo que hiciste) o el futuro (planificar).
+  const dayContextBanner = selected !== today && (
+    <div
+      className={`alert${selected > today ? ' faint' : ''}`}
+      role="status"
+      style={selected < today ? { background: 'var(--primary-soft)' } : undefined}
+    >
+      {selected < today
+        ? 'Estás viendo un día pasado: esto fue lo que hiciste.'
+        : 'Día futuro: lo que agregues aquí queda planificado.'}{' '}
+      <button type="button" className="btn--link" onClick={goToday}>
+        Volver a hoy
+      </button>
+    </div>
+  )
+
   const headerTitle =
     view === 'day'
       ? formatWeekday(selected)
@@ -487,7 +504,8 @@ export function Calendar() {
               })}
             </div>
           </div>
-          <div className="cal-month__day">
+          <div className="cal-month__day stack">
+            {dayContextBanner}
             <DaySection {...dayProps(selected)} />
           </div>
         </div>
@@ -499,21 +517,7 @@ export function Calendar() {
         </div>
       ) : (
         <div className="stack">
-          {/* Orientación solo en la vista de día: dónde estás parado respecto a hoy. */}
-          {selected !== today && (
-            <div
-              className={`alert${selected > today ? ' faint' : ''}`}
-              role="status"
-              style={selected < today ? { background: 'var(--primary-soft)' } : undefined}
-            >
-              {selected < today
-                ? 'Estás viendo un día pasado: esto fue lo que hiciste.'
-                : 'Día futuro: lo que agregues aquí queda planificado.'}{' '}
-              <button type="button" className="btn--link" onClick={goToday}>
-                Volver a hoy
-              </button>
-            </div>
-          )}
+          {dayContextBanner}
           <DaySection {...dayProps(selected)} />
         </div>
       )}
