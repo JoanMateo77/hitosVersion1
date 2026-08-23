@@ -116,9 +116,10 @@
   --accent: #936b3f;
   --accent-soft: rgba(147, 107, 63, 0.12);
 
-  /* LOGRADO: verde crecimiento. */
-  --success: #15803d;
-  --success-soft: rgba(21, 128, 61, 0.13);
+  /* LOGRADO: verde vivo (familia WhatsApp #25d366, un paso más profundo en claro
+     para que también funcione como color de texto sobre crema). */
+  --success: #1cb85c;
+  --success-soft: rgba(28, 184, 92, 0.14);
   --danger: #b73a4b;
   --danger-soft: rgba(183, 58, 75, 0.1);
   --warning: #a06013;
@@ -160,8 +161,9 @@
   --accent: #d4b486;
   --accent-soft: rgba(212, 180, 134, 0.1);
 
-  --success: #3ecf78;
-  --success-soft: rgba(62, 207, 120, 0.13);
+  /* Verde WhatsApp: los checks de cumplido deben celebrarse, no susurrar. */
+  --success: #25d366;
+  --success-soft: rgba(37, 211, 102, 0.15);
   --danger: #f4708a;
   --danger-soft: rgba(244, 112, 138, 0.12);
   --warning: #e6b84c;

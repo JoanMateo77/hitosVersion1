@@ -1289,6 +1289,13 @@ select.input {
   border-bottom: 1px solid var(--border-soft);
   -webkit-user-select: none;
   user-select: none;
+  transition: transform 0.28s var(--ease-out);
+}
+/* Al scrollear hacia abajo la barra cede el espacio al contenido; vuelve al
+   subir o al llegar arriba (lo maneja TopBar.tsx). reduced-motion la deja fija
+   sin animación vía la regla global de base.css. */
+.topbar--hidden {
+  transform: translateY(-100%);
 }
 
 /* Acceso a Perfil en móvil (saca la 6.ª pestaña de la barra inferior) */
@@ -1429,7 +1436,9 @@ select.input {
   }
   .auth-hero__brand {
     font-size: var(--fs-5xl);
-    line-height: 0.9;
+    /* 1 en vez de 0.9: a 80px el 0.9 dejaba tilde y descendente fuera de la
+       caja pintable del degradado (ver .screen--full .brand). */
+    line-height: 1;
     letter-spacing: -0.04em;
     margin-bottom: var(--s6);
   }
@@ -1828,6 +1837,13 @@ select.input {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  /* Con background-clip:text solo se pinta lo que cae dentro de la caja, y en
+     Fraunces la tilde de la ó y el descendente de la g sobresalen del line-height
+     apretado. Aire extra; arriba y a los lados se compensa con margen negativo
+     (el de abajo se deja quieto para no pisar el margin-bottom del hero). */
+  padding: 0.16em 0.08em;
+  margin-top: -0.16em;
+  margin-inline: -0.08em;
 }
 .screen--full .brand__mark {
   color: var(--primary);
@@ -2798,10 +2814,34 @@ select.input {
   color: var(--niche, var(--primary));
 }
 
+/* CTA del wizard siempre a la vista: elegir una opción en una lista larga no
+   debe obligar a scrollear hasta el fondo para poder continuar. El degradado
+   funde la lista que pasa por debajo con el fondo. */
+.wizard-cta {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding-top: var(--s5);
+  padding-bottom: max(var(--safe-bottom), var(--s3));
+  background: linear-gradient(180deg, transparent, var(--bg) 45%);
+}
+
 /* "Aplícalo hoy": costilla y lavado del color del área. */
 .lesson-apply {
   background: color-mix(in srgb, var(--niche, var(--primary)) 7%, var(--surface));
   border-color: color-mix(in srgb, var(--niche, var(--primary)) 22%, var(--border-soft));
   border-left-width: 3px;
   border-left-color: color-mix(in srgb, var(--niche, var(--primary)) 65%, transparent);
+}
+
+/* Modo "A fondo": los párrafos que siguen al primero no repiten la capitular —
+   una sola letra grande abre la lectura, como en una página de libro. */
+.lesson-idea--follow::first-letter {
+  float: none;
+  font-family: inherit;
+  font-weight: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  padding: 0;
+  color: inherit;
 }

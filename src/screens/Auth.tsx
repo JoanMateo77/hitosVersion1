@@ -134,8 +134,8 @@ export function Auth() {
         <span className="brand auth-hero__brand">Lógralo</span>
         <h1 className="auth-hero__headline">Tu meta, con un compromiso real.</h1>
         <p className="auth-hero__lede">
-          Define tu meta, comprométete con días y tiempos reales, y avanza un paso a la vez. Sin apps de hábitos
-          genéricas. Tu camino, claro.
+          La app que convierte tus metas en un plan diario: horarios reales, progreso visible y
+          constancia sin culpa.
         </p>
       </aside>
 
