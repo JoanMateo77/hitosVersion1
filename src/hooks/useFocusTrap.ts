@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -8,6 +8,16 @@ const FOCUSABLE =
  * cicla con Tab, cierra con Escape y devuelve el foco al elemento previo al cerrar.
  */
 export function useFocusTrap(ref: RefObject<HTMLElement | null>, onClose: () => void): void {
+  // El cierre se lee desde un ref: así el efecto corre UNA vez por montaje aunque
+  // el caller pase una función nueva en cada render (p. ej. un form que re-renderiza
+  // por keystroke). Si `onClose` fuera dependencia, cada tecla re-ejecutaría el efecto:
+  // su cleanup devolvería el foco fuera del modal y el setup lo mandaría al primer
+  // input — el clásico "escribo una letra y el foco salta".
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
+
   useEffect(() => {
     const node = ref.current
     if (!node) return
@@ -24,7 +34,7 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, onClose: () => 
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         e.preventDefault()
-        onClose()
+        onCloseRef.current()
         return
       }
       if (e.key !== 'Tab') return
@@ -46,5 +56,5 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, onClose: () => 
       node.removeEventListener('keydown', onKeyDown)
       previouslyFocused?.focus?.()
     }
-  }, [ref, onClose])
+  }, [ref])
 }

@@ -498,7 +498,24 @@ export function Calendar() {
           ))}
         </div>
       ) : (
-        <DaySection {...dayProps(selected)} />
+        <div className="stack">
+          {/* Orientación solo en la vista de día: dónde estás parado respecto a hoy. */}
+          {selected !== today && (
+            <div
+              className={`alert${selected > today ? ' faint' : ''}`}
+              role="status"
+              style={selected < today ? { background: 'var(--primary-soft)' } : undefined}
+            >
+              {selected < today
+                ? 'Estás viendo un día pasado: esto fue lo que hiciste.'
+                : 'Día futuro: lo que agregues aquí queda planificado.'}{' '}
+              <button type="button" className="btn--link" onClick={goToday}>
+                Volver a hoy
+              </button>
+            </div>
+          )}
+          <DaySection {...dayProps(selected)} />
+        </div>
       )}
 
       {timeSheet && (
@@ -528,6 +545,7 @@ export function Calendar() {
           initial={editing.event}
           date={editing.date}
           goals={activeGoals}
+          suggested={suggestedTime}
           onClose={() => setEditing(null)}
           onSubmit={submitEvent}
           onDelete={removeEditingEvent}
@@ -792,6 +810,7 @@ function EventEditor({
   initial,
   date,
   goals,
+  suggested,
   onClose,
   onSubmit,
   onDelete,
@@ -799,6 +818,8 @@ function EventEditor({
   initial: CalendarEvent | null
   date: string
   goals: Goal[]
+  /** Hora sugerida según el momento preferido del perfil (para prellenar horario). */
+  suggested: string | null
   onClose: () => void
   onSubmit: (input: EventInput) => Promise<void>
   onDelete: () => Promise<void>
@@ -862,6 +883,32 @@ function EventEditor({
       document.body.style.overflow = prev
     }
   }, [])
+
+  /** Fija la hora de inicio y, si el fin está vacío, lo prellena a inicio + 1 h. */
+  function pickStartTime(value: string) {
+    setStartTime(value)
+    if (value && !endTime) {
+      const endMin = timeToMinutes(value) + 60
+      // Sin envolver a la madrugada siguiente: el rango debe seguir siendo válido.
+      setEndTime(endMin >= 24 * 60 ? '23:59' : minutesToTime(endMin))
+    }
+  }
+
+  /**
+   * Pasa a "Con horario". Si aún no hay hora de inicio, la prellenamos con algo
+   * razonable (siempre editable): la siguiente hora en punto si el evento es hoy,
+   * o la hora sugerida del perfil si existe.
+   */
+  function enableSchedule() {
+    setAllDay(false)
+    if (startTime) return
+    if (eventDate === todayISO()) {
+      const nextHour = Math.min(new Date().getHours() + 1, 23) * 60
+      pickStartTime(minutesToTime(nextHour))
+    } else if (suggested) {
+      pickStartTime(suggested)
+    }
+  }
 
   // Con horario, si hay fin debe ser posterior al inicio (comparación lexicográfica
   // = cronológica para HH:MM con cero a la izquierda).
@@ -948,7 +995,7 @@ function EventEditor({
               type="button"
               className={`seg__btn${!allDay ? ' seg__btn--active' : ''}`}
               aria-pressed={!allDay}
-              onClick={() => setAllDay(false)}
+              onClick={enableSchedule}
             >
               Con horario
             </button>
@@ -960,7 +1007,7 @@ function EventEditor({
                   className="input"
                   type="time"
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  onChange={(e) => pickStartTime(e.target.value)}
                   aria-label="Hora de inicio"
                 />
                 <span className="faint">a</span>
