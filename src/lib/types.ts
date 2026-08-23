@@ -46,6 +46,8 @@ export interface Profile {
   defaultSessionMinutes: number | null
   /** Meta prioritaria ⭐ opcional: ordena el día, no oculta nada. */
   priorityGoalId: string | null
+  /** URL pública de la foto de perfil; null = sin foto (se muestra la inicial). */
+  avatarUrl: string | null
   createdAt: string
 }
 
@@ -223,8 +225,11 @@ export interface HabitCheck {
 export interface LearnLesson {
   id: string
   title: string
-  /** La idea central, en 2-4 frases claras. */
+  /** La idea central, en 2-4 frases claras (modo "Resumen"). */
   idea: string
+  /** La misma idea a fondo: mecanismo, ejemplo y matiz, en 250-350 palabras
+   *  (modo "A fondo"). Párrafos separados por '\n\n'. */
+  ideaLong: string
   /** Cómo aplicarla hoy mismo, concreto. */
   apply: string
   /** Acción sugerida: convertir la lección en un hábito o una meta. */

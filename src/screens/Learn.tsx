@@ -16,9 +16,13 @@ import {
   IconLightbulb,
 } from '@/components/icons'
 
+/** Modo de lectura de una lección: resumen (~80 palabras) o a fondo (250-350). */
+type ReadMode = 'resumen' | 'fondo'
+
 /** Minutos estimados de lectura (~180 ppm), mínimo 1: baja la barrera de entrada. */
-function readingMinutes(lesson: LearnLesson): number {
-  const words = `${lesson.idea} ${lesson.apply}`.trim().split(/\s+/).length
+function readingMinutes(lesson: LearnLesson, mode: ReadMode = 'resumen'): number {
+  const body = mode === 'fondo' ? lesson.ideaLong : lesson.idea
+  const words = `${body} ${lesson.apply}`.trim().split(/\s+/).length
   return Math.max(1, Math.round(words / 180))
 }
 
@@ -52,6 +56,26 @@ function saveRead(ids: Set<string>): void {
   }
 }
 
+/** Clave en localStorage con el modo de lectura preferido ('resumen' | 'fondo'). */
+const MODE_KEY = 'logralo-learn-mode'
+
+/** Lee el modo preferido. Default 'resumen': la puerta de entrada es la corta. */
+function loadMode(): ReadMode {
+  try {
+    return localStorage.getItem(MODE_KEY) === 'fondo' ? 'fondo' : 'resumen'
+  } catch {
+    return 'resumen'
+  }
+}
+
+function saveMode(mode: ReadMode): void {
+  try {
+    localStorage.setItem(MODE_KEY, mode)
+  } catch {
+    /* sin localStorage la preferencia dura solo la sesión: aceptable */
+  }
+}
+
 /**
  * Aprender: micro-lecciones de crecimiento personal organizadas en colecciones.
  * Tres niveles (colecciones → colección → lección) navegados con estado interno
@@ -64,6 +88,14 @@ export function Learn() {
   const [read, setRead] = useState<Set<string>>(loadRead)
   const [collectionId, setCollectionId] = useState<string | null>(null)
   const [lessonId, setLessonId] = useState<string | null>(null)
+  // Modo de lectura (Resumen / A fondo). Es una preferencia, no progreso:
+  // vive solo en localStorage y aplica a todas las lecciones por igual.
+  const [mode, setMode] = useState<ReadMode>(loadMode)
+
+  function changeMode(next: ReadMode) {
+    setMode(next)
+    saveMode(next)
+  }
 
   // Sync suave con la cuenta: la BD es la verdad compartida entre dispositivos y
   // localStorage el cache. Sin red (o sin migración 0011) todo sigue funcionando.
@@ -171,18 +203,53 @@ export function Learn() {
               ))}
             </span>
             <span className="faint tiny">
-              Lección {lessonIndex + 1} de {collection.lessons.length} · {readingMinutes(lesson)}{' '}
-              min
+              Lección {lessonIndex + 1} de {collection.lessons.length}
             </span>
           </div>
 
-          <p className="lesson-idea learn-enter" style={stagger(1)}>
-            {lesson.idea}
-          </p>
+          {/* Dos modos del mismo cuerpo: resumen o a fondo. Los minutos van en
+              cada opción para que el costo de cada modo se vea antes de elegir. */}
+          <div
+            className="seg learn-enter"
+            role="tablist"
+            aria-label="Modo de lectura"
+            style={stagger(1)}
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'resumen'}
+              className={`seg__btn${mode === 'resumen' ? ' seg__btn--active' : ''}`}
+              onClick={() => changeMode('resumen')}
+            >
+              Resumen · {readingMinutes(lesson, 'resumen')} min
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'fondo'}
+              className={`seg__btn${mode === 'fondo' ? ' seg__btn--active' : ''}`}
+              onClick={() => changeMode('fondo')}
+            >
+              A fondo · {readingMinutes(lesson, 'fondo')} min
+            </button>
+          </div>
+
+          {/* key por modo: al cambiar de modo el cuerpo re-anima como pasar de
+              página. Solo el primer párrafo lleva capitular. */}
+          {(mode === 'fondo' ? lesson.ideaLong : lesson.idea).split('\n\n').map((para, i) => (
+            <p
+              key={`${mode}-${i}`}
+              className={`lesson-idea learn-enter${i > 0 ? ' lesson-idea--follow' : ''}`}
+              style={stagger(2)}
+            >
+              {para}
+            </p>
+          ))}
 
           <section
             className="card card--tight stack stack--sm lesson-apply learn-enter"
-            style={stagger(2)}
+            style={stagger(3)}
             aria-label="Aplícalo hoy"
           >
             <span className="kicker row row--sm" style={{ alignItems: 'center' }}>
@@ -193,7 +260,7 @@ export function Learn() {
             </p>
           </section>
 
-          <div className="stack stack--sm learn-enter" style={stagger(3)}>
+          <div className="stack stack--sm learn-enter" style={stagger(4)}>
             <button
               type="button"
               className={`btn btn--block ${isRead ? 'btn--subtle' : 'btn--ghost'}`}
