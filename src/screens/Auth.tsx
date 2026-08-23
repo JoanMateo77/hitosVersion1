@@ -3,7 +3,7 @@ import { resendConfirmation, resetPassword, signIn, signInWithGoogle, signUp } f
 import { IconHito } from '@/components/icons'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 
-type Mode = 'signin' | 'signup'
+type Mode = 'signin' | 'signup' | 'reset'
 
 /** Logo oficial multicolor de la G de Google (los términos de marca piden no recolorearlo). */
 function GoogleLogo() {
@@ -32,6 +32,7 @@ export function Auth() {
   const [oauthLoading, setOauthLoading] = useState(false)
 
   const isSignup = mode === 'signup'
+  const isReset = mode === 'reset'
 
   async function handleGoogle() {
     setError(null)
@@ -52,6 +53,11 @@ export function Auth() {
     setError(null)
     setNotice(null)
     setShowResend(false)
+    // Vista de recuperación: el submit envía el enlace, no intenta entrar.
+    if (isReset) {
+      await handleReset()
+      return
+    }
     // Al crear la cuenta, confirmamos que ambas contraseñas coincidan ANTES de
     // enviar: así el error de tipeo se atrapa en el acto, no tras un viaje al
     // servidor con un mensaje confuso.
@@ -103,16 +109,12 @@ export function Auth() {
 
   async function handleReset() {
     const target = email.trim()
-    if (!target) {
-      setError('Escribe tu email arriba para recuperar tu contraseña.')
-      return
-    }
-    setError(null)
-    setNotice(null)
     setLoading(true)
     try {
       await resetPassword(target)
-      setNotice('Te mandamos un email para recuperar tu contraseña. Revisa tu casilla.')
+      setNotice(
+        `Enlace enviado a ${target}. Ábrelo desde este dispositivo y te pedirá tu contraseña nueva. Si no llega en unos minutos, revisa spam o vuelve a enviarlo.`,
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo enviar el email.')
     } finally {
@@ -120,12 +122,16 @@ export function Auth() {
     }
   }
 
-  function switchMode() {
-    setMode(isSignup ? 'signin' : 'signup')
+  function goTo(next: Mode) {
+    setMode(next)
     setError(null)
     setNotice(null)
     setShowResend(false)
     setConfirmPassword('')
+  }
+
+  function switchMode() {
+    goTo(isSignup ? 'signin' : 'signup')
   }
 
   return (
@@ -184,26 +190,39 @@ export function Auth() {
 
         <div className="auth-form-card">
           <form className="stack stack--lg" onSubmit={handleSubmit}>
-            <h1 className="auth-form__title">{isSignup ? 'Crea tu cuenta' : 'Entra'}</h1>
+            <h1 className="auth-form__title">
+              {isReset ? 'Recupera tu contraseña' : isSignup ? 'Crea tu cuenta' : 'Entra'}
+            </h1>
+
+            {isReset && (
+              <p className="muted small" style={{ margin: 0 }}>
+                Escribe el email de tu cuenta y te enviamos un enlace para definir una contraseña
+                nueva.
+              </p>
+            )}
 
             {/* OAuth primero: un toque y adentro. El mismo botón sirve para entrar
                 y para crear la cuenta (Google no distingue: si no existe, la crea). */}
-            <button
-              type="button"
-              className="btn btn--ghost btn--block"
-              disabled={loading || oauthLoading}
-              onClick={() => void handleGoogle()}
-            >
-              <GoogleLogo />
-              {oauthLoading
-                ? 'Abriendo Google…'
-                : isSignup
-                  ? 'Crear cuenta con Google'
-                  : 'Continuar con Google'}
-            </button>
-            <div className="auth-divider" aria-hidden="true">
-              <span>o con tu email</span>
-            </div>
+            {!isReset && (
+              <>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--block"
+                  disabled={loading || oauthLoading}
+                  onClick={() => void handleGoogle()}
+                >
+                  <GoogleLogo />
+                  {oauthLoading
+                    ? 'Abriendo Google…'
+                    : isSignup
+                      ? 'Crear cuenta con Google'
+                      : 'Continuar con Google'}
+                </button>
+                <div className="auth-divider" aria-hidden="true">
+                  <span>o con tu email</span>
+                </div>
+              </>
+            )}
 
             <div className="field">
               <label className="field__label" htmlFor="email">
@@ -224,6 +243,7 @@ export function Auth() {
               />
             </div>
 
+            {!isReset && (
             <div className="field">
               <div className="row row--between" style={{ alignItems: 'baseline' }}>
                 <label className="field__label" htmlFor="password">
@@ -252,6 +272,7 @@ export function Auth() {
                 minLength={6}
               />
             </div>
+            )}
 
             {isSignup && (
               <div className="field">
@@ -277,12 +298,12 @@ export function Auth() {
               </div>
             )}
 
-            {!isSignup && (
+            {mode === 'signin' && (
               <button
                 type="button"
                 className="btn--link"
                 style={{ alignSelf: 'flex-end' }}
-                onClick={handleReset}
+                onClick={() => goTo('reset')}
                 disabled={loading}
               >
                 ¿Olvidaste tu contraseña?
@@ -308,15 +329,35 @@ export function Auth() {
             )}
 
             <button className="btn btn--primary btn--block" type="submit" disabled={loading}>
-              {loading ? (isSignup ? 'Creando cuenta…' : 'Entrando…') : isSignup ? 'Crear cuenta' : 'Entrar'}
+              {loading
+                ? isReset
+                  ? 'Enviando…'
+                  : isSignup
+                    ? 'Creando cuenta…'
+                    : 'Entrando…'
+                : isReset
+                  ? notice
+                    ? 'Volver a enviar el enlace'
+                    : 'Enviarme el enlace'
+                  : isSignup
+                    ? 'Crear cuenta'
+                    : 'Entrar'}
             </button>
           </form>
 
           <p className="center muted" style={{ marginTop: 'var(--s5)' }}>
-            {isSignup ? '¿Ya tienes cuenta?' : '¿Primera vez?'}{' '}
-            <button type="button" className="btn--link" onClick={switchMode}>
-              {isSignup ? 'Entra' : 'Crea tu cuenta'}
-            </button>
+            {isReset ? (
+              <button type="button" className="btn--link" onClick={() => goTo('signin')}>
+                ← Volver a entrar
+              </button>
+            ) : (
+              <>
+                {isSignup ? '¿Ya tienes cuenta?' : '¿Primera vez?'}{' '}
+                <button type="button" className="btn--link" onClick={switchMode}>
+                  {isSignup ? 'Entra' : 'Crea tu cuenta'}
+                </button>
+              </>
+            )}
           </p>
         </div>
 
