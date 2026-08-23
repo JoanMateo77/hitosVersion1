@@ -4,8 +4,7 @@ import { getGoal } from '@/services/goals'
 import { listMilestones } from '@/services/milestones'
 import { listScheduleForGoal } from '@/services/schedule'
 import { getTemplate } from '@/domain/templates'
-import { WEEKDAY_LABELS, formatCommitmentSummary, weekdayMon0 } from '@/domain/commitment'
-import { formatTime12 } from '@/lib/date'
+import { WEEKDAY_LABELS, blockTimeLabel, formatCommitmentSummary, weekdayMon0 } from '@/domain/commitment'
 import { addDays, formatWeekday, todayISO } from '@/lib/date'
 import type { Goal, Milestone, ScheduleBlock } from '@/lib/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
@@ -109,9 +108,7 @@ export function GoalCreated() {
             <div className="row wrap">
               {schedule.map((b) => (
                 <span key={b.id} className="tag">
-                  {WEEKDAY_LABELS[b.weekday]}
-                  {b.startTime ? ` ${formatTime12(b.startTime)}` : ''} ·{' '}
-                  {b.targetKind === 'time' ? `${b.targetValue} min` : `${b.targetValue} ${b.unit ?? ''}`}
+                  {WEEKDAY_LABELS[b.weekday]} · {blockTimeLabel(b)}
                 </span>
               ))}
             </div>
@@ -126,10 +123,8 @@ export function GoalCreated() {
             </span>
             <strong style={{ fontSize: 'var(--fs-xl)' }}>
               {firstSession.offset === 0 ? 'Hoy' : firstSession.offset === 1 ? 'Mañana' : formatWeekday(firstSession.date)}
-              {firstSession.block.startTime ? ` a las ${formatTime12(firstSession.block.startTime)}` : ''} ·{' '}
-              {firstSession.block.targetKind === 'time'
-                ? `${firstSession.block.targetValue} min`
-                : `${firstSession.block.targetValue} ${firstSession.block.unit ?? ''}`}
+              {' · '}
+              {blockTimeLabel(firstSession.block)}
             </strong>
           </div>
         )}

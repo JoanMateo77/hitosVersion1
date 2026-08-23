@@ -13,6 +13,7 @@ import { Hint } from '@/components/Hint'
 import {
   buildMilestonesFromTemplate,
   formatCommitmentSummary,
+  preferredStartTime,
   validateCommitment,
   type CommitmentBlockDraft,
   type MilestoneDraft,
@@ -159,14 +160,7 @@ export function Wizard() {
 
   // Defaults del compromiso desde el perfil del usuario.
   const defaultMinutes = profile.defaultSessionMinutes ?? 25
-  const defaultStart =
-    profile.preferredMoment === 'morning'
-      ? '08:00'
-      : profile.preferredMoment === 'midday'
-        ? '13:00'
-        : profile.preferredMoment === 'evening'
-          ? '19:00'
-          : null
+  const defaultStart = preferredStartTime(profile.preferredMoment)
 
   // Persistimos el borrador en cada cambio, salvo el estado vacío inicial.
   useEffect(() => {
@@ -367,7 +361,7 @@ export function Wizard() {
         {step === 2 && (
           <Question
             title="¿Cuánto y cuándo cada semana?"
-            hint="Tu compromiso real: días, cuánto por sesión y, si quieres, a qué hora."
+            hint="Elige los días y de qué hora a qué hora. Lo pones una vez y se aplica a todos los días que marques."
           >
             <CommitmentStep
               blocks={blocks}

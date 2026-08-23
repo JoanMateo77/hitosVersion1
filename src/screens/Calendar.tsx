@@ -11,7 +11,7 @@ import {
   type EventInput,
 } from '@/services/events'
 import { WEEKDAY_LABELS, groupByDate, inSameMonth, monthGrid, weekDays } from '@/domain/calendar'
-import { WEEKDAY_PLURALS } from '@/domain/commitment'
+import { WEEKDAY_PLURALS, minutesToTime, preferredStartTime, timeToMinutes } from '@/domain/commitment'
 import { dueBlocksForDate } from '@/domain/sessions'
 import { listScheduleForUser, updateBlockStartTime } from '@/services/schedule'
 import {
@@ -27,6 +27,7 @@ import {
   addDays,
   addMonths,
   dayOfMonth,
+  formatDuration,
   formatMonthYear,
   formatTime12,
   formatWeekday,
@@ -59,6 +60,22 @@ interface DayAgendaSession {
   block: ScheduleBlock | null
 }
 
+/**
+ * Qué compromete la sesión, en lenguaje de la agenda: "4 h · hasta 12:00 pm"
+ * si tiene hora (el fin es derivado, no se persiste), "25 min" si no, o la
+ * cantidad con su unidad.
+ */
+function agendaTargetLabel(
+  kind: Session['targetKind'],
+  value: number,
+  unit: string | null,
+  time: string | null,
+): string {
+  if (kind !== 'time') return `${value} ${unit ?? ''}`.trim()
+  if (!time) return formatDuration(value)
+  return `${formatDuration(value)} · hasta ${formatTime12(minutesToTime(timeToMinutes(time) + value))}`
+}
+
 function sessionStateLabel(state: DayAgendaSession['state']): string {
   switch (state) {
     case 'done':
@@ -89,14 +106,7 @@ export function Calendar() {
   const { toast } = useToast()
 
   // Hora sugerida para el TimeSheet según el momento preferido del perfil.
-  const suggestedTime =
-    profile.preferredMoment === 'morning'
-      ? '08:00'
-      : profile.preferredMoment === 'midday'
-        ? '13:00'
-        : profile.preferredMoment === 'evening'
-          ? '19:00'
-          : null
+  const suggestedTime = preferredStartTime(profile.preferredMoment)
 
   const [params] = useSearchParams()
   // ?d=YYYY-MM-DD (p. ej. al tocar un evento en Today) abre ese día directo.
@@ -212,7 +222,7 @@ export function Calendar() {
         goal,
         time: s.plannedTime,
         state: s.status,
-        targetLabel: s.targetKind === 'time' ? `${s.targetValue} min` : `${s.targetValue} ${s.unit ?? ''}`.trim(),
+        targetLabel: agendaTargetLabel(s.targetKind, s.targetValue, s.unit, s.plannedTime),
         session: s,
         block: blocks.find((b) => b.id === s.scheduleId) ?? null,
       })
@@ -227,7 +237,7 @@ export function Calendar() {
           goal,
           time: b.startTime,
           state: 'projected',
-          targetLabel: b.targetKind === 'time' ? `${b.targetValue} min` : `${b.targetValue} ${b.unit ?? ''}`.trim(),
+          targetLabel: agendaTargetLabel(b.targetKind, b.targetValue, b.unit, b.startTime),
           session: null,
           block: b,
         })
@@ -743,7 +753,7 @@ function TimeSheet({
           Sesión de <strong>{goal.title}</strong>
           {block ? ` · todos los ${WEEKDAY_PLURALS[block.weekday]}` : ' · solo este día'}
           {target &&
-            ` · ${target.targetKind === 'time' ? `${target.targetValue} min` : `${target.targetValue} ${target.unit ?? ''}`}`}
+            ` · ${target.targetKind === 'time' ? formatDuration(target.targetValue) : `${target.targetValue} ${target.unit ?? ''}`}`}
         </p>
         <input
           className="input"
@@ -752,6 +762,13 @@ function TimeSheet({
           onChange={(e) => setTime(e.target.value)}
           aria-label="Hora de la sesión"
         />
+        {target?.targetKind === 'time' && time && (
+          <p className="faint tiny" style={{ margin: 0 }} aria-live="polite">
+            De {formatTime12(time)} a{' '}
+            {formatTime12(minutesToTime(timeToMinutes(time) + target.targetValue))}. La duración se
+            ajusta desde el detalle de la meta.
+          </p>
+        )}
         <button className="btn btn--primary btn--block" disabled={!time} onClick={() => onSave(time)}>
           {block ? `Guardar para todos los ${WEEKDAY_PLURALS[block.weekday]}` : 'Guardar la hora'}
         </button>

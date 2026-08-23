@@ -29,7 +29,9 @@ import { isGoalClosed } from '@/domain/goals'
 import { milestoneProgress, weekConsistency } from '@/domain/sessions'
 import {
   WEEKDAY_LABELS,
+  blockTimeLabel,
   formatCommitmentSummary,
+  preferredStartTime,
   validateCommitment,
   weekdayMon0,
   type CommitmentBlockDraft,
@@ -80,7 +82,7 @@ type GoalSnapshot = {
 
 export function GoalDetail() {
   const { goalId } = useParams<{ goalId: string }>()
-  const { userId } = useSession()
+  const { userId, profile } = useSession()
   const navigate = useNavigate()
   const location = useLocation()
   const { toast } = useToast()
@@ -490,9 +492,7 @@ export function GoalDetail() {
                   <div className="row wrap">
                     {blocks.map((b) => (
                       <span key={b.id} className="tag">
-                        {WEEKDAY_LABELS[b.weekday]}
-                        {b.startTime ? ` ${formatTime12(b.startTime)}` : ''} ·{' '}
-                        {b.targetKind === 'time' ? `${b.targetValue} min` : `${b.targetValue} ${b.unit ?? ''}`}
+                        {WEEKDAY_LABELS[b.weekday]} · {blockTimeLabel(b)}
                       </span>
                     ))}
                   </div>
@@ -511,8 +511,8 @@ export function GoalDetail() {
                   blocks={commitDraft}
                   onChange={setCommitDraft}
                   existing={otherBlocks}
-                  defaultMinutes={25}
-                  defaultStart={null}
+                  defaultMinutes={profile.defaultSessionMinutes ?? 25}
+                  defaultStart={preferredStartTime(profile.preferredMoment)}
                 />
                 <div className="row" style={{ marginTop: 'var(--s2)' }}>
                   <button
