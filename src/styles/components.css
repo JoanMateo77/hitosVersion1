@@ -2661,3 +2661,147 @@ select.input {
     margin-inline: auto;
   }
 }
+
+/* ==== Aprender: colecciones y lecciones con identidad editorial ===========
+   El color del nicho (--niche vía nicheAccent) tiñe cards, números y capitular:
+   cada colección se reconoce por su tono antes de leer una palabra. Las
+   animaciones las apaga prefers-reduced-motion con la regla global de base.css. */
+
+/* Entrada en cascada: los items suben y aparecen; --i escalona el delay. */
+.learn-enter {
+  animation: learn-rise 0.4s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+@keyframes learn-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* Card de colección: borde y lavado del color del área. */
+.learn-card {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  text-align: left;
+  border-color: color-mix(in srgb, var(--niche, var(--primary)) 24%, var(--border-soft));
+  transition: transform 0.12s ease, box-shadow 0.18s ease, border-color 0.15s ease;
+}
+.learn-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    130% 100% at 100% 0%,
+    color-mix(in srgb, var(--niche, var(--primary)) 12%, transparent),
+    transparent 58%
+  );
+  pointer-events: none;
+}
+@media (hover: hover) {
+  .learn-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+  }
+}
+.learn-card:active {
+  transform: scale(0.99);
+}
+
+/* Avance de lectura de la colección, en el color del área. */
+.learn-card__bar {
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.learn-card__bar span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--niche, var(--success));
+  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* "Sigue: …" — el próximo paso concreto, no solo un contador. */
+.learn-card__next {
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  color: color-mix(in srgb, var(--niche, var(--primary)) 58%, var(--text));
+}
+
+/* Fila de lección: numerada en la display, la siguiente pendiente resaltada. */
+.lesson-row {
+  width: 100%;
+  text-align: left;
+  align-items: center;
+  gap: var(--s3);
+  transition: transform 0.12s ease, box-shadow 0.18s ease, border-color 0.15s ease;
+}
+.lesson-row__num {
+  flex: none;
+  width: 32px;
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  line-height: 1;
+  color: color-mix(in srgb, var(--niche, var(--primary)) 60%, var(--text-faint));
+}
+.lesson-row--read .lesson-row__num {
+  color: var(--text-faint);
+}
+.lesson-row--read strong {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.lesson-row--next {
+  border-color: color-mix(in srgb, var(--niche, var(--primary)) 45%, var(--border-soft));
+}
+
+/* Posición dentro de la colección: leída = punto lleno, actual = píldora. */
+.lesson-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lesson-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--niche, var(--primary)) 28%, var(--border));
+  transition: width 0.25s var(--ease-out), background 0.2s ease;
+}
+.lesson-dots span[data-read='true'] {
+  background: var(--niche, var(--primary));
+}
+.lesson-dots span[data-current='true'] {
+  width: 18px;
+  background: var(--niche, var(--primary));
+}
+
+/* Lectura: cuerpo más grande y capitular en el color del área — la señal
+   editorial de "esto se lee", no de "esto se escanea". */
+.lesson-idea {
+  margin: 0;
+  font-size: var(--fs-lg);
+  line-height: var(--lh-body);
+}
+.lesson-idea::first-letter {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 3em;
+  line-height: 0.8;
+  float: left;
+  padding: 4px 8px 0 0;
+  color: var(--niche, var(--primary));
+}
+
+/* "Aplícalo hoy": costilla y lavado del color del área. */
+.lesson-apply {
+  background: color-mix(in srgb, var(--niche, var(--primary)) 7%, var(--surface));
+  border-color: color-mix(in srgb, var(--niche, var(--primary)) 22%, var(--border-soft));
+  border-left-width: 3px;
+  border-left-color: color-mix(in srgb, var(--niche, var(--primary)) 65%, transparent);
+}

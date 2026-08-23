@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { getGoal } from '@/services/goals'
@@ -6,6 +6,7 @@ import { listLessonReads, pushLessonReads, setLessonRead } from '@/services/lear
 import type { LearnLesson, NicheId } from '@/lib/types'
 import { LEARN_COLLECTIONS } from '@/content/learn'
 import { seedWizardDraft } from '@/lib/wizardDraft'
+import { nicheAccent } from '@/lib/nicheAccent'
 import { NicheGlyph } from '@/components/NicheGlyph'
 import {
   IconBack,
@@ -14,6 +15,17 @@ import {
   IconChevronRight,
   IconLightbulb,
 } from '@/components/icons'
+
+/** Minutos estimados de lectura (~180 ppm), mínimo 1: baja la barrera de entrada. */
+function readingMinutes(lesson: LearnLesson): number {
+  const words = `${lesson.idea} ${lesson.apply}`.trim().split(/\s+/).length
+  return Math.max(1, Math.round(words / 180))
+}
+
+/** Delay escalonado para la entrada en cascada (.learn-enter). */
+function stagger(index: number): CSSProperties {
+  return { '--i': index } as CSSProperties
+}
 
 /** Clave en localStorage con los ids de lección ya leídos (array JSON). */
 const READ_KEY = 'logralo-learn-read'
@@ -124,7 +136,7 @@ export function Learn() {
     const lessonIndex = collection.lessons.findIndex((l) => l.id === lesson.id)
     const nextLesson = collection.lessons[lessonIndex + 1] ?? null
     return (
-      <div className="screen">
+      <div className="screen" style={nicheAccent(collection.area)}>
         <header className="screen__header row" style={{ alignItems: 'center', gap: 'var(--s3)' }}>
           <button
             type="button"
@@ -142,10 +154,37 @@ export function Learn() {
           </div>
         </header>
 
-        <div className="stack">
-          <p style={{ margin: 0 }}>{lesson.idea}</p>
+        {/* key = re-monta el contenido al pasar de lección: la cascada de entrada
+            vuelve a correr y el cambio se siente como pasar de página. */}
+        <div className="stack" key={lesson.id}>
+          <div
+            className="row row--between learn-enter"
+            style={{ alignItems: 'center', ...stagger(0) }}
+          >
+            <span className="lesson-dots" aria-hidden="true">
+              {collection.lessons.map((l) => (
+                <span
+                  key={l.id}
+                  data-read={read.has(l.id) || undefined}
+                  data-current={l.id === lesson.id || undefined}
+                />
+              ))}
+            </span>
+            <span className="faint tiny">
+              Lección {lessonIndex + 1} de {collection.lessons.length} · {readingMinutes(lesson)}{' '}
+              min
+            </span>
+          </div>
 
-          <section className="card card--tight stack stack--sm" aria-label="Aplícalo hoy">
+          <p className="lesson-idea learn-enter" style={stagger(1)}>
+            {lesson.idea}
+          </p>
+
+          <section
+            className="card card--tight stack stack--sm lesson-apply learn-enter"
+            style={stagger(2)}
+            aria-label="Aplícalo hoy"
+          >
             <span className="kicker row row--sm" style={{ alignItems: 'center' }}>
               <IconLightbulb size={14} /> Aplícalo hoy
             </span>
@@ -154,53 +193,55 @@ export function Learn() {
             </p>
           </section>
 
-          <button
-            type="button"
-            className={`btn btn--block ${isRead ? 'btn--subtle' : 'btn--ghost'}`}
-            aria-pressed={isRead}
-            onClick={() => toggleRead(lesson.id)}
-          >
-            {isRead ? (
-              <>
-                <IconCheck size={16} style={{ color: 'var(--success)' }} /> Leída
-              </>
-            ) : (
-              'Marcar como leída'
+          <div className="stack stack--sm learn-enter" style={stagger(3)}>
+            <button
+              type="button"
+              className={`btn btn--block ${isRead ? 'btn--subtle' : 'btn--ghost'}`}
+              aria-pressed={isRead}
+              onClick={() => toggleRead(lesson.id)}
+            >
+              {isRead ? (
+                <>
+                  <IconCheck size={16} style={{ color: 'var(--success)' }} /> Leída
+                </>
+              ) : (
+                'Marcar como leída'
+              )}
+            </button>
+
+            {lesson.cta && (
+              <button
+                type="button"
+                className="btn btn--primary btn--block"
+                onClick={() => lesson.cta && followCta(lesson.cta)}
+              >
+                {lesson.cta.kind === 'habit'
+                  ? `Crear el hábito: ${lesson.cta.title}`
+                  : `Crear la meta: ${lesson.cta.title}`}
+              </button>
             )}
-          </button>
 
-          {lesson.cta && (
-            <button
-              type="button"
-              className="btn btn--primary btn--block"
-              onClick={() => lesson.cta && followCta(lesson.cta)}
-            >
-              {lesson.cta.kind === 'habit'
-                ? `Crear el hábito: ${lesson.cta.title}`
-                : `Crear la meta: ${lesson.cta.title}`}
-            </button>
-          )}
-
-          {/* Avanzar dentro de la colección sin salir y volver a entrar cada vez.
-              En la última lección, cerrar la colección en vez de dejar sin salida. */}
-          {nextLesson ? (
-            <button
-              type="button"
-              className="btn btn--ghost btn--block"
-              onClick={() => setLessonId(nextLesson.id)}
-            >
-              Siguiente lección: {nextLesson.title} →
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn--link"
-              style={{ alignSelf: 'center' }}
-              onClick={() => setLessonId(null)}
-            >
-              Terminaste {collection.title} · volver a la colección
-            </button>
-          )}
+            {/* Avanzar dentro de la colección sin salir y volver a entrar cada vez.
+                En la última lección, cerrar la colección en vez de dejar sin salida. */}
+            {nextLesson ? (
+              <button
+                type="button"
+                className="btn btn--ghost btn--block"
+                onClick={() => setLessonId(nextLesson.id)}
+              >
+                Siguiente lección: {nextLesson.title} →
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn--link"
+                style={{ alignSelf: 'center' }}
+                onClick={() => setLessonId(null)}
+              >
+                Terminaste {collection.title} · volver a la colección
+              </button>
+            )}
+          </div>
         </div>
       </div>
     )
@@ -209,8 +250,9 @@ export function Learn() {
   /* ----- Vista de colección ----------------------------------------------- */
   if (collection) {
     const readCount = collection.lessons.filter((l) => read.has(l.id)).length
+    const nextUnread = collection.lessons.find((l) => !read.has(l.id)) ?? null
     return (
-      <div className="screen">
+      <div className="screen" style={nicheAccent(collection.area)}>
         <header className="screen__header row" style={{ alignItems: 'center', gap: 'var(--s3)' }}>
           <button
             type="button"
@@ -221,38 +263,59 @@ export function Learn() {
             <IconBack size={20} />
           </button>
           <div style={{ minWidth: 0 }}>
-            <h1 className="screen__title" style={{ fontSize: 'var(--fs-xl)' }}>
-              {collection.title}
-            </h1>
+            <span className="row row--sm" style={{ alignItems: 'center' }}>
+              <NicheGlyph area={collection.area} size="sm" />
+              <h1 className="screen__title" style={{ fontSize: 'var(--fs-xl)' }}>
+                {collection.title}
+              </h1>
+            </span>
             <p className="muted small" style={{ margin: 0 }}>
-              {readCount} de {collection.lessons.length} leídas
+              {collection.blurb}
             </p>
           </div>
         </header>
 
+        <div className="stack stack--sm learn-enter" style={{ ...stagger(0), marginBottom: 'var(--s4)' }}>
+          <div className="learn-card__bar">
+            <span style={{ width: `${(readCount / collection.lessons.length) * 100}%` }} />
+          </div>
+          <span className="faint tiny">
+            {readCount === collection.lessons.length
+              ? 'Colección completa. Releer también cuenta.'
+              : `${readCount} de ${collection.lessons.length} leídas`}
+          </span>
+        </div>
+
         <div className="stack stack--sm">
-          {collection.lessons.map((l) => {
+          {collection.lessons.map((l, i) => {
             const isRead = read.has(l.id)
+            const isNext = nextUnread?.id === l.id
             return (
               <button
                 key={l.id}
                 type="button"
-                className="card card--tight row row--between"
-                style={{ width: '100%', textAlign: 'left', alignItems: 'center' }}
+                className={`card card--tight row lesson-row learn-enter${isRead ? ' lesson-row--read' : ''}${isNext ? ' lesson-row--next' : ''}`}
+                style={stagger(i + 1)}
                 onClick={() => setLessonId(l.id)}
               >
-                <span className="row row--sm" style={{ alignItems: 'center', minWidth: 0 }}>
-                  {/* Indicador de lectura, no botón: se marca dentro de la lección. */}
-                  <span
-                    className={`check${isRead ? ' check--done' : ''}`}
-                    role="img"
-                    aria-label={isRead ? 'Lección leída' : 'Lección pendiente'}
-                  >
+                <span className="lesson-row__num" aria-hidden="true">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <span className="stack" style={{ gap: 2, minWidth: 0, flex: 1 }}>
+                  <strong className="nowrap-ellipsis">{l.title}</strong>
+                  <span className="faint tiny">
+                    {readingMinutes(l)} min de lectura
+                    {isNext && readCount > 0 ? ' · sigue aquí' : ''}
+                  </span>
+                </span>
+                {/* Indicador de lectura, no botón: se marca dentro de la lección. */}
+                {isRead ? (
+                  <span className="check check--done" role="img" aria-label="Lección leída">
                     <IconCheck size={16} />
                   </span>
-                  <strong className="nowrap-ellipsis">{l.title}</strong>
-                </span>
-                <IconChevronRight size={16} style={{ color: 'var(--text-faint)', flex: 'none' }} />
+                ) : (
+                  <IconChevronRight size={16} style={{ color: 'var(--text-faint)', flex: 'none' }} />
+                )}
               </button>
             )
           })}
@@ -294,27 +357,45 @@ export function Learn() {
         </div>
       ) : (
         <div className="stack stack--sm">
-          {collections.map((c) => {
+          {collections.map((c, i) => {
             const readCount = c.lessons.filter((l) => read.has(l.id)).length
+            const nextUnread = c.lessons.find((l) => !read.has(l.id)) ?? null
+            const totalMinutes = c.lessons.reduce((sum, l) => sum + readingMinutes(l), 0)
+            const complete = readCount === c.lessons.length
             return (
               <button
                 key={c.id}
                 type="button"
-                className="card stack stack--sm"
-                style={{ width: '100%', textAlign: 'left' }}
+                className="card learn-card stack stack--sm learn-enter"
+                style={{ ...nicheAccent(c.area), ...stagger(i) }}
                 onClick={() => setCollectionId(c.id)}
               >
                 <span className="row row--sm" style={{ alignItems: 'center', minWidth: 0 }}>
-                  <NicheGlyph area={c.area} size="sm" />
+                  <NicheGlyph area={c.area} size="md" />
                   <strong className="nowrap-ellipsis">{c.title}</strong>
-                  {focusArea === c.area && <span className="tag">Para tu foco</span>}
+                  {focusArea === c.area && <span className="tag tag--niche">Para tu foco</span>}
                 </span>
                 <p className="muted small" style={{ margin: 0 }}>
                   {c.blurb}
                 </p>
-                <span className="faint tiny">
-                  {c.lessons.length} lecciones · {readCount} leídas
-                </span>
+                {readCount > 0 && (
+                  <span className="learn-card__bar">
+                    <span style={{ width: `${(readCount / c.lessons.length) * 100}%` }} />
+                  </span>
+                )}
+                {complete ? (
+                  <span className="row row--sm faint tiny" style={{ alignItems: 'center' }}>
+                    <IconCheck size={14} style={{ color: 'var(--success)' }} /> Colección completa
+                  </span>
+                ) : nextUnread && readCount > 0 ? (
+                  <span className="learn-card__next nowrap-ellipsis">
+                    Sigue: {nextUnread.title} →
+                  </span>
+                ) : (
+                  <span className="faint tiny">
+                    {c.lessons.length} lecciones · {totalMinutes} min en total
+                  </span>
+                )}
               </button>
             )
           })}
