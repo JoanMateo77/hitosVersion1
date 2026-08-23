@@ -1,10 +1,13 @@
-import { useEffect, useState, type ComponentType } from 'react'
+import { useEffect, useRef, useState, type ComponentType } from 'react'
 import { useSession } from '@/app/session'
+import { useToast } from '@/app/toast'
 import { deleteAccount, signOut } from '@/services/auth'
-import { updateRhythm } from '@/services/profile'
+import { fetchCurrentStreak, updateRhythm, uploadAvatar } from '@/services/profile'
 import { disablePush, enablePush, getPushState } from '@/lib/push'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 import { IconMoon, IconSun, IconSunrise } from '@/components/icons'
+import { FRAMES, frameForStreak } from '@/domain/frames'
+import { useCachedData } from '@/hooks/useCachedData'
 import type { PreferredMoment } from '@/lib/types'
 
 const MOMENTS: { id: PreferredMoment; label: string; Icon: ComponentType<{ size?: number }> }[] = [
@@ -15,11 +18,40 @@ const MOMENTS: { id: PreferredMoment; label: string; Icon: ComponentType<{ size?
 
 export function ProfileScreen() {
   const { userId, email, profile, setProfile } = useSession()
+  const { toast } = useToast()
   const [signingOut, setSigningOut] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [push, setPush] = useState<'on' | 'off' | 'blocked' | 'unsupported' | 'loading'>('loading')
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  // Racha con la misma métrica que Progreso; tolerante a errores (queda en 0,
+  // el resto de la pantalla no se bloquea). Misma clave de cache que la TopBar.
+  const { data: streakData } = useCachedData(
+    `streak:${userId}`,
+    () => fetchCurrentStreak(userId).catch(() => 0),
+    [userId],
+  )
+  const streak = streakData ?? 0
+  const frame = frameForStreak(streak)
+
+  async function handleAvatarFile(file: File | undefined) {
+    if (!file || uploading) return
+    setUploading(true)
+    try {
+      const updated = await uploadAvatar(userId, file)
+      setProfile(updated)
+      toast('Foto actualizada', 'success')
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'No se pudo subir la foto.', 'warning')
+    } finally {
+      setUploading(false)
+      // Permite volver a elegir el mismo archivo si el usuario reintenta.
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   useEffect(() => {
     let active = true
@@ -109,9 +141,20 @@ export function ProfileScreen() {
             fontWeight: 700,
             fontSize: 18,
             flex: 'none',
+            overflow: 'hidden',
+            // El marco ganado con la racha se pinta como anillo alrededor.
+            boxShadow: frame ? `0 0 0 3px ${frame.color}` : undefined,
           }}
         >
-          {initial}
+          {profile.avatarUrl ? (
+            <img
+              src={profile.avatarUrl}
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+            />
+          ) : (
+            initial
+          )}
         </span>
         <div style={{ minWidth: 0 }}>
           <h1 className="screen__title" style={{ fontSize: 'var(--fs-xl)' }}>
@@ -120,6 +163,22 @@ export function ProfileScreen() {
           <p className="muted small nowrap-ellipsis" style={{ margin: 0 }}>
             {email}
           </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => void handleAvatarFile(e.target.files?.[0])}
+          />
+          <button
+            type="button"
+            className="btn--link small"
+            style={{ padding: 0 }}
+            disabled={uploading}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {uploading ? 'Subiendo…' : profile.avatarUrl ? 'Cambiar foto' : 'Añadir foto'}
+          </button>
         </div>
       </header>
 
@@ -180,14 +239,68 @@ export function ProfileScreen() {
         </div>
       </section>
 
+      {/* ----- Tu marco: identidad de constancia (racha de días comprometidos) ----- */}
+      <section className="card stack stack--sm" aria-label="Tu marco">
+        <span className="kicker">Tu marco</span>
+        <p className="small" style={{ margin: 0 }}>
+          Racha actual: <strong>{streak} {streak === 1 ? 'día cumplido' : 'días cumplidos'}</strong>
+          {frame && (
+            <>
+              {' · '}marco <strong style={{ color: frame.color }}>{frame.label}</strong>
+            </>
+          )}
+        </p>
+        <div className="row wrap" style={{ gap: 'var(--s4)' }}>
+          {FRAMES.map((f) => {
+            const earned = streak >= f.minStreak
+            return (
+              <div
+                key={f.id}
+                className="stack"
+                style={{ alignItems: 'center', gap: 4, opacity: earned ? 1 : 0.35 }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: '50%',
+                    background: 'var(--surface-2)',
+                    boxShadow: `0 0 0 3px ${f.color}`,
+                  }}
+                />
+                <span className="tiny" style={{ fontWeight: 600 }}>
+                  {f.label}
+                </span>
+                <span className="faint tiny">
+                  {earned ? `${f.minStreak}+ días` : `a ${f.minStreak} días`}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+        <p className="field__hint" style={{ margin: 0 }}>
+          El marco se gana cumpliendo tus días comprometidos y rodea tu foto en toda la app. Si la
+          racha se corta, el marco se pierde: refleja tu constancia de hoy, no tu récord histórico.
+        </p>
+      </section>
+
       {/* ----- Recordatorios ----- */}
       <section className="card stack stack--sm" aria-label="Recordatorios">
         <span className="kicker">Recordatorios</span>
         {push === 'unsupported' ? (
-          <p className="small muted" style={{ margin: 0 }}>
-            Este navegador no soporta recordatorios. En iPhone: instala Lógralo en tu pantalla de
-            inicio (Compartir → Añadir a pantalla de inicio) y vuelve aquí.
-          </p>
+          <div className="stack stack--sm">
+            <p className="small muted" style={{ margin: 0 }}>
+              Los recordatorios te avisan a la hora de cada sesión, pero este navegador no permite
+              notificaciones. En iPhone la solución toma 10 segundos: abre Lógralo en Safari, toca{' '}
+              <strong>Compartir → Añadir a pantalla de inicio</strong>, y ábrela desde ese icono —
+              funciona como una app y los recordatorios se activan aquí mismo.
+            </p>
+            <p className="faint tiny" style={{ margin: 0 }}>
+              Las apps nativas para celular y computador están en camino; por ahora la versión
+              instalada desde el navegador es la experiencia completa.
+            </p>
+          </div>
         ) : push === 'blocked' ? (
           <p className="small muted" style={{ margin: 0 }}>
             Bloqueaste las notificaciones para este sitio. Actívalas desde los ajustes del navegador.
