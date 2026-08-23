@@ -9,11 +9,18 @@ import { IconHito } from '@/components/icons'
  */
 export function UpdatePassword({ onDone }: { onDone: () => void }) {
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [show, setShow] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    // Coincidencia validada ANTES de ir al servidor, igual que en el registro.
+    if (password !== confirm) {
+      setError('Las contraseñas no coinciden.')
+      return
+    }
     setSaving(true)
     setError(null)
     try {
@@ -42,13 +49,23 @@ export function UpdatePassword({ onDone }: { onDone: () => void }) {
           </p>
         </header>
         <div className="field">
-          <label className="field__label" htmlFor="new-password">
-            Contraseña nueva
-          </label>
+          <div className="row row--between" style={{ alignItems: 'baseline' }}>
+            <label className="field__label" htmlFor="new-password">
+              Contraseña nueva
+            </label>
+            <button
+              type="button"
+              className="btn--link tiny"
+              aria-pressed={show}
+              onClick={() => setShow((s) => !s)}
+            >
+              {show ? 'Ocultar' : 'Mostrar'}
+            </button>
+          </div>
           <input
             id="new-password"
             className="input"
-            type="password"
+            type={show ? 'text' : 'password'}
             autoComplete="new-password"
             placeholder="Mínimo 6 caracteres"
             value={password}
@@ -56,6 +73,22 @@ export function UpdatePassword({ onDone }: { onDone: () => void }) {
             required
             minLength={6}
             autoFocus
+          />
+        </div>
+        <div className="field">
+          <label className="field__label" htmlFor="confirm-password">
+            Repite la contraseña
+          </label>
+          <input
+            id="confirm-password"
+            className="input"
+            type={show ? 'text' : 'password'}
+            autoComplete="new-password"
+            placeholder="La misma de arriba"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            required
+            minLength={6}
           />
         </div>
         {error && (

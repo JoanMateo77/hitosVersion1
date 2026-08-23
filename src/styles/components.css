@@ -2814,6 +2814,22 @@ select.input {
   color: var(--niche, var(--primary));
 }
 
+/* Separador "o con tu email" entre OAuth y el formulario clásico. */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  color: var(--text-faint);
+  font-size: var(--fs-xs);
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-soft);
+}
+
 /* CTA del wizard siempre a la vista: elegir una opción en una lista larga no
    debe obligar a scrollear hasta el fondo para poder continuar. El degradado
    funde la lista que pasa por debajo con el fondo. */

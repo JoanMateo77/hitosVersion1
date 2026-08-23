@@ -59,6 +59,25 @@ export async function signIn(email: string, password: string): Promise<void> {
   if (error) throw new Error(translateAuthError(error.message))
 }
 
+/**
+ * Inicio de sesión con Google (OAuth 2 vía Supabase). Redirige al consentimiento
+ * de Google y vuelve al origen de la app con la sesión creada; si la cuenta no
+ * existía, se crea sola (sin correo de confirmación). Requiere el proveedor
+ * Google habilitado en Supabase → Authentication → Providers.
+ */
+export async function signInWithGoogle(): Promise<void> {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: `${window.location.origin}/` },
+  })
+  if (error) {
+    const m = error.message.toLowerCase()
+    if (m.includes('provider') && (m.includes('not enabled') || m.includes('disabled')))
+      throw new Error('Entrar con Google no está disponible por ahora. Usa tu email.')
+    throw new Error(translateAuthError(error.message))
+  }
+}
+
 export async function resetPassword(email: string): Promise<void> {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${window.location.origin}/`,
