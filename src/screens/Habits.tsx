@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { useToast } from '@/app/toast'
-import type { Goal, Habit, NicheId } from '@/lib/types'
+import type { Goal, Habit, HabitCheck, NicheId } from '@/lib/types'
 import { listGoals } from '@/services/goals'
 import {
   createHabit,
@@ -12,17 +12,25 @@ import {
   setHabitCheck,
   updateHabit,
 } from '@/services/habits'
-import { habitAppliesOn, habitStreak, habitWeek } from '@/domain/habits'
+import {
+  habitAppliesOn,
+  habitCompleteDates,
+  habitDoneCount,
+  habitStreak,
+  habitTarget,
+  habitWeek,
+  nextSlot,
+} from '@/domain/habits'
 import { NICHES } from '@/domain/niches'
 import { WEEKDAY_LABELS } from '@/domain/commitment'
-import { addDays, startOfWeek, todayISO } from '@/lib/date'
+import { addDays, formatTime12, startOfWeek, todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { friendlyError } from '@/lib/errors'
 import { sessionCache } from '@/lib/sessionCache'
 import { useCacheMirror } from '@/hooks/useCacheMirror'
 import { NicheGlyph, NicheIcon } from '@/components/NicheGlyph'
 import { SkeletonList } from '@/components/Skeleton'
-import { IconArrowReturn, IconDots, IconFlame, IconLightbulb, IconPlus } from '@/components/icons'
+import { IconArrowReturn, IconClose, IconDots, IconFlame, IconLightbulb, IconPlus } from '@/components/icons'
 
 /** Mapa de estado de día → modificador de weekstrip (due se dibuja como "future":
  *  todavía se puede cumplir, igual que una sesión pendiente). */
@@ -50,8 +58,8 @@ const HABIT_IDEAS: { title: string; area: NicheId }[] = [
 /** Cuántos días de checks pedimos hacia atrás: suficiente para rachas largas. */
 const CHECK_HISTORY_DAYS = 120
 
-/** Set compartido para hábitos sin checks: evita crear uno por render. */
-const EMPTY_CHECKS = new Set<string>()
+/** Lista compartida para hábitos sin checks: evita crear una por render. */
+const EMPTY_CHECKS: HabitCheck[] = []
 
 /** "Todos los días" o "Lu · Mi · Vi" — resumen humano de los días del hábito. */
 function daysLabel(weekdays: number[]): string {
@@ -59,8 +67,82 @@ function daysLabel(weekdays: number[]): string {
   return weekdays.map((d) => WEEKDAY_LABELS[d]).join(' · ')
 }
 
+/**
+ * Pauta completa del hábito: días + horas. "Todos los días" como siempre si no
+ * tiene horas; con horas suma "5 veces al día · 8:00 am – 8:00 pm" (o la hora
+ * única si es una sola).
+ */
+function pautaLabel(habit: Habit): string {
+  const base = daysLabel(habit.weekdays)
+  const times = habit.times
+  if (!times || times.length === 0) return base
+  if (times.length === 1) return `${base} · ${formatTime12(times[0])}`
+  return `${base} · ${times.length} veces al día · ${formatTime12(times[0])} – ${formatTime12(times[times.length - 1])}`
+}
+
+/** Horas listas para guardar: sin vacías y ordenadas ascendente; null si no hay. */
+function cleanTimes(times: string[]): string[] | null {
+  const clean = times.filter((t) => t.length > 0).sort((a, b) => a.localeCompare(b))
+  return clean.length > 0 ? clean : null
+}
+
+/**
+ * Editor de momentos del día: lista de horas, quitar, y "+ agregar otro
+ * momento". Vacío = una vez al día sin hora fija (el comportamiento clásico).
+ * Se usa igual al crear (estado local) y al editar (persiste cada cambio).
+ */
+function TimesEditor({ times, onChange }: { times: string[]; onChange: (t: string[]) => void }) {
+  return (
+    <div className="stack stack--sm">
+      <span className="kicker">¿A qué horas?</span>
+      {times.length === 0 ? (
+        <p className="faint tiny" style={{ margin: 0 }}>
+          Una vez al día, sin hora fija. Agrega momentos si quieres repetirlo o
+          hacerlo a una hora concreta.
+        </p>
+      ) : (
+        <>
+          {times.map((t, i) => (
+            <div key={i} className="row" style={{ alignItems: 'center' }}>
+              <input
+                className="input"
+                type="time"
+                value={t}
+                aria-label={`Momento ${i + 1}`}
+                onChange={(e) => onChange(times.map((x, j) => (j === i ? e.target.value : x)))}
+              />
+              <button
+                type="button"
+                className="iconbtn iconbtn--sm"
+                style={{ flex: 'none' }}
+                aria-label={`Quitar el momento ${i + 1}`}
+                onClick={() => onChange(times.filter((_, j) => j !== i))}
+              >
+                <IconClose size={16} />
+              </button>
+            </div>
+          ))}
+          <p className="faint tiny" style={{ margin: 0 }}>
+            {times.length === 1
+              ? '1 vez al día. Cada momento que agregues es una repetición.'
+              : `${times.length} veces al día: se cumple completando todas.`}
+          </p>
+        </>
+      )}
+      <button
+        type="button"
+        className="btn--link"
+        style={{ alignSelf: 'flex-start' }}
+        onClick={() => onChange([...times, ''])}
+      >
+        + agregar otro momento
+      </button>
+    </div>
+  )
+}
+
 /** Instantánea de datos cacheada por sesión para pintar la pantalla al instante. */
-type HabitsSnapshot = { habits: Habit[]; checksByHabit: Map<string, Set<string>>; goals: Goal[] }
+type HabitsSnapshot = { habits: Habit[]; checksByHabit: Map<string, HabitCheck[]>; goals: Goal[] }
 
 /**
  * Pantalla de hábitos: crear, ver la semana de cada uno, editar días y archivar.
@@ -79,7 +161,7 @@ export function Habits() {
   const cacheKey = `habits:${userId}`
   const cached = sessionCache.get<HabitsSnapshot>(cacheKey)
   const [habits, setHabits] = useState<Habit[] | null>(cached?.habits ?? null)
-  const [checksByHabit, setChecksByHabit] = useState<Map<string, Set<string>>>(
+  const [checksByHabit, setChecksByHabit] = useState<Map<string, HabitCheck[]>>(
     cached?.checksByHabit ?? new Map(),
   )
   // Metas activas: para vincular un hábito a una meta (opcional).
@@ -97,12 +179,13 @@ export function Habits() {
     ])
       .then(([loaded, checks, loadedGoals]) => {
         if (!active) return
-        // Indexamos los checks por hábito una sola vez: racha y semana leen Sets.
-        const byHabit = new Map<string, Set<string>>()
+        // Indexamos los checks por hábito una sola vez: racha, semana y slots
+        // del día leen de aquí.
+        const byHabit = new Map<string, HabitCheck[]>()
         for (const check of checks) {
-          const set = byHabit.get(check.habitId) ?? new Set<string>()
-          set.add(check.date)
-          byHabit.set(check.habitId, set)
+          const list = byHabit.get(check.habitId) ?? []
+          list.push(check)
+          byHabit.set(check.habitId, list)
         }
         setHabits(loaded)
         setChecksByHabit(byHabit)
@@ -127,6 +210,7 @@ export function Habits() {
   const [title, setTitle] = useState('')
   const [area, setArea] = useState<NicheId>('otra')
   const [days, setDays] = useState<number[]>([])
+  const [formTimes, setFormTimes] = useState<string[]>([])
   const [goalId, setGoalId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -145,6 +229,7 @@ export function Habits() {
     setTitle(idea.title)
     setArea(idea.area)
     setDays([])
+    setFormTimes([])
     setGoalId(null)
     setFormError(null)
     setFormOpen(true)
@@ -165,11 +250,18 @@ export function Habits() {
     setSaving(true)
     setFormError(null)
     try {
-      const habit = await createHabit(userId, { title: cleanTitle, area, weekdays: days, goalId })
+      const habit = await createHabit(userId, {
+        title: cleanTitle,
+        area,
+        weekdays: days,
+        goalId,
+        times: cleanTimes(formTimes),
+      })
       setHabits((prev) => [...(prev ?? []), habit])
       setTitle('')
       setArea('otra')
       setDays([])
+      setFormTimes([])
       setGoalId(null)
       setFormOpen(false)
       toast(`Hábito creado: ${habit.title}`, 'success')
@@ -182,35 +274,51 @@ export function Habits() {
 
   // --- Acciones sobre hábitos existentes ---
   const [menuId, setMenuId] = useState<string | null>(null)
+  // Borrador de horas del hábito con el menú abierto: se muestra tal cual se
+  // edita (sin reordenar los inputs bajo los dedos) y se persiste ordenado.
+  const [menuTimes, setMenuTimes] = useState<string[]>([])
+
+  function openMenu(habit: Habit) {
+    if (menuId === habit.id) {
+      setMenuId(null)
+      return
+    }
+    setMenuId(habit.id)
+    setMenuTimes(habit.times ?? [])
+  }
+
+  /** Suma o quita un check de un slot en el estado local (optimista/revert). */
+  function patchChecks(habitId: string, check: HabitCheck, add: boolean) {
+    setChecksByHabit((prev) => {
+      const next = new Map(prev)
+      const list = next.get(habitId) ?? []
+      next.set(
+        habitId,
+        add
+          ? [...list, check]
+          : list.filter((c) => !(c.date === check.date && c.slot === check.slot)),
+      )
+      return next
+    })
+  }
 
   /**
    * Marca (o desmarca) el hábito para HOY, con la misma gramática de un toque
-   * que en Hoy: la pantalla se llama "Rutinas de un toque" y aquí también se
-   * cumple. Optimista; si el servidor falla, revierte el check.
+   * que en Hoy: marca la SIGUIENTE repetición pendiente y, si el día ya está
+   * completo, desmarca la ÚLTIMA. Optimista; si el servidor falla, revierte.
    */
   async function toggleToday(habit: Habit) {
-    const set = checksByHabit.get(habit.id) ?? new Set<string>()
-    const wasDone = set.has(today)
+    const todayChecks = (checksByHabit.get(habit.id) ?? []).filter((c) => c.date === today)
+    const slotToAdd = nextSlot(habit, todayChecks, today)
+    const adding = slotToAdd !== null
+    const slot = adding ? slotToAdd : Math.max(...todayChecks.map((c) => c.slot))
+    const check: HabitCheck = { habitId: habit.id, date: today, slot }
     setActionError(null)
-    setChecksByHabit((prev) => {
-      const next = new Map(prev)
-      const s = new Set(next.get(habit.id) ?? [])
-      if (wasDone) s.delete(today)
-      else s.add(today)
-      next.set(habit.id, s)
-      return next
-    })
+    patchChecks(habit.id, check, adding)
     try {
-      await setHabitCheck(userId, habit.id, today, !wasDone)
+      await setHabitCheck(userId, habit.id, today, adding, slot)
     } catch (err) {
-      setChecksByHabit((prev) => {
-        const next = new Map(prev)
-        const s = new Set(next.get(habit.id) ?? [])
-        if (wasDone) s.add(today)
-        else s.delete(today)
-        next.set(habit.id, s)
-        return next
-      })
+      patchChecks(habit.id, check, !adding)
       setActionError(friendlyError(err, 'No se pudo marcar el hábito.'))
     }
   }
@@ -228,6 +336,25 @@ export function Habits() {
     } catch (err) {
       setHabits((prev) => prev?.map((h) => (h.id === habit.id ? habit : h)) ?? prev)
       setActionError(friendlyError(err, 'No se pudieron guardar los días.'))
+    }
+  }
+
+  /**
+   * Cambia las horas del hábito desde el menú: el borrador se muestra tal cual
+   * y se persiste limpio (sin vacías, ordenado). Optimista con revert.
+   */
+  async function changeHabitTimes(habit: Habit, next: string[]) {
+    setMenuTimes(next)
+    const nextTimes = cleanTimes(next)
+    if ((habit.times ?? []).join(',') === (nextTimes ?? []).join(',')) return
+    setActionError(null)
+    setHabits((prev) => prev?.map((h) => (h.id === habit.id ? { ...h, times: nextTimes } : h)) ?? prev)
+    try {
+      const updated = await updateHabit(habit.id, { times: nextTimes })
+      setHabits((prev) => prev?.map((h) => (h.id === habit.id ? updated : h)) ?? prev)
+    } catch (err) {
+      setHabits((prev) => prev?.map((h) => (h.id === habit.id ? habit : h)) ?? prev)
+      setActionError(friendlyError(err, 'No se pudieron guardar las horas.'))
     }
   }
 
@@ -339,6 +466,8 @@ export function Habits() {
             )}
           </div>
 
+          <TimesEditor times={formTimes} onChange={setFormTimes} />
+
           {activeGoals.length > 0 && (
             <div className="stack stack--sm">
               <span className="kicker">¿Suma a una meta? (opcional)</span>
@@ -398,10 +527,15 @@ export function Habits() {
             <ul className="stack stack--sm" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
               {active.map((habit) => {
                 const checks = checksByHabit.get(habit.id) ?? EMPTY_CHECKS
-                const streak = habitStreak(checks, habit.weekdays, today)
-                const week = habitWeek(checks, habit, weekStart)
+                // Racha y semana cuentan solo los días con el hábito COMPLETO
+                // (todas sus repeticiones, si tiene horas).
+                const completeDates = habitCompleteDates(habit, checks)
+                const streak = habitStreak(completeDates, habit.weekdays, today)
+                const week = habitWeek(completeDates, habit, weekStart)
                 const dueToday = habitAppliesOn(habit, today)
-                const doneToday = checks.has(today)
+                const target = habitTarget(habit)
+                const doneCount = habitDoneCount(checks, habit.id, today)
+                const doneToday = doneCount >= target
                 return (
                   <li key={habit.id} className="card card--tight stack stack--sm" style={nicheAccent(habit.area)}>
                     <div className="row" style={{ alignItems: 'center' }}>
@@ -419,7 +553,10 @@ export function Habits() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ margin: 0, fontWeight: 600, wordBreak: 'break-word' }}>{habit.title}</p>
                         <span className="row row--sm wrap" style={{ alignItems: 'center', rowGap: 2 }}>
-                          <span className="faint tiny">{daysLabel(habit.weekdays)}</span>
+                          <span className="faint tiny">{pautaLabel(habit)}</span>
+                          {target > 1 && dueToday && (
+                            <span className="tag">{doneCount} de {target} hoy</span>
+                          )}
                           {habit.goalId && goalById.get(habit.goalId) && (
                             <span className="tag">
                               <IconArrowReturn size={11} /> {goalById.get(habit.goalId)!.title}
@@ -437,7 +574,7 @@ export function Habits() {
                         className="iconbtn iconbtn--sm"
                         aria-expanded={menuId === habit.id}
                         aria-label={`Opciones del hábito: ${habit.title}`}
-                        onClick={() => setMenuId(menuId === habit.id ? null : habit.id)}
+                        onClick={() => openMenu(habit)}
                       >
                         <IconDots size={17} />
                       </button>
@@ -475,6 +612,10 @@ export function Habits() {
                             Sin días marcados, aplica todos los días.
                           </p>
                         )}
+                        <TimesEditor
+                          times={menuTimes}
+                          onChange={(next) => void changeHabitTimes(habit, next)}
+                        />
                         {activeGoals.length > 0 && (
                           <>
                             <span className="kicker">¿Suma a una meta?</span>

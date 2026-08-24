@@ -2861,3 +2861,18 @@ select.input {
   padding: 0;
   color: inherit;
 }
+
+/* --- Hábitos en la agenda (0013: horarios y repeticiones) --- */
+/* Repetición cumplida: misma gramática que un hábito hecho en Hoy. */
+.ev--habit-done {
+  opacity: 0.72;
+}
+.ev--habit-done .ev__title {
+  text-decoration: line-through;
+  color: var(--text-faint);
+}
+/* Puntito del mes para días con hábitos (los eventos usan --success y las
+   sesiones/metas --primary; el ámbar los distingue sin estridencia). */
+.cal-dot--habit {
+  background: var(--warning);
+}

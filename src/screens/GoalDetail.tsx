@@ -410,12 +410,12 @@ export function GoalDetail() {
     setHabitChecks((prev) =>
       wasDone
         ? prev.filter((c) => !(c.habitId === h.id && c.date === todayDate))
-        : [...prev, { habitId: h.id, date: todayDate }],
+        : [...prev, { habitId: h.id, date: todayDate, slot: 0 }],
     )
     setHabitCheck(userId, h.id, todayDate, !wasDone).catch(() => {
       setHabitChecks((prev) =>
         wasDone
-          ? [...prev, { habitId: h.id, date: todayDate }]
+          ? [...prev, { habitId: h.id, date: todayDate, slot: 0 }]
           : prev.filter((c) => !(c.habitId === h.id && c.date === todayDate)),
       )
       toast('No se pudo guardar el hábito.', 'warning')

@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { habitAppliesOn, habitsDueOn, habitStreak, habitWeek } from '@/domain/habits'
+import {
+  habitAppliesOn,
+  habitCompleteDates,
+  habitDoneCount,
+  habitIsComplete,
+  habitStreak,
+  habitTarget,
+  habitsDueOn,
+  habitWeek,
+  nextSlot,
+} from '@/domain/habits'
 import { weekdayMon0 } from '@/domain/commitment'
 import { addDays, startOfWeek, todayISO } from '@/lib/date'
-import type { Habit } from '@/lib/types'
+import type { Habit, HabitCheck } from '@/lib/types'
 
 // Fechas de referencia fijas: la semana del lunes 2026-06-08 al domingo 2026-06-14.
 function habit(over: Partial<Habit> = {}): Habit {
@@ -12,10 +22,16 @@ function habit(over: Partial<Habit> = {}): Habit {
     title: 'Tomar agua',
     area: 'salud',
     weekdays: [],
+    times: null,
+    goalId: null,
     createdAt: '2026-06-01T00:00:00Z',
     archivedAt: null,
     ...over,
   }
+}
+
+function check(over: Partial<HabitCheck> = {}): HabitCheck {
+  return { habitId: 'h1', date: '2026-06-08', slot: 0, ...over }
 }
 
 describe('habitAppliesOn', () => {
@@ -58,7 +74,91 @@ describe('habitsDueOn', () => {
   })
 })
 
+describe('habitTarget', () => {
+  it('sin horas la meta diaria es 1 (null y lista vacía)', () => {
+    expect(habitTarget(habit({ times: null }))).toBe(1)
+    expect(habitTarget(habit({ times: [] }))).toBe(1)
+  })
+  it('con horas, una repetición por hora', () => {
+    expect(habitTarget(habit({ times: ['08:00', '13:00', '20:00'] }))).toBe(3)
+  })
+})
+
+describe('habitDoneCount', () => {
+  it('cuenta solo los checks de ese hábito y esa fecha', () => {
+    const checks = [
+      check({ slot: 0 }),
+      check({ slot: 1 }),
+      check({ date: '2026-06-09', slot: 0 }),
+      check({ habitId: 'otro', slot: 2 }),
+    ]
+    expect(habitDoneCount(checks, 'h1', '2026-06-08')).toBe(2)
+    expect(habitDoneCount(checks, 'h1', '2026-06-09')).toBe(1)
+    expect(habitDoneCount(checks, 'h1', '2026-06-10')).toBe(0)
+  })
+})
+
+describe('habitIsComplete', () => {
+  it('sin horas: un check completa el día', () => {
+    expect(habitIsComplete(habit(), [check()], '2026-06-08')).toBe(true)
+    expect(habitIsComplete(habit(), [], '2026-06-08')).toBe(false)
+  })
+  it('con horas: completo solo cuando están todas las repeticiones', () => {
+    const h = habit({ times: ['08:00', '13:00', '20:00'] })
+    const dos = [check({ slot: 0 }), check({ slot: 1 })]
+    expect(habitIsComplete(h, dos, '2026-06-08')).toBe(false)
+    expect(habitIsComplete(h, [...dos, check({ slot: 2 })], '2026-06-08')).toBe(true)
+  })
+})
+
+describe('nextSlot', () => {
+  const h = habit({ times: ['08:00', '13:00', '20:00'] })
+  it('sin checks arranca en el slot 0', () => {
+    expect(nextSlot(h, [], '2026-06-08')).toBe(0)
+  })
+  it('devuelve el primer hueco aunque haya slots posteriores marcados', () => {
+    expect(nextSlot(h, [check({ slot: 0 }), check({ slot: 2 })], '2026-06-08')).toBe(1)
+  })
+  it('null cuando el día está completo', () => {
+    const all = [check({ slot: 0 }), check({ slot: 1 }), check({ slot: 2 })]
+    expect(nextSlot(h, all, '2026-06-08')).toBe(null)
+  })
+  it('sin horas: 0 pendiente, null tras el único check', () => {
+    expect(nextSlot(habit(), [], '2026-06-08')).toBe(0)
+    expect(nextSlot(habit(), [check()], '2026-06-08')).toBe(null)
+  })
+})
+
+describe('habitCompleteDates', () => {
+  it('multi-slot: solo cuentan los días con TODAS las repeticiones', () => {
+    const h = habit({ times: ['08:00', '20:00'] })
+    const checks = [
+      check({ date: '2026-06-08', slot: 0 }),
+      check({ date: '2026-06-08', slot: 1 }),
+      check({ date: '2026-06-09', slot: 0 }), // parcial: no cuenta
+      check({ habitId: 'otro', date: '2026-06-10', slot: 0 }),
+    ]
+    expect(habitCompleteDates(h, checks)).toEqual(new Set(['2026-06-08']))
+  })
+  it('sin horas equivale a "fechas con marca"', () => {
+    const checks = [check({ date: '2026-06-08' }), check({ date: '2026-06-10' })]
+    expect(habitCompleteDates(habit(), checks)).toEqual(new Set(['2026-06-08', '2026-06-10']))
+  })
+})
+
 describe('habitStreak', () => {
+  it('multi-slot: un día parcial (vía habitCompleteDates) corta la racha', () => {
+    const h = habit({ times: ['08:00', '20:00'] })
+    const checks = [
+      check({ date: '2026-06-10', slot: 0 }),
+      check({ date: '2026-06-10', slot: 1 }),
+      check({ date: '2026-06-09', slot: 0 }), // parcial: el martes 9 no cuenta
+      check({ date: '2026-06-08', slot: 0 }),
+      check({ date: '2026-06-08', slot: 1 }),
+    ]
+    expect(habitStreak(habitCompleteDates(h, checks), [], '2026-06-10')).toBe(1)
+  })
+
   it('weekdays vacío: cuenta días consecutivos marcados', () => {
     const checks = new Set(['2026-06-10', '2026-06-09', '2026-06-08'])
     expect(habitStreak(checks, [], '2026-06-10')).toBe(3)

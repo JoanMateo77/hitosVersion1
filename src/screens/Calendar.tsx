@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import type { CalendarEvent, Goal, ScheduleBlock, Session } from '@/lib/types'
+import type { CalendarEvent, Goal, Habit, HabitCheck, ScheduleBlock, Session } from '@/lib/types'
 import { listGoals } from '@/services/goals'
+import { listHabitChecksInRange, listHabits, setHabitCheck } from '@/services/habits'
+import { habitTarget, habitsDueOn } from '@/domain/habits'
 import {
   createEvent,
   deleteEvent,
@@ -47,7 +49,27 @@ import { useCacheMirror } from '@/hooks/useCacheMirror'
 type View = 'day' | 'week' | 'month'
 
 /** Instantánea de datos cacheada por sesión (por rango de fechas) para pintar al instante. */
-type CalSnapshot = { events: CalendarEvent[]; goals: Goal[]; blocks: ScheduleBlock[]; sessions: Session[] }
+type CalSnapshot = {
+  events: CalendarEvent[]
+  goals: Goal[]
+  blocks: ScheduleBlock[]
+  sessions: Session[]
+  habits: Habit[]
+  habitChecks: HabitCheck[]
+}
+
+/** Una repetición de un hábito tal como se ve en la agenda de un día. */
+interface DayHabitItem {
+  key: string
+  habit: Habit
+  /** Índice de la repetición (0 si el hábito no tiene horas). */
+  slot: number
+  /** Repeticiones totales del día (para el sufijo "2/5"). */
+  target: number
+  /** Hora de esta repetición, o null si el hábito no tiene hora. */
+  time: string | null
+  done: boolean
+}
 
 /** Una sesión tal como se ve en la agenda: real (fila en BD) o proyectada del compromiso. */
 interface DayAgendaSession {
@@ -141,6 +163,8 @@ export function Calendar() {
   const [goals, setGoals] = useState<Goal[]>(cached?.goals ?? [])
   const [blocks, setBlocks] = useState<ScheduleBlock[]>(cached?.blocks ?? [])
   const [sessions, setSessions] = useState<Session[]>(cached?.sessions ?? [])
+  const [habits, setHabits] = useState<Habit[]>(cached?.habits ?? [])
+  const [habitChecks, setHabitChecks] = useState<HabitCheck[]>(cached?.habitChecks ?? [])
   // block null = sesión espontánea (una sola fecha, sin recurrencia): se le pone
   // hora a esa sesión y se puede quitar. block presente = compromiso recurrente.
   const [timeSheet, setTimeSheet] = useState<{ goal: Goal; block: ScheduleBlock | null; session: Session | null } | null>(null)
@@ -158,17 +182,22 @@ export function Calendar() {
     async function load() {
       try {
         setError(null)
-        const [evs, gs, blks, sess] = await Promise.all([
+        const [evs, gs, blks, sess, habs, checks] = await Promise.all([
           listEventsInRange(userId, from, to),
           listGoals(userId),
           listScheduleForUser(userId),
           listSessionsInRange(userId, from, to),
+          // Hábitos con tolerancia a fallos: la agenda sigue sirviendo sin ellos.
+          listHabits(userId).catch(() => [] as Habit[]),
+          listHabitChecksInRange(userId, from, to).catch(() => [] as HabitCheck[]),
         ])
         if (!active) return
         setEvents(evs)
         setGoals(gs)
         setBlocks(blks)
         setSessions(sess)
+        setHabits(habs)
+        setHabitChecks(checks)
         loadedKeyRef.current = cacheKey
       } catch (err) {
         if (active) setError(friendlyError(err, 'No se pudo cargar tu agenda.'))
@@ -189,6 +218,8 @@ export function Calendar() {
     goals,
     blocks,
     sessions,
+    habits,
+    habitChecks,
   })
 
   const eventsByDate = useMemo(() => groupByDate(events), [events])
@@ -244,6 +275,44 @@ export function Calendar() {
       }
     }
     return items.sort((a, b2) => (a.time ?? '99').localeCompare(b2.time ?? '99'))
+  }
+
+  /**
+   * Repeticiones de hábitos que tocan en un día: solo hábitos activos cuyo
+   * weekday aplica; una fila por repetición (una sola, sin hora, si no tiene
+   * times). El slot i corresponde a times[i].
+   */
+  function dayHabits(day: string): DayHabitItem[] {
+    const items: DayHabitItem[] = []
+    for (const h of habitsDueOn(habits, day)) {
+      const target = habitTarget(h)
+      for (let slot = 0; slot < target; slot++) {
+        items.push({
+          key: `h-${h.id}-${day}-${slot}`,
+          habit: h,
+          slot,
+          target,
+          time: h.times?.[slot] ?? null,
+          done: habitChecks.some((c) => c.habitId === h.id && c.date === day && c.slot === slot),
+        })
+      }
+    }
+    return items
+  }
+
+  /** Alterna el check de UNA repetición desde la agenda (optimista, con revert). */
+  async function toggleHabitSlot(it: DayHabitItem, day: string) {
+    const check: HabitCheck = { habitId: it.habit.id, date: day, slot: it.slot }
+    const add = !it.done
+    const without = (list: HabitCheck[]) =>
+      list.filter((c) => !(c.habitId === check.habitId && c.date === day && c.slot === it.slot))
+    setHabitChecks((prev) => (add ? [...prev, check] : without(prev)))
+    try {
+      await setHabitCheck(userId, it.habit.id, day, add, it.slot)
+    } catch {
+      setHabitChecks((prev) => (add ? without(prev) : [...prev, check]))
+      toast('No se pudo marcar el hábito.')
+    }
   }
 
   function handleSession(it: DayAgendaSession) {
@@ -409,6 +478,8 @@ export function Calendar() {
     day,
     sessions: daySessions(day),
     onSession: handleSession,
+    habits: dayHabits(day),
+    onHabit: (it: DayHabitItem) => void toggleHabitSlot(it, day),
     events: eventsByDate.get(day) ?? [],
     deadlines: deadlinesByDate.get(day) ?? [],
     goalById,
@@ -493,6 +564,7 @@ export function Calendar() {
                     <span>{dayOfMonth(day)}</span>
                     <span className="cal-cell__dots">
                       {daySessions(day).length > 0 && <span className="cal-dot cal-dot--session" />}
+                      {habitsDueOn(habits, day).length > 0 && <span className="cal-dot cal-dot--habit" />}
                       {evs.slice(0, 3).map((e) => (
                         <span key={e.id} className="cal-dot" />
                       ))}
@@ -564,6 +636,8 @@ function DaySection({
   day,
   sessions,
   onSession,
+  habits,
+  onHabit,
   events,
   deadlines,
   goalById,
@@ -575,6 +649,8 @@ function DaySection({
   day: string
   sessions: DayAgendaSession[]
   onSession: (it: DayAgendaSession) => void
+  habits: DayHabitItem[]
+  onHabit: (it: DayHabitItem) => void
   events: CalendarEvent[]
   deadlines: Goal[]
   goalById: Map<string, Goal>
@@ -584,7 +660,26 @@ function DaySection({
   /** Sumar una sesión espontánea este día (solo hoy o futuro, con metas activas). */
   onPlanSession?: () => void
 }) {
-  const empty = sessions.length === 0 && events.length === 0 && deadlines.length === 0
+  const empty =
+    sessions.length === 0 && habits.length === 0 && events.length === 0 && deadlines.length === 0
+
+  // Una sola línea de tiempo: sesiones, repeticiones de hábitos y eventos se
+  // ordenan juntos por hora. Los eventos de día completo van primero y lo que
+  // no tiene hora (sesiones/hábitos sueltos) al final, como hasta ahora.
+  type DayListItem =
+    | { kind: 'session'; sort: string; session: DayAgendaSession }
+    | { kind: 'habit'; sort: string; habitItem: DayHabitItem }
+    | { kind: 'event'; sort: string; event: CalendarEvent }
+  const timeline: DayListItem[] = [
+    ...events.map((e) => ({
+      kind: 'event' as const,
+      sort: e.allDay || !e.startTime ? '' : e.startTime,
+      event: e,
+    })),
+    ...sessions.map((s) => ({ kind: 'session' as const, sort: s.time ?? '99', session: s })),
+    ...habits.map((h) => ({ kind: 'habit' as const, sort: h.time ?? '99', habitItem: h })),
+  ].sort((a, b) => a.sort.localeCompare(b.sort))
+
   return (
     <section className="cal-day stack stack--sm">
       <div className="row row--between">
@@ -600,39 +695,64 @@ function DaySection({
         <p className="faint small">Nada agendado. Toca + para sumar algo.</p>
       ) : (
         <div className="stack stack--sm">
-          {sessions.map((it) => {
-            const isClosed = ['done', 'partial', 'missed'].includes(it.state)
-            return (
-              <button
-                key={it.key}
-                className={`ev ev--session${isClosed ? ' ev--closed' : ''}`}
-                style={nicheAccent(it.goal.area)}
-                disabled={isClosed}
-                onClick={() => onSession(it)}
-                aria-label={`Sesión de ${it.goal.title}, ${sessionStateLabel(it.state)}`}
-              >
-                <span className="ev__time">{it.time ? formatTime12(it.time) : '—'}</span>
-                <span className="ev__body">
-                  <span className="ev__title">Sesión · {it.goal.title}</span>
-                  <span className="ev__meta">
-                    <span className="tag">{sessionStateLabel(it.state)}</span>
-                    <span className="faint tiny">{it.targetLabel}</span>
+          {timeline.map((item) => {
+            if (item.kind === 'session') {
+              const it = item.session
+              const isClosed = ['done', 'partial', 'missed'].includes(it.state)
+              return (
+                <button
+                  key={it.key}
+                  className={`ev ev--session${isClosed ? ' ev--closed' : ''}`}
+                  style={nicheAccent(it.goal.area)}
+                  disabled={isClosed}
+                  onClick={() => onSession(it)}
+                  aria-label={`Sesión de ${it.goal.title}, ${sessionStateLabel(it.state)}`}
+                >
+                  <span className="ev__time">{it.time ? formatTime12(it.time) : '—'}</span>
+                  <span className="ev__body">
+                    <span className="ev__title">Sesión · {it.goal.title}</span>
+                    <span className="ev__meta">
+                      <span className="tag">{sessionStateLabel(it.state)}</span>
+                      <span className="faint tiny">{it.targetLabel}</span>
+                    </span>
                   </span>
-                </span>
-              </button>
-            )
-          })}
-          {deadlines.map((g) => (
-            <button key={`d-${g.id}`} className="ev ev--goal" onClick={() => onGoal(g)}>
-              <span className="ev__time" style={{ display: 'inline-flex', justifyContent: 'flex-start' }}>
-                <IconFlag size={14} className="muted" />
-              </span>
-              <span className="ev__title">
-                Meta: {g.title} <span className="faint tiny">· fecha objetivo</span>
-              </span>
-            </button>
-          ))}
-          {events.map((e) => {
+                </button>
+              )
+            }
+            if (item.kind === 'habit') {
+              const it = item.habitItem
+              return (
+                <button
+                  key={it.key}
+                  className={`ev ev--session${it.done ? ' ev--habit-done' : ''}`}
+                  style={nicheAccent(it.habit.area)}
+                  onClick={() => onHabit(it)}
+                  aria-pressed={it.done}
+                  aria-label={`${it.done ? 'Desmarcar' : 'Marcar'} el hábito ${it.habit.title}${
+                    it.target > 1 ? `, repetición ${it.slot + 1} de ${it.target}` : ''
+                  }`}
+                >
+                  <span className="ev__time">{it.time ? formatTime12(it.time) : '—'}</span>
+                  <span className="ev__body">
+                    <span
+                      className="ev__title"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    >
+                      <span style={{ color: 'var(--niche)', display: 'inline-flex', flex: 'none' }}>
+                        <NicheIcon area={it.habit.area} size={14} />
+                      </span>
+                      {it.habit.title}
+                      {it.target > 1 && (
+                        <span className="tag">
+                          {it.slot + 1}/{it.target}
+                        </span>
+                      )}
+                    </span>
+                  </span>
+                </button>
+              )
+            }
+            const e = item.event
             const goal = e.goalId ? goalById.get(e.goalId) : null
             const notePreview = e.notes ? e.notes.trim().split('\n')[0] : null
             return (
@@ -658,6 +778,16 @@ function DaySection({
               </button>
             )
           })}
+          {deadlines.map((g) => (
+            <button key={`d-${g.id}`} className="ev ev--goal" onClick={() => onGoal(g)}>
+              <span className="ev__time" style={{ display: 'inline-flex', justifyContent: 'flex-start' }}>
+                <IconFlag size={14} className="muted" />
+              </span>
+              <span className="ev__title">
+                Meta: {g.title} <span className="faint tiny">· fecha objetivo</span>
+              </span>
+            </button>
+          ))}
         </div>
       )}
 

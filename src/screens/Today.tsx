@@ -18,7 +18,14 @@ import {
 } from '@/services/sessions'
 import { listEventsInRange } from '@/services/events'
 import { listHabits, listHabitChecksInRange, setHabitCheck } from '@/services/habits'
-import { habitsDueOn, habitStreak } from '@/domain/habits'
+import {
+  habitCompleteDates,
+  habitDoneCount,
+  habitStreak,
+  habitTarget,
+  habitsDueOn,
+  nextSlot,
+} from '@/domain/habits'
 import { HabitRow } from '@/components/HabitRow'
 import { compareEvents } from '@/domain/calendar'
 import { carryoverCandidates, findForgottenGoal, goalsDueForReview } from '@/domain/dailyPlan'
@@ -276,43 +283,59 @@ export function Today() {
 
   // ----- Hábitos de hoy: rutinas de un toque -----
   const todayHabits = useMemo(() => habitsDueOn(habits, today), [habits, today])
-  const habitDoneToday = useMemo(
-    () => new Set(habitChecks.filter((c) => c.date === today).map((c) => c.habitId)),
+  const habitChecksToday = useMemo(
+    () => habitChecks.filter((c) => c.date === today),
     [habitChecks, today],
   )
+  // La racha cuenta un día solo si el hábito quedó COMPLETO (todas sus
+  // repeticiones), no con una marca suelta.
   const habitStreaks = useMemo(() => {
-    const byHabit = new Map<string, Set<string>>()
+    const byHabit = new Map<string, HabitCheck[]>()
     for (const c of habitChecks) {
-      const set = byHabit.get(c.habitId) ?? new Set<string>()
-      set.add(c.date)
-      byHabit.set(c.habitId, set)
+      const list = byHabit.get(c.habitId) ?? []
+      list.push(c)
+      byHabit.set(c.habitId, list)
     }
     const m = new Map<string, number>()
     for (const h of todayHabits) {
-      m.set(h.id, habitStreak(byHabit.get(h.id) ?? new Set(), h.weekdays, today))
+      m.set(h.id, habitStreak(habitCompleteDates(h, byHabit.get(h.id) ?? []), h.weekdays, today))
     }
     return m
   }, [habitChecks, todayHabits, today])
 
+  /**
+   * Un toque en el check: marca la SIGUIENTE repetición pendiente; si el día
+   * ya está completo, desmarca la ÚLTIMA (simétrico). Para hábitos sin horas
+   * es el toggle de siempre (un solo slot). Optimista, con revert si falla.
+   */
   function toggleHabit(h: Habit) {
-    const wasDone = habitDoneToday.has(h.id)
-    // Optimista: la marca cambia al instante; si falla la red, se revierte.
-    setHabitChecks((prev) =>
-      wasDone
-        ? prev.filter((c) => !(c.habitId === h.id && c.date === today))
-        : [...prev, { habitId: h.id, date: today }],
-    )
-    void withErrorHandling(
-      async () => {
-        await setHabitCheck(userId, h.id, today, !wasDone)
-      },
-      () =>
-        setHabitChecks((prev) =>
-          wasDone
-            ? [...prev, { habitId: h.id, date: today }]
-            : prev.filter((c) => !(c.habitId === h.id && c.date === today)),
-        ),
-    )
+    const slotToAdd = nextSlot(h, habitChecksToday, today)
+    if (slotToAdd !== null) {
+      const added: HabitCheck = { habitId: h.id, date: today, slot: slotToAdd }
+      setHabitChecks((prev) => [...prev, added])
+      void withErrorHandling(
+        async () => {
+          await setHabitCheck(userId, h.id, today, true, slotToAdd)
+        },
+        () =>
+          setHabitChecks((prev) =>
+            prev.filter((c) => !(c.habitId === h.id && c.date === today && c.slot === slotToAdd)),
+          ),
+      )
+    } else {
+      const lastSlot = Math.max(
+        ...habitChecksToday.filter((c) => c.habitId === h.id).map((c) => c.slot),
+      )
+      setHabitChecks((prev) =>
+        prev.filter((c) => !(c.habitId === h.id && c.date === today && c.slot === lastSlot)),
+      )
+      void withErrorHandling(
+        async () => {
+          await setHabitCheck(userId, h.id, today, false, lastSlot)
+        },
+        () => setHabitChecks((prev) => [...prev, { habitId: h.id, date: today, slot: lastSlot }]),
+      )
+    }
   }
 
   const userTasks = useMemo(
@@ -800,15 +823,23 @@ export function Today() {
                 </button>
               </div>
               <div className="stack stack--sm">
-                {todayHabits.map((h) => (
-                  <HabitRow
-                    key={h.id}
-                    habit={h}
-                    done={habitDoneToday.has(h.id)}
-                    streak={habitStreaks.get(h.id) ?? 0}
-                    onToggle={() => toggleHabit(h)}
-                  />
-                ))}
+                {todayHabits.map((h) => {
+                  const target = habitTarget(h)
+                  const doneCount = habitDoneCount(habitChecksToday, h.id, today)
+                  const next = nextSlot(h, habitChecksToday, today)
+                  return (
+                    <HabitRow
+                      key={h.id}
+                      habit={h}
+                      done={doneCount >= target}
+                      target={target}
+                      doneCount={doneCount}
+                      nextTime={next !== null ? (h.times?.[next] ?? null) : null}
+                      streak={habitStreaks.get(h.id) ?? 0}
+                      onToggle={() => toggleHabit(h)}
+                    />
+                  )
+                })}
               </div>
             </section>
           ) : (

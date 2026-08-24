@@ -207,16 +207,21 @@ export interface Habit {
   area: NicheId
   /** Días en que aplica (lunes=0 … domingo=6). Vacío = todos los días. */
   weekdays: number[]
+  /** Horas del día en que se repite ("HH:MM" ordenadas; cada hora es una
+   *  repetición). null o vacío = una vez al día, sin hora fija. */
+  times: string[] | null
   /** Meta a la que suma este hábito (opcional). */
   goalId: string | null
   createdAt: string
   archivedAt: string | null
 }
 
-/** Marca diaria de un hábito cumplido. */
+/** Marca de una repetición de un hábito en un día. */
 export interface HabitCheck {
   habitId: string
   date: string
+  /** Repetición marcada: el slot i corresponde a times[i]; sin times es 0. */
+  slot: number
 }
 
 /* ===== Aprender (micro-lecciones de crecimiento) =========================== */
