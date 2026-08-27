@@ -10,8 +10,16 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import type { CalendarEvent, Goal, Habit, HabitCheck, ScheduleBlock, Session } from '@/lib/types'
 import { listGoals } from '@/services/goals'
-import { listHabitChecksInRange, listHabits, setHabitCheck } from '@/services/habits'
-import { habitTarget, habitsDueOn } from '@/domain/habits'
+import {
+  clearHabitDayOverride,
+  listHabitChecksInRange,
+  listHabitOverridesInRange,
+  listHabits,
+  setHabitCheck,
+  setHabitDayTimes,
+  type HabitDayOverride,
+} from '@/services/habits'
+import { habitTarget, habitWithDayTimes, habitsDueOn } from '@/domain/habits'
 import {
   createEvent,
   deleteEvent,
@@ -44,6 +52,7 @@ import { listScheduleForUser, updateBlockStartTime } from '@/services/schedule'
 import {
   createSpontaneousSession,
   deleteSession,
+  generateSessionsForDate,
   listSessionsInRange,
   setSessionPlannedTime,
 } from '@/services/sessions'
@@ -70,6 +79,7 @@ import {
   IconChevronRight,
   IconClose,
   IconFlag,
+  IconPencil,
   IconPlay,
   IconPlus,
 } from '@/components/icons'
@@ -90,6 +100,7 @@ type CalSnapshot = {
   sessions: Session[]
   habits: Habit[]
   habitChecks: HabitCheck[]
+  habitOverrides: HabitDayOverride[]
 }
 
 /** Una repetición de un hábito tal como se ve en la agenda de un día. */
@@ -195,6 +206,10 @@ export function Calendar() {
   const [sessions, setSessions] = useState<Session[]>(cached?.sessions ?? [])
   const [habits, setHabits] = useState<Habit[]>(cached?.habits ?? [])
   const [habitChecks, setHabitChecks] = useState<HabitCheck[]>(cached?.habitChecks ?? [])
+  // Excepciones "día reorganizado" (0015): horas de hábitos SOLO de una fecha.
+  const [habitOverrides, setHabitOverrides] = useState<HabitDayOverride[]>(
+    cached?.habitOverrides ?? [],
+  )
   // block null = sesión espontánea (una sola fecha, sin recurrencia): se le pone
   // hora a esa sesión y se puede quitar. block presente = compromiso recurrente.
   const [timeSheet, setTimeSheet] = useState<{ goal: Goal; block: ScheduleBlock | null; session: Session | null } | null>(null)
@@ -209,6 +224,8 @@ export function Calendar() {
   } | null>(null)
   // Bloque de sesión abierto en su hoja (plan, quick-add y acción principal).
   const [blockSheet, setBlockSheet] = useState<{ sessionKey: string; day: string } | null>(null)
+  // Día abierto en la hoja "Reorganizar el día" (horas solo de esa fecha).
+  const [reorganizing, setReorganizing] = useState<string | null>(null)
   // Día para el que se está sumando una sesión espontánea desde la agenda.
   const [planning, setPlanning] = useState<string | null>(null)
   // A qué rango pertenecen los datos actuales: al cambiar de mes sin recargar aún, evita
@@ -220,7 +237,7 @@ export function Calendar() {
     async function load() {
       try {
         setError(null)
-        const [evs, gs, blks, sess, habs, checks] = await Promise.all([
+        const [evs, gs, blks, sess, habs, checks, ovr] = await Promise.all([
           listEventsInRange(userId, from, to),
           listGoals(userId),
           listScheduleForUser(userId),
@@ -228,6 +245,7 @@ export function Calendar() {
           // Hábitos con tolerancia a fallos: la agenda sigue sirviendo sin ellos.
           listHabits(userId).catch(() => [] as Habit[]),
           listHabitChecksInRange(userId, from, to).catch(() => [] as HabitCheck[]),
+          listHabitOverridesInRange(userId, from, to).catch(() => [] as HabitDayOverride[]),
         ])
         if (!active) return
         setEvents(evs)
@@ -236,6 +254,7 @@ export function Calendar() {
         setSessions(sess)
         setHabits(habs)
         setHabitChecks(checks)
+        setHabitOverrides(ovr)
         loadedKeyRef.current = cacheKey
       } catch (err) {
         if (active) setError(friendlyError(err, 'No se pudo cargar tu agenda.'))
@@ -258,6 +277,7 @@ export function Calendar() {
     sessions,
     habits,
     habitChecks,
+    habitOverrides,
   })
 
   const eventsByDate = useMemo(() => groupByDate(events), [events])
@@ -322,9 +342,17 @@ export function Calendar() {
    * weekday aplica; una fila por repetición (una sola, sin hora, si no tiene
    * times). El slot i corresponde a times[i].
    */
+  /** Excepción de horario de un hábito para esa fecha, si existe. */
+  function overrideFor(habitId: string, day: string): HabitDayOverride | null {
+    return habitOverrides.find((o) => o.habitId === habitId && o.date === day) ?? null
+  }
+
   function dayHabits(day: string): DayHabitItem[] {
     const items: DayHabitItem[] = []
-    for (const h of habitsDueOn(habits, day)) {
+    // Horas EFECTIVAS del día: si hay excepción (día reorganizado), sus horas
+    // reemplazan a las de siempre — grilla, semana y mes lo pintan solo.
+    const effective = habits.map((h) => habitWithDayTimes(h, overrideFor(h.id, day)))
+    for (const h of habitsDueOn(effective, day)) {
       const target = habitTarget(h)
       for (let slot = 0; slot < target; slot++) {
         items.push({
@@ -490,6 +518,62 @@ export function Calendar() {
     } else {
       toast(current ? 'Evento actualizado.' : 'Evento guardado.')
     }
+  }
+
+  /**
+   * Fija la hora de UNA sesión solo ese día (hoja "Reorganizar"). Una
+   * proyectada se materializa primero con generateSessionsForDate (misma
+   * materialización que usa Hoy), así el bloque recurrente no se toca.
+   */
+  async function setDaySessionTime(it: DayAgendaSession, day: string, time: string | null) {
+    let session = it.session
+    if (!session && it.block) {
+      const generated = await generateSessionsForDate(userId, day, [it.block])
+      setSessions((prev) => {
+        const known = new Set(prev.map((s) => s.id))
+        return [...prev, ...generated.filter((s) => !known.has(s.id))]
+      })
+      session = generated.find((s) => s.scheduleId === it.block?.id && s.date === day) ?? null
+    }
+    if (!session) return
+    const updated = await setSessionPlannedTime(session.id, time)
+    setSessions((prev) => prev.map((sx) => (sx.id === updated.id ? updated : sx)))
+  }
+
+  /** Guarda las horas de un hábito SOLO para esa fecha (excepción 0015). */
+  async function saveHabitDayTimes(habitId: string, day: string, times: string[]) {
+    await setHabitDayTimes(userId, habitId, day, times)
+    setHabitOverrides((prev) => [
+      ...prev.filter((o) => !(o.habitId === habitId && o.date === day)),
+      { habitId, date: day, times },
+    ])
+  }
+
+  /** Quita la excepción del día: el hábito vuelve a su horario de siempre. */
+  async function clearHabitOverride(habitId: string, day: string) {
+    await clearHabitDayOverride(habitId, day)
+    setHabitOverrides((prev) => prev.filter((o) => !(o.habitId === habitId && o.date === day)))
+  }
+
+  /** Mueve el inicio de un evento desplazando el fin el mismo delta. */
+  async function saveEventStart(e: CalendarEvent, start: string) {
+    const delta = timeToMinutes(start) - timeToMinutes(e.startTime as string)
+    let end: string | null = e.endTime
+    if (end) {
+      const raw = timeToMinutes(end) + delta
+      // Sin envolver a la madrugada: el rango debe seguir siendo válido.
+      end = raw >= 24 * 60 ? '23:59' : raw <= timeToMinutes(start) ? null : minutesToTime(raw)
+    }
+    const updated = await updateEvent(e.id, {
+      title: e.title,
+      date: e.date,
+      allDay: false,
+      startTime: start,
+      endTime: end,
+      goalId: e.goalId,
+      notes: e.notes,
+    })
+    setEvents((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
   }
 
   /** Toca un hueco libre → editor "Con horario" prellenado al inicio del hueco. */
@@ -661,7 +745,11 @@ export function Calendar() {
           </div>
           <div className="cal-month__day stack">
             {dayContextBanner}
-            <DayTimeGrid {...dayProps(selected)} onGap={(s, e) => planGap(selected, s, e)} />
+            <DayTimeGrid
+              {...dayProps(selected)}
+              onGap={(s, e) => planGap(selected, s, e)}
+              onReorganize={selected >= today ? () => setReorganizing(selected) : undefined}
+            />
           </div>
         </div>
       ) : view === 'week' ? (
@@ -673,7 +761,11 @@ export function Calendar() {
       ) : (
         <div className="stack">
           {dayContextBanner}
-          <DayTimeGrid {...dayProps(selected)} onGap={(s, e) => planGap(selected, s, e)} />
+          <DayTimeGrid
+            {...dayProps(selected)}
+            onGap={(s, e) => planGap(selected, s, e)}
+            onReorganize={selected >= today ? () => setReorganizing(selected) : undefined}
+          />
         </div>
       )}
 
@@ -731,6 +823,29 @@ export function Calendar() {
                 setBlockSheet(null)
                 setTimeSheet({ goal: it.goal, block: it.block, session: it.session })
               }}
+            />
+          )
+        })()}
+
+      {reorganizing &&
+        (() => {
+          const day = reorganizing
+          return (
+            <ReorganizeSheet
+              key={day}
+              day={day}
+              sessions={daySessions(day).filter((s) => !CLOSED_STATES.includes(s.state))}
+              habitRows={habitsDueOn(habits, day).map((h) => ({
+                habit: h,
+                effective: habitWithDayTimes(h, overrideFor(h.id, day)),
+                hasOverride: overrideFor(h.id, day) !== null,
+              }))}
+              events={(eventsByDate.get(day) ?? []).filter((e) => !e.allDay && e.startTime)}
+              onClose={() => setReorganizing(null)}
+              onSessionTime={(it, time) => setDaySessionTime(it, day, time)}
+              onHabitTimes={(habitId, times) => saveHabitDayTimes(habitId, day, times)}
+              onClearHabit={(habitId) => clearHabitOverride(habitId, day)}
+              onEventTime={(e, start) => saveEventStart(e, start)}
             />
           )
         })()}
@@ -1156,9 +1271,12 @@ function DayTimeGrid({
   onGoal,
   onPlanSession,
   onGap,
+  onReorganize,
 }: DayCommonProps & {
   /** Planear algo en un hueco libre (solo hoy/futuro; sin esto no hay botones). */
   onGap?: (startMin: number, endMin: number) => void
+  /** Abrir la hoja "Reorganizar el día" (solo hoy/futuro). */
+  onReorganize?: () => void
 }) {
   const { nested, standalone } = assignEventsToSessions(
     sessions.map((s) => ({ key: s.key, goalId: s.goal.id, start: s.span.start, end: s.span.end })),
@@ -1213,9 +1331,21 @@ function DayTimeGrid({
         <span className={`cal-day__label${isToday(day) ? ' cal-day__label--today' : ''}`}>
           {formatWeekday(day)}
         </span>
-        <button className="iconbtn iconbtn--sm" onClick={onAdd} aria-label="Agregar evento">
-          <IconPlus size={18} />
-        </button>
+        <div className="row row--sm">
+          {onReorganize && (
+            <button
+              className="iconbtn iconbtn--sm"
+              onClick={onReorganize}
+              aria-label="Reorganizar el día"
+              title="Reorganizar el día"
+            >
+              <IconPencil size={16} />
+            </button>
+          )}
+          <button className="iconbtn iconbtn--sm" onClick={onAdd} aria-label="Agregar evento">
+            <IconPlus size={18} />
+          </button>
+        </div>
       </div>
 
       {(deadlines.length > 0 || allDayEvents.length > 0) && (
@@ -1532,6 +1662,261 @@ function BlockSheet({
         {it.session && !isClosed && (
           <button className="btn btn--ghost btn--block" onClick={onSetTime}>
             Cambiar la hora
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Una fila de hábito en la hoja de reorganizar: el base y el efectivo del día. */
+interface ReorganizeHabitRow {
+  habit: Habit
+  effective: Habit
+  hasOverride: boolean
+}
+
+/**
+ * Hoja "Reorganizar el día": cambia con clicks las horas de sesiones, hábitos
+ * y eventos SOLO de esa fecha. Las sesiones usan su hora planificada (las
+ * proyectadas se materializan), los hábitos guardan una excepción (0015) y
+ * los eventos se desplazan completos. La rutina de siempre no se toca.
+ */
+function ReorganizeSheet({
+  day,
+  sessions,
+  habitRows,
+  events,
+  onClose,
+  onSessionTime,
+  onHabitTimes,
+  onClearHabit,
+  onEventTime,
+}: {
+  day: string
+  sessions: DayAgendaSession[]
+  habitRows: ReorganizeHabitRow[]
+  events: CalendarEvent[]
+  onClose: () => void
+  onSessionTime: (it: DayAgendaSession, time: string | null) => Promise<void>
+  onHabitTimes: (habitId: string, times: string[]) => Promise<void>
+  onClearHabit: (habitId: string) => Promise<void>
+  onEventTime: (e: CalendarEvent, start: string) => Promise<void>
+}) {
+  const { toast } = useToast()
+  const [sessionDrafts, setSessionDrafts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(sessions.map((s) => [s.key, s.time ?? ''])),
+  )
+  const [habitDrafts, setHabitDrafts] = useState<Record<string, string[]>>(() =>
+    Object.fromEntries(
+      habitRows.map((r) => [
+        r.habit.id,
+        r.effective.times && r.effective.times.length > 0 ? [...r.effective.times] : [''],
+      ]),
+    ),
+  )
+  const [eventDrafts, setEventDrafts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(events.map((e) => [e.id, e.startTime ?? ''])),
+  )
+  const [saving, setSaving] = useState(false)
+  const panelRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(panelRef, onClose)
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [])
+
+  const empty = sessions.length === 0 && habitRows.length === 0 && events.length === 0
+
+  const sessionChanged = (s: DayAgendaSession) => (sessionDrafts[s.key] ?? '') !== (s.time ?? '')
+  /** Horas finales del hábito: un input vacío conserva su hora original. */
+  const habitTimesOf = (r: ReorganizeHabitRow): string[] => {
+    const base = r.effective.times ?? []
+    const draft = habitDrafts[r.habit.id] ?? []
+    if (base.length === 0) {
+      const t = draft[0] ?? ''
+      return t ? [t] : []
+    }
+    return base.map((orig, i) => draft[i] || orig)
+  }
+  const habitChanged = (r: ReorganizeHabitRow) => {
+    const base = [...(r.effective.times ?? [])].sort()
+    const next = [...habitTimesOf(r)].sort()
+    return base.join(',') !== next.join(',')
+  }
+  const eventChanged = (e: CalendarEvent) =>
+    Boolean(eventDrafts[e.id]) && eventDrafts[e.id] !== e.startTime
+
+  const dirty =
+    sessions.some(sessionChanged) || habitRows.some(habitChanged) || events.some(eventChanged)
+
+  /**
+   * Aplica solo lo modificado, en secuencia. Al primer error se detiene: el
+   * de migración pendiente (`missing-column`) muestra SU mensaje una vez; los
+   * demás, el genérico. La hoja solo se cierra si todo salió.
+   */
+  async function save() {
+    if (saving || !dirty) return
+    setSaving(true)
+    try {
+      for (const s of sessions) {
+        if (!sessionChanged(s)) continue
+        await onSessionTime(s, sessionDrafts[s.key] || null)
+      }
+      for (const r of habitRows) {
+        if (!habitChanged(r)) continue
+        await onHabitTimes(r.habit.id, habitTimesOf(r))
+      }
+      for (const e of events) {
+        if (!eventChanged(e)) continue
+        await onEventTime(e, eventDrafts[e.id])
+      }
+      toast('Día reorganizado.', 'success')
+      onClose()
+    } catch (err) {
+      const code = (err as Error & { code?: string }).code
+      toast(
+        code === 'missing-column' ? (err as Error).message : 'No se pudo reorganizar el día.',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function clearOverride(r: ReorganizeHabitRow) {
+    try {
+      await onClearHabit(r.habit.id)
+      // El borrador vuelve a las horas de SIEMPRE (las del hábito base).
+      setHabitDrafts((prev) => ({
+        ...prev,
+        [r.habit.id]:
+          r.habit.times && r.habit.times.length > 0 ? [...r.habit.times] : [''],
+      }))
+      toast('Volvió a su horario de siempre.', 'success')
+    } catch {
+      toast('No se pudo quitar la excepción.')
+    }
+  }
+
+  return (
+    <div className="sheet" role="dialog" aria-modal="true">
+      <div className="sheet__backdrop" onClick={onClose} />
+      <div ref={panelRef} className="sheet__panel stack stack--lg">
+        <div className="row row--between">
+          <h2 style={{ fontSize: 'var(--fs-lg)' }}>Reorganizar el {formatWeekday(day)}</h2>
+          <button type="button" className="iconbtn iconbtn--sm" onClick={onClose} aria-label="Cerrar">
+            <IconClose />
+          </button>
+        </div>
+        <p className="small muted" style={{ margin: 0 }}>
+          Cambia las horas SOLO de este día. Tu rutina de siempre no se toca.
+        </p>
+
+        {empty && <p className="faint small">Nada con hora que reorganizar este día.</p>}
+
+        {sessions.length > 0 && (
+          <div className="stack stack--sm">
+            <p className="reorg-kicker">Sesiones</p>
+            {sessions.map((s) => (
+              <div key={s.key} className="reorg-row" style={nicheAccent(s.goal.area)}>
+                <span className="reorg-row__icon">
+                  <NicheIcon area={s.goal.area} size={14} />
+                </span>
+                <span className="reorg-row__label">{s.goal.title}</span>
+                <input
+                  className="input reorg-row__time"
+                  type="time"
+                  value={sessionDrafts[s.key] ?? ''}
+                  onChange={(e) =>
+                    setSessionDrafts((prev) => ({ ...prev, [s.key]: e.target.value }))
+                  }
+                  aria-label={`Hora de la sesión de ${s.goal.title}`}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {habitRows.length > 0 && (
+          <div className="stack stack--sm">
+            <p className="reorg-kicker">Hábitos</p>
+            {habitRows.map((r) => {
+              const drafts = habitDrafts[r.habit.id] ?? ['']
+              return (
+                <div key={r.habit.id} className="reorg-habit" style={nicheAccent(r.habit.area)}>
+                  {drafts.map((t, i) => (
+                    <div key={i} className="reorg-row">
+                      <span className="reorg-row__icon">
+                        {i === 0 && <NicheIcon area={r.habit.area} size={14} />}
+                      </span>
+                      <span className="reorg-row__label">
+                        {i === 0 ? (
+                          r.habit.title
+                        ) : (
+                          <span className="faint">Repetición {i + 1}</span>
+                        )}
+                      </span>
+                      <input
+                        className="input reorg-row__time"
+                        type="time"
+                        value={t}
+                        onChange={(e) =>
+                          setHabitDrafts((prev) => ({
+                            ...prev,
+                            [r.habit.id]: drafts.map((x, j) => (j === i ? e.target.value : x)),
+                          }))
+                        }
+                        aria-label={`Hora de ${r.habit.title}${
+                          drafts.length > 1 ? `, repetición ${i + 1}` : ''
+                        }`}
+                      />
+                    </div>
+                  ))}
+                  {r.hasOverride && (
+                    <button
+                      type="button"
+                      className="btn--link reorg-clear"
+                      onClick={() => void clearOverride(r)}
+                    >
+                      Volver a su horario de siempre
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {events.length > 0 && (
+          <div className="stack stack--sm">
+            <p className="reorg-kicker">Eventos</p>
+            {events.map((e) => (
+              <div key={e.id} className="reorg-row">
+                <span className="reorg-row__label">{e.title}</span>
+                <input
+                  className="input reorg-row__time"
+                  type="time"
+                  value={eventDrafts[e.id] ?? ''}
+                  onChange={(ev) =>
+                    setEventDrafts((prev) => ({ ...prev, [e.id]: ev.target.value }))
+                  }
+                  aria-label={`Hora de inicio de ${e.title}`}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!empty && (
+          <button
+            className="btn btn--primary btn--block"
+            disabled={!dirty || saving}
+            onClick={() => void save()}
+          >
+            {saving ? 'Guardando…' : 'Guardar cambios'}
           </button>
         )}
       </div>
