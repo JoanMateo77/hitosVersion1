@@ -1,5 +1,6 @@
 import type { Goal, Session } from '@/lib/types'
 import { nicheAccent } from '@/lib/nicheAccent'
+import { rangeLabel, sessionSpan } from '@/domain/agenda'
 import { formatTime12 } from '@/lib/date'
 import { IconPlay } from '@/components/icons'
 import { NicheIcon } from '@/components/NicheGlyph'
@@ -17,6 +18,8 @@ interface SessionCardProps {
   onReopen: () => void
   /** Retomar una sesión parcial/no completada: el reloj sigue donde quedó. */
   onResume: () => void
+  /** Eventos de la agenda vinculados a la meta hoy (el plan del bloque). */
+  plan?: { done: number; total: number }
 }
 
 function targetLabel(s: Session): string {
@@ -28,7 +31,23 @@ function clock(iso: string): string {
   return formatTime12(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)
 }
 
-export function SessionCard({ session, goal, suggestion, onOpen, onQuickDone, onReopen, onResume }: SessionCardProps) {
+/**
+ * Pista de la sesión pendiente: rango de horas (el mismo idioma que la
+ * agenda) y, si hay cosas agendadas para la meta hoy, el plan le gana a la
+ * idea genérica.
+ */
+function sessionHint(
+  s: Session,
+  suggestion: string,
+  plan?: { done: number; total: number },
+): string {
+  const span = sessionSpan(s.plannedTime, s.targetKind, s.targetValue)
+  const when = span.start ? `${rangeLabel(span.start, span.end)} · ` : ''
+  if (plan && plan.total > 0) return `${when}Tu plan: ${plan.done} de ${plan.total}`
+  return `${when}Idea: ${suggestion}`
+}
+
+export function SessionCard({ session, goal, suggestion, onOpen, onQuickDone, onReopen, onResume, plan }: SessionCardProps) {
   const closed = session.status === 'done' || session.status === 'partial' || session.status === 'missed'
 
   if (closed) {
@@ -89,7 +108,7 @@ export function SessionCard({ session, goal, suggestion, onOpen, onQuickDone, on
               : session.pausedAt
                 ? 'En pausa'
                 : 'En curso'
-            : `${session.plannedTime ? `${formatTime12(session.plannedTime)} · ` : ''}Idea: ${suggestion}`}
+            : sessionHint(session, suggestion, plan)}
         </span>
         {goal.why && !running && <span className="session__why">“{goal.why}”</span>}
       </div>

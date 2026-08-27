@@ -83,15 +83,35 @@ describe('assignEventsToSessions', () => {
     const { nested } = assignEventsToSessions(sessions, [e])
     expect(nested.get('tarde')).toEqual([e])
   })
-  it('sin hora (o fuera de toda ventana) va a la primera sesión de su meta', () => {
+  it('sin hora va a la primera sesión de su meta', () => {
     const sessions = [
       slot({ key: 'manana', start: '08:00', end: '10:00' }),
       slot({ key: 'tarde', start: '14:00', end: '16:00' }),
     ]
     const sinHora = ev({ id: 'a', goalId: 'g1', allDay: true })
-    const fuera = ev({ id: 'b', goalId: 'g1', startTime: '12:00' })
-    const { nested } = assignEventsToSessions(sessions, [sinHora, fuera])
-    expect(nested.get('manana')?.map((x) => x.id)).toEqual(['b', 'a'])
+    const { nested } = assignEventsToSessions(sessions, [sinHora])
+    expect(nested.get('manana')?.map((x) => x.id)).toEqual(['a'])
+  })
+  it('cerca de la ventana (hasta 1 h de distancia) también se anida', () => {
+    const sessions = [slot({ key: 'noche', start: '20:00', end: '22:00' })]
+    const antes = ev({ id: 'a', goalId: 'g1', startTime: '19:30' })
+    const despues = ev({ id: 'b', goalId: 'g1', startTime: '22:45' })
+    const { nested, standalone } = assignEventsToSessions(sessions, [antes, despues])
+    expect(nested.get('noche')?.map((x) => x.id)).toEqual(['a', 'b'])
+    expect(standalone).toEqual([])
+  })
+  it('lejos de toda ventana queda suelto: anidarlo lo escondería a otra hora', () => {
+    const sessions = [slot({ key: 'noche', start: '20:00', end: '22:00' })]
+    const manana = ev({ id: 'a', goalId: 'g1', startTime: '09:00' })
+    const { nested, standalone } = assignEventsToSessions(sessions, [manana])
+    expect(nested.size).toBe(0)
+    expect(standalone.map((x) => x.id)).toEqual(['a'])
+  })
+  it('si la meta solo tiene sesiones sin hora, el evento con hora se anida igual', () => {
+    const sessions = [slot({ key: 'libre', start: null, end: null })]
+    const conHora = ev({ id: 'a', goalId: 'g1', startTime: '09:00' })
+    const { nested } = assignEventsToSessions(sessions, [conHora])
+    expect(nested.get('libre')?.map((x) => x.id)).toEqual(['a'])
   })
   it('evento de una meta sin sesión ese día, o sin meta, queda suelto', () => {
     const sessions = [slot({ goalId: 'g1' })]

@@ -343,6 +343,20 @@ export function Today() {
     [tasks],
   )
   const todayEvents = useMemo(() => [...events].sort(compareEvents), [events])
+
+  // El plan del día por meta: eventos vinculados, con cuántos van tachados.
+  // Es el mismo bloque que enseña la agenda, resumido en la tarjeta de sesión.
+  const planByGoal = useMemo(() => {
+    const map = new Map<string, { done: number; total: number }>()
+    for (const e of events) {
+      if (!e.goalId) continue
+      const p = map.get(e.goalId) ?? { done: 0, total: 0 }
+      p.total += 1
+      if (e.doneAt) p.done += 1
+      map.set(e.goalId, p)
+    }
+    return map
+  }, [events])
   const reviewDue = useMemo(() => goalsDueForReview(goals), [goals])
   const forgotten = useMemo(() => {
     const lastDone = new Map<string, string>()
@@ -737,6 +751,7 @@ export function Today() {
                         session={session}
                         goal={goal}
                         suggestion={pickSuggestion(getTemplate(goal.templateKey), goal.id, today)}
+                        plan={planByGoal.get(goal.id)}
                         onOpen={() => navigate(`/sesion/${session.id}`)}
                         onQuickDone={() => quickDone(session)}
                         onReopen={() => reopen(session)}

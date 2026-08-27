@@ -56,12 +56,17 @@ function compareNested(a: CalendarEvent, b: CalendarEvent): number {
   return ka.localeCompare(kb) || a.createdAt.localeCompare(b.createdAt)
 }
 
+/** Qué tan lejos de la ventana de la sesión puede empezar un evento y aun así anidarse. */
+const NEAR_MINUTES = 60
+
 /**
  * Reparte los eventos del día entre las sesiones: un evento con meta se anida
  * en una sesión de SU meta — de preferencia la que lo contiene por horario
- * ([inicio, fin) incluye la hora de inicio del evento); si ninguna lo contiene
- * o el evento no tiene hora, va a la primera sesión de esa meta. Eventos sin
- * meta, o cuya meta no tiene sesión ese día, quedan sueltos (standalone).
+ * ([inicio, fin) incluye la hora de inicio del evento) y, si ninguna, una que
+ * quede cerca (a menos de una hora de la ventana). Sin hora, va a la primera
+ * sesión de esa meta. Un evento con hora LEJOS de toda sesión queda suelto en
+ * su lugar de la línea de tiempo (anidarlo lo escondería a otra hora); también
+ * quedan sueltos los eventos sin meta o cuya meta no tiene sesión ese día.
  */
 export function assignEventsToSessions(
   sessions: AgendaSessionSlot[],
@@ -76,17 +81,31 @@ export function assignEventsToSessions(
       continue
     }
     const evStart = e.allDay || !e.startTime ? null : timeToMinutes(e.startTime)
-    const containing =
-      evStart === null
-        ? undefined
-        : own.find(
-            (s) =>
-              s.start !== null &&
-              s.end !== null &&
-              evStart >= timeToMinutes(s.start) &&
-              evStart < timeToMinutes(s.end),
-          )
-    const target = containing ?? own[0]
+    let target: AgendaSessionSlot | undefined
+    if (evStart === null) {
+      target = own[0]
+    } else {
+      const containing = own.find(
+        (s) =>
+          s.start !== null &&
+          s.end !== null &&
+          evStart >= timeToMinutes(s.start) &&
+          evStart < timeToMinutes(s.end),
+      )
+      const near = own.find((s) => {
+        if (s.start === null) return false
+        const start = timeToMinutes(s.start)
+        const end = s.end ? timeToMinutes(s.end) : start
+        return evStart >= start - NEAR_MINUTES && evStart < end + NEAR_MINUTES
+      })
+      // Si la meta solo tiene sesiones sin hora, no hay ventana que respetar.
+      const anyTimed = own.some((s) => s.start !== null)
+      target = containing ?? near ?? (anyTimed ? undefined : own[0])
+    }
+    if (!target) {
+      standalone.push(e)
+      continue
+    }
     const list = nested.get(target.key)
     if (list) list.push(e)
     else nested.set(target.key, [e])
