@@ -1,0 +1,88 @@
+/* ==== Hoy — armonía visual ================================================
+   Complementa components.css SOLO para la pantalla Hoy: un ritmo vertical
+   único, la misma anatomía para todos los avisos y estados vacíos, y la
+   entrada en cascada que ya usan Aprender y el plan de sesión. Todo deriva
+   de tokens; prefers-reduced-motion lo apaga la regla global de base.css. */
+
+/* Ritmo: los bloques de la columna principal respiran a --s5, igual que la
+   columna lateral (.today-side). Dentro de cada sección manda stack--sm. */
+.today-main {
+  --gap: var(--s5);
+}
+
+/* Entrada escalonada sutil: cada bloque recibe su índice vía --i. */
+.today-enter {
+  animation: today-rise 0.32s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+@keyframes today-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Semana: tira + resumen leídos como UN bloque (antes: márgenes en pugna). */
+.today-week .weekstrip {
+  margin-bottom: var(--s2);
+}
+.today-week__summary {
+  margin: 0;
+}
+.today-week .weekstrip__day {
+  transition: background-color 0.15s var(--ease-out), transform 0.12s var(--ease-out);
+}
+.today-week .weekstrip__day:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+/* El stack ya separa: el cheer no necesita su margen propio aquí. */
+.today-main .cheer {
+  margin-bottom: 0;
+}
+
+/* Avisos contextuales (racha, sin confirmar, revisión, olvidada): UNA sola
+   anatomía — icono 16 arriba-izquierda, texto, acción a la derecha. */
+.today-notice {
+  width: 100%;
+  text-align: left;
+}
+.today-notice .row--sm {
+  align-items: flex-start;
+}
+.today-notice__icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--text-muted);
+}
+button.today-notice {
+  transition: transform 0.12s var(--ease-out), border-color 0.15s var(--ease-out);
+}
+button.today-notice:active {
+  transform: scale(0.99);
+}
+
+/* Estados vacíos: iguales entre sí — centrados, con el mismo radio y padding
+   que el resto de tarjetas del día (nada de tarjetón radius-lg suelto). */
+.today-empty {
+  align-items: center;
+  text-align: center;
+  padding: var(--s5) var(--s4);
+}
+.today-empty .row {
+  justify-content: center;
+}
+
+/* Botón suelto alineado al inicio sin estilos inline. */
+.today-self-start {
+  align-self: flex-start;
+}
+
+/* Glyph de nicho en la fila de hábito (reemplaza el estilo inline y alinea
+   el icono con la primera línea del título, como en la tarjeta de sesión). */
+.today-habit__glyph {
+  flex: none;
+  display: inline-flex;
+  margin-top: 5px;
+  color: var(--niche, var(--text-muted));
+}

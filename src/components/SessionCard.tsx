@@ -33,8 +33,9 @@ function clock(iso: string): string {
 
 /**
  * Pista de la sesión pendiente: rango de horas (el mismo idioma que la
- * agenda) y, si hay cosas agendadas para la meta hoy, el plan le gana a la
- * idea genérica.
+ * agenda), el objetivo cuando el rango no lo lleva ya implícito, y, si hay
+ * cosas agendadas para la meta hoy, el plan le gana a la idea genérica.
+ * El objetivo vive AQUÍ (metadato) y no en el título: una sola jerarquía.
  */
 function sessionHint(
   s: Session,
@@ -42,9 +43,12 @@ function sessionHint(
   plan?: { done: number; total: number },
 ): string {
   const span = sessionSpan(s.plannedTime, s.targetKind, s.targetValue)
-  const when = span.start ? `${rangeLabel(span.start, span.end)} · ` : ''
-  if (plan && plan.total > 0) return `${when}Tu plan: ${plan.done} de ${plan.total}`
-  return `${when}Idea: ${suggestion}`
+  const parts: string[] = []
+  if (span.start) parts.push(rangeLabel(span.start, span.end))
+  // En sesiones de tiempo con rango completo, "25 min" ya se lee en las horas.
+  if (!(s.targetKind === 'time' && span.end)) parts.push(targetLabel(s))
+  parts.push(plan && plan.total > 0 ? `Tu plan: ${plan.done} de ${plan.total}` : `Idea: ${suggestion}`)
+  return parts.join(' · ')
 }
 
 export function SessionCard({ session, goal, suggestion, onOpen, onQuickDone, onReopen, onResume, plan }: SessionCardProps) {
@@ -53,15 +57,16 @@ export function SessionCard({ session, goal, suggestion, onOpen, onQuickDone, on
   if (closed) {
     const label =
       session.status === 'done'
-        ? `Hecha${session.endedAt ? ` ${clock(session.endedAt)}` : ''}`
+        ? `Hecha${session.endedAt ? ` ${clock(session.endedAt)}` : ''} · ${targetLabel(session)}`
         : session.status === 'partial'
           ? `Parcial · ${session.actualValue ?? 0} de ${targetLabel(session)}`
           : 'Hoy no pudiste — está bien'
     return (
       <div className={`session session--${session.status}`} style={nicheAccent(goal.area)}>
         <div className="session__body">
-          <span className="session__title session__title--closed">
-            {goal.title} · {targetLabel(session)}
+          <span className="session__title row row--sm">
+            <NicheIcon area={goal.area} size={16} className="session__icon" />
+            <span className="nowrap-ellipsis session__title--closed">{goal.title}</span>
           </span>
           <span className={`session__meta${session.status === 'done' ? ' session__meta--ok' : ''}`}>
             {label}
@@ -84,7 +89,7 @@ export function SessionCard({ session, goal, suggestion, onOpen, onQuickDone, on
             onClick={onResume}
             aria-label={`Retomar la sesión de ${goal.title} donde quedó`}
           >
-            <IconPlay size={12} /> Retomar
+            <IconPlay size={13} /> Retomar
           </button>
         )}
       </div>
@@ -95,11 +100,9 @@ export function SessionCard({ session, goal, suggestion, onOpen, onQuickDone, on
   return (
     <div className="session" style={nicheAccent(goal.area)}>
       <div className="session__body">
-        <span className="session__title row row--sm" style={{ alignItems: 'center' }}>
-          <NicheIcon area={goal.area} size={15} className="session__icon" />
-          <span className="nowrap-ellipsis">
-            {goal.title} · {targetLabel(session)}
-          </span>
+        <span className="session__title row row--sm">
+          <NicheIcon area={goal.area} size={16} className="session__icon" />
+          <span className="nowrap-ellipsis">{goal.title}</span>
         </span>
         <span className="session__meta">
           {running

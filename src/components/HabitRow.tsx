@@ -54,10 +54,7 @@ export function HabitRow({
         onClick={onToggle}
       />
       {/* Ícono del área teñido con --niche (lo setea nicheAccent en el contenedor). */}
-      <span
-        aria-hidden="true"
-        style={{ color: 'var(--niche)', display: 'inline-flex', flex: 'none', marginTop: 6 }}
-      >
+      <span aria-hidden="true" className="today-habit__glyph">
         <NicheIcon area={habit.area} size={16} />
       </span>
       <div className="task__main">

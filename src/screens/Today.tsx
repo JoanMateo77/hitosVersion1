@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import type { CalendarEvent, Goal, Habit, HabitCheck, ScheduleBlock, Session, Task } from '@/lib/types'
@@ -47,10 +47,8 @@ import { Hint } from '@/components/Hint'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
 import {
-  IconCalendar,
   IconChevronRight,
   IconClock,
-  IconCompass,
   IconFlame,
   IconPlus,
   IconQuote,
@@ -63,6 +61,12 @@ import { ensureCommitmentBackfill } from '@/services/backfill'
 import { syncTimezone } from '@/lib/push'
 import { sessionCache } from '@/lib/sessionCache'
 import { useCacheMirror } from '@/hooks/useCacheMirror'
+import '@/styles/today.css'
+
+/** Índice de cascada para la entrada escalonada de bloques (ver today.css). */
+function enter(i: number): CSSProperties {
+  return { '--i': i } as CSSProperties
+}
 
 /** Instantánea de datos cacheada por sesión para pintar Hoy al instante al volver. */
 type TodaySnapshot = {
@@ -602,8 +606,8 @@ export function Today() {
       </header>
 
       <div className="today-grid">
-        <div className="stack stack--lg">
-          <div>
+        <div className="stack stack--lg today-main">
+          <div className="today-week today-enter" style={enter(0)}>
             <div className="weekstrip" role="group" aria-label="Tu semana">
               {Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(today), i)).map((d, i) => {
                 const st = stripState(d)
@@ -633,7 +637,7 @@ export function Today() {
             </div>
 
             {week.committed > 0 && (
-              <p className="faint tiny" style={{ marginTop: 'var(--s2)', marginBottom: 0 }}>
+              <p className="faint tiny today-week__summary">
                 {week.done >= week.committed
                   ? `Compromiso semanal cumplido: ${week.done} ${week.done === 1 ? 'sesión' : 'sesiones'}.`
                   : `${week.done} de ${week.committed} sesiones de tu compromiso esta semana.`}
@@ -644,8 +648,8 @@ export function Today() {
 
           {runningSession && goalById.get(runningSession.goalId) && (
             <button
-              className="hero-session"
-              style={nicheAccent(goalById.get(runningSession.goalId)!.area)}
+              className="hero-session today-enter"
+              style={{ ...nicheAccent(goalById.get(runningSession.goalId)!.area), ...enter(1) }}
               onClick={() => navigate(`/sesion/${runningSession.id}`)}
             >
               <span className="kicker">En curso · {goalById.get(runningSession.goalId)!.title}</span>
@@ -667,9 +671,9 @@ export function Today() {
           )}
 
           {showStreakNotice && streakBroken && (
-            <div className="card card--tight row row--between" role="status" style={{ alignItems: 'center' }}>
-              <span className="small row row--sm" style={{ alignItems: 'center' }}>
-                <IconFlame size={16} className="muted" style={{ flex: 'none' }} />
+            <div className="card card--tight today-notice today-enter row row--between" role="status" style={enter(2)}>
+              <span className="small row row--sm">
+                <IconFlame size={16} className="today-notice__icon" />
                 <span>
                   Tu racha se reinició. Tu récord sigue siendo <strong>{streakBroken.best} días</strong> —
                   hoy se empieza otra.
@@ -683,12 +687,12 @@ export function Today() {
 
           {notice === 'resolve' && toResolve && (
             <button
-              className="card card--tight card--warn row row--between"
-              style={{ width: '100%', textAlign: 'left' }}
+              className="card card--tight card--warn today-notice today-enter row row--between"
+              style={enter(2)}
               onClick={() => navigate(`/sesion/${toResolve.id}`)}
             >
-              <span className="row row--sm small" style={{ alignItems: 'flex-start' }}>
-                <IconClock size={16} className="muted" style={{ marginTop: 2, flex: 'none' }} />
+              <span className="row row--sm small">
+                <IconClock size={16} className="today-notice__icon" />
                 <span>
                   Quedó una sesión abierta de <strong>{goalById.get(toResolve.goalId)?.title}</strong>.
                   ¿Cómo te fue?
@@ -699,12 +703,12 @@ export function Today() {
           )}
           {notice === 'review' && (
             <button
-              className="card card--tight row row--between"
-              style={{ width: '100%', textAlign: 'left' }}
+              className="card card--tight today-notice today-enter row row--between"
+              style={enter(2)}
               onClick={() => navigate('/revision')}
             >
-              <span className="row row--sm small" style={{ alignItems: 'center' }}>
-                <IconQuote size={16} className="muted" />
+              <span className="row row--sm small">
+                <IconQuote size={16} className="today-notice__icon" />
                 <span>
                   <strong>Revisión guiada</strong> — {reviewDue.length}{' '}
                   {reviewDue.length === 1 ? 'meta para revisar' : 'metas para revisar'}
@@ -714,9 +718,9 @@ export function Today() {
             </button>
           )}
           {notice === 'forgotten' && forgotten && (
-            <div className="card card--tight card--warn stack stack--sm">
-              <span className="row row--sm small" style={{ alignItems: 'flex-start' }}>
-                <IconSprout size={16} className="muted" style={{ marginTop: 2, flex: 'none' }} />
+            <div className="card card--tight card--warn today-notice today-enter stack stack--sm" style={enter(2)}>
+              <span className="row row--sm small">
+                <IconSprout size={16} className="today-notice__icon" />
                 <span>
                   Hace {forgotten.days} días que no tocas <strong>“{forgotten.goal.title}”</strong>.
                   ¿La retomamos o la pausamos sin culpa?
@@ -737,22 +741,17 @@ export function Today() {
           )}
 
           {todaySessions.length > 0 && (
-            <section aria-label="Tus sesiones de hoy">
+            <section aria-label="Tus sesiones de hoy" className="today-enter" style={enter(3)}>
               <div className="section-head">
                 <span className="kicker">Tus sesiones de hoy</span>
-                <span className="small muted">
-                  {doneCount} de {todaySessions.length}
-                </span>
               </div>
-              {todaySessions.some((x) => x.session.status === 'partial') && (
-                <div style={{ marginBottom: 'var(--s3)' }}>
+              <div className="stack stack--sm">
+                {todaySessions.some((x) => x.session.status === 'partial') && (
                   <Hint id="session-partial-2026-06">
                     Una sesión <strong>parcial</strong> cuenta lo que hiciste y no rompe tu racha.
                     Puedes retomarla para completarla.
                   </Hint>
-                </div>
-              )}
-              <div className="stack stack--sm">
+                )}
                 {todaySessions
                   .filter(({ session }) => session.id !== runningSession?.id)
                   .map(({ session, goal }) => (
@@ -802,7 +801,7 @@ export function Today() {
           )}
 
           {todaySessions.length === 0 && activeGoals.length > 0 && (
-            <div className="card stack stack--sm" style={{ alignItems: 'flex-start' }}>
+            <div className="card card--tight today-empty today-enter stack stack--sm" style={enter(3)}>
               <strong>Hoy no comprometiste sesiones.</strong>
               <p className="small muted m-0">Día libre — o súmale una sesión espontánea a una meta.</p>
               {!pickingSpontaneous ? (
@@ -813,7 +812,7 @@ export function Today() {
                 <div className="row wrap">
                   {activeGoals.map((g) => (
                     <button key={g.id} type="button" className="chip" onClick={() => addSpontaneous(g)}>
-                      <NicheIcon area={g.area} size={14} /> {g.title}
+                      <NicheIcon area={g.area} size={13} /> {g.title}
                     </button>
                   ))}
                 </div>
@@ -822,12 +821,11 @@ export function Today() {
           )}
 
           {activeGoals.length === 0 && (
-            <div className="card stack stack--sm center" style={{ alignItems: 'center' }}>
-              <IconCompass size={32} className="muted" />
-              <p className="small muted center">
+            <div className="card card--tight today-empty today-enter stack stack--sm" style={enter(3)}>
+              <p className="small muted m-0">
                 Cuando crees una meta, tu día se arma alrededor de tu compromiso.
               </p>
-              <div className="row wrap" style={{ justifyContent: 'center' }}>
+              <div className="row wrap">
                 <button className="btn btn--primary btn--sm" onClick={() => navigate('/ideas')}>
                   Ver ideas para empezar
                 </button>
@@ -840,7 +838,7 @@ export function Today() {
 
           {/* ----- Hábitos de hoy: un toque y listo ----- */}
           {todayHabits.length > 0 ? (
-            <section aria-label="Tus hábitos de hoy">
+            <section aria-label="Tus hábitos de hoy" className="today-enter" style={enter(4)}>
               <div className="section-head">
                 <span className="kicker">Tus hábitos de hoy</span>
                 <button className="btn--link" onClick={() => navigate('/habitos')}>
@@ -869,7 +867,7 @@ export function Today() {
             </section>
           ) : (
             habits.length === 0 && (
-              <button className="btn btn--ghost btn--sm" style={{ alignSelf: 'flex-start' }} onClick={() => navigate('/habitos')}>
+              <button className="btn btn--ghost btn--sm today-self-start today-enter" style={enter(4)} onClick={() => navigate('/habitos')}>
                 <IconPlus size={16} /> Sumar un hábito diario
               </button>
             )
@@ -883,83 +881,85 @@ export function Today() {
         </div>
 
         <aside className="today-side">
-          <section aria-label="Lo que sumaste tú">
+          <section aria-label="Lo que sumaste tú" className="today-enter" style={enter(5)}>
             <div className="section-head">
               <span className="kicker">Lo que sumaste tú</span>
             </div>
-            {yesterdayPending.length > 0 && (
-              <div className="card card--tight stack stack--sm mb-3">
-                <span className="small">
-                  {yesterdayPending.length === 1
-                    ? 'Te quedó 1 tarea pendiente de ayer:'
-                    : `Te quedaron ${yesterdayPending.length} tareas pendientes de ayer:`}{' '}
-                  <span className="muted">{yesterdayPending.map((t) => t.title).join(' · ')}</span>
-                </span>
-                <div className="row wrap">
-                  <button className="btn btn--sm btn--primary" onClick={bringYesterdayTasks}>
-                    Traer a hoy
-                  </button>
-                  <button className="btn btn--sm btn--subtle" onClick={dismissYesterdayTasks}>
-                    Descartar
-                  </button>
+            <div className="stack stack--sm">
+              {yesterdayPending.length > 0 && (
+                <div className="card card--tight stack stack--sm">
+                  <span className="small">
+                    {yesterdayPending.length === 1
+                      ? 'Te quedó 1 tarea pendiente de ayer:'
+                      : `Te quedaron ${yesterdayPending.length} tareas pendientes de ayer:`}{' '}
+                    <span className="muted">{yesterdayPending.map((t) => t.title).join(' · ')}</span>
+                  </span>
+                  <div className="row wrap">
+                    <button className="btn btn--sm btn--primary" onClick={bringYesterdayTasks}>
+                      Traer a hoy
+                    </button>
+                    <button className="btn btn--sm btn--subtle" onClick={dismissYesterdayTasks}>
+                      Descartar
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
-            {userTasks.length > 0 && (
-              <ul className="stack stack--sm mb-3">
-                {userTasks.map((task) => (
-                  <TaskItem
-                    key={task.id}
-                    task={task}
-                    goalTitle={null}
-                    goalWhy={null}
-                    onToggle={() => toggleTask(task)}
-                    onEdit={(title) => editTask(task, title)}
-                    onRemove={() => removeTask(task)}
-                  />
-                ))}
-              </ul>
-            )}
-            <form className="row" onSubmit={addTask}>
-              <input
-                className="input"
-                placeholder="Agrega algo para hoy…"
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                maxLength={300}
-                autoCapitalize="sentences"
-                autoCorrect="on"
-                enterKeyHint="send"
-                inputMode="text"
-              />
-              <button className="iconbtn" type="submit" aria-label="Agregar tarea" disabled={!newTitle.trim()}>
-                <IconPlus size={22} />
-              </button>
-            </form>
+              )}
+              {userTasks.length > 0 && (
+                <ul className="stack stack--sm">
+                  {userTasks.map((task) => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      goalTitle={null}
+                      goalWhy={null}
+                      onToggle={() => toggleTask(task)}
+                      onEdit={(title) => editTask(task, title)}
+                      onRemove={() => removeTask(task)}
+                    />
+                  ))}
+                </ul>
+              )}
+              <form className="row" onSubmit={addTask}>
+                <input
+                  className="input"
+                  placeholder="Agrega algo para hoy…"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  maxLength={300}
+                  autoCapitalize="sentences"
+                  autoCorrect="on"
+                  enterKeyHint="send"
+                  inputMode="text"
+                />
+                <button className="iconbtn" type="submit" aria-label="Agregar tarea" disabled={!newTitle.trim()}>
+                  <IconPlus size={18} />
+                </button>
+              </form>
+            </div>
           </section>
 
           {todayEvents.length > 0 && (
-            <div className="card card--tight stack stack--sm">
-              <div className="section-head" style={{ marginBottom: 0 }}>
-                <span className="kicker row row--sm" style={{ alignItems: 'center' }}>
-                  <IconCalendar size={12} /> Tu agenda de hoy
-                </span>
+            <section aria-label="Tu agenda de hoy" className="today-enter" style={enter(6)}>
+              <div className="section-head">
+                <span className="kicker">Tu agenda de hoy</span>
                 <button className="btn--link" onClick={() => navigate('/calendario')}>
                   Ver agenda
                 </button>
               </div>
-              {todayEvents.map((e) => (
-                <button
-                  key={e.id}
-                  className="ev"
-                  aria-label={`Ver "${e.title}" en la agenda`}
-                  onClick={() => navigate(`/calendario?d=${e.date}`)}
-                >
-                  <span className="ev__time">{e.allDay || !e.startTime ? 'Día' : formatTime12(e.startTime)}</span>
-                  <span className="ev__title">{e.title}</span>
-                </button>
-              ))}
-            </div>
+              <div className="stack stack--sm">
+                {todayEvents.map((e) => (
+                  <button
+                    key={e.id}
+                    className="ev"
+                    aria-label={`Ver "${e.title}" en la agenda`}
+                    onClick={() => navigate(`/calendario?d=${e.date}`)}
+                  >
+                    <span className="ev__time">{e.allDay || !e.startTime ? 'Día' : formatTime12(e.startTime)}</span>
+                    <span className="ev__title">{e.title}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
           )}
         </aside>
       </div>
