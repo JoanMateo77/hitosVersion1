@@ -1,11 +1,10 @@
 import {
-  Fragment,
   useEffect,
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type FormEvent,
-  type ReactNode,
 } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
@@ -32,11 +31,13 @@ import {
 import {
   assignEventsToSessions,
   eventSpan,
-  freeGaps,
-  gapLabel,
+  gridBounds,
+  layoutDay,
   rangeLabel,
   sessionSpan,
+  uncoveredGaps,
   type AgendaSpan,
+  type GridPlacement,
 } from '@/domain/agenda'
 import { dueBlocksForDate } from '@/domain/sessions'
 import { listScheduleForUser, updateBlockStartTime } from '@/services/schedule'
@@ -62,7 +63,16 @@ import {
   todayISO,
 } from '@/lib/date'
 import { LoadingScreen } from '@/components/LoadingScreen'
-import { IconArrowReturn, IconBack, IconCheck, IconClose, IconFlag, IconPlus } from '@/components/icons'
+import {
+  IconArrowReturn,
+  IconBack,
+  IconCheck,
+  IconChevronRight,
+  IconClose,
+  IconFlag,
+  IconPlay,
+  IconPlus,
+} from '@/components/icons'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { NicheIcon } from '@/components/NicheGlyph'
 import { useToast } from '@/app/toast'
@@ -190,7 +200,15 @@ export function Calendar() {
   const [timeSheet, setTimeSheet] = useState<{ goal: Goal; block: ScheduleBlock | null; session: Session | null } | null>(null)
   const [ready, setReady] = useState(cached !== undefined)
   const [error, setError] = useState<string | null>(null)
-  const [editing, setEditing] = useState<{ event: CalendarEvent | null; date: string } | null>(null)
+  const [editing, setEditing] = useState<{
+    event: CalendarEvent | null
+    date: string
+    /** Prefijado "Con horario" al tocar un hueco libre de la grilla. */
+    presetStart?: string
+    presetEnd?: string
+  } | null>(null)
+  // Bloque de sesión abierto en su hoja (plan, quick-add y acción principal).
+  const [blockSheet, setBlockSheet] = useState<{ sessionKey: string; day: string } | null>(null)
   // Día para el que se está sumando una sesión espontánea desde la agenda.
   const [planning, setPlanning] = useState<string | null>(null)
   // A qué rango pertenecen los datos actuales: al cambiar de mes sin recargar aún, evita
@@ -359,21 +377,10 @@ export function Calendar() {
     }
   }
 
-  function handleSession(it: DayAgendaSession) {
-    // Hoy y abierta → directo al cronómetro. Lo demás → fijar hora del bloque.
-    if (
-      it.session &&
-      it.session.date === today &&
-      ['pending', 'running', 'unconfirmed'].includes(it.session.status)
-    ) {
-      navigate(`/sesion/${it.session.id}`)
-      return
-    }
-    // Con bloque (compromiso) o sin él (sesión espontánea), abrimos la hoja:
-    // antes una sesión suelta no abría nada y quedaba muerta.
-    if (it.block || it.session) {
-      setTimeSheet({ goal: it.goal, block: it.block, session: it.session })
-    }
+  function handleSession(it: DayAgendaSession, day: string) {
+    // Todo bloque abre su hoja: ahí viven el plan (checklist + quick-add) y la
+    // acción según estado (cronómetro, detalle de solo lectura o fijar hora).
+    setBlockSheet({ sessionKey: it.key, day })
   }
 
   async function saveSessionTime(time: string | null) {
@@ -485,6 +492,37 @@ export function Calendar() {
     }
   }
 
+  /** Toca un hueco libre → editor "Con horario" prellenado al inicio del hueco. */
+  function planGap(day: string, gapStartMin: number, gapEndMin: number) {
+    const start = Math.ceil(gapStartMin / 30) * 30 // redondeo a :00/:30 hacia arriba
+    const end = Math.min(start + 60, gapEndMin) // +1 h sin pasarse del hueco
+    setEditing({
+      event: null,
+      date: day,
+      presetStart: minutesToTime(start),
+      presetEnd: minutesToTime(end),
+    })
+  }
+
+  /** Quick-add de la hoja de bloque: crea el evento ya vinculado a la meta. */
+  async function quickAddPlanItem(
+    goalId: string,
+    date: string,
+    title: string,
+    time: string | null,
+  ) {
+    const created = await createEvent(userId, {
+      title,
+      date,
+      allDay: !time,
+      startTime: time,
+      endTime: null,
+      goalId,
+      notes: null,
+    })
+    setEvents((prev) => [...prev, created].filter((e) => e.date >= from && e.date <= to))
+  }
+
   async function removeEditingEvent() {
     const current = editing?.event
     if (!current) return
@@ -521,7 +559,7 @@ export function Calendar() {
   const dayProps = (day: string) => ({
     day,
     sessions: daySessions(day),
-    onSession: handleSession,
+    onSession: (it: DayAgendaSession) => handleSession(it, day),
     habits: dayHabits(day),
     onHabit: (it: DayHabitItem) => void toggleHabitSlot(it, day),
     events: eventsByDate.get(day) ?? [],
@@ -623,7 +661,7 @@ export function Calendar() {
           </div>
           <div className="cal-month__day stack">
             {dayContextBanner}
-            <DaySection {...dayProps(selected)} showGaps />
+            <DayTimeGrid {...dayProps(selected)} onGap={(s, e) => planGap(selected, s, e)} />
           </div>
         </div>
       ) : view === 'week' ? (
@@ -635,7 +673,7 @@ export function Calendar() {
       ) : (
         <div className="stack">
           {dayContextBanner}
-          <DaySection {...dayProps(selected)} showGaps />
+          <DayTimeGrid {...dayProps(selected)} onGap={(s, e) => planGap(selected, s, e)} />
         </div>
       )}
 
@@ -650,6 +688,52 @@ export function Calendar() {
           onDelete={timeSheet.session && !timeSheet.block ? () => void removeSession() : undefined}
         />
       )}
+
+      {blockSheet &&
+        (() => {
+          // La hoja se deriva del estado vivo: los checks y el quick-add se
+          // reflejan al instante; si la sesión desaparece, la hoja se cierra sola.
+          const list = daySessions(blockSheet.day)
+          const it = list.find((s) => s.key === blockSheet.sessionKey)
+          if (!it) return null
+          const { nested } = assignEventsToSessions(
+            list.map((s) => ({
+              key: s.key,
+              goalId: s.goal.id,
+              start: s.span.start,
+              end: s.span.end,
+            })),
+            eventsByDate.get(blockSheet.day) ?? [],
+          )
+          return (
+            <BlockSheet
+              key={blockSheet.sessionKey}
+              it={it}
+              sub={nested.get(it.key) ?? []}
+              onClose={() => setBlockSheet(null)}
+              onToggleEvent={(e) => void toggleEventDone(e)}
+              onOpenEvent={(e) => {
+                setBlockSheet(null)
+                setEditing({ event: e, date: e.date })
+              }}
+              onQuickAdd={async (title, time) => {
+                try {
+                  await quickAddPlanItem(it.goal.id, blockSheet.day, title, time)
+                } catch {
+                  toast('No se pudo agregar al plan.')
+                }
+              }}
+              onOpenSession={(s) => {
+                setBlockSheet(null)
+                navigate(`/sesion/${s.id}`)
+              }}
+              onSetTime={() => {
+                setBlockSheet(null)
+                setTimeSheet({ goal: it.goal, block: it.block, session: it.session })
+              }}
+            />
+          )
+        })()}
 
       {planning && (
         <PlanSessionSheet
@@ -667,6 +751,8 @@ export function Calendar() {
           date={editing.date}
           goals={activeGoals}
           suggested={suggestedTime}
+          presetStart={editing.presetStart}
+          presetEnd={editing.presetEnd}
           onClose={() => setEditing(null)}
           onSubmit={submitEvent}
           onDelete={removeEditingEvent}
@@ -701,23 +787,215 @@ function EventCheck({ event, onToggle }: { event: CalendarEvent; onToggle: () =>
   )
 }
 
-/** Un día con sus eventos. Se reutiliza en las vistas día, semana y mes. */
-function DaySection({
-  day,
-  sessions,
+/** Estados que ya no admiten cronómetro (la sesión quedó cerrada). */
+const CLOSED_STATES = ['done', 'partial', 'missed']
+/** Estados de una sesión real de HOY que llevan directo al cronómetro. */
+const OPEN_STATUSES = ['pending', 'running', 'unconfirmed']
+
+/** ¿Sesión real de hoy, todavía abierta? (la que invita a darle play). */
+function isOpenToday(it: DayAgendaSession): boolean {
+  return Boolean(
+    it.session && it.session.date === todayISO() && OPEN_STATUSES.includes(it.session.status),
+  )
+}
+
+/** Aria-label de un bloque de sesión: qué es y qué pasa al tocarlo. */
+function sessionAriaLabel(it: DayAgendaSession): string {
+  const range = it.span.start ? `, de ${rangeLabel(it.span.start, it.span.end)}` : ''
+  if (it.session && isOpenToday(it)) return `Abrir la sesión de ${it.goal.title}${range}`
+  if (it.session) {
+    return `Ver el detalle de la sesión de ${it.goal.title}, ${sessionStateLabel(it.state)}${range}`
+  }
+  return `Sesión de ${it.goal.title}, ${sessionStateLabel(it.state)}${range}`
+}
+
+/** Indicio de tocable: play (hoy, abierta) o chevron (todo lo demás). */
+function SessionGoIcon({ it }: { it: DayAgendaSession }) {
+  const play = isOpenToday(it)
+  return (
+    <span className={`ev-go${play ? ' ev-go--play' : ''}`} aria-hidden="true">
+      {play ? <IconPlay size={12} /> : <IconChevronRight size={14} />}
+    </span>
+  )
+}
+
+/** Tag de estado de sesión; el "hecha" celebra con el check en verde. */
+function SessionStateTag({ state }: { state: DayAgendaSession['state'] }) {
+  return (
+    <span className={`tag${state === 'done' ? ' tag--done' : ''}`}>
+      {state === 'done' && <IconCheck size={11} />} {sessionStateLabel(state)}
+    </span>
+  )
+}
+
+/** Fila de la sub-checklist de un bloque (la lista y la hoja la comparten). */
+function EventSubRow({
+  e,
+  onOpen,
+  onToggle,
+}: {
+  e: CalendarEvent
+  onOpen: (e: CalendarEvent) => void
+  onToggle: (e: CalendarEvent) => void
+}) {
+  return (
+    <li className={`ev-sub${e.doneAt ? ' ev-sub--done' : ''}`}>
+      <EventCheck event={e} onToggle={() => onToggle(e)} />
+      <span className="ev-sub__time">
+        {!e.allDay && e.startTime ? formatTime12(e.startTime) : '—'}
+      </span>
+      <button type="button" className="ev-sub__title" onClick={() => onOpen(e)}>
+        {e.title}
+      </button>
+    </li>
+  )
+}
+
+/** Bloque de sesión en formato lista (vista semana y sección "Sin hora"). */
+function SessionRow({
+  it,
+  sub,
   onSession,
-  habits,
-  onHabit,
-  events,
-  deadlines,
-  goalById,
-  onAdd,
   onOpen,
   onToggleEvent,
-  onGoal,
-  onPlanSession,
-  showGaps,
 }: {
+  it: DayAgendaSession
+  sub: CalendarEvent[]
+  onSession: (it: DayAgendaSession) => void
+  onOpen: (e: CalendarEvent) => void
+  onToggleEvent: (e: CalendarEvent) => void
+}) {
+  const isClosed = CLOSED_STATES.includes(it.state)
+  const doneCount = sub.filter((e) => e.doneAt).length
+  // Dieta de info: lo normal (pendiente / comprometida) no se etiqueta.
+  const showState = it.state !== 'pending' && it.state !== 'projected'
+  const head = (
+    <>
+      <TimeColumn span={it.span} fallback="—" />
+      <span className="ev__body">
+        <span className="ev__title">{it.goal.title}</span>
+        <span className="ev__meta">
+          {showState && <SessionStateTag state={it.state} />}
+          <span className="faint tiny">{it.targetLabel}</span>
+          {sub.length > 0 && (
+            <span className="tag">
+              {doneCount}/{sub.length}
+            </span>
+          )}
+        </span>
+      </span>
+      <SessionGoIcon it={it} />
+    </>
+  )
+  if (sub.length === 0) {
+    return (
+      <button
+        className={`ev ev--session${isClosed ? ' ev--closed' : ''}`}
+        style={nicheAccent(it.goal.area)}
+        onClick={() => onSession(it)}
+        aria-label={sessionAriaLabel(it)}
+      >
+        {head}
+      </button>
+    )
+  }
+  return (
+    <div
+      className={`ev ev--session ev--block${isClosed ? ' ev--closed' : ''}`}
+      style={nicheAccent(it.goal.area)}
+    >
+      <button
+        type="button"
+        className="ev-block__head"
+        onClick={() => onSession(it)}
+        aria-label={sessionAriaLabel(it)}
+      >
+        {head}
+      </button>
+      <ul className="ev__sublist">
+        {sub.map((e) => (
+          <EventSubRow key={e.id} e={e} onOpen={onOpen} onToggle={onToggleEvent} />
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/** Repetición de hábito en formato lista. */
+function HabitRow({ it, onHabit }: { it: DayHabitItem; onHabit: (it: DayHabitItem) => void }) {
+  return (
+    <button
+      className={`ev ev--session${it.done ? ' ev--habit-done' : ''}`}
+      style={nicheAccent(it.habit.area)}
+      onClick={() => onHabit(it)}
+      aria-pressed={it.done}
+      aria-label={`${it.done ? 'Desmarcar' : 'Marcar'} el hábito ${it.habit.title}${
+        it.target > 1 ? `, repetición ${it.slot + 1} de ${it.target}` : ''
+      }`}
+    >
+      <span className="ev__time">{it.time ? formatTime12(it.time) : '—'}</span>
+      <span className="ev__body">
+        <span className="ev__title" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ color: 'var(--niche)', display: 'inline-flex', flex: 'none' }}>
+            <NicheIcon area={it.habit.area} size={14} />
+          </span>
+          {it.habit.title}
+          {it.target > 1 && (
+            <span className="tag">
+              {it.slot + 1}/{it.target}
+            </span>
+          )}
+        </span>
+      </span>
+    </button>
+  )
+}
+
+/** Evento suelto en formato lista. */
+function EventRow({
+  e,
+  goal,
+  onOpen,
+  onToggle,
+}: {
+  e: CalendarEvent
+  goal: Goal | null
+  onOpen: (e: CalendarEvent) => void
+  onToggle: (e: CalendarEvent) => void
+}) {
+  const notePreview = e.notes ? e.notes.trim().split('\n')[0] : null
+  const span = eventSpan(e)
+  const minutes = span.start && span.end ? rangeMinutes(span.start, span.end) : null
+  return (
+    <div className={`ev${e.doneAt ? ' ev--done' : ''}`}>
+      <TimeColumn span={span} fallback="Día" />
+      <button type="button" className="ev__open" onClick={() => onOpen(e)}>
+        <span className="ev__body">
+          <span className="ev__title">{e.title}</span>
+          {(goal || notePreview || minutes != null) && (
+            <span className="ev__meta">
+              {minutes != null && <span className="faint tiny">{formatDuration(minutes)}</span>}
+              {goal && (
+                <span className="tag">
+                  <IconArrowReturn size={11} /> {goal.title}
+                </span>
+              )}
+              {notePreview && (
+                <span className="ev__note" title={e.notes ?? undefined}>
+                  {notePreview}
+                </span>
+              )}
+            </span>
+          )}
+        </span>
+      </button>
+      <EventCheck event={e} onToggle={() => onToggle(e)} />
+    </div>
+  )
+}
+
+/** Props que comparten la lista de día (semana) y la grilla horaria. */
+interface DayCommonProps {
   day: string
   sessions: DayAgendaSession[]
   onSession: (it: DayAgendaSession) => void
@@ -733,9 +1011,24 @@ function DaySection({
   onGoal: (g: Goal) => void
   /** Sumar una sesión espontánea este día (solo hoy o futuro, con metas activas). */
   onPlanSession?: () => void
-  /** Mostrar los separadores de tiempo libre (vista día y panel del día del mes). */
-  showGaps?: boolean
-}) {
+}
+
+/** Un día como lista apilada. Lo conserva la vista semana. */
+function DaySection({
+  day,
+  sessions,
+  onSession,
+  habits,
+  onHabit,
+  events,
+  deadlines,
+  goalById,
+  onAdd,
+  onOpen,
+  onToggleEvent,
+  onGoal,
+  onPlanSession,
+}: DayCommonProps) {
   const empty =
     sessions.length === 0 && habits.length === 0 && events.length === 0 && deadlines.length === 0
 
@@ -763,28 +1056,6 @@ function DaySection({
     ...habits.map((h) => ({ kind: 'habit' as const, sort: h.time ?? '99', habitItem: h })),
   ].sort((a, b) => a.sort.localeCompare(b.sort))
 
-  // Huecos libres (>= 45 min) entre ítems consecutivos CON hora. Solo donde se
-  // planifica: hoy o futuro, y en las vistas con espacio (showGaps).
-  const timed =
-    showGaps && day >= todayISO()
-      ? timeline.filter((it) => it.sort !== '' && it.sort !== '99')
-      : []
-  const gapBefore = new Map<DayListItem, number>()
-  freeGaps(
-    timed.map((it) => ({
-      start: it.sort,
-      end:
-        it.kind === 'session'
-          ? it.session.span.end
-          : it.kind === 'event'
-            ? eventSpan(it.event).end
-            : null,
-    })),
-  ).forEach((minutes, idx) => gapBefore.set(timed[idx], minutes))
-
-  const itemKey = (item: DayListItem) =>
-    item.kind === 'session' ? item.session.key : item.kind === 'habit' ? item.habitItem.key : item.event.id
-
   return (
     <section className="cal-day stack stack--sm">
       <div className="row row--between">
@@ -800,149 +1071,34 @@ function DaySection({
         <p className="faint small">Nada agendado. Toca + para sumar algo.</p>
       ) : (
         <div className="stack stack--sm">
-          {timeline.map((item) => {
-            const gap = gapBefore.get(item)
-            let row: ReactNode
-            if (item.kind === 'session') {
-              const it = item.session
-              const isClosed = ['done', 'partial', 'missed'].includes(it.state)
-              const sub = nested.get(it.key) ?? []
-              const doneCount = sub.filter((e) => e.doneAt).length
-              // Dieta de info: lo normal (pendiente / comprometida) no se etiqueta.
-              const showState = it.state !== 'pending' && it.state !== 'projected'
-              const headLabel = `Sesión de ${it.goal.title}, ${sessionStateLabel(it.state)}${
-                it.span.start ? `, de ${rangeLabel(it.span.start, it.span.end)}` : ''
-              }`
-              const head = (
-                <>
-                  <TimeColumn span={it.span} fallback="—" />
-                  <span className="ev__body">
-                    <span className="ev__title">{it.goal.title}</span>
-                    <span className="ev__meta">
-                      {showState && <span className="tag">{sessionStateLabel(it.state)}</span>}
-                      <span className="faint tiny">{it.targetLabel}</span>
-                      {sub.length > 0 && (
-                        <span className="tag">
-                          {doneCount}/{sub.length}
-                        </span>
-                      )}
-                    </span>
-                  </span>
-                </>
-              )
-              row =
-                sub.length === 0 ? (
-                  <button
-                    className="ev ev--session"
-                    style={nicheAccent(it.goal.area)}
-                    disabled={isClosed}
-                    onClick={() => onSession(it)}
-                    aria-label={headLabel}
-                  >
-                    {head}
-                  </button>
-                ) : (
-                  <div className="ev ev--session ev--block" style={nicheAccent(it.goal.area)}>
-                    <button
-                      type="button"
-                      className="ev-block__head"
-                      disabled={isClosed}
-                      onClick={() => onSession(it)}
-                      aria-label={headLabel}
-                    >
-                      {head}
-                    </button>
-                    <ul className="ev__sublist">
-                      {sub.map((e) => (
-                        <li key={e.id} className={`ev-sub${e.doneAt ? ' ev-sub--done' : ''}`}>
-                          <EventCheck event={e} onToggle={() => onToggleEvent(e)} />
-                          <span className="ev-sub__time">
-                            {!e.allDay && e.startTime ? formatTime12(e.startTime) : '—'}
-                          </span>
-                          <button type="button" className="ev-sub__title" onClick={() => onOpen(e)}>
-                            {e.title}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )
-            } else if (item.kind === 'habit') {
-              const it = item.habitItem
-              row = (
-                <button
-                  className={`ev ev--session${it.done ? ' ev--habit-done' : ''}`}
-                  style={nicheAccent(it.habit.area)}
-                  onClick={() => onHabit(it)}
-                  aria-pressed={it.done}
-                  aria-label={`${it.done ? 'Desmarcar' : 'Marcar'} el hábito ${it.habit.title}${
-                    it.target > 1 ? `, repetición ${it.slot + 1} de ${it.target}` : ''
-                  }`}
-                >
-                  <span className="ev__time">{it.time ? formatTime12(it.time) : '—'}</span>
-                  <span className="ev__body">
-                    <span
-                      className="ev__title"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                    >
-                      <span style={{ color: 'var(--niche)', display: 'inline-flex', flex: 'none' }}>
-                        <NicheIcon area={it.habit.area} size={14} />
-                      </span>
-                      {it.habit.title}
-                      {it.target > 1 && (
-                        <span className="tag">
-                          {it.slot + 1}/{it.target}
-                        </span>
-                      )}
-                    </span>
-                  </span>
-                </button>
-              )
-            } else {
-              const e = item.event
-              const goal = e.goalId ? goalById.get(e.goalId) : null
-              const notePreview = e.notes ? e.notes.trim().split('\n')[0] : null
-              const span = eventSpan(e)
-              const minutes = span.start && span.end ? rangeMinutes(span.start, span.end) : null
-              row = (
-                <div className={`ev${e.doneAt ? ' ev--done' : ''}`}>
-                  <TimeColumn span={span} fallback="Día" />
-                  <button type="button" className="ev__open" onClick={() => onOpen(e)}>
-                    <span className="ev__body">
-                      <span className="ev__title">{e.title}</span>
-                      {(goal || notePreview || minutes != null) && (
-                        <span className="ev__meta">
-                          {minutes != null && (
-                            <span className="faint tiny">{formatDuration(minutes)}</span>
-                          )}
-                          {goal && (
-                            <span className="tag">
-                              <IconArrowReturn size={11} /> {goal.title}
-                            </span>
-                          )}
-                          {notePreview && (
-                            <span className="ev__note" title={e.notes ?? undefined}>
-                              {notePreview}
-                            </span>
-                          )}
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                  <EventCheck event={e} onToggle={() => onToggleEvent(e)} />
-                </div>
-              )
-            }
-            return (
-              <Fragment key={itemKey(item)}>
-                {gap !== undefined && <div className="ev-gap">{gapLabel(gap)}</div>}
-                {row}
-              </Fragment>
-            )
-          })}
+          {timeline.map((item) =>
+            item.kind === 'session' ? (
+              <SessionRow
+                key={item.session.key}
+                it={item.session}
+                sub={nested.get(item.session.key) ?? []}
+                onSession={onSession}
+                onOpen={onOpen}
+                onToggleEvent={onToggleEvent}
+              />
+            ) : item.kind === 'habit' ? (
+              <HabitRow key={item.habitItem.key} it={item.habitItem} onHabit={onHabit} />
+            ) : (
+              <EventRow
+                key={item.event.id}
+                e={item.event}
+                goal={item.event.goalId ? (goalById.get(item.event.goalId) ?? null) : null}
+                onOpen={onOpen}
+                onToggle={onToggleEvent}
+              />
+            ),
+          )}
           {deadlines.map((g) => (
             <button key={`d-${g.id}`} className="ev ev--goal" onClick={() => onGoal(g)}>
-              <span className="ev__time" style={{ display: 'inline-flex', justifyContent: 'flex-start' }}>
+              <span
+                className="ev__time"
+                style={{ display: 'inline-flex', justifyContent: 'flex-start' }}
+              >
                 <IconFlag size={14} className="muted" />
               </span>
               <span className="ev__title">
@@ -964,6 +1120,422 @@ function DaySection({
         </button>
       )}
     </section>
+  )
+}
+
+/** "7 am", "12 pm" — etiqueta corta del eje horario. */
+function axisHourLabel(min: number): string {
+  const h = Math.floor(min / 60) % 24
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12} ${h >= 12 ? 'pm' : 'am'}`
+}
+
+/** "2 h libres": mismo redondeo que gapLabel, en plural para el botón de hueco. */
+function freeLabel(minutes: number): string {
+  const rounded = minutes >= 120 ? Math.round(minutes / 30) * 30 : minutes
+  return `${formatDuration(rounded)} libres`
+}
+
+/**
+ * Vista día como grilla horaria real (1 px = 1 min): las horas libres se VEN
+ * como espacio vacío y, en días planificables, son botones para llenarlas.
+ * La usan la vista día y el panel del día seleccionado del mes.
+ */
+function DayTimeGrid({
+  day,
+  sessions,
+  onSession,
+  habits,
+  onHabit,
+  events,
+  deadlines,
+  goalById,
+  onAdd,
+  onOpen,
+  onToggleEvent,
+  onGoal,
+  onPlanSession,
+  onGap,
+}: DayCommonProps & {
+  /** Planear algo en un hueco libre (solo hoy/futuro; sin esto no hay botones). */
+  onGap?: (startMin: number, endMin: number) => void
+}) {
+  const { nested, standalone } = assignEventsToSessions(
+    sessions.map((s) => ({ key: s.key, goalId: s.goal.id, start: s.span.start, end: s.span.end })),
+    events,
+  )
+
+  const timedSessions = sessions.filter((s) => s.span.start !== null)
+  const untimedSessions = sessions.filter((s) => s.span.start === null)
+  const timedHabits = habits.filter((h) => h.time !== null)
+  const untimedHabits = habits.filter((h) => h.time === null)
+  const allDayEvents = standalone.filter((e) => e.allDay)
+  const timedEvents = standalone.filter((e) => !e.allDay && e.startTime)
+  const untimedEvents = standalone.filter((e) => !e.allDay && !e.startTime)
+
+  const gridItems = [
+    ...timedSessions.map((s) => ({ key: s.key, start: s.span.start as string, end: s.span.end })),
+    ...timedHabits.map((h) => ({ key: h.key, start: h.time as string, end: null })),
+    ...timedEvents.map((e) => {
+      const sp = eventSpan(e)
+      return { key: e.id, start: sp.start as string, end: sp.end }
+    }),
+  ]
+  const bounds = gridBounds(gridItems)
+  const placed = new Map(layoutDay(gridItems).map((p) => [p.key, p] as const))
+  // Huecos accionables solo donde se planifica (hoy/futuro); en días pasados
+  // el vacío se ve igual, sin botones.
+  const gaps = onGap && day >= todayISO() ? uncoveredGaps(gridItems, bounds) : []
+
+  const hourMarks: number[] = []
+  for (let m = bounds.startMin; m <= bounds.endMin; m += 60) hourMarks.push(m)
+
+  /** Posiciona por minutos relativos a la ventana (top/height via CSS vars). */
+  const at = (startMin: number, endMin: number, extra?: CSSProperties): CSSProperties =>
+    ({
+      ...extra,
+      '--is': startMin - bounds.startMin,
+      '--ie': endMin - bounds.startMin,
+    }) as CSSProperties
+  /** Posiciona y reparte el ancho según el carril del clúster de solape. */
+  const laneAt = (p: GridPlacement, extra?: CSSProperties): CSSProperties =>
+    ({
+      ...at(p.startMin, p.endMin, extra),
+      '--lane': p.lane,
+      '--lanes': p.lanes,
+    }) as CSSProperties
+
+  const untimedCount = untimedSessions.length + untimedHabits.length + untimedEvents.length
+
+  return (
+    <section className="cal-day stack stack--sm">
+      <div className="row row--between">
+        <span className={`cal-day__label${isToday(day) ? ' cal-day__label--today' : ''}`}>
+          {formatWeekday(day)}
+        </span>
+        <button className="iconbtn iconbtn--sm" onClick={onAdd} aria-label="Agregar evento">
+          <IconPlus size={18} />
+        </button>
+      </div>
+
+      {(deadlines.length > 0 || allDayEvents.length > 0) && (
+        <div className="tg-allday">
+          {deadlines.map((g) => (
+            <button
+              key={`d-${g.id}`}
+              type="button"
+              className="tg-chip"
+              onClick={() => onGoal(g)}
+              aria-label={`Meta ${g.title}, fecha objetivo`}
+            >
+              <span className="tg-chip__flag">
+                <IconFlag size={12} />
+              </span>
+              <span className="tg-chip__title">{g.title}</span>
+            </button>
+          ))}
+          {allDayEvents.map((e) => (
+            <div key={e.id} className={`tg-chip${e.doneAt ? ' tg-chip--done' : ''}`}>
+              <EventCheck event={e} onToggle={() => onToggleEvent(e)} />
+              <button type="button" className="tg-chip__title" onClick={() => onOpen(e)}>
+                {e.title}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="tg" style={{ '--tg-span': bounds.endMin - bounds.startMin } as CSSProperties}>
+        {hourMarks.map((m) => (
+          <div
+            key={m}
+            className="tg__hour"
+            style={{ '--m': m - bounds.startMin } as CSSProperties}
+            aria-hidden="true"
+          >
+            <span className="tg__hour-label">{axisHourLabel(m)}</span>
+          </div>
+        ))}
+        <div className="tg__items">
+          {gaps.map((g) => (
+            <button
+              key={`g-${g.startMin}`}
+              type="button"
+              className="tg-gap"
+              style={at(g.startMin, g.endMin)}
+              onClick={() => onGap?.(g.startMin, g.endMin)}
+              aria-label={`Planear algo de ${formatTime12(minutesToTime(g.startMin))} a ${formatTime12(minutesToTime(g.endMin))}`}
+            >
+              {freeLabel(g.endMin - g.startMin)}
+            </button>
+          ))}
+
+          {timedSessions.map((it) => {
+            const p = placed.get(it.key)
+            if (!p) return null
+            const sub = nested.get(it.key) ?? []
+            const isClosed = CLOSED_STATES.includes(it.state)
+            const showState = it.state !== 'pending' && it.state !== 'projected'
+            const doneCount = sub.filter((e) => e.doneAt).length
+            return (
+              <button
+                key={it.key}
+                className={`tg-item tg-item--session${isClosed ? ' tg-item--closed' : ''}`}
+                style={laneAt(p, nicheAccent(it.goal.area))}
+                onClick={() => onSession(it)}
+                aria-label={sessionAriaLabel(it)}
+              >
+                <SessionGoIcon it={it} />
+                <span className="tg-item__title">{it.goal.title}</span>
+                <span className="tg-item__range">
+                  {rangeLabel(it.span.start as string, it.span.end)} · {it.targetLabel}
+                </span>
+                {(showState || sub.length > 0) && (
+                  <span className="tg-item__meta">
+                    {showState && <SessionStateTag state={it.state} />}
+                    {sub.length > 0 && (
+                      <span className="tag">
+                        {doneCount}/{sub.length}
+                      </span>
+                    )}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+
+          {timedHabits.map((it) => {
+            const p = placed.get(it.key)
+            if (!p) return null
+            return (
+              <button
+                key={it.key}
+                className={`tg-item tg-item--habit${it.done ? ' tg-item--done' : ''}`}
+                style={laneAt(p, nicheAccent(it.habit.area))}
+                onClick={() => onHabit(it)}
+                aria-pressed={it.done}
+                aria-label={`${it.done ? 'Desmarcar' : 'Marcar'} el hábito ${it.habit.title}${
+                  it.target > 1 ? `, repetición ${it.slot + 1} de ${it.target}` : ''
+                }`}
+              >
+                <span className="tg-item__time">{formatTime12(it.time as string)}</span>
+                <span style={{ color: 'var(--niche)', display: 'inline-flex', flex: 'none' }}>
+                  <NicheIcon area={it.habit.area} size={13} />
+                </span>
+                <span className="tg-item__title tg-item__title--row">{it.habit.title}</span>
+                {it.target > 1 && (
+                  <span className="tag">
+                    {it.slot + 1}/{it.target}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+
+          {timedEvents.map((e) => {
+            const p = placed.get(e.id)
+            if (!p) return null
+            const span = eventSpan(e)
+            return (
+              <div
+                key={e.id}
+                className={`tg-item tg-item--event${e.doneAt ? ' tg-item--done' : ''}`}
+                style={laneAt(p)}
+              >
+                <button type="button" className="tg-item__open" onClick={() => onOpen(e)}>
+                  <span className="tg-item__title">{e.title}</span>
+                  <span className="tg-item__range">
+                    {rangeLabel(span.start as string, span.end)}
+                  </span>
+                </button>
+                <EventCheck event={e} onToggle={() => onToggleEvent(e)} />
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {untimedCount > 0 && (
+        <div className="stack stack--sm">
+          <p className="tg-untimed">Sin hora</p>
+          {untimedSessions.map((it) => (
+            <SessionRow
+              key={it.key}
+              it={it}
+              sub={nested.get(it.key) ?? []}
+              onSession={onSession}
+              onOpen={onOpen}
+              onToggleEvent={onToggleEvent}
+            />
+          ))}
+          {untimedHabits.map((it) => (
+            <HabitRow key={it.key} it={it} onHabit={onHabit} />
+          ))}
+          {untimedEvents.map((e) => (
+            <EventRow
+              key={e.id}
+              e={e}
+              goal={e.goalId ? (goalById.get(e.goalId) ?? null) : null}
+              onOpen={onOpen}
+              onToggle={onToggleEvent}
+            />
+          ))}
+        </div>
+      )}
+
+      {onPlanSession && (
+        <button
+          type="button"
+          className="btn--link"
+          style={{ alignSelf: 'flex-start' }}
+          onClick={onPlanSession}
+        >
+          + Sesión para una meta
+        </button>
+      )}
+    </section>
+  )
+}
+
+/**
+ * Hoja de un bloque de sesión: el plan del bloque (checklist de eventos de la
+ * meta), un quick-add para sumarle cosas sin abrir el editor completo, y la
+ * acción principal según el estado (cronómetro, detalle o fijar la hora).
+ */
+function BlockSheet({
+  it,
+  sub,
+  onClose,
+  onToggleEvent,
+  onOpenEvent,
+  onQuickAdd,
+  onOpenSession,
+  onSetTime,
+}: {
+  it: DayAgendaSession
+  sub: CalendarEvent[]
+  onClose: () => void
+  onToggleEvent: (e: CalendarEvent) => void
+  onOpenEvent: (e: CalendarEvent) => void
+  onQuickAdd: (title: string, time: string | null) => Promise<void>
+  onOpenSession: (s: Session) => void
+  onSetTime: () => void
+}) {
+  const [title, setTitle] = useState('')
+  const [time, setTime] = useState('')
+  const [adding, setAdding] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(panelRef, onClose)
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [])
+
+  const isClosed = CLOSED_STATES.includes(it.state)
+  const showState = it.state !== 'pending' && it.state !== 'projected'
+  const openToday = isOpenToday(it)
+
+  async function submitQuickAdd(e: FormEvent) {
+    e.preventDefault()
+    const clean = title.trim()
+    if (!clean || adding) return
+    setAdding(true)
+    try {
+      await onQuickAdd(clean, time || null)
+      setTitle('')
+      setTime('')
+    } finally {
+      setAdding(false)
+      // El foco se queda en el input: meter cinco cosas seguidas debe fluir.
+      inputRef.current?.focus()
+    }
+  }
+
+  return (
+    <div className="sheet" role="dialog" aria-modal="true">
+      <div className="sheet__backdrop" onClick={onClose} />
+      <div
+        ref={panelRef}
+        className="sheet__panel stack stack--lg"
+        style={nicheAccent(it.goal.area)}
+      >
+        <div className="row row--between">
+          <h2 style={{ fontSize: 'var(--fs-lg)' }}>{it.goal.title}</h2>
+          <button type="button" className="iconbtn iconbtn--sm" onClick={onClose} aria-label="Cerrar">
+            <IconClose />
+          </button>
+        </div>
+        <p className="small muted bsheet__when">
+          {it.span.start ? `${rangeLabel(it.span.start, it.span.end)} · ` : ''}
+          {it.targetLabel}
+          {showState && <SessionStateTag state={it.state} />}
+        </p>
+
+        <div className="stack stack--sm">
+          {sub.length > 0 && (
+            <ul className="ev__sublist bsheet__list">
+              {sub.map((e) => (
+                <EventSubRow key={e.id} e={e} onOpen={onOpenEvent} onToggle={onToggleEvent} />
+              ))}
+            </ul>
+          )}
+          <form className="bsheet__add" onSubmit={(e) => void submitQuickAdd(e)}>
+            <input
+              ref={inputRef}
+              className="input"
+              placeholder="Agregar al plan…"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={200}
+              autoCapitalize="sentences"
+              autoCorrect="on"
+              enterKeyHint="done"
+            />
+            <input
+              className="input bsheet__add-time"
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              aria-label="Hora (opcional)"
+            />
+            <button
+              type="submit"
+              className="iconbtn"
+              disabled={!title.trim() || adding}
+              aria-label="Agregar al plan"
+            >
+              <IconPlus size={18} />
+            </button>
+          </form>
+        </div>
+
+        {it.session ? (
+          <button
+            className="btn btn--primary btn--block"
+            onClick={() => onOpenSession(it.session as Session)}
+          >
+            {openToday
+              ? it.session.status === 'running'
+                ? 'Continuar la sesión'
+                : 'Empezar ahora'
+              : 'Ver el detalle de la sesión'}
+          </button>
+        ) : (
+          <button className="btn btn--primary btn--block" onClick={onSetTime}>
+            Fijar la hora
+          </button>
+        )}
+        {it.session && !isClosed && (
+          <button className="btn btn--ghost btn--block" onClick={onSetTime}>
+            Cambiar la hora
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -1106,6 +1678,8 @@ function EventEditor({
   date,
   goals,
   suggested,
+  presetStart,
+  presetEnd,
   onClose,
   onSubmit,
   onDelete,
@@ -1115,6 +1689,9 @@ function EventEditor({
   goals: Goal[]
   /** Hora sugerida según el momento preferido del perfil (para prellenar horario). */
   suggested: string | null
+  /** Al crear desde un hueco libre: arranca "Con horario" con estas horas. */
+  presetStart?: string
+  presetEnd?: string
   onClose: () => void
   onSubmit: (input: EventInput) => Promise<void>
   onDelete: () => Promise<void>
@@ -1139,14 +1716,20 @@ function EventEditor({
   const [eventDate, setEventDate] = useState(
     typeof draft?.eventDate === 'string' ? draft.eventDate : (initial?.date ?? date),
   )
+  // El preset de un hueco libre solo aplica al CREAR (initial null): arranca
+  // "Con horario" con el inicio del hueco. Un borrador guardado siempre gana.
   const [allDay, setAllDay] = useState(
-    typeof draft?.allDay === 'boolean' ? draft.allDay : (initial?.allDay ?? true),
+    typeof draft?.allDay === 'boolean' ? draft.allDay : (initial?.allDay ?? !presetStart),
   )
   const [startTime, setStartTime] = useState(
-    typeof draft?.startTime === 'string' ? draft.startTime : (initial?.startTime ?? ''),
+    typeof draft?.startTime === 'string'
+      ? draft.startTime
+      : (initial?.startTime ?? (initial ? '' : (presetStart ?? ''))),
   )
   const [endTime, setEndTime] = useState(
-    typeof draft?.endTime === 'string' ? draft.endTime : (initial?.endTime ?? ''),
+    typeof draft?.endTime === 'string'
+      ? draft.endTime
+      : (initial?.endTime ?? (initial ? '' : (presetEnd ?? ''))),
   )
   const [goalId, setGoalId] = useState(
     typeof draft?.goalId === 'string' ? draft.goalId : (initial?.goalId ?? ''),

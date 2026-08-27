@@ -4,8 +4,11 @@ import {
   eventSpan,
   freeGaps,
   gapLabel,
+  gridBounds,
+  layoutDay,
   rangeLabel,
   sessionSpan,
+  uncoveredGaps,
   type AgendaSessionSlot,
 } from '@/domain/agenda'
 import type { CalendarEvent } from '@/lib/types'
@@ -174,6 +177,132 @@ describe('rangeLabel', () => {
   })
   it('sin fin: solo la hora de inicio', () => {
     expect(rangeLabel('20:00', null)).toBe('8:00 pm')
+  })
+})
+
+describe('gridBounds', () => {
+  it('sin ítems con hora (o todos dentro) usa la ventana 07:00–21:00', () => {
+    expect(gridBounds([])).toEqual({ startMin: 420, endMin: 1260 })
+    expect(gridBounds([{ start: '08:00', end: '10:00' }])).toEqual({ startMin: 420, endMin: 1260 })
+    expect(gridBounds([{ start: null, end: null }])).toEqual({ startMin: 420, endMin: 1260 })
+  })
+  it('se expande redondeando a la hora para abarcar los ítems', () => {
+    expect(gridBounds([{ start: '06:30', end: '07:30' }]).startMin).toBe(360)
+    expect(gridBounds([{ start: '20:00', end: '22:10' }]).endMin).toBe(1380)
+  })
+  it('un ítem sin fin cuenta como inicio + 30 min', () => {
+    expect(gridBounds([{ start: '21:00', end: null }]).endMin).toBe(1320)
+    expect(gridBounds([{ start: '20:30', end: null }]).endMin).toBe(1260)
+  })
+  it('clampa a los límites del día', () => {
+    expect(gridBounds([{ start: '23:45', end: null }]).endMin).toBe(1440)
+  })
+})
+
+describe('layoutDay', () => {
+  it('ítems que no se tocan van todos al carril 0 con lanes 1', () => {
+    const out = layoutDay([
+      { key: 'a', start: '08:00', end: '09:00' },
+      { key: 'b', start: '09:00', end: '10:00' },
+    ])
+    expect(out).toEqual([
+      { key: 'a', startMin: 480, endMin: 540, lane: 0, lanes: 1 },
+      { key: 'b', startMin: 540, endMin: 600, lane: 0, lanes: 1 },
+    ])
+  })
+  it('solape → carriles repartidos con el total del clúster', () => {
+    const byKey = new Map(
+      layoutDay([
+        { key: 'a', start: '08:00', end: '10:00' },
+        { key: 'b', start: '08:30', end: '09:30' },
+      ]).map((p) => [p.key, p]),
+    )
+    expect(byKey.get('a')).toMatchObject({ lane: 0, lanes: 2 })
+    expect(byKey.get('b')).toMatchObject({ lane: 1, lanes: 2 })
+  })
+  it('un clúster aparte resetea lanes', () => {
+    const byKey = new Map(
+      layoutDay([
+        { key: 'a', start: '08:00', end: '09:00' },
+        { key: 'b', start: '08:00', end: '09:00' },
+        { key: 'c', start: '12:00', end: '13:00' },
+      ]).map((p) => [p.key, p]),
+    )
+    expect(byKey.get('a')?.lanes).toBe(2)
+    expect(byKey.get('c')).toMatchObject({ lane: 0, lanes: 1 })
+  })
+  it('ítems puntuales ocupan 30 min visuales (y por eso chocan)', () => {
+    const byKey = new Map(
+      layoutDay([
+        { key: 'a', start: '08:00', end: null },
+        { key: 'b', start: '08:15', end: null },
+      ]).map((p) => [p.key, p]),
+    )
+    expect(byKey.get('a')).toMatchObject({ startMin: 480, endMin: 510, lanes: 2 })
+    expect(byKey.get('b')).toMatchObject({ startMin: 495, endMin: 525, lane: 1 })
+  })
+  it('empate de inicio: el más largo toma el primer carril', () => {
+    const byKey = new Map(
+      layoutDay([
+        { key: 'corto', start: '08:00', end: '09:00' },
+        { key: 'largo', start: '08:00', end: '11:00' },
+      ]).map((p) => [p.key, p]),
+    )
+    expect(byKey.get('largo')?.lane).toBe(0)
+    expect(byKey.get('corto')?.lane).toBe(1)
+  })
+  it('un carril liberado se reusa dentro del clúster', () => {
+    const byKey = new Map(
+      layoutDay([
+        { key: 'a', start: '08:00', end: '09:00' },
+        { key: 'b', start: '08:00', end: '10:00' },
+        { key: 'c', start: '09:00', end: '09:30' },
+      ]).map((p) => [p.key, p]),
+    )
+    // b es más largo → carril 0; a queda en el 1 y c reusa el 1 al liberarse.
+    expect(byKey.get('b')).toMatchObject({ lane: 0, lanes: 2 })
+    expect(byKey.get('c')).toMatchObject({ lane: 1, lanes: 2 })
+  })
+})
+
+describe('uncoveredGaps', () => {
+  const bounds = { startMin: 420, endMin: 1260 }
+  it('sin ítems, toda la ventana es un hueco', () => {
+    expect(uncoveredGaps([], bounds)).toEqual([{ startMin: 420, endMin: 1260 }])
+  })
+  it('fusiona cobertura solapada y reporta el tramo inicial y el final', () => {
+    const gaps = uncoveredGaps(
+      [
+        { start: '08:30', end: '10:00' },
+        { start: '08:00', end: '09:00' },
+      ],
+      bounds,
+    )
+    expect(gaps).toEqual([
+      { startMin: 420, endMin: 480 },
+      { startMin: 600, endMin: 1260 },
+    ])
+  })
+  it('huecos menores a 60 min no cuentan', () => {
+    const gaps = uncoveredGaps(
+      [
+        { start: '07:00', end: '12:00' },
+        { start: '12:45', end: '21:00' },
+      ],
+      bounds,
+    )
+    expect(gaps).toEqual([])
+  })
+  it('un ítem puntual cubre 30 min efectivos', () => {
+    expect(uncoveredGaps([{ start: '12:00', end: null }], bounds)).toEqual([
+      { startMin: 420, endMin: 720 },
+      { startMin: 750, endMin: 1260 },
+    ])
+  })
+  it('cobertura fuera de la ventana no la achica', () => {
+    expect(uncoveredGaps([{ start: '06:00', end: '07:00' }], bounds)).toEqual([
+      { startMin: 420, endMin: 1260 },
+    ])
   })
 })
 

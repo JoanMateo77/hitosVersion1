@@ -2993,3 +2993,315 @@ select.input {
   height: 1px;
   background: var(--border-soft);
 }
+
+/* ---- Agenda: grilla horaria del día (0015) -------------------------------
+   La vista día deja de ser lista: el día es un lienzo de 1 px = 1 min donde
+   el espacio vacío SE VE. El fondo de la grilla es el fondo de pantalla, solo
+   con las líneas de hora; las tarjetas flotan encima con --surface. Cada ítem
+   recibe por CSS vars sus minutos relativos a la ventana (--is/--ie) y su
+   carril de solape (--lane/--lanes). En pantallas muy angostas la escala baja
+   a 0.8 px/min. */
+.tg {
+  --tg-scale: 1;
+  position: relative;
+  height: calc(var(--tg-span) * var(--tg-scale) * 1px);
+  margin-block: 8px; /* aire para las etiquetas de hora que sobresalen ±50% */
+}
+@media (max-width: 379px) {
+  .tg {
+    --tg-scale: 0.8;
+  }
+}
+
+/* Línea de cada hora: etiqueta al eje izquierdo + hairline hasta el borde. */
+.tg__hour {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--m) * var(--tg-scale) * 1px);
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  pointer-events: none;
+}
+.tg__hour-label {
+  flex: none;
+  width: 42px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+.tg__hour::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-soft);
+}
+.tg__items {
+  position: absolute;
+  inset: 0 0 0 50px;
+}
+
+/* Ítem posicionado: tarjeta que flota sobre las líneas de hora. */
+.tg-item {
+  --lane: 0;
+  --lanes: 1;
+  position: absolute;
+  top: calc(var(--is) * var(--tg-scale) * 1px);
+  height: calc((var(--ie) - var(--is)) * var(--tg-scale) * 1px);
+  width: calc((100% - (var(--lanes) - 1) * 4px) / var(--lanes));
+  left: calc(((100% - (var(--lanes) - 1) * 4px) / var(--lanes) + 4px) * var(--lane));
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  overflow: hidden;
+  padding: 4px 10px;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-left: 3px solid var(--niche, var(--primary));
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.12s var(--ease-out), opacity 0.15s var(--ease-out);
+}
+button.tg-item:active {
+  transform: scale(0.99);
+}
+/* Cerrado / hecho: atenuado pero SIEMPRE tocable (el detalle sigue ahí). */
+.tg-item--closed,
+.tg-item--done {
+  opacity: 0.72;
+}
+
+.tg-item__title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.tg-item__range {
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.tg-item__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+.tg-item__time {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+/* El bloque de sesión reserva la esquina para el indicio de tocable. */
+.tg-item--session {
+  padding-right: 26px;
+}
+
+/* Hábito: fila delgada de 30 min visuales, todo en una línea. */
+.tg-item--habit {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding-block: 0;
+}
+.tg-item--habit .tg-item__title {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+.tg-item__title--row {
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: unset;
+}
+.tg-item--done .tg-item__title {
+  text-decoration: line-through;
+  color: var(--text-faint);
+}
+
+/* Evento suelto: sin acento de nicho; cuerpo botón + check al borde. */
+.tg-item--event {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--s2);
+  border-left: 1px solid var(--border-soft);
+}
+.tg-item__open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0;
+  overflow: hidden;
+  background: none;
+  border: none;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+/* Hueco libre: el vacío es un botón tenue que invita a planear. */
+.tg-gap {
+  position: absolute;
+  top: calc(var(--is) * var(--tg-scale) * 1px);
+  height: calc((var(--ie) - var(--is)) * var(--tg-scale) * 1px);
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-faint);
+  transition: color 0.15s var(--ease-out);
+}
+@media (hover: hover) {
+  .tg-gap:hover {
+    color: var(--primary);
+  }
+}
+.tg-gap:active {
+  color: var(--primary);
+}
+
+/* Franja de "todo el día": deadlines de metas y eventos sin hora, en chips. */
+.tg-allday {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+.tg-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-sm);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+  text-align: left;
+}
+.tg-chip__flag {
+  display: inline-flex;
+  flex: none;
+  color: var(--primary);
+}
+.tg-chip__title {
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tg-chip--done .tg-chip__title {
+  text-decoration: line-through;
+  color: var(--text-faint);
+}
+
+/* Kicker de la sección "Sin hora" bajo la grilla. */
+.tg-untimed {
+  margin: 0;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* Indicio de tocable en bloques de sesión: play (hoy, abierta) o chevron. */
+.ev-go {
+  flex: none;
+  align-self: center;
+  display: inline-flex;
+  color: var(--text-faint);
+}
+.ev-go--play {
+  color: var(--niche, var(--primary));
+}
+.tg-item .ev-go {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  align-self: auto;
+}
+
+/* Sesión cerrada en lista: atenuada pero tocable (abre su detalle). */
+.ev--closed {
+  opacity: 0.72;
+}
+
+/* "hecha" celebra en verde, coherente con los checks de cumplido. */
+.tag--done {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+/* Hoja de bloque: el plan de la sesión + quick-add, en el lenguaje de las
+   hojas existentes. El filete de la checklist hereda --niche del panel. */
+.bsheet__when {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+.bsheet__list {
+  margin-top: 0;
+}
+.bsheet__add {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+.bsheet__add .input {
+  flex: 1;
+  min-width: 0;
+}
+.bsheet__add .iconbtn {
+  flex: none;
+}
+.bsheet__add .bsheet__add-time {
+  flex: none;
+  width: auto;
+}
+
+/* En escritorio el panel del día (sticky) puede quedar más alto que la
+   ventana con la grilla horaria: scrollea por dentro para no cortar el día. */
+@media (min-width: 1024px) {
+  .cal-month__day {
+    max-height: calc(100vh - var(--s8));
+    overflow-y: auto;
+  }
+}
