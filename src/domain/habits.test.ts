@@ -8,6 +8,7 @@ import {
   habitTarget,
   habitsDueOn,
   habitWeek,
+  habitWithDayTimes,
   nextSlot,
 } from '@/domain/habits'
 import { weekdayMon0 } from '@/domain/commitment'
@@ -81,6 +82,27 @@ describe('habitTarget', () => {
   })
   it('con horas, una repetición por hora', () => {
     expect(habitTarget(habit({ times: ['08:00', '13:00', '20:00'] }))).toBe(3)
+  })
+})
+
+describe('habitWithDayTimes', () => {
+  it('sin excepción devuelve el mismo hábito', () => {
+    const h = habit({ times: ['08:00', '14:00'] })
+    expect(habitWithDayTimes(h)).toBe(h)
+    expect(habitWithDayTimes(h, null)).toBe(h)
+  })
+
+  it('la excepción del día reemplaza las horas, ordenadas', () => {
+    const h = habit({ times: ['08:00', '14:00'] })
+    const out = habitWithDayTimes(h, { times: ['19:00', '10:30'] })
+    expect(out.times).toEqual(['10:30', '19:00'])
+    expect(out.id).toBe(h.id)
+    expect(habitTarget(out)).toBe(2)
+  })
+
+  it('excepción vacía deja el hábito sin hora fija ese día', () => {
+    const h = habit({ times: ['08:00'] })
+    expect(habitWithDayTimes(h, { times: [] }).times).toBeNull()
   })
 })
 

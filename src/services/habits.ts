@@ -190,3 +190,77 @@ export async function setHabitCheck(
     if (error) throw new Error(error.message)
   }
 }
+
+// ---- Reorganizar un día (0015): horas del hábito distintas solo esa fecha ----
+
+/** Excepción de horario de un hábito para UNA fecha concreta. */
+export interface HabitDayOverride {
+  habitId: string
+  date: string
+  times: string[]
+}
+
+/** ¿El error de PostgREST es "esa tabla no existe"? (migración 0015 sin aplicar) */
+function isMissingTable(error: { code?: string } | null): boolean {
+  return error?.code === '42P01' || error?.code === 'PGRST205'
+}
+
+/** Excepciones de horario dentro de [fromISO, toISO]; sin migración, ninguna. */
+export async function listHabitOverridesInRange(
+  userId: string,
+  fromISO: string,
+  toISO: string,
+): Promise<HabitDayOverride[]> {
+  const { data, error } = await supabase
+    .from('habit_day_overrides')
+    .select('habit_id, date, times')
+    .eq('user_id', userId)
+    .gte('date', fromISO)
+    .lte('date', toISO)
+  if (error) {
+    if (isMissingTable(error)) return []
+    throw new Error(error.message)
+  }
+  return (data as { habit_id: string; date: string; times: string[] | null }[]).map((r) => ({
+    habitId: r.habit_id,
+    date: r.date,
+    times: r.times ?? [],
+  }))
+}
+
+/**
+ * Fija las horas de un hábito SOLO para una fecha (upsert). Si la migración
+ * 0015 no está aplicada lanza un Error con `code: 'missing-column'` y mensaje
+ * listo para la UI.
+ */
+export async function setHabitDayTimes(
+  userId: string,
+  habitId: string,
+  dateISO: string,
+  times: string[],
+): Promise<void> {
+  const { error } = await supabase
+    .from('habit_day_overrides')
+    .upsert(
+      { user_id: userId, habit_id: habitId, date: dateISO, times },
+      { onConflict: 'habit_id,date' },
+    )
+  if (error) {
+    if (isMissingTable(error)) {
+      const err = new Error('Para reorganizar el día falta actualizar la base de datos.')
+      ;(err as Error & { code?: string }).code = 'missing-column'
+      throw err
+    }
+    throw new Error(error.message)
+  }
+}
+
+/** Vuelve el hábito a su horario de siempre en esa fecha. */
+export async function clearHabitDayOverride(habitId: string, dateISO: string): Promise<void> {
+  const { error } = await supabase
+    .from('habit_day_overrides')
+    .delete()
+    .eq('habit_id', habitId)
+    .eq('date', dateISO)
+  if (error && !isMissingTable(error)) throw new Error(error.message)
+}

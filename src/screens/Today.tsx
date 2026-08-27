@@ -17,13 +17,19 @@ import {
   setSessionAccomplishment,
 } from '@/services/sessions'
 import { listEventsInRange } from '@/services/events'
-import { listHabits, listHabitChecksInRange, setHabitCheck } from '@/services/habits'
+import {
+  listHabits,
+  listHabitChecksInRange,
+  listHabitOverridesInRange,
+  setHabitCheck,
+} from '@/services/habits'
 import {
   habitCompleteDates,
   habitDoneCount,
   habitStreak,
   habitTarget,
   habitsDueOn,
+  habitWithDayTimes,
   nextSlot,
 } from '@/domain/habits'
 import { HabitRow } from '@/components/HabitRow'
@@ -121,7 +127,7 @@ export function Today() {
         // Sesiones que quedaron corriendo de otros días → "sin confirmar".
         if (shouldGenerate) await closeStaleSessions(userId, today).catch(() => {})
 
-        const [loadedGoals, loadedBlocks, loadedTasks, loadedEvents, loadedHistory, loadedHabits, loadedChecks, loadedYesterday] =
+        const [loadedGoals, loadedBlocks, loadedTasks, loadedEvents, loadedHistory, loadedHabits, loadedChecks, loadedYesterday, loadedOverrides] =
           await Promise.all([
             listGoals(userId),
             listScheduleForUser(userId),
@@ -132,6 +138,7 @@ export function Today() {
             listHabits(userId).catch(() => []),
             listHabitChecksInRange(userId, addDays(today, -119), today).catch(() => []),
             listTasksForDate(userId, addDays(today, -1)).catch(() => []),
+            listHabitOverridesInRange(userId, today, today).catch(() => []),
           ])
 
         // Las sesiones de hoy nacen del compromiso, no de heurísticas.
@@ -151,7 +158,10 @@ export function Today() {
           setHistory(loadedHistory)
           setTasks(loadedTasks)
           setEvents(loadedEvents)
-          setHabits(loadedHabits)
+          // Si hoy está reorganizado (0015), las horas del día reemplazan a las
+          // de siempre y todo lo demás (próxima repetición, slots) las hereda.
+          const overrideByHabit = new Map(loadedOverrides.map((o) => [o.habitId, o]))
+          setHabits(loadedHabits.map((h) => habitWithDayTimes(h, overrideByHabit.get(h.id))))
           setHabitChecks(loadedChecks)
           setYesterdayPending(carryoverCandidates(loadedYesterday))
         }

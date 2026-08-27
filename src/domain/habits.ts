@@ -37,6 +37,20 @@ export function habitTarget(habit: Habit): number {
   return habit.times && habit.times.length > 0 ? habit.times.length : 1
 }
 
+/**
+ * El hábito con las horas efectivas de UNA fecha: si el día tiene excepción
+ * (0015, "reorganizar el día"), sus horas reemplazan a las de siempre; el
+ * resto del hábito queda intacto. Sin excepción, devuelve el mismo objeto.
+ */
+export function habitWithDayTimes(
+  habit: Habit,
+  override?: { times: string[] } | null,
+): Habit {
+  if (!override) return habit
+  const times = [...override.times].sort()
+  return { ...habit, times: times.length > 0 ? times : null }
+}
+
 /** Repeticiones ya marcadas de un hábito en una fecha. */
 export function habitDoneCount(checks: HabitCheck[], habitId: string, dateISO: string): number {
   let count = 0
