@@ -7,6 +7,7 @@ import { listMilestones, setMilestoneDone } from '@/services/milestones'
 import { listSessionsInRange } from '@/services/sessions'
 import { listHabitChecksInRange, listHabits } from '@/services/habits'
 import { goalsDueForReview } from '@/domain/dailyPlan'
+import { habitCompleteDates } from '@/domain/habits'
 import { addDays, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { useToast } from '@/app/toast'
@@ -198,11 +199,13 @@ export function Review() {
   )
   const weekCount = goalDone.filter((s) => s.date >= startOfWeek(todayISO())).length
   const lastDoneDate = goalDone.map((s) => s.date).sort().pop() ?? null
-  // Los hábitos vinculados a esta meta también cuentan en el contexto.
-  const linkedHabitIds = new Set(
-    habits.filter((h) => h.goalId === goal.id && h.archivedAt === null).map((h) => h.id),
+  // Los hábitos vinculados a esta meta también cuentan en el contexto. Un día
+  // suma solo si el hábito quedó completo (todas sus repeticiones).
+  const linkedHabits = habits.filter((h) => h.goalId === goal.id && h.archivedAt === null)
+  const habitDaysDone = linkedHabits.reduce(
+    (acc, h) => acc + habitCompleteDates(h, habitChecks).size,
+    0,
   )
-  const habitChecksCount = habitChecks.filter((c) => linkedHabitIds.has(c.habitId)).length
 
   function markPendingDone(m: Milestone) {
     return setMilestoneDone(m.id, true).then((updated) => {
@@ -251,9 +254,9 @@ export function Review() {
           {lastDoneDate
             ? ` · última el ${formatWeekday(lastDoneDate)}`
             : ' · ninguna en los últimos 30 días'}
-          {linkedHabitIds.size > 0 &&
-            ` · hábitos vinculados: ${habitChecksCount} ${
-              habitChecksCount === 1 ? 'marca' : 'marcas'
+          {linkedHabits.length > 0 &&
+            ` · hábitos vinculados: ${habitDaysDone} ${
+              habitDaysDone === 1 ? 'día completo' : 'días completos'
             } esta semana`}
         </span>
       </div>

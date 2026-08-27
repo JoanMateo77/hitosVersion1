@@ -6,7 +6,7 @@ import { listDoneMilestones, milestoneProgressByGoal } from '@/services/mileston
 import { listScheduleForUser } from '@/services/schedule'
 import { listSessionsInRange } from '@/services/sessions'
 import { listHabitChecksInRange, listHabits } from '@/services/habits'
-import { habitStreak, habitWeek } from '@/domain/habits'
+import { habitCompleteDates, habitStreak, habitWeek } from '@/domain/habits'
 import { getNiche } from '@/domain/niches'
 import { isGoalClosed } from '@/domain/goals'
 import { bestStreakCommitted, currentStreakCommitted, weekConsistency } from '@/domain/sessions'
@@ -71,12 +71,9 @@ export function Progress() {
 
   // ----- Tus hábitos: semana y racha por hábito (mismo lenguaje visual que Hábitos) -----
   const activeHabits = habits.filter((h) => h.archivedAt === null)
-  const habitDates = new Map<string, Set<string>>()
-  for (const c of habitChecks) {
-    const set = habitDates.get(c.habitId) ?? new Set<string>()
-    set.add(c.date)
-    habitDates.set(c.habitId, set)
-  }
+  // Solo los días COMPLETOS (todas las repeticiones) cuentan para racha y
+  // semana: la misma vara que Hoy y Hábitos, o las pantallas se contradicen.
+  const habitDates = new Map(activeHabits.map((h) => [h.id, habitCompleteDates(h, habitChecks)]))
   const HABIT_DOT: Record<'done' | 'missed' | 'due' | 'free', string> = {
     done: 'done',
     missed: 'missed',

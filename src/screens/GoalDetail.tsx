@@ -19,7 +19,14 @@ import {
 } from '@/services/sessions'
 import { listEventsInRange, minutesByGoalInRange } from '@/services/events'
 import { listHabitChecksInRange, listHabits, setHabitCheck } from '@/services/habits'
-import { habitStreak } from '@/domain/habits'
+import {
+  habitCompleteDates,
+  habitDoneCount,
+  habitIsComplete,
+  habitStreak,
+  habitTarget,
+  nextSlot,
+} from '@/domain/habits'
 import { getTemplate } from '@/domain/templates'
 import { NICHES, getNiche } from '@/domain/niches'
 import { nicheAccent } from '@/lib/nicheAccent'
@@ -383,12 +390,9 @@ export function GoalDetail() {
 
   // Hábitos que suman a esta meta, con su racha — la zona de hábitos deja de ser una isla.
   const linkedHabits = habits.filter((h) => h.goalId === goal.id && h.archivedAt === null)
-  const habitDates = new Map<string, Set<string>>()
-  for (const c of habitChecks) {
-    const set = habitDates.get(c.habitId) ?? new Set<string>()
-    set.add(c.date)
-    habitDates.set(c.habitId, set)
-  }
+  // Un día cuenta solo si el hábito quedó COMPLETO (todas sus repeticiones):
+  // la misma vara que Hoy, Hábitos y Progreso.
+  const habitDates = new Map(linkedHabits.map((h) => [h.id, habitCompleteDates(h, habitChecks)]))
   const habitStreaks = new Map(
     linkedHabits.map((h) => [
       h.id,
@@ -402,24 +406,34 @@ export function GoalDetail() {
   const todayDate = todayISO()
   const habitAppliesToday = (h: Habit) =>
     h.weekdays.length === 0 || h.weekdays.includes(weekdayMon0(todayDate))
-  const habitDoneToday = (h: Habit) => (habitDates.get(h.id) ?? new Set()).has(todayDate)
+  const habitDoneToday = (h: Habit) => habitIsComplete(h, habitChecks, todayDate)
 
-  /** Marca/desmarca el cumplimiento de HOY de un hábito vinculado (optimista). */
+  /**
+   * Avanza el hábito de HOY (optimista): marca la siguiente repetición y, si
+   * ya está completo, desmarca la última — la misma semántica que en Hoy.
+   */
   function toggleLinkedHabit(h: Habit) {
-    const wasDone = habitDoneToday(h)
-    setHabitChecks((prev) =>
-      wasDone
-        ? prev.filter((c) => !(c.habitId === h.id && c.date === todayDate))
-        : [...prev, { habitId: h.id, date: todayDate, slot: 0 }],
-    )
-    setHabitCheck(userId, h.id, todayDate, !wasDone).catch(() => {
-      setHabitChecks((prev) =>
-        wasDone
-          ? [...prev, { habitId: h.id, date: todayDate, slot: 0 }]
-          : prev.filter((c) => !(c.habitId === h.id && c.date === todayDate)),
+    const slotToAdd = nextSlot(h, habitChecks, todayDate)
+    if (slotToAdd !== null) {
+      setHabitChecks((prev) => [...prev, { habitId: h.id, date: todayDate, slot: slotToAdd }])
+      setHabitCheck(userId, h.id, todayDate, true, slotToAdd).catch(() => {
+        setHabitChecks((prev) =>
+          prev.filter((c) => !(c.habitId === h.id && c.date === todayDate && c.slot === slotToAdd)),
+        )
+        toast('No se pudo guardar el hábito.', 'warning')
+      })
+    } else {
+      const lastSlot = Math.max(
+        ...habitChecks.filter((c) => c.habitId === h.id && c.date === todayDate).map((c) => c.slot),
       )
-      toast('No se pudo guardar el hábito.', 'warning')
-    })
+      setHabitChecks((prev) =>
+        prev.filter((c) => !(c.habitId === h.id && c.date === todayDate && c.slot === lastSlot)),
+      )
+      setHabitCheck(userId, h.id, todayDate, false, lastSlot).catch(() => {
+        setHabitChecks((prev) => [...prev, { habitId: h.id, date: todayDate, slot: lastSlot }])
+        toast('No se pudo guardar el hábito.', 'warning')
+      })
+    }
   }
 
   return (
@@ -613,6 +627,8 @@ export function GoalDetail() {
               <span className="kicker">Hábitos que suman</span>
               {linkedHabits.map((h) => {
                 const done = habitDoneToday(h)
+                const target = habitTarget(h)
+                const doneCount = habitDoneCount(habitChecks, h.id, todayDate)
                 return (
                   <div key={h.id} className="row" style={{ alignItems: 'center', gap: 'var(--s3)' }}>
                     {habitAppliesToday(h) && (
@@ -620,7 +636,11 @@ export function GoalDetail() {
                         className={`check${done ? ' check--done' : ''}`}
                         onClick={() => toggleLinkedHabit(h)}
                         aria-label={
-                          done ? `Desmarcar hábito de hoy: ${h.title}` : `Marcar hábito de hoy: ${h.title}`
+                          done
+                            ? `Desmarcar hábito de hoy: ${h.title}`
+                            : target > 1
+                              ? `Marcar repetición ${doneCount + 1} de ${target}: ${h.title}`
+                              : `Marcar hábito de hoy: ${h.title}`
                         }
                         aria-pressed={done}
                       >
@@ -635,6 +655,11 @@ export function GoalDetail() {
                       onClick={() => navigate('/habitos')}
                     >
                       <span className="small nowrap-ellipsis">{h.title}</span>
+                      {target > 1 && habitAppliesToday(h) && !done && (
+                        <span className="faint tiny" style={{ flex: 'none' }}>
+                          {doneCount} de {target} hoy
+                        </span>
+                      )}
                       {(habitStreaks.get(h.id) ?? 0) >= 2 && (
                         <span className="streak-chip" style={{ flex: 'none' }}>
                           <IconFlame size={12} /> {habitStreaks.get(h.id)}
