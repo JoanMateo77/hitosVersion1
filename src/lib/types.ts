@@ -131,6 +131,8 @@ export interface CalendarEvent {
   startTime: string | null
   endTime: string | null
   allDay: boolean
+  /** Cuándo se marcó como hecho, o null si sigue pendiente (0014). */
+  doneAt: string | null
   createdAt: string
 }
 

@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import type { CalendarEvent, Goal, Habit, HabitCheck, ScheduleBlock, Session } from '@/lib/types'
@@ -9,11 +17,27 @@ import {
   createEvent,
   deleteEvent,
   listEventsInRange,
+  setEventDone,
   updateEvent,
   type EventInput,
 } from '@/services/events'
 import { WEEKDAY_LABELS, groupByDate, inSameMonth, monthGrid, weekDays } from '@/domain/calendar'
-import { WEEKDAY_PLURALS, minutesToTime, preferredStartTime, timeToMinutes } from '@/domain/commitment'
+import {
+  WEEKDAY_PLURALS,
+  minutesToTime,
+  preferredStartTime,
+  rangeMinutes,
+  timeToMinutes,
+} from '@/domain/commitment'
+import {
+  assignEventsToSessions,
+  eventSpan,
+  freeGaps,
+  gapLabel,
+  rangeLabel,
+  sessionSpan,
+  type AgendaSpan,
+} from '@/domain/agenda'
 import { dueBlocksForDate } from '@/domain/sessions'
 import { listScheduleForUser, updateBlockStartTime } from '@/services/schedule'
 import {
@@ -38,7 +62,7 @@ import {
   todayISO,
 } from '@/lib/date'
 import { LoadingScreen } from '@/components/LoadingScreen'
-import { IconArrowReturn, IconBack, IconClose, IconFlag, IconPlus } from '@/components/icons'
+import { IconArrowReturn, IconBack, IconCheck, IconClose, IconFlag, IconPlus } from '@/components/icons'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { NicheIcon } from '@/components/NicheGlyph'
 import { useToast } from '@/app/toast'
@@ -76,6 +100,8 @@ interface DayAgendaSession {
   key: string
   goal: Goal
   time: string | null
+  /** Rango horario del bloque (fin derivado solo para compromisos de tiempo). */
+  span: AgendaSpan
   state: 'pending' | 'running' | 'done' | 'partial' | 'missed' | 'unconfirmed' | 'projected'
   targetLabel: string
   session: Session | null
@@ -83,19 +109,13 @@ interface DayAgendaSession {
 }
 
 /**
- * Qué compromete la sesión, en lenguaje de la agenda: "4 h · hasta 12:00 pm"
- * si tiene hora (el fin es derivado, no se persiste), "25 min" si no, o la
- * cantidad con su unidad.
+ * Qué compromete la sesión, en lenguaje de la agenda: "4 h", "25 min" o la
+ * cantidad con su unidad. La hora de fin ya no va aquí: vive en la columna
+ * de hora del bloque (sessionSpan).
  */
-function agendaTargetLabel(
-  kind: Session['targetKind'],
-  value: number,
-  unit: string | null,
-  time: string | null,
-): string {
+function agendaTargetLabel(kind: Session['targetKind'], value: number, unit: string | null): string {
   if (kind !== 'time') return `${value} ${unit ?? ''}`.trim()
-  if (!time) return formatDuration(value)
-  return `${formatDuration(value)} · hasta ${formatTime12(minutesToTime(timeToMinutes(time) + value))}`
+  return formatDuration(value)
 }
 
 function sessionStateLabel(state: DayAgendaSession['state']): string {
@@ -252,8 +272,9 @@ export function Calendar() {
         key: s.id,
         goal,
         time: s.plannedTime,
+        span: sessionSpan(s.plannedTime, s.targetKind, s.targetValue),
         state: s.status,
-        targetLabel: agendaTargetLabel(s.targetKind, s.targetValue, s.unit, s.plannedTime),
+        targetLabel: agendaTargetLabel(s.targetKind, s.targetValue, s.unit),
         session: s,
         block: blocks.find((b) => b.id === s.scheduleId) ?? null,
       })
@@ -267,8 +288,9 @@ export function Calendar() {
           key: `p-${b.id}-${day}`,
           goal,
           time: b.startTime,
+          span: sessionSpan(b.startTime, b.targetKind, b.targetValue),
           state: 'projected',
-          targetLabel: agendaTargetLabel(b.targetKind, b.targetValue, b.unit, b.startTime),
+          targetLabel: agendaTargetLabel(b.targetKind, b.targetValue, b.unit),
           session: null,
           block: b,
         })
@@ -312,6 +334,28 @@ export function Calendar() {
     } catch {
       setHabitChecks((prev) => (add ? without(prev) : [...prev, check]))
       toast('No se pudo marcar el hábito.')
+    }
+  }
+
+  /**
+   * Marca o desmarca un evento como hecho (optimista, con revert). El estado
+   * `events` alimenta el mirror del cache, así que el toggle también persiste
+   * en la instantánea de sesión.
+   */
+  async function toggleEventDone(e: CalendarEvent) {
+    const done = !e.doneAt
+    const optimistic = done ? new Date().toISOString() : null
+    setEvents((prev) => prev.map((x) => (x.id === e.id ? { ...x, doneAt: optimistic } : x)))
+    try {
+      const updated = await setEventDone(e.id, done)
+      setEvents((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
+    } catch (err) {
+      setEvents((prev) => prev.map((x) => (x.id === e.id ? { ...x, doneAt: e.doneAt } : x)))
+      const friendly =
+        err instanceof Error && (err as Error & { code?: string }).code === 'missing-column'
+          ? err.message
+          : 'No se pudo marcar el evento.'
+      toast(friendly)
     }
   }
 
@@ -485,6 +529,7 @@ export function Calendar() {
     goalById,
     onAdd: () => setEditing({ event: null, date: day }),
     onOpen: (e: CalendarEvent) => setEditing({ event: e, date: e.date }),
+    onToggleEvent: (e: CalendarEvent) => void toggleEventDone(e),
     onGoal: (g: Goal) => navigate(`/metas/${g.id}`),
     onPlanSession:
       day >= today && activeGoals.length > 0 ? () => setPlanning(day) : undefined,
@@ -578,7 +623,7 @@ export function Calendar() {
           </div>
           <div className="cal-month__day stack">
             {dayContextBanner}
-            <DaySection {...dayProps(selected)} />
+            <DaySection {...dayProps(selected)} showGaps />
           </div>
         </div>
       ) : view === 'week' ? (
@@ -590,7 +635,7 @@ export function Calendar() {
       ) : (
         <div className="stack">
           {dayContextBanner}
-          <DaySection {...dayProps(selected)} />
+          <DaySection {...dayProps(selected)} showGaps />
         </div>
       )}
 
@@ -631,6 +676,31 @@ export function Calendar() {
   )
 }
 
+/** Columna de hora a dos líneas: inicio en bold y, si se puede derivar, fin tenue. */
+function TimeColumn({ span, fallback }: { span: AgendaSpan; fallback: string }) {
+  return (
+    <span className="ev__time">
+      {span.start ? formatTime12(span.start) : fallback}
+      {span.start && span.end && <span className="ev__time-end">{formatTime12(span.end)}</span>}
+    </span>
+  )
+}
+
+/** Check circular para marcar un evento de la agenda como hecho. */
+function EventCheck({ event, onToggle }: { event: CalendarEvent; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      className={`check check--sm${event.doneAt ? ' check--done' : ''}`}
+      onClick={onToggle}
+      aria-pressed={Boolean(event.doneAt)}
+      aria-label={`${event.doneAt ? 'Desmarcar' : 'Marcar como hecho'} “${event.title}”`}
+    >
+      <IconCheck size={12} />
+    </button>
+  )
+}
+
 /** Un día con sus eventos. Se reutiliza en las vistas día, semana y mes. */
 function DaySection({
   day,
@@ -643,8 +713,10 @@ function DaySection({
   goalById,
   onAdd,
   onOpen,
+  onToggleEvent,
   onGoal,
   onPlanSession,
+  showGaps,
 }: {
   day: string
   sessions: DayAgendaSession[]
@@ -656,22 +728,33 @@ function DaySection({
   goalById: Map<string, Goal>
   onAdd: () => void
   onOpen: (e: CalendarEvent) => void
+  /** Marcar/desmarcar un evento como hecho (dentro o fuera de un bloque). */
+  onToggleEvent: (e: CalendarEvent) => void
   onGoal: (g: Goal) => void
   /** Sumar una sesión espontánea este día (solo hoy o futuro, con metas activas). */
   onPlanSession?: () => void
+  /** Mostrar los separadores de tiempo libre (vista día y panel del día del mes). */
+  showGaps?: boolean
 }) {
   const empty =
     sessions.length === 0 && habits.length === 0 && events.length === 0 && deadlines.length === 0
 
-  // Una sola línea de tiempo: sesiones, repeticiones de hábitos y eventos se
-  // ordenan juntos por hora. Los eventos de día completo van primero y lo que
-  // no tiene hora (sesiones/hábitos sueltos) al final, como hasta ahora.
+  // Los eventos de una meta con sesión este día viven DENTRO de su bloque;
+  // el resto queda suelto en la línea de tiempo.
+  const { nested, standalone } = assignEventsToSessions(
+    sessions.map((s) => ({ key: s.key, goalId: s.goal.id, start: s.span.start, end: s.span.end })),
+    events,
+  )
+
+  // Una sola línea de tiempo: bloques de sesión, repeticiones de hábitos y
+  // eventos sueltos se ordenan juntos por hora. Los eventos de día completo
+  // van primero y lo que no tiene hora al final, como hasta ahora.
   type DayListItem =
     | { kind: 'session'; sort: string; session: DayAgendaSession }
     | { kind: 'habit'; sort: string; habitItem: DayHabitItem }
     | { kind: 'event'; sort: string; event: CalendarEvent }
   const timeline: DayListItem[] = [
-    ...events.map((e) => ({
+    ...standalone.map((e) => ({
       kind: 'event' as const,
       sort: e.allDay || !e.startTime ? '' : e.startTime,
       event: e,
@@ -679,6 +762,28 @@ function DaySection({
     ...sessions.map((s) => ({ kind: 'session' as const, sort: s.time ?? '99', session: s })),
     ...habits.map((h) => ({ kind: 'habit' as const, sort: h.time ?? '99', habitItem: h })),
   ].sort((a, b) => a.sort.localeCompare(b.sort))
+
+  // Huecos libres (>= 45 min) entre ítems consecutivos CON hora. Solo donde se
+  // planifica: hoy o futuro, y en las vistas con espacio (showGaps).
+  const timed =
+    showGaps && day >= todayISO()
+      ? timeline.filter((it) => it.sort !== '' && it.sort !== '99')
+      : []
+  const gapBefore = new Map<DayListItem, number>()
+  freeGaps(
+    timed.map((it) => ({
+      start: it.sort,
+      end:
+        it.kind === 'session'
+          ? it.session.span.end
+          : it.kind === 'event'
+            ? eventSpan(it.event).end
+            : null,
+    })),
+  ).forEach((minutes, idx) => gapBefore.set(timed[idx], minutes))
+
+  const itemKey = (item: DayListItem) =>
+    item.kind === 'session' ? item.session.key : item.kind === 'habit' ? item.habitItem.key : item.event.id
 
   return (
     <section className="cal-day stack stack--sm">
@@ -696,34 +801,76 @@ function DaySection({
       ) : (
         <div className="stack stack--sm">
           {timeline.map((item) => {
+            const gap = gapBefore.get(item)
+            let row: ReactNode
             if (item.kind === 'session') {
               const it = item.session
               const isClosed = ['done', 'partial', 'missed'].includes(it.state)
-              return (
-                <button
-                  key={it.key}
-                  className={`ev ev--session${isClosed ? ' ev--closed' : ''}`}
-                  style={nicheAccent(it.goal.area)}
-                  disabled={isClosed}
-                  onClick={() => onSession(it)}
-                  aria-label={`Sesión de ${it.goal.title}, ${sessionStateLabel(it.state)}`}
-                >
-                  <span className="ev__time">{it.time ? formatTime12(it.time) : '—'}</span>
+              const sub = nested.get(it.key) ?? []
+              const doneCount = sub.filter((e) => e.doneAt).length
+              // Dieta de info: lo normal (pendiente / comprometida) no se etiqueta.
+              const showState = it.state !== 'pending' && it.state !== 'projected'
+              const headLabel = `Sesión de ${it.goal.title}, ${sessionStateLabel(it.state)}${
+                it.span.start ? `, de ${rangeLabel(it.span.start, it.span.end)}` : ''
+              }`
+              const head = (
+                <>
+                  <TimeColumn span={it.span} fallback="—" />
                   <span className="ev__body">
-                    <span className="ev__title">Sesión · {it.goal.title}</span>
+                    <span className="ev__title">{it.goal.title}</span>
                     <span className="ev__meta">
-                      <span className="tag">{sessionStateLabel(it.state)}</span>
+                      {showState && <span className="tag">{sessionStateLabel(it.state)}</span>}
                       <span className="faint tiny">{it.targetLabel}</span>
+                      {sub.length > 0 && (
+                        <span className="tag">
+                          {doneCount}/{sub.length}
+                        </span>
+                      )}
                     </span>
                   </span>
-                </button>
+                </>
               )
-            }
-            if (item.kind === 'habit') {
+              row =
+                sub.length === 0 ? (
+                  <button
+                    className="ev ev--session"
+                    style={nicheAccent(it.goal.area)}
+                    disabled={isClosed}
+                    onClick={() => onSession(it)}
+                    aria-label={headLabel}
+                  >
+                    {head}
+                  </button>
+                ) : (
+                  <div className="ev ev--session ev--block" style={nicheAccent(it.goal.area)}>
+                    <button
+                      type="button"
+                      className="ev-block__head"
+                      disabled={isClosed}
+                      onClick={() => onSession(it)}
+                      aria-label={headLabel}
+                    >
+                      {head}
+                    </button>
+                    <ul className="ev__sublist">
+                      {sub.map((e) => (
+                        <li key={e.id} className={`ev-sub${e.doneAt ? ' ev-sub--done' : ''}`}>
+                          <EventCheck event={e} onToggle={() => onToggleEvent(e)} />
+                          <span className="ev-sub__time">
+                            {!e.allDay && e.startTime ? formatTime12(e.startTime) : '—'}
+                          </span>
+                          <button type="button" className="ev-sub__title" onClick={() => onOpen(e)}>
+                            {e.title}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )
+            } else if (item.kind === 'habit') {
               const it = item.habitItem
-              return (
+              row = (
                 <button
-                  key={it.key}
                   className={`ev ev--session${it.done ? ' ev--habit-done' : ''}`}
                   style={nicheAccent(it.habit.area)}
                   onClick={() => onHabit(it)}
@@ -751,31 +898,46 @@ function DaySection({
                   </span>
                 </button>
               )
-            }
-            const e = item.event
-            const goal = e.goalId ? goalById.get(e.goalId) : null
-            const notePreview = e.notes ? e.notes.trim().split('\n')[0] : null
-            return (
-              <button key={e.id} className="ev" onClick={() => onOpen(e)}>
-                <span className="ev__time">{e.allDay || !e.startTime ? 'Día' : formatTime12(e.startTime)}</span>
-                <span className="ev__body">
-                  <span className="ev__title">{e.title}</span>
-                  {(goal || notePreview) && (
-                    <span className="ev__meta">
-                      {goal && (
-                        <span className="tag">
-                          <IconArrowReturn size={11} /> {goal.title}
-                        </span>
-                      )}
-                      {notePreview && (
-                        <span className="ev__note" title={e.notes ?? undefined}>
-                          {notePreview}
+            } else {
+              const e = item.event
+              const goal = e.goalId ? goalById.get(e.goalId) : null
+              const notePreview = e.notes ? e.notes.trim().split('\n')[0] : null
+              const span = eventSpan(e)
+              const minutes = span.start && span.end ? rangeMinutes(span.start, span.end) : null
+              row = (
+                <div className={`ev${e.doneAt ? ' ev--done' : ''}`}>
+                  <TimeColumn span={span} fallback="Día" />
+                  <button type="button" className="ev__open" onClick={() => onOpen(e)}>
+                    <span className="ev__body">
+                      <span className="ev__title">{e.title}</span>
+                      {(goal || notePreview || minutes != null) && (
+                        <span className="ev__meta">
+                          {minutes != null && (
+                            <span className="faint tiny">{formatDuration(minutes)}</span>
+                          )}
+                          {goal && (
+                            <span className="tag">
+                              <IconArrowReturn size={11} /> {goal.title}
+                            </span>
+                          )}
+                          {notePreview && (
+                            <span className="ev__note" title={e.notes ?? undefined}>
+                              {notePreview}
+                            </span>
+                          )}
                         </span>
                       )}
                     </span>
-                  )}
-                </span>
-              </button>
+                  </button>
+                  <EventCheck event={e} onToggle={() => onToggleEvent(e)} />
+                </div>
+              )
+            }
+            return (
+              <Fragment key={itemKey(item)}>
+                {gap !== undefined && <div className="ev-gap">{gapLabel(gap)}</div>}
+                {row}
+              </Fragment>
             )
           })}
           {deadlines.map((g) => (
@@ -916,9 +1078,8 @@ function TimeSheet({
         />
         {target?.targetKind === 'time' && time && (
           <p className="faint tiny" style={{ margin: 0 }} aria-live="polite">
-            De {formatTime12(time)} a{' '}
-            {formatTime12(minutesToTime(timeToMinutes(time) + target.targetValue))}. La duración se
-            ajusta desde el detalle de la meta.
+            Quedaría {rangeLabel(time, sessionSpan(time, target.targetKind, target.targetValue).end)}
+            . La duración se ajusta desde el detalle de la meta.
           </p>
         )}
         <button className="btn btn--primary btn--block" disabled={!time} onClick={() => onSave(time)}>

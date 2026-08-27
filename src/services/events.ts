@@ -11,6 +11,8 @@ interface EventRow {
   start_time: string | null
   end_time: string | null
   all_day: boolean
+  /** Ausente hasta que se aplique la migración 0014. */
+  done_at?: string | null
   created_at: string
 }
 
@@ -30,8 +32,36 @@ function mapEvent(row: EventRow): CalendarEvent {
     startTime: shortTime(row.start_time),
     endTime: shortTime(row.end_time),
     allDay: row.all_day,
+    doneAt: row.done_at ?? null,
     createdAt: row.created_at,
   }
+}
+
+/** La columna aún no existe en la base (migración 0014 sin aplicar). */
+function isMissingColumn(error: { code?: string } | null): boolean {
+  return error?.code === '42703' || error?.code === 'PGRST204'
+}
+
+/**
+ * Marca o desmarca un evento como hecho. Si la migración 0014 no está aplicada
+ * lanza un error con `code: 'missing-column'` para que la UI avise sin romperse.
+ */
+export async function setEventDone(id: string, done: boolean): Promise<CalendarEvent> {
+  const { data, error } = await supabase
+    .from('events')
+    .update({ done_at: done ? new Date().toISOString() : null })
+    .eq('id', id)
+    .select('*')
+    .single()
+  if (error) {
+    if (isMissingColumn(error)) {
+      const err = new Error('Para tachar cosas de la agenda falta actualizar la base de datos.')
+      ;(err as Error & { code?: string }).code = 'missing-column'
+      throw err
+    }
+    throw new Error(error.message)
+  }
+  return mapEvent(data as EventRow)
 }
 
 export interface EventInput {

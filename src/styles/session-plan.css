@@ -1,0 +1,129 @@
+/* ==== El plan de esta sesión (SessionRun) ==================================
+   Lista de eventos de la agenda ligados a la meta, visible bajo el cronómetro
+   para tachar mientras se trabaja. Sin tarjeta-dentro-de-tarjeta: se separa
+   del reloj con un hairline y espacio. prefers-reduced-motion se apaga con la
+   regla global de base.css. */
+
+.session-plan {
+  width: 100%;
+  max-width: 400px;
+  margin-top: var(--s5);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  text-align: left;
+}
+
+.session-plan__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.session-plan__title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+}
+
+/* "2 de 5" — tabular para que no baile al tachar. */
+.session-plan__count {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.session-plan__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+/* Entrada en cascada sutil (mismo patrón que Aprender, más corto). */
+.session-plan__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  animation: session-plan-rise 0.3s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+@keyframes session-plan-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Check circular: vacío = aro; hecho = disco verde con ✓. */
+.session-plan__check {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition:
+    transform 0.12s var(--ease-out),
+    background-color 0.15s var(--ease-out),
+    border-color 0.15s var(--ease-out),
+    color 0.15s var(--ease-out);
+}
+.session-plan__check:active:not(:disabled) {
+  transform: scale(0.9);
+}
+.session-plan__check--done {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+.session-plan__check:disabled {
+  cursor: default;
+}
+
+/* Columna de hora fija para que los títulos queden alineados. */
+.session-plan__time {
+  flex: none;
+  min-width: 62px;
+  margin-top: 3px;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.session-plan__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  transition:
+    opacity 0.15s var(--ease-out),
+    color 0.15s var(--ease-out);
+}
+.session-plan__note {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.session-plan__text--done {
+  opacity: 0.55;
+}
+.session-plan__text--done .session-plan__name {
+  text-decoration: line-through;
+}

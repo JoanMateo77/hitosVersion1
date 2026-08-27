@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import type { Goal, Milestone, Session } from '@/lib/types'
+import type { CalendarEvent, Goal, Milestone, Session } from '@/lib/types'
 import { getGoal } from '@/services/goals'
 import { listMilestones, setMilestoneDone } from '@/services/milestones'
+import { listEventsInRange, setEventDone } from '@/services/events'
 import {
   finishSession,
   getSession,
@@ -26,6 +28,17 @@ import {
   IconPlay,
 } from '@/components/icons'
 import { NicheGlyph } from '@/components/NicheGlyph'
+import '@/styles/session-plan.css'
+
+/** Orden del plan: por hora ascendente; sin hora al final; empates estables. */
+function comparePlanItems(a: CalendarEvent, b: CalendarEvent): number {
+  if (a.startTime !== b.startTime) {
+    if (a.startTime === null) return 1
+    if (b.startTime === null) return -1
+    return a.startTime < b.startTime ? -1 : 1
+  }
+  return a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0
+}
 
 
 interface ResolutionOptionsProps {
@@ -153,6 +166,11 @@ export function SessionRun() {
   const [finishedStatus, setFinishedStatus] = useState<'done' | 'partial' | null>(null)
   /** Diario de avances: qué lograste en esta sesión (opcional). */
   const [note, setNote] = useState('')
+  /** El plan de esta sesión: eventos de la agenda del día ligados a la meta. */
+  const [planItems, setPlanItems] = useState<CalendarEvent[]>([])
+  /** Aviso de "falta migración" al tachar: se muestra una sola vez. */
+  const [planNotice, setPlanNotice] = useState<string | null>(null)
+  const planNoticeShown = useRef(false)
 
   useEffect(() => {
     let active = true
@@ -163,11 +181,17 @@ export function SessionRun() {
           if (active) setLoading(false)
           return
         }
-        const [g, ms] = await Promise.all([getGoal(s.goalId), listMilestones(s.goalId)])
+        const [g, ms, events] = await Promise.all([
+          getGoal(s.goalId),
+          listMilestones(s.goalId),
+          // El plan es un extra: si falla la carga, la sesión sigue funcionando.
+          listEventsInRange(s.userId, s.date, s.date).catch(() => [] as CalendarEvent[]),
+        ])
         if (!active) return
         setSession(s)
         setGoal(g)
         setMilestones(ms)
+        setPlanItems(events.filter((e) => e.goalId === s.goalId).sort(comparePlanItems))
         setCount(s.actualValue ?? 0)
         setLoading(false)
       })
@@ -308,6 +332,27 @@ export function SessionRun() {
     } catch {
       setError('No se pudo guardar el cierre. Inténtalo de nuevo.')
       setSaving(false)
+    }
+  }
+
+  /** Tacha/destacha un ítem del plan: optimista, con revert si el guardado falla. */
+  async function togglePlanItem(item: CalendarEvent) {
+    const nextDone = item.doneAt === null
+    const optimistic = nextDone ? new Date().toISOString() : null
+    setPlanItems((items) => items.map((e) => (e.id === item.id ? { ...e, doneAt: optimistic } : e)))
+    try {
+      const updated = await setEventDone(item.id, nextDone)
+      setPlanItems((items) => items.map((e) => (e.id === item.id ? updated : e)))
+    } catch (err) {
+      setPlanItems((items) => items.map((e) => (e.id === item.id ? { ...e, doneAt: item.doneAt } : e)))
+      if (
+        err instanceof Error &&
+        (err as Error & { code?: string }).code === 'missing-column' &&
+        !planNoticeShown.current
+      ) {
+        planNoticeShown.current = true
+        setPlanNotice(err.message)
+      }
     }
   }
 
@@ -590,6 +635,50 @@ export function SessionRun() {
               Volver a tu día
             </button>
           </div>
+        )}
+
+        {/* --- El plan de esta sesión: lo agendado para esta meta hoy --- */}
+        {!needsResolution && planItems.length > 0 && (
+          <section className="session-plan" aria-label="El plan de esta sesión">
+            <header className="session-plan__head">
+              <h3 className="session-plan__title">El plan de esta sesión</h3>
+              <span className="session-plan__count">
+                {planItems.filter((e) => e.doneAt !== null).length} de {planItems.length}
+              </span>
+            </header>
+            {planNotice && (
+              <div className="alert alert--warn" role="alert">
+                {planNotice}
+              </div>
+            )}
+            <ul className="session-plan__list">
+              {planItems.map((e, i) => {
+                const done = e.doneAt !== null
+                const noteLine = e.notes?.split('\n')[0].trim() || null
+                return (
+                  <li key={e.id} className="session-plan__item" style={{ '--i': i } as CSSProperties}>
+                    <button
+                      type="button"
+                      className={`session-plan__check${done ? ' session-plan__check--done' : ''}`}
+                      aria-pressed={done}
+                      aria-label={`${done ? 'Desmarcar' : 'Marcar'} ${e.title}`}
+                      disabled={closed}
+                      onClick={() => void togglePlanItem(e)}
+                    >
+                      {done && <IconCheck size={12} />}
+                    </button>
+                    <span className="session-plan__time">
+                      {e.startTime ? formatTime12(e.startTime) : '—'}
+                    </span>
+                    <span className={`session-plan__text${done ? ' session-plan__text--done' : ''}`}>
+                      <span className="session-plan__name">{e.title}</span>
+                      {noteLine && <span className="session-plan__note">{noteLine}</span>}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
         )}
           </>
         )}

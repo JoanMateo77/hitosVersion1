@@ -2863,11 +2863,14 @@ select.input {
 }
 
 /* --- Hábitos en la agenda (0013: horarios y repeticiones) --- */
-/* Repetición cumplida: misma gramática que un hábito hecho en Hoy. */
-.ev--habit-done {
+/* Repetición cumplida: misma gramática que un hábito hecho en Hoy. Los
+   eventos tachados (0014) comparten exactamente el mismo trato. */
+.ev--habit-done,
+.ev--done {
   opacity: 0.72;
 }
-.ev--habit-done .ev__title {
+.ev--habit-done .ev__title,
+.ev--done .ev__title {
   text-decoration: line-through;
   color: var(--text-faint);
 }
@@ -2875,4 +2878,118 @@ select.input {
    sesiones/metas --primary; el ámbar los distingue sin estridencia). */
 .cal-dot--habit {
   background: var(--warning);
+}
+
+/* ---- Agenda: bloques, rangos y huecos (0014) ----------------------------- */
+/* Columna de hora a dos líneas: el fin, derivado, acompaña sin gritar. */
+.ev__time-end {
+  display: block;
+  margin-top: 1px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+/* Bloque de sesión con eventos anidados: la tarjeta pasa a columna y el
+   header conserva la anatomía de siempre (hora + cuerpo) como botón invisible. */
+.ev--block {
+  flex-direction: column;
+  gap: 0;
+}
+.ev-block__head {
+  display: flex;
+  gap: var(--s3);
+  align-items: flex-start;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+.ev-block__head:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+/* Sub-lista contenida en la tarjeta: filete teñido del nicho y filas compactas
+   sin fondo ni bordes propios (nada de tarjeta-dentro-de-tarjeta). */
+.ev__sublist {
+  list-style: none;
+  margin: var(--s3) 0 0;
+  padding: var(--s2) 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--niche, var(--primary)) 22%, var(--border-soft));
+}
+.ev-sub {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 40px;
+}
+.ev-sub__time {
+  flex: none;
+  min-width: 52px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.ev-sub__title {
+  flex: 1;
+  min-width: 0;
+  padding: var(--s2) 0;
+  background: none;
+  border: none;
+  text-align: left;
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  word-break: break-word;
+  transition: color 0.15s var(--ease-out);
+}
+.ev-sub--done .ev-sub__time {
+  color: var(--text-faint);
+}
+.ev-sub--done .ev-sub__title {
+  text-decoration: line-through;
+  color: var(--text-faint);
+}
+
+/* Check compacto: misma gramática que el check de tareas, en 20px. */
+.check--sm {
+  width: 20px;
+  height: 20px;
+  margin-top: 0;
+}
+
+/* Evento suelto: el cuerpo es un botón invisible (abre el editor) y el check
+   circular vive al borde derecho de la fila. */
+.ev__open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  padding: 0;
+  background: none;
+  border: none;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+/* Hueco libre: divisor hairline con el dato al centro, sin fondo ni tarjeta. */
+.ev-gap {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 18px;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+.ev-gap::before,
+.ev-gap::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-soft);
 }
