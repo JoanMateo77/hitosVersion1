@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, FormEvent } from 'react'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import type { CalendarEvent, Goal, Milestone, Session } from '@/lib/types'
 import { getGoal } from '@/services/goals'
 import { listMilestones, setMilestoneDone } from '@/services/milestones'
-import { listEventsInRange, setEventDone } from '@/services/events'
+import { createEvent, listEventsInRange, setEventDone } from '@/services/events'
 import {
   finishSession,
   getSession,
@@ -168,6 +168,9 @@ export function SessionRun() {
   const [note, setNote] = useState('')
   /** El plan de esta sesión: eventos de la agenda del día ligados a la meta. */
   const [planItems, setPlanItems] = useState<CalendarEvent[]>([])
+  const [planDraft, setPlanDraft] = useState('')
+  const [planDraftTime, setPlanDraftTime] = useState('')
+  const [addingPlan, setAddingPlan] = useState(false)
   /** Aviso de "falta migración" al tachar: se muestra una sola vez. */
   const [planNotice, setPlanNotice] = useState<string | null>(null)
   const planNoticeShown = useRef(false)
@@ -356,6 +359,32 @@ export function SessionRun() {
     }
   }
 
+  /** Suma algo al plan sin salir del cronómetro: título y hora opcional. */
+  async function addPlanItem(e: FormEvent) {
+    e.preventDefault()
+    const title = planDraft.trim()
+    if (!title || !session?.goalId || addingPlan) return
+    setAddingPlan(true)
+    try {
+      const created = await createEvent(session.userId, {
+        title,
+        date: session.date,
+        allDay: !planDraftTime,
+        startTime: planDraftTime || null,
+        endTime: null,
+        goalId: session.goalId,
+        notes: null,
+      })
+      setPlanItems((items) => [...items, created].sort(comparePlanItems))
+      setPlanDraft('')
+      setPlanDraftTime('')
+    } catch {
+      setPlanNotice('No se pudo agregar al plan. Inténtalo de nuevo.')
+    } finally {
+      setAddingPlan(false)
+    }
+  }
+
   /** Guarda la nota de avance (si la hay) — nunca bloquea la salida. */
   async function saveNote() {
     const text = note.trim()
@@ -375,13 +404,30 @@ export function SessionRun() {
     navigate('/', { replace: true })
   }
 
+  // Modo enfoque: con el reloj corriendo, esta pantalla es la única — para
+  // salir hay que pausar (o terminar). Las sesiones de cantidad no tienen
+  // reloj, así que no encierran.
+  const focusLocked =
+    !needsResolution &&
+    !reachedToday &&
+    !finishedStatus &&
+    session.status === 'running' &&
+    isTime &&
+    !session.pausedAt
+
   return (
     <div className="screen screen--full flow-screen flow-screen--session" style={nicheAccent(goal.area)}>
-      <div className="row" style={{ marginBottom: 'var(--s4)' }}>
-        {/* Con texto: en esta pantalla sin navegación, una flecha sola no orienta. */}
-        <button className="btn btn--ghost btn--sm" onClick={() => navigate('/')} aria-label="Volver a tu día">
-          <IconBack size={16} /> Tu día
-        </button>
+      <div className="row" style={{ marginBottom: 'var(--s4)', minHeight: 34, alignItems: 'center' }}>
+        {focusLocked ? (
+          <span className="small faint" role="status">
+            Modo enfoque — pausa el reloj para salir
+          </span>
+        ) : (
+          /* Con texto: en esta pantalla sin navegación, una flecha sola no orienta. */
+          <button className="btn btn--ghost btn--sm" onClick={() => navigate('/')} aria-label="Volver a tu día">
+            <IconBack size={16} /> Tu día
+          </button>
+        )}
       </div>
 
       <div className="stack stack--lg center" style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -538,7 +584,10 @@ export function SessionRun() {
                 {keepGoing ? `ya superaste tus ${targetLabel}` : `de ${targetLabel}`}
               </span>
             </SessionRing>
-            {goal.why && <p className="small muted center" style={{ maxWidth: 360 }}>“{goal.why}”</p>}
+            {/* La cita del porqué solo en pausa: corriendo, la pantalla respira. */}
+            {goal.why && session.pausedAt && (
+              <p className="small muted center" style={{ maxWidth: 360 }}>“{goal.why}”</p>
+            )}
             {syncNotice && (
               <div className="alert alert--warn" role="alert" style={{ width: '100%', maxWidth: 360 }}>
                 {syncNotice}
@@ -638,13 +687,15 @@ export function SessionRun() {
         )}
 
         {/* --- El plan de esta sesión: lo agendado para esta meta hoy --- */}
-        {!needsResolution && planItems.length > 0 && (
+        {!needsResolution && (planItems.length > 0 || (!closed && session?.goalId)) && (
           <section className="session-plan" aria-label="El plan de esta sesión">
             <header className="session-plan__head">
               <h3 className="session-plan__title">El plan de esta sesión</h3>
-              <span className="session-plan__count">
-                {planItems.filter((e) => e.doneAt !== null).length} de {planItems.length}
-              </span>
+              {planItems.length > 0 && (
+                <span className="session-plan__count">
+                  {planItems.filter((e) => e.doneAt !== null).length} de {planItems.length}
+                </span>
+              )}
             </header>
             {planNotice && (
               <div className="alert alert--warn" role="alert">
@@ -678,6 +729,32 @@ export function SessionRun() {
                 )
               })}
             </ul>
+            {!closed && (
+              <form className="session-plan__add" onSubmit={(e) => void addPlanItem(e)}>
+                <input
+                  className="input session-plan__add-title"
+                  value={planDraft}
+                  onChange={(e) => setPlanDraft(e.target.value)}
+                  placeholder="Agregar al plan…"
+                  maxLength={200}
+                  aria-label="Agregar algo al plan de esta sesión"
+                />
+                <input
+                  type="time"
+                  className="input session-plan__add-time"
+                  value={planDraftTime}
+                  onChange={(e) => setPlanDraftTime(e.target.value)}
+                  aria-label="Hora (opcional)"
+                />
+                <button
+                  type="submit"
+                  className="btn btn--sm"
+                  disabled={!planDraft.trim() || addingPlan}
+                >
+                  Sumar
+                </button>
+              </form>
+            )}
           </section>
         )}
           </>

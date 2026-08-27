@@ -127,3 +127,19 @@
 .session-plan__text--done .session-plan__name {
   text-decoration: line-through;
 }
+
+/* Sumar al plan sin salir del cronómetro: título + hora opcional. */
+.session-plan__add {
+  display: flex;
+  gap: var(--s2);
+  align-items: center;
+  margin-top: var(--s3);
+}
+.session-plan__add-title {
+  flex: 1;
+  min-width: 0;
+}
+.session-plan__add-time {
+  flex: none;
+  width: 106px;
+}
