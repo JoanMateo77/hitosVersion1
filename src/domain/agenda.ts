@@ -115,44 +115,43 @@ export function assignEventsToSessions(
 }
 
 /**
- * Huecos libres del día: recibe los ítems CON hora ya ordenados por inicio y
- * devuelve índice → minutos libres ANTES de ese ítem. Solo huecos de 45 min o
- * más, medidos desde el fin del anterior (o su inicio si no tiene fin) hasta
- * el inicio del siguiente; los solapes (gap <= 0) se ignoran.
+ * Huecos libres en minutos: recibe los ítems CON hora ya ordenados por inicio
+ * y devuelve índice → minutos libres ANTES de ese ítem. Solo huecos de
+ * `minMinutes` o más (45 por defecto), medidos desde `items[i-1].endMin`
+ * hasta `items[i].startMin`; los solapes (gap <= 0) se ignoran.
  */
-export function freeGaps(items: Array<{ start: string; end: string | null }>): Map<number, number> {
+export function freeGapsMinutes(
+  items: Array<{ startMin: number; endMin: number }>,
+  minMinutes = 45,
+): Map<number, number> {
   const gaps = new Map<number, number>()
   for (let i = 1; i < items.length; i++) {
-    const prev = items[i - 1]
-    const gap = timeToMinutes(items[i].start) - timeToMinutes(prev.end ?? prev.start)
-    if (gap >= 45) gaps.set(i, gap)
+    const gap = items[i].startMin - items[i - 1].endMin
+    if (gap >= minMinutes) gaps.set(i, gap)
   }
   return gaps
 }
 
-/* ---- Grilla horaria del día (0015) ---------------------------------------
-   La vista día pinta una grilla tipo calendario (1 px = 1 min) donde el
-   espacio libre se VE. Todo lo de aquí es puro layout en minutos. */
-
-/** Ventana visible de la grilla, en minutos desde medianoche. */
-export interface GridBounds {
-  startMin: number
-  endMin: number
+/**
+ * Huecos libres: recibe los ítems CON hora ya ordenados por inicio y devuelve
+ * índice → minutos libres ANTES de ese ítem. Solo huecos de `minMinutes` o
+ * más (45 por defecto), medidos desde el fin del anterior (o su inicio si no
+ * tiene fin) hasta el inicio del siguiente; los solapes (gap <= 0) se ignoran.
+ */
+export function freeGaps(
+  items: Array<{ start: string; end: string | null }>,
+  minMinutes = 45,
+): Map<number, number> {
+  return freeGapsMinutes(
+    items.map((it) => ({
+      startMin: timeToMinutes(it.start),
+      endMin: timeToMinutes(it.end ?? it.start),
+    })),
+    minMinutes,
+  )
 }
 
-/** Colocación de un ítem en la grilla: minutos + carril dentro de su clúster. */
-export interface GridPlacement {
-  key: string
-  startMin: number
-  endMin: number
-  lane: number
-  lanes: number
-}
-
-/** Ventana por defecto: 07:00–21:00. Se expande si el día tiene más. */
-const GRID_DEFAULT_START = 7 * 60
-const GRID_DEFAULT_END = 21 * 60
-/** Duración visual mínima: un ítem puntual (sin fin) ocupa media hora de grilla. */
+/** Duración visual mínima: un ítem puntual (sin fin) ocupa media hora. */
 const MIN_EFFECTIVE_MINUTES = 30
 
 /** Fin efectivo de un ítem: su fin real, nunca menos de 30 min tras el inicio. */
@@ -161,92 +160,95 @@ function effectiveEnd(startMin: number, end: string | null): number {
   return Math.max(raw, startMin + MIN_EFFECTIVE_MINUTES)
 }
 
-/**
- * Ventana visible del día: 07:00–21:00 por defecto, expandida (redondeando a
- * la hora) hasta abarcar todo ítem con hora. Un ítem sin fin cuenta como
- * inicio + 30 min. Siempre dentro de [0, 1440].
- */
-export function gridBounds(
-  spans: Array<{ start: string | null; end: string | null }>,
-): GridBounds {
-  let startMin = GRID_DEFAULT_START
-  let endMin = GRID_DEFAULT_END
-  for (const s of spans) {
-    if (!s.start) continue
-    const st = timeToMinutes(s.start)
-    const en = effectiveEnd(st, s.end)
-    startMin = Math.min(startMin, Math.floor(st / 60) * 60)
-    endMin = Math.max(endMin, Math.ceil(en / 60) * 60)
-  }
-  return { startMin: Math.max(0, startMin), endMin: Math.min(1440, endMin) }
+/* ---- Bloques de tiempo del día (2026-09) --------------------------------
+   La cronología agrupa lo que se solapa en el tiempo en UN bloque que la UI
+   despliega. Todo es puro: minutos, orden y rangos. */
+
+/** Ítem con hora del día, listo para agrupar. */
+export interface DayItemSpan {
+  key: string
+  start: string
+  end: string | null
+}
+
+/** Franja compartida: rango real y sus ítems, ordenados por inicio. */
+export interface DayBlock {
+  /** `b-${start}` del primer ítem (único: dos bloques no pueden empezar igual). */
+  key: string
+  /** Inicio del primer ítem. */
+  start: string
+  /** El mayor fin REAL de sus ítems; null si ninguno tiene fin. */
+  end: string | null
+  startMin: number
+  /** Fin EFECTIVO (mínimo 30 min por ítem): para solapes, huecos y "ahora". */
+  endMin: number
+  items: DayItemSpan[]
 }
 
 /**
- * Carriles para solapes, estilo calendario: se ordena por inicio (empate: el
- * más largo primero) y cada ítem toma el primer carril libre de su clúster de
- * solape. `lanes` es el total de carriles de SU clúster (para repartir ancho);
- * un clúster nuevo (nadie lo toca) arranca de cero.
+ * Agrupa los ítems con hora en bloques: se ordena por inicio (empate: el más
+ * largo primero, luego por clave) y un ítem se une al bloque abierto SOLO si
+ * empieza antes de su fin efectivo (solape estricto: lo que se toca no se
+ * une). Un ítem sin fin cuenta 30 min efectivos.
  */
-export function layoutDay(
-  items: Array<{ key: string; start: string; end: string | null }>,
-): GridPlacement[] {
-  const placed: GridPlacement[] = items
+export function groupIntoBlocks(items: DayItemSpan[]): DayBlock[] {
+  const sorted = items
     .map((it) => {
       const startMin = timeToMinutes(it.start)
-      return { key: it.key, startMin, endMin: effectiveEnd(startMin, it.end), lane: 0, lanes: 1 }
+      return { it, startMin, effEnd: effectiveEnd(startMin, it.end) }
     })
-    .sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin)
-  let cluster: GridPlacement[] = []
-  let laneEnds: number[] = [] // fin del último ítem por carril, del clúster actual
-  let clusterEnd = 0
-  const closeCluster = () => {
-    for (const p of cluster) p.lanes = laneEnds.length
-    cluster = []
-    laneEnds = []
-  }
-  for (const p of placed) {
-    if (cluster.length > 0 && p.startMin >= clusterEnd) closeCluster()
-    let lane = laneEnds.findIndex((end) => end <= p.startMin)
-    if (lane === -1) {
-      lane = laneEnds.length
-      laneEnds.push(p.endMin)
-    } else {
-      laneEnds[lane] = p.endMin
+    .sort((a, b) => a.startMin - b.startMin || b.effEnd - a.effEnd || a.it.key.localeCompare(b.it.key))
+  const blocks: DayBlock[] = []
+  let current: DayBlock | null = null
+  for (const { it, startMin, effEnd } of sorted) {
+    if (current && startMin < current.endMin) {
+      current.items.push(it)
+      current.endMin = Math.max(current.endMin, effEnd)
+      if (it.end && (!current.end || timeToMinutes(it.end) > timeToMinutes(current.end))) {
+        current.end = it.end
+      }
+      continue
     }
-    p.lane = lane
-    cluster.push(p)
-    clusterEnd = cluster.length === 1 ? p.endMin : Math.max(clusterEnd, p.endMin)
+    current = { key: `b-${it.start}`, start: it.start, end: it.end, startMin, endMin: effEnd, items: [it] }
+    blocks.push(current)
   }
-  closeCluster()
-  return placed
+  return blocks
+}
+
+/** Franja del día, por hora de inicio. */
+export type DayPeriod = 'morning' | 'afternoon' | 'evening'
+export const PERIOD_ORDER: readonly DayPeriod[] = ['morning', 'afternoon', 'evening']
+export const PERIOD_LABELS: Record<DayPeriod, string> = {
+  morning: 'Mañana',
+  afternoon: 'Tarde',
+  evening: 'Noche',
+}
+
+/** < 12:00 mañana · < 19:00 tarde · resto noche. */
+export function periodOfMinutes(min: number): DayPeriod {
+  if (min < 12 * 60) return 'morning'
+  if (min < 19 * 60) return 'afternoon'
+  return 'evening'
+}
+export function periodOf(hhmm: string): DayPeriod {
+  return periodOfMinutes(timeToMinutes(hhmm))
+}
+
+/** Qué bloque abrir por defecto hoy: el que contiene `nowMin` o, si no hay, el próximo. */
+export function defaultOpenBlock(blocks: DayBlock[], nowMin: number): string | null {
+  const containing = blocks.find((b) => nowMin >= b.startMin && nowMin < b.endMin)
+  if (containing) return containing.key
+  const next = blocks.find((b) => b.startMin >= nowMin)
+  return next ? next.key : null
 }
 
 /**
- * Tramos SIN nada dentro de la ventana: fusiona la cobertura de todos los
- * ítems (fin efectivo mínimo de 30 min) y devuelve solo huecos de 60 min o
- * más, incluidos el tramo antes del primer ítem y después del último.
+ * Índice del primer bloque que empieza en o después de `nowMin` (ahí va la
+ * línea "Ahora"); `blocks.length` si todos empezaron antes (línea al final).
  */
-export function uncoveredGaps(
-  items: Array<{ start: string; end: string | null }>,
-  bounds: GridBounds,
-): Array<{ startMin: number; endMin: number }> {
-  const covered = items
-    .map((it) => {
-      const s = timeToMinutes(it.start)
-      return { s, e: effectiveEnd(s, it.end) }
-    })
-    .sort((a, b) => a.s - b.s)
-  const gaps: Array<{ startMin: number; endMin: number }> = []
-  let cursor = bounds.startMin
-  for (const { s, e } of covered) {
-    if (e <= cursor) continue
-    const gapEnd = Math.min(s, bounds.endMin)
-    if (gapEnd - cursor >= 60) gaps.push({ startMin: cursor, endMin: gapEnd })
-    cursor = Math.max(cursor, e)
-    if (cursor >= bounds.endMin) break
-  }
-  if (bounds.endMin - cursor >= 60) gaps.push({ startMin: cursor, endMin: bounds.endMin })
-  return gaps
+export function nowLineIndex(blocks: DayBlock[], nowMin: number): number {
+  const i = blocks.findIndex((b) => b.startMin >= nowMin)
+  return i === -1 ? blocks.length : i
 }
 
 /** "8:00 pm–10:00 pm" (endash sin espacios, como blockTimeLabel) o solo "8:00 pm". */
@@ -256,10 +258,32 @@ export function rangeLabel(start: string, end: string | null): string {
 }
 
 /**
- * Texto de un hueco libre: "45 min libre", "2 h libre". A partir de 2 horas se
- * redondea a horas/medias para no fingir una precisión que el día no tiene.
+ * Texto de un hueco libre: "45 min libres", "1 h libre", "3 h libres". A
+ * partir de 2 horas se redondea a horas/medias para no fingir una precisión
+ * que el día no tiene.
  */
 export function gapLabel(minutes: number): string {
   const rounded = minutes >= 120 ? Math.round(minutes / 30) * 30 : minutes
-  return `${formatDuration(rounded)} libre`
+  return `${formatDuration(rounded)} ${rounded === 60 ? 'libre' : 'libres'}`
+}
+
+/**
+ * Hueco tocable antes de un bloque, o null si no hay uno que ofrecer. Con
+ * `nowMin` (hoy) el hueco se recorta a lo que falta desde ahora: nada de
+ * huecos ya pasados, y el tramo restante debe seguir siendo >= minMinutes.
+ * Sin `nowMin` (día futuro) se usa el hueco completo.
+ */
+export function planableGap(
+  rawMinutes: number | undefined,
+  prevEndMin: number,
+  blockStartMin: number,
+  nowMin: number | null,
+  minMinutes = 60,
+): { start: number; minutes: number } | null {
+  if (rawMinutes === undefined) return null
+  if (nowMin === null) return { start: prevEndMin, minutes: rawMinutes }
+  if (blockStartMin <= nowMin) return null
+  const start = Math.max(prevEndMin, nowMin)
+  const minutes = blockStartMin - start
+  return minutes >= minMinutes ? { start, minutes } : null
 }

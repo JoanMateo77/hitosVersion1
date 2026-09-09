@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import {
   habitAppliesOn,
   habitCompleteDates,
+  habitDayRow,
   habitDoneCount,
   habitIsComplete,
   habitStreak,
   habitTarget,
   habitsDueOn,
+  habitTogglePlan,
   habitWeek,
   habitWithDayTimes,
   nextSlot,
@@ -252,5 +254,44 @@ describe('habitWeek', () => {
     const expected = Array(7).fill('free')
     expected[todayIdx] = 'due'
     expect(habitWeek(new Set(), h, thisMonday)).toEqual(expected)
+  })
+})
+
+describe('habitDayRow', () => {
+  it('sin horas: una repetición, sin hora, completo con una marca', () => {
+    const h = habit({ times: null })
+    expect(habitDayRow(h, [], '2026-06-08')).toEqual({ doneCount: 0, target: 1, complete: false, time: null })
+    expect(habitDayRow(h, [check()], '2026-06-08')).toEqual({ doneCount: 1, target: 1, complete: true, time: null })
+  })
+  it('con horas: la hora es la de la PRÓXIMA repetición pendiente', () => {
+    const h = habit({ times: ['08:00', '11:00', '14:00'] })
+    const checks = [check({ slot: 0 })]
+    expect(habitDayRow(h, checks, '2026-06-08')).toEqual({ doneCount: 1, target: 3, complete: false, time: '11:00' })
+  })
+  it('completo: la hora es la última y doneCount no supera el target', () => {
+    const h = habit({ times: ['08:00', '11:00'] })
+    const checks = [check({ slot: 0 }), check({ slot: 1 }), check({ slot: 2 })]
+    expect(habitDayRow(h, checks, '2026-06-08')).toEqual({ doneCount: 2, target: 2, complete: true, time: '11:00' })
+  })
+  it('ignora marcas de otros días u otros hábitos', () => {
+    const h = habit({ times: ['08:00'] })
+    const checks = [check({ date: '2026-06-07' }), check({ habitId: 'otro' })]
+    expect(habitDayRow(h, checks, '2026-06-08').doneCount).toBe(0)
+  })
+})
+
+describe('habitTogglePlan', () => {
+  it('con repeticiones pendientes marca la siguiente', () => {
+    const h = habit({ times: ['08:00', '11:00', '14:00'] })
+    expect(habitTogglePlan(h, [check({ slot: 0 })], '2026-06-08')).toEqual({ slot: 1, add: true })
+  })
+  it('completo: desmarca la ÚLTIMA', () => {
+    const h = habit({ times: ['08:00', '11:00'] })
+    expect(habitTogglePlan(h, [check({ slot: 0 }), check({ slot: 1 })], '2026-06-08')).toEqual({ slot: 1, add: false })
+  })
+  it('sin horas es el toggle de siempre (slot 0)', () => {
+    const h = habit({ times: null })
+    expect(habitTogglePlan(h, [], '2026-06-08')).toEqual({ slot: 0, add: true })
+    expect(habitTogglePlan(h, [check()], '2026-06-08')).toEqual({ slot: 0, add: false })
   })
 })

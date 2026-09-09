@@ -146,3 +146,11 @@ export function formatTime12(hhmm: string): string {
   if (h === 0) h = 12
   return `${h}:${mStr} ${suffix}`
 }
+
+/**
+ * "20:30" → "8:30": la hora en 12 h SIN sufijo, para columnas donde la
+ * franja (Mañana/Tarde/Noche) ya deja claro el am/pm.
+ */
+export function formatTimeShort(hhmm: string): string {
+  return formatTime12(hhmm).replace(/ [ap]m$/, '')
+}

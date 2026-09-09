@@ -5,6 +5,7 @@ import {
   dayOfMonth,
   daysUntil,
   formatDuration,
+  formatTimeShort,
   isToday,
   startOfMonth,
   startOfWeek,
@@ -47,5 +48,14 @@ describe('date utils', () => {
     expect(formatDuration(45)).toBe('45 min')
     expect(formatDuration(60)).toBe('1 h')
     expect(formatDuration(150)).toBe('2 h 30 min')
+  })
+})
+
+describe('formatTimeShort', () => {
+  it('quita el sufijo am/pm y el cero inicial', () => {
+    expect(formatTimeShort('07:00')).toBe('7:00')
+    expect(formatTimeShort('12:05')).toBe('12:05')
+    expect(formatTimeShort('20:30')).toBe('8:30')
+    expect(formatTimeShort('00:15')).toBe('12:15')
   })
 })

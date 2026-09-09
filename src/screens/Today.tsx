@@ -28,6 +28,7 @@ import {
   habitDoneCount,
   habitStreak,
   habitTarget,
+  habitTogglePlan,
   habitsDueOn,
   habitWithDayTimes,
   nextSlot,
@@ -319,37 +320,20 @@ export function Today() {
 
   /**
    * Un toque en el check: marca la SIGUIENTE repetición pendiente; si el día
-   * ya está completo, desmarca la ÚLTIMA (simétrico). Para hábitos sin horas
-   * es el toggle de siempre (un solo slot). Optimista, con revert si falla.
+   * ya está completo, desmarca la ÚLTIMA (simétrico). Optimista, con revert.
    */
   function toggleHabit(h: Habit) {
-    const slotToAdd = nextSlot(h, habitChecksToday, today)
-    if (slotToAdd !== null) {
-      const added: HabitCheck = { habitId: h.id, date: today, slot: slotToAdd }
-      setHabitChecks((prev) => [...prev, added])
-      void withErrorHandling(
-        async () => {
-          await setHabitCheck(userId, h.id, today, true, slotToAdd)
-        },
-        () =>
-          setHabitChecks((prev) =>
-            prev.filter((c) => !(c.habitId === h.id && c.date === today && c.slot === slotToAdd)),
-          ),
-      )
-    } else {
-      const lastSlot = Math.max(
-        ...habitChecksToday.filter((c) => c.habitId === h.id).map((c) => c.slot),
-      )
-      setHabitChecks((prev) =>
-        prev.filter((c) => !(c.habitId === h.id && c.date === today && c.slot === lastSlot)),
-      )
-      void withErrorHandling(
-        async () => {
-          await setHabitCheck(userId, h.id, today, false, lastSlot)
-        },
-        () => setHabitChecks((prev) => [...prev, { habitId: h.id, date: today, slot: lastSlot }]),
-      )
-    }
+    const { slot, add } = habitTogglePlan(h, habitChecksToday, today)
+    const check: HabitCheck = { habitId: h.id, date: today, slot }
+    const without = (list: HabitCheck[]) =>
+      list.filter((c) => !(c.habitId === h.id && c.date === today && c.slot === slot))
+    setHabitChecks((prev) => (add ? [...prev, check] : without(prev)))
+    void withErrorHandling(
+      async () => {
+        await setHabitCheck(userId, h.id, today, add, slot)
+      },
+      () => setHabitChecks((prev) => (add ? without(prev) : [...prev, check])),
+    )
   }
 
   const userTasks = useMemo(

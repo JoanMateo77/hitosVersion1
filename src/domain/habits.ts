@@ -75,6 +75,45 @@ export function nextSlot(habit: Habit, checks: HabitCheck[], dateISO: string): n
   return null
 }
 
+/** Cómo se ve un hábito en la agenda de un día: UNA sola fila. */
+export interface HabitDayRow {
+  doneCount: number
+  target: number
+  complete: boolean
+  /** Hora de la próxima repetición pendiente; si está completo, la última; null sin horas. */
+  time: string | null
+}
+
+export function habitDayRow(habit: Habit, checks: HabitCheck[], dateISO: string): HabitDayRow {
+  const target = habitTarget(habit)
+  const doneCount = Math.min(habitDoneCount(checks, habit.id, dateISO), target)
+  const complete = doneCount >= target
+  const times = habit.times ?? []
+  let time: string | null = null
+  if (times.length > 0) {
+    const next = nextSlot(habit, checks, dateISO)
+    time = next === null ? times[times.length - 1] : times[next]
+  }
+  return { doneCount, target, complete, time }
+}
+
+/**
+ * Qué slot tocar al marcar desde una fila única: la siguiente repetición
+ * pendiente; si el día ya está completo, se desmarca la ÚLTIMA (simétrico).
+ * Es la misma regla que usa el check de Hoy.
+ */
+export function habitTogglePlan(
+  habit: Habit,
+  checks: HabitCheck[],
+  dateISO: string,
+): { slot: number; add: boolean } {
+  const next = nextSlot(habit, checks, dateISO)
+  if (next !== null) return { slot: next, add: true }
+  const own = checks.filter((c) => c.habitId === habit.id && c.date === dateISO)
+  const last = own.length > 0 ? Math.max(...own.map((c) => c.slot)) : 0
+  return { slot: last, add: false }
+}
+
 /**
  * Fechas en las que el hábito quedó COMPLETO (todas sus repeticiones): es el
  * Set que esperan habitStreak y habitWeek. Para hábitos sin horas equivale a
