@@ -50,6 +50,22 @@ describe('weekDaySummary', () => {
     const s = weekDaySummary({ ...base, day: '2026-06-08', sessions: [session({ state: 'done' })] })
     expect(s.main).toBe('1 sesión cumplida')
   })
+  it('día pasado con una done y una partial: NO cuenta como "cumplidas" (queda "X de N")', () => {
+    const s = weekDaySummary({
+      ...base,
+      day: '2026-06-08',
+      sessions: [session({ state: 'done' }), session({ key: 's2', state: 'partial' })],
+    })
+    expect(s.main).toBe('1 de 2 sesiones')
+  })
+  it('día pasado con dos done: "2 sesiones cumplidas"', () => {
+    const s = weekDaySummary({
+      ...base,
+      day: '2026-06-08',
+      sessions: [session({ state: 'done' }), session({ key: 's2', state: 'done' })],
+    })
+    expect(s.main).toBe('2 sesiones cumplidas')
+  })
   it('día futuro: "N sesiones" y "N hábitos"', () => {
     const s = weekDaySummary({ ...base, day: '2026-06-10', sessions: [session()], habits: [habitRow()] })
     expect(s.main).toBe('1 sesión')

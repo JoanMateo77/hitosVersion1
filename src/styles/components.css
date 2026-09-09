@@ -1040,9 +1040,6 @@
   border-radius: var(--radius);
   color: var(--text);
 }
-.ev--goal {
-  border-left: 3px solid var(--primary);
-}
 .ev__time {
   flex: none;
   min-width: 48px;
@@ -1051,30 +1048,9 @@
   font-weight: 700;
   color: var(--text-muted);
 }
-.ev__body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
 .ev__title {
   font-weight: 500;
   word-break: break-word;
-}
-.ev__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-.ev__note {
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
 }
 
 .iconbtn--sm {
@@ -3089,6 +3065,7 @@ select.input {
   grid-template-columns: 44px minmax(0, 1fr);
   column-gap: 10px;
   align-items: center;
+  align-self: stretch;
   min-width: 0;
   padding: 0;
   background: none;
@@ -3206,6 +3183,7 @@ button.ag-row:active,
   align-items: center;
   gap: 6px;
   width: 100%;
+  min-height: 40px;
   padding: 8px 0 4px 54px;
   background: none;
   border: 0;
@@ -3262,6 +3240,7 @@ button.ag-row:active,
   align-items: center;
   gap: 10px;
   width: 100%;
+  min-height: 36px;
   padding: 5px 0 5px 54px;
   background: none;
   border: 0;
@@ -3269,11 +3248,18 @@ button.ag-row:active,
   font-weight: 500;
   color: var(--text-faint);
   text-align: left;
+  position: relative;
 }
 .ag-gap::after {
   content: '';
   flex: 1;
   border-top: 1px dashed var(--border);
+}
+/* Amplía el área táctil del hueco más allá de su franja visual. */
+.ag-gap::before {
+  content: '';
+  position: absolute;
+  inset: -4px 0;
 }
 @media (hover: hover) {
   .ag-gap:hover {
@@ -3368,6 +3354,12 @@ button.ag-row:active,
 .wk-day--today .wk-day__num,
 .wk-day--today .wk-day__dow {
   color: var(--primary);
+}
+/* Día activo de la agenda: marcador discreto (hoy sigue distinguiéndose por color). */
+.wk-day--selected .wk-day__num {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 2px;
 }
 .wk-day__sum {
   min-width: 0;

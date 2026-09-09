@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { DayBlock } from '@/domain/agenda'
+import type { NicheId } from '@/lib/types'
 import { formatTime12 } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { IconChevronRight, IconPlus } from '@/components/icons'
@@ -33,6 +34,12 @@ export function AgendaBlock({
   const first = items.find((i) => i.kind === 'session') ?? items[0]
   const titles = items.map(rowTitle).join(' · ')
   const meta = `${items.length} cosas${sessions > 0 ? ` · ${sessions} ${sessions === 1 ? 'sesión' : 'sesiones'}` : ''}`
+  // Un punto por ÁREA distinta, no por ítem: dos cosas de la misma meta/hábito no duplican el punto.
+  const areas: NicheId[] = []
+  for (const it of items) {
+    const area = rowArea(it)
+    if (!areas.includes(area)) areas.push(area)
+  }
   const bodyId = `blk-${day}-${block.key}`
   return (
     <div
@@ -53,8 +60,8 @@ export function AgendaBlock({
           <span className="blk__meta">
             {meta}
             <span className="blk__dots" aria-hidden="true">
-              {items.map((it) => (
-                <span key={it.key} className="blk__dot" style={nicheAccent(rowArea(it))} />
+              {areas.map((area) => (
+                <span key={area} className="blk__dot" style={nicheAccent(area)} />
               ))}
             </span>
           </span>

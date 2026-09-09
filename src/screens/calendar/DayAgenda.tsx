@@ -6,16 +6,17 @@ import {
   assignEventsToSessions,
   defaultOpenBlock,
   eventSpan,
-  freeGaps,
+  freeGapsMinutes,
   gapLabel,
   groupIntoBlocks,
   nowLineIndex,
   periodOfMinutes,
+  planableGap,
   type DayBlock,
   type DayPeriod,
 } from '@/domain/agenda'
 import { minutesToTime } from '@/domain/commitment'
-import { formatTimeShort, todayISO } from '@/lib/date'
+import { formatTime12, formatTimeShort, todayISO } from '@/lib/date'
 import { IconFlag } from '@/components/icons'
 import { EventCheck } from '@/screens/calendar/EventCheck'
 import { AgendaRow, type AgendaRowHandlers } from '@/screens/calendar/AgendaRow'
@@ -34,26 +35,6 @@ export interface DayAgendaProps extends AgendaRowHandlers {
   onPlanAt?: (startMin: number, endMin: number) => void
   /** Reloj vivo, solo cuando `day` es hoy: pinta la línea "Ahora" y atenúa lo pasado. */
   now?: Date
-}
-
-/**
- * Hueco tocable antes de un bloque, o null si no hay uno que ofrecer. Hoy
- * (`nowMin` no nulo) el hueco se recorta a lo que falta desde ahora: nada de
- * huecos que ya pasaron, y el tramo restante debe seguir siendo >= 60 min. En
- * días futuros (`nowMin === null`) se usa el hueco completo, sin recorte.
- */
-function planableGap(
-  raw: number | undefined,
-  prevEndMin: number,
-  blockStartMin: number,
-  nowMin: number | null,
-): { start: number; minutes: number } | null {
-  if (raw === undefined) return null
-  if (nowMin === null) return { start: prevEndMin, minutes: raw }
-  if (blockStartMin <= nowMin) return null
-  const start = Math.max(prevEndMin, nowMin)
-  const minutes = blockStartMin - start
-  return minutes >= 60 ? { start, minutes } : null
 }
 
 /**
@@ -116,9 +97,7 @@ export function DayAgenda({
 
   const blocks = groupIntoBlocks(timed.map((r) => ({ key: r.key, start: r.start as string, end: r.end })))
   const planable = Boolean(onPlanAt) && day >= todayISO()
-  const gaps = planable
-    ? freeGaps(blocks.map((b) => ({ start: minutesToTime(b.startMin), end: minutesToTime(b.endMin) })), 60)
-    : new Map<number, number>()
+  const gaps = planable ? freeGapsMinutes(blocks, 60) : new Map<number, number>()
 
   const isToday = day === todayISO()
   const nowMin = isToday && now ? now.getHours() * 60 + now.getMinutes() : null
@@ -142,7 +121,7 @@ export function DayAgenda({
         type="button"
         className="ag-gap"
         onClick={() => onPlanAt?.(gapInfo.start, block.startMin)}
-        aria-label={`Planear algo entre ${formatTimeShort(minutesToTime(gapInfo.start))} y ${formatTimeShort(block.start)}`}
+        aria-label={`Planear algo entre ${formatTime12(minutesToTime(gapInfo.start))} y ${formatTime12(block.start)}`}
       >
         {gapLabel(gapInfo.minutes)}
       </button>
@@ -158,7 +137,7 @@ export function DayAgenda({
           items={items}
           defaultOpen={block.key === openKey}
           past={past}
-          onAdd={planable ? () => onPlanAt?.(block.startMin, Math.max(block.endMin, block.startMin + 60)) : undefined}
+          onAdd={planable ? () => onPlanAt?.(block.startMin, block.endMin) : undefined}
           {...handlers}
         />
       )

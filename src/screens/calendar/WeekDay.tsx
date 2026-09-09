@@ -15,22 +15,32 @@ export function WeekDay({
   day,
   summary,
   defaultOpen,
+  selected,
+  onSelect,
   children,
 }: {
   day: string
   summary: WeekDaySummary
   defaultOpen: boolean
+  /** Si este día es el activo de la agenda (marca discreta en la fecha). */
+  selected: boolean
+  onSelect: (day: string) => void
   children: ReactNode
 }) {
   const [open, setOpen] = useState(defaultOpen)
   const today = isToday(day)
   const bodyId = `wk-${day}`
   return (
-    <section className={`wk-day${today ? ' wk-day--today' : ''}${open ? ' wk-day--open' : ''}`}>
+    <section
+      className={`wk-day${today ? ' wk-day--today' : ''}${open ? ' wk-day--open' : ''}${selected ? ' wk-day--selected' : ''}`}
+    >
       <button
         type="button"
         className="wk-day__head"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          setOpen((o) => !o)
+          onSelect(day)
+        }}
         aria-expanded={open}
         aria-controls={open ? bodyId : undefined}
         aria-label={`${open ? 'Plegar' : 'Desplegar'} ${formatWeekday(day)}: ${summary.main}`}

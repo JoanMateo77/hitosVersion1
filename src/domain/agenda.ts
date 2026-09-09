@@ -115,6 +115,24 @@ export function assignEventsToSessions(
 }
 
 /**
+ * Huecos libres en minutos: recibe los ítems CON hora ya ordenados por inicio
+ * y devuelve índice → minutos libres ANTES de ese ítem. Solo huecos de
+ * `minMinutes` o más (45 por defecto), medidos desde `items[i-1].endMin`
+ * hasta `items[i].startMin`; los solapes (gap <= 0) se ignoran.
+ */
+export function freeGapsMinutes(
+  items: Array<{ startMin: number; endMin: number }>,
+  minMinutes = 45,
+): Map<number, number> {
+  const gaps = new Map<number, number>()
+  for (let i = 1; i < items.length; i++) {
+    const gap = items[i].startMin - items[i - 1].endMin
+    if (gap >= minMinutes) gaps.set(i, gap)
+  }
+  return gaps
+}
+
+/**
  * Huecos libres: recibe los ítems CON hora ya ordenados por inicio y devuelve
  * índice → minutos libres ANTES de ese ítem. Solo huecos de `minMinutes` o
  * más (45 por defecto), medidos desde el fin del anterior (o su inicio si no
@@ -124,13 +142,13 @@ export function freeGaps(
   items: Array<{ start: string; end: string | null }>,
   minMinutes = 45,
 ): Map<number, number> {
-  const gaps = new Map<number, number>()
-  for (let i = 1; i < items.length; i++) {
-    const prev = items[i - 1]
-    const gap = timeToMinutes(items[i].start) - timeToMinutes(prev.end ?? prev.start)
-    if (gap >= minMinutes) gaps.set(i, gap)
-  }
-  return gaps
+  return freeGapsMinutes(
+    items.map((it) => ({
+      startMin: timeToMinutes(it.start),
+      endMin: timeToMinutes(it.end ?? it.start),
+    })),
+    minMinutes,
+  )
 }
 
 /** Duración visual mínima: un ítem puntual (sin fin) ocupa media hora. */
@@ -247,4 +265,25 @@ export function rangeLabel(start: string, end: string | null): string {
 export function gapLabel(minutes: number): string {
   const rounded = minutes >= 120 ? Math.round(minutes / 30) * 30 : minutes
   return `${formatDuration(rounded)} ${rounded === 60 ? 'libre' : 'libres'}`
+}
+
+/**
+ * Hueco tocable antes de un bloque, o null si no hay uno que ofrecer. Con
+ * `nowMin` (hoy) el hueco se recorta a lo que falta desde ahora: nada de
+ * huecos ya pasados, y el tramo restante debe seguir siendo >= minMinutes.
+ * Sin `nowMin` (día futuro) se usa el hueco completo.
+ */
+export function planableGap(
+  rawMinutes: number | undefined,
+  prevEndMin: number,
+  blockStartMin: number,
+  nowMin: number | null,
+  minMinutes = 60,
+): { start: number; minutes: number } | null {
+  if (rawMinutes === undefined) return null
+  if (nowMin === null) return { start: prevEndMin, minutes: rawMinutes }
+  if (blockStartMin <= nowMin) return null
+  const start = Math.max(prevEndMin, nowMin)
+  const minutes = blockStartMin - start
+  return minutes >= minMinutes ? { start, minutes } : null
 }

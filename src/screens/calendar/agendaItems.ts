@@ -137,9 +137,22 @@ export function weekDaySummary(input: {
   if (sessions.length > 0) {
     const n = sessions.length
     const done = sessions.filter((s) => s.state === 'done' || s.state === 'partial').length
-    if (day > today) parts.push(plural(n, 'sesión', 'sesiones'))
-    else if (day < today && done === n) parts.push(`${plural(n, 'sesión cumplida', 'sesiones cumplidas')}`)
-    else parts.push(`${done} de ${plural(n, 'sesión', 'sesiones')}`)
+    if (day > today) {
+      parts.push(plural(n, 'sesión', 'sesiones'))
+    } else if (day < today) {
+      // Día pasado: "cumplidas" solo si TODAS quedaron `done`; si no, la
+      // fracción también es estricta (una `partial` no cuenta como hecha).
+      const allDone = sessions.every((s) => s.state === 'done')
+      if (allDone) {
+        parts.push(plural(n, 'sesión cumplida', 'sesiones cumplidas'))
+      } else {
+        const strictlyDone = sessions.filter((s) => s.state === 'done').length
+        parts.push(`${strictlyDone} de ${plural(n, 'sesión', 'sesiones')}`)
+      }
+    } else {
+      // Hoy: `done` sigue contando `done` y `partial` juntos (el día no cerró).
+      parts.push(`${done} de ${plural(n, 'sesión', 'sesiones')}`)
+    }
   }
   if (habits.length > 0) {
     const n = habits.length

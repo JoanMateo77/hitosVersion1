@@ -4,6 +4,7 @@ import {
   defaultOpenBlock,
   eventSpan,
   freeGaps,
+  freeGapsMinutes,
   gapLabel,
   groupIntoBlocks,
   nowLineIndex,
@@ -11,6 +12,7 @@ import {
   periodOfMinutes,
   PERIOD_LABELS,
   PERIOD_ORDER,
+  planableGap,
   rangeLabel,
   sessionSpan,
   type AgendaSessionSlot,
@@ -228,6 +230,47 @@ describe('freeGaps', () => {
       60,
     )
     expect([...gaps.entries()]).toEqual([[2, 60]])
+  })
+})
+
+describe('freeGapsMinutes', () => {
+  it('dos bloques: uno con hueco de 60 y otro de 45, con umbral 60 solo reporta el de 60', () => {
+    const items = [
+      { startMin: 8 * 60, endMin: 9 * 60 }, // 08:00–09:00
+      { startMin: 10 * 60, endMin: 10 * 60 + 30 }, // 10:00–10:30 (60 min de hueco antes)
+      { startMin: 11 * 60 + 15, endMin: 11 * 60 + 45 }, // 11:15–11:45 (45 min de hueco antes)
+    ]
+    expect(freeGapsMinutes(items, 60)).toEqual(new Map([[1, 60]]))
+  })
+})
+
+describe('planableGap', () => {
+  it('sin hueco (rawMinutes undefined) → null', () => {
+    expect(planableGap(undefined, 480, 600, 500)).toBeNull()
+  })
+  it('día futuro (nowMin null) → sin recorte', () => {
+    expect(planableGap(90, 480, 600, null)).toEqual({ start: 480, minutes: 90 })
+  })
+  it('hueco totalmente pasado (el bloque ya empezó) → null', () => {
+    expect(planableGap(90, 480, 600, 650)).toBeNull()
+  })
+  it('hueco que cruza ahora con >= 60 restantes → recortado desde ahora', () => {
+    // Hueco 08:00–10:00 (120 min), ahora son las 08:30: quedan 90 min.
+    expect(planableGap(120, 480, 600, 510)).toEqual({ start: 510, minutes: 90 })
+  })
+  it('hueco que cruza ahora con < 60 restantes → null', () => {
+    // Hueco 08:00–09:30 (90 min), ahora son las 09:00: quedan 30 min (< 60).
+    expect(planableGap(90, 480, 570, 540)).toBeNull()
+  })
+  it('hueco futuro de hoy (prevEnd > now) → sin recorte, arranca en prevEndMin', () => {
+    // El hueco todavía no empezó (prevEndMin está después de ahora): no se recorta a nowMin.
+    expect(planableGap(90, 600, 690, 480)).toEqual({ start: 600, minutes: 90 })
+  })
+  it('respeta un minMinutes distinto al default', () => {
+    // 60 min restantes alcanza con minMinutes 30.
+    expect(planableGap(90, 480, 560, 500, 30)).toEqual({ start: 500, minutes: 60 })
+    // 20 min restantes no llega a minMinutes 30.
+    expect(planableGap(90, 480, 520, 500, 30)).toBeNull()
   })
 })
 

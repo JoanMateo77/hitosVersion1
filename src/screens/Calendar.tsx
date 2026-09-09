@@ -399,8 +399,10 @@ export function Calendar() {
 
   function shift(dir: 1 | -1) {
     if (view === 'day') setSelected((s) => addDays(s, dir))
-    else if (view === 'week') setAnchor((a) => addDays(a, dir * 7))
-    else setAnchor((a) => addMonths(a, dir))
+    else if (view === 'week') {
+      setAnchor((a) => addDays(a, dir * 7))
+      setSelected((s) => addDays(s, dir * 7))
+    } else setAnchor((a) => addMonths(a, dir))
   }
 
   function goToday() {
@@ -503,7 +505,8 @@ export function Calendar() {
   /** Toca un hueco libre → editor "Con horario" prellenado al inicio del hueco. */
   function planGap(day: string, gapStartMin: number, gapEndMin: number) {
     const start = Math.ceil(gapStartMin / 5) * 5 // al múltiplo de 5 min siguiente
-    const end = Math.min(start + 60, gapEndMin) // +1 h sin pasarse del hueco
+    // +1 h sin pasarse del hueco ni envolver a la madrugada siguiente.
+    const end = Math.min(start + 60, gapEndMin, 24 * 60 - 1)
     setEditing({
       event: null,
       date: day,
@@ -699,6 +702,8 @@ export function Calendar() {
                   deadlines: props.deadlines,
                 })}
                 defaultOpen={desktop || day === today}
+                selected={day === selected}
+                onSelect={(d) => selectDay(d)}
               >
                 <DayAgenda {...props} />
               </WeekDay>
