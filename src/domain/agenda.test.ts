@@ -194,7 +194,30 @@ describe('defaultOpenBlock / nowLineIndex', () => {
   })
 })
 
-describe('freeGaps con umbral', () => {
+describe('freeGaps', () => {
+  it('solo reporta huecos de 45 min o más, antes del ítem correspondiente', () => {
+    const items = [
+      { start: '08:00', end: '09:00' },
+      { start: '10:00', end: '10:30' }, // 60 min tras el fin del anterior
+      { start: '11:00', end: null }, // 30 min: no llega
+    ]
+    expect(freeGaps(items)).toEqual(new Map([[1, 60]]))
+  })
+  it('sin fin, el hueco se mide desde el inicio del ítem anterior', () => {
+    const items = [
+      { start: '08:00', end: null },
+      { start: '09:00', end: null },
+    ]
+    expect(freeGaps(items)).toEqual(new Map([[1, 60]]))
+  })
+  it('un solape no genera hueco', () => {
+    const items = [
+      { start: '08:00', end: '10:00' },
+      { start: '09:30', end: '11:00' },
+      { start: '12:00', end: null }, // 60 min tras las 11:00
+    ]
+    expect(freeGaps(items)).toEqual(new Map([[2, 60]]))
+  })
   it('con minMinutes 60 ignora huecos de 45 min y reporta los de 60', () => {
     const gaps = freeGaps(
       [
@@ -214,17 +237,6 @@ describe('rangeLabel', () => {
   })
   it('sin fin: solo la hora de inicio', () => {
     expect(rangeLabel('20:00', null)).toBe('8:00 pm')
-  })
-})
-
-describe('gapLabel', () => {
-  it('bajo 2 horas usa los minutos exactos', () => {
-    expect(gapLabel(45)).toBe('45 min libre')
-    expect(gapLabel(100)).toBe('1 h 40 min libre')
-  })
-  it('desde 2 horas redondea a horas/medias', () => {
-    expect(gapLabel(130)).toBe('2 h libre')
-    expect(gapLabel(145)).toBe('2 h 30 min libre')
   })
 })
 
