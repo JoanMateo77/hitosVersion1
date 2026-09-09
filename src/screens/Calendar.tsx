@@ -55,6 +55,7 @@ import {
   sessionStateLabel,
   type DayAgendaSession,
 } from '@/screens/calendar/agendaItems'
+import { EventCheck } from '@/screens/calendar/EventCheck'
 import { dueBlocksForDate } from '@/domain/sessions'
 import { listScheduleForUser, updateBlockStartTime } from '@/services/schedule'
 import {
@@ -850,21 +851,6 @@ function TimeColumn({ span, fallback }: { span: AgendaSpan; fallback: string }) 
       {span.start ? formatTime12(span.start) : fallback}
       {span.start && span.end && <span className="ev__time-end">{formatTime12(span.end)}</span>}
     </span>
-  )
-}
-
-/** Check circular para marcar un evento de la agenda como hecho. */
-function EventCheck({ event, onToggle }: { event: CalendarEvent; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      className={`check check--sm${event.doneAt ? ' check--done' : ''}`}
-      onClick={onToggle}
-      aria-pressed={Boolean(event.doneAt)}
-      aria-label={`${event.doneAt ? 'Desmarcar' : 'Marcar como hecho'} “${event.title}”`}
-    >
-      <IconCheck size={12} />
-    </button>
   )
 }
 
