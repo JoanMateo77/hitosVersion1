@@ -42,7 +42,7 @@ export function AgendaBlock({
         className="blk__head"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        aria-controls={bodyId}
+        aria-controls={open ? bodyId : undefined}
         aria-label={`${open ? 'Plegar' : 'Desplegar'} el bloque de ${formatTime12(block.start)}: ${titles}`}
       >
         <TimeColumn start={block.start} end={block.end} />

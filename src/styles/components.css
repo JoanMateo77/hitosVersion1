@@ -3185,48 +3185,6 @@ button.tg-item:active {
   color: var(--primary);
 }
 
-/* Franja de "todo el día": deadlines de metas y eventos sin hora, en chips. */
-.tg-allday {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s2);
-}
-.tg-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 100%;
-  padding: 4px 10px;
-  background: var(--surface);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-pill);
-  font-size: var(--fs-sm);
-  color: var(--text);
-  box-shadow: var(--shadow-sm);
-  text-align: left;
-}
-.tg-chip__flag {
-  display: inline-flex;
-  flex: none;
-  color: var(--primary);
-}
-.tg-chip__title {
-  min-width: 0;
-  padding: 0;
-  background: none;
-  border: none;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.tg-chip--done .tg-chip__title {
-  text-decoration: line-through;
-  color: var(--text-faint);
-}
-
 /* Kicker de la sección "Sin hora" bajo la grilla. */
 .tg-untimed {
   margin: 0;
@@ -3592,4 +3550,110 @@ button.ag-row:active,
   .blk__chev {
     transition: none;
   }
+}
+
+/* Cabecera de la agenda: fecha a la izquierda, acciones (✎, +) a la derecha. */
+.ag-hdr {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+.ag-hdr__actions {
+  padding-top: var(--s2);
+}
+/* Línea "Ahora": punto + hairline en color de acción; solo hoy. */
+.ag-now {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 4px;
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.ag-now::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+.ag-now::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--primary);
+  opacity: 0.7;
+}
+/* Hueco libre: renglón tenue y tocable entre bloques (solo hoy/futuro). */
+.ag-gap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 5px 0 5px 54px;
+  background: none;
+  border: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-faint);
+  text-align: left;
+}
+.ag-gap::after {
+  content: '';
+  flex: 1;
+  border-top: 1px dashed var(--border);
+}
+@media (hover: hover) {
+  .ag-gap:hover {
+    color: var(--primary);
+  }
+}
+.ag-gap:active {
+  color: var(--primary);
+}
+/* Franja "Todo el día": fechas objetivo y eventos sin hora, en chips. */
+.ag-allday {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-bottom: var(--s2);
+}
+.ag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-sm);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+  text-align: left;
+}
+.ag-chip__flag {
+  display: inline-flex;
+  flex: none;
+  color: var(--primary);
+}
+.ag-chip__title {
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ag-chip--done .ag-chip__title {
+  text-decoration: line-through;
+  color: var(--text-faint);
 }
