@@ -29,10 +29,12 @@ import {
   agendaTargetLabel,
   isOpenToday,
   sessionStateLabel,
+  weekDaySummary,
   type DayAgendaSession,
 } from '@/screens/calendar/agendaItems'
 import { EventCheck } from '@/screens/calendar/EventCheck'
 import { DayAgenda } from '@/screens/calendar/DayAgenda'
+import { WeekDay } from '@/screens/calendar/WeekDay'
 import { AddSheet } from '@/screens/calendar/AddSheet'
 import type { DayHabitRowItem } from '@/screens/calendar/agendaItems'
 import { dueBlocksForDate } from '@/domain/sessions'
@@ -104,6 +106,14 @@ export function Calendar() {
       return window.matchMedia('(min-width: 1024px)').matches ? 'month' : 'day'
     } catch {
       return 'day'
+    }
+  })
+  // En escritorio la semana abre todos los días (hay espacio); en móvil, solo hoy.
+  const [desktop] = useState(() => {
+    try {
+      return window.matchMedia('(min-width: 1024px)').matches
+    } catch {
+      return false
     }
   })
   const [anchor, setAnchor] = useState(initialDate ?? todayISO()) // mes / semana de referencia
@@ -674,9 +684,26 @@ export function Calendar() {
         </div>
       ) : view === 'week' ? (
         <div className="stack cal-week">
-          {week.map((day) => (
-            <DayAgenda key={day} {...dayProps(day)} />
-          ))}
+          {week.map((day) => {
+            const props = dayProps(day)
+            return (
+              <WeekDay
+                key={day}
+                day={day}
+                summary={weekDaySummary({
+                  day,
+                  today,
+                  sessions: props.sessions,
+                  habits: props.habits,
+                  events: props.events,
+                  deadlines: props.deadlines,
+                })}
+                defaultOpen={desktop || day === today}
+              >
+                <DayAgenda {...props} />
+              </WeekDay>
+            )
+          })}
         </div>
       ) : (
         <div className="stack">

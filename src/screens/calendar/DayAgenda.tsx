@@ -134,6 +134,7 @@ export function DayAgenda({
       ) : (
         <AgendaBlock
           key={`${day}-${block.key}`}
+          day={day}
           block={block}
           items={items}
           defaultOpen={block.key === openKey}
@@ -147,7 +148,7 @@ export function DayAgenda({
 
   const nowLabel = nowMin !== null ? formatTimeShort(minutesToTime(nowMin)) : ''
   const nowLine = (
-    <div className="ag-now" role="status" aria-label={`Ahora, ${nowLabel}`}>
+    <div className="ag-now" aria-hidden="true">
       Ahora · {nowLabel}
     </div>
   )

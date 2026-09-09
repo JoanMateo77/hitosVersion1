@@ -2631,21 +2631,6 @@ select.input {
     border-top: none;
     padding-top: 0;
   }
-
-  .cal-week {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: var(--s4);
-    align-items: start;
-  }
-  .cal-week .cal-day {
-    border: 1px solid var(--border-soft);
-    border-radius: var(--radius);
-    background: var(--surface);
-    padding: var(--s3) var(--s4);
-    box-shadow: var(--shadow-sm);
-    min-height: 120px;
-  }
 }
 
 /* --- Progreso: dos columnas en escritorio ---------------------------------- */
@@ -3656,4 +3641,123 @@ button.ag-row:active,
 .ag-chip--done .ag-chip__title {
   text-decoration: line-through;
   color: var(--text-faint);
+}
+
+/* Semana como acordeón: cabecera con fecha y resumen; hoy abierto. */
+.wk-day {
+  border-top: 1px solid var(--border-soft);
+}
+.cal-week .wk-day:first-child {
+  border-top: 0;
+}
+.wk-day__head {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 24px;
+  column-gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 12px 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+  color: var(--text);
+}
+.wk-day__date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+.wk-day__dow {
+  margin-bottom: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.wk-day__num {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 500;
+}
+.wk-day--today .wk-day__num,
+.wk-day--today .wk-day__dow {
+  color: var(--primary);
+}
+.wk-day__sum {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.wk-day__sum-main {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wk-day__sum-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wk-day__dots {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 6px;
+  vertical-align: 1px;
+}
+.wk-day__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--niche, var(--text-faint));
+}
+.wk-day__chev {
+  display: inline-flex;
+  color: var(--text-faint);
+  transition: transform 0.2s var(--ease-out);
+}
+.wk-day--open .wk-day__chev {
+  transform: rotate(90deg);
+}
+.wk-day__body {
+  padding: 0 0 10px 52px;
+}
+.wk-day__body .ag-row {
+  min-height: 46px;
+  padding: 5px 0;
+}
+.wk-day__body .ag-row__title,
+.wk-day__body .blk__titles {
+  font-size: 14px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wk-day__chev {
+    transition: none;
+  }
+}
+/* Escritorio: los siete días como tarjetas en cuadrícula, todos abiertos. */
+@media (min-width: 1024px) {
+  .cal-week {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--s4);
+    align-items: start;
+  }
+  .cal-week .wk-day {
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    background: var(--surface);
+    padding: var(--s2) var(--s4);
+    box-shadow: var(--shadow-sm);
+  }
+  .wk-day__body {
+    padding-left: 0;
+  }
 }

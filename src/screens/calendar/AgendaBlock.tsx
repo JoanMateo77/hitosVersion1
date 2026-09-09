@@ -13,6 +13,7 @@ import { rowArea, rowTitle, type AgendaRowItem } from '@/screens/calendar/agenda
  * lo resetea con `key` cuando cambia el día.
  */
 export function AgendaBlock({
+  day,
   block,
   items,
   defaultOpen,
@@ -20,6 +21,7 @@ export function AgendaBlock({
   onAdd,
   ...handlers
 }: {
+  day: string
   block: DayBlock
   items: AgendaRowItem[]
   defaultOpen: boolean
@@ -31,7 +33,7 @@ export function AgendaBlock({
   const first = items.find((i) => i.kind === 'session') ?? items[0]
   const titles = items.map(rowTitle).join(' · ')
   const meta = `${items.length} cosas${sessions > 0 ? ` · ${sessions} ${sessions === 1 ? 'sesión' : 'sesiones'}` : ''}`
-  const bodyId = `blk-${block.key}`
+  const bodyId = `blk-${day}-${block.key}`
   return (
     <div
       className={`blk${open ? ' blk--open' : ''}${sessions > 0 ? ' blk--session' : ''}${past ? ' ag-row--past' : ''}`}
