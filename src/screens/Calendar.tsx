@@ -47,6 +47,14 @@ import {
   type AgendaSpan,
   type GridPlacement,
 } from '@/domain/agenda'
+import {
+  CLOSED_STATES,
+  agendaTargetLabel,
+  isOpenToday,
+  sessionAriaLabel,
+  sessionStateLabel,
+  type DayAgendaSession,
+} from '@/screens/calendar/agendaItems'
 import { dueBlocksForDate } from '@/domain/sessions'
 import { listScheduleForUser, updateBlockStartTime } from '@/services/schedule'
 import {
@@ -114,48 +122,6 @@ interface DayHabitItem {
   /** Hora de esta repetición, o null si el hábito no tiene hora. */
   time: string | null
   done: boolean
-}
-
-/** Una sesión tal como se ve en la agenda: real (fila en BD) o proyectada del compromiso. */
-interface DayAgendaSession {
-  key: string
-  goal: Goal
-  time: string | null
-  /** Rango horario del bloque (fin derivado solo para compromisos de tiempo). */
-  span: AgendaSpan
-  state: 'pending' | 'running' | 'done' | 'partial' | 'missed' | 'unconfirmed' | 'projected'
-  targetLabel: string
-  session: Session | null
-  block: ScheduleBlock | null
-}
-
-/**
- * Qué compromete la sesión, en lenguaje de la agenda: "4 h", "25 min" o la
- * cantidad con su unidad. La hora de fin ya no va aquí: vive en la columna
- * de hora del bloque (sessionSpan).
- */
-function agendaTargetLabel(kind: Session['targetKind'], value: number, unit: string | null): string {
-  if (kind !== 'time') return `${value} ${unit ?? ''}`.trim()
-  return formatDuration(value)
-}
-
-function sessionStateLabel(state: DayAgendaSession['state']): string {
-  switch (state) {
-    case 'done':
-      return 'hecha'
-    case 'partial':
-      return 'parcial'
-    case 'missed':
-      return 'no pudiste'
-    case 'running':
-      return 'en curso'
-    case 'unconfirmed':
-      return 'sin confirmar'
-    case 'projected':
-      return 'comprometida'
-    default:
-      return 'pendiente'
-  }
 }
 
 /**
@@ -900,28 +866,6 @@ function EventCheck({ event, onToggle }: { event: CalendarEvent; onToggle: () =>
       <IconCheck size={12} />
     </button>
   )
-}
-
-/** Estados que ya no admiten cronómetro (la sesión quedó cerrada). */
-const CLOSED_STATES = ['done', 'partial', 'missed']
-/** Estados de una sesión real de HOY que llevan directo al cronómetro. */
-const OPEN_STATUSES = ['pending', 'running', 'unconfirmed']
-
-/** ¿Sesión real de hoy, todavía abierta? (la que invita a darle play). */
-function isOpenToday(it: DayAgendaSession): boolean {
-  return Boolean(
-    it.session && it.session.date === todayISO() && OPEN_STATUSES.includes(it.session.status),
-  )
-}
-
-/** Aria-label de un bloque de sesión: qué es y qué pasa al tocarlo. */
-function sessionAriaLabel(it: DayAgendaSession): string {
-  const range = it.span.start ? `, de ${rangeLabel(it.span.start, it.span.end)}` : ''
-  if (it.session && isOpenToday(it)) return `Abrir la sesión de ${it.goal.title}${range}`
-  if (it.session) {
-    return `Ver el detalle de la sesión de ${it.goal.title}, ${sessionStateLabel(it.state)}${range}`
-  }
-  return `Sesión de ${it.goal.title}, ${sessionStateLabel(it.state)}${range}`
 }
 
 /** Indicio de tocable: play (hoy, abierta) o chevron (todo lo demás). */
