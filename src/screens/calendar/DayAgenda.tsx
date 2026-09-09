@@ -7,6 +7,7 @@ import {
   defaultOpenBlock,
   eventSpan,
   freeGaps,
+  gapLabel,
   groupIntoBlocks,
   nowLineIndex,
   periodOfMinutes,
@@ -14,7 +15,7 @@ import {
   type DayPeriod,
 } from '@/domain/agenda'
 import { minutesToTime } from '@/domain/commitment'
-import { formatDuration, formatTimeShort, todayISO } from '@/lib/date'
+import { formatTimeShort, todayISO } from '@/lib/date'
 import { IconFlag } from '@/components/icons'
 import { EventCheck } from '@/screens/calendar/EventCheck'
 import { AgendaRow, type AgendaRowHandlers } from '@/screens/calendar/AgendaRow'
@@ -35,10 +36,24 @@ export interface DayAgendaProps extends AgendaRowHandlers {
   now?: Date
 }
 
-/** "2 h libres", "1 h libre": redondea a media hora desde las 2 h, como gapLabel. */
-function gapText(minutes: number): string {
-  const rounded = minutes >= 120 ? Math.round(minutes / 30) * 30 : minutes
-  return `${formatDuration(rounded)} ${rounded === 60 ? 'libre' : 'libres'}`
+/**
+ * Hueco tocable antes de un bloque, o null si no hay uno que ofrecer. Hoy
+ * (`nowMin` no nulo) el hueco se recorta a lo que falta desde ahora: nada de
+ * huecos que ya pasaron, y el tramo restante debe seguir siendo >= 60 min. En
+ * días futuros (`nowMin === null`) se usa el hueco completo, sin recorte.
+ */
+function planableGap(
+  raw: number | undefined,
+  prevEndMin: number,
+  blockStartMin: number,
+  nowMin: number | null,
+): { start: number; minutes: number } | null {
+  if (raw === undefined) return null
+  if (nowMin === null) return { start: prevEndMin, minutes: raw }
+  if (blockStartMin <= nowMin) return null
+  const start = Math.max(prevEndMin, nowMin)
+  const minutes = blockStartMin - start
+  return minutes >= 60 ? { start, minutes } : null
 }
 
 /**
@@ -115,19 +130,23 @@ export function DayAgenda({
   const renderBlock = (block: DayBlock, index: number) => {
     const past = nowMin !== null && block.endMin <= nowMin
     const items = block.items.map((it) => rowByKey.get(it.key) as AgendaRowItem)
-    const gap = gaps.get(index)
-    const gapButton =
-      gap !== undefined ? (
-        <button
-          key={`gap-${block.key}`}
-          type="button"
-          className="ag-gap"
-          onClick={() => onPlanAt?.(blocks[index - 1].endMin, block.startMin)}
-          aria-label={`Planear algo entre ${formatTimeShort(minutesToTime(blocks[index - 1].endMin))} y ${formatTimeShort(block.start)}`}
-        >
-          {gapText(gap)}
-        </button>
-      ) : null
+    const gapInfo = planableGap(
+      gaps.get(index),
+      index > 0 ? blocks[index - 1].endMin : 0,
+      block.startMin,
+      nowMin,
+    )
+    const gapButton = gapInfo ? (
+      <button
+        key={`gap-${block.key}`}
+        type="button"
+        className="ag-gap"
+        onClick={() => onPlanAt?.(gapInfo.start, block.startMin)}
+        aria-label={`Planear algo entre ${formatTimeShort(minutesToTime(gapInfo.start))} y ${formatTimeShort(block.start)}`}
+      >
+        {gapLabel(gapInfo.minutes)}
+      </button>
+    ) : null
     const body =
       items.length === 1 ? (
         <AgendaRow key={block.key} item={items[0]} past={past} {...handlers} />

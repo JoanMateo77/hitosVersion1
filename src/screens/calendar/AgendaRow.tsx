@@ -88,7 +88,7 @@ export function AgendaRow({
     const h = item.habit
     const multi = h.target > 1
     const sub = multi
-      ? `${h.doneCount} de ${h.target} hoy${h.time && !h.complete ? ` · siguiente ${formatTime12(h.time)}` : ''}`
+      ? `${h.doneCount} de ${h.target}${h.time && !h.complete ? ` · siguiente ${formatTime12(h.time)}` : ''}`
       : null
     return (
       <button

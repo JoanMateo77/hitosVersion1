@@ -240,10 +240,11 @@ export function rangeLabel(start: string, end: string | null): string {
 }
 
 /**
- * Texto de un hueco libre: "45 min libre", "2 h libre". A partir de 2 horas se
- * redondea a horas/medias para no fingir una precisión que el día no tiene.
+ * Texto de un hueco libre: "45 min libres", "1 h libre", "3 h libres". A
+ * partir de 2 horas se redondea a horas/medias para no fingir una precisión
+ * que el día no tiene.
  */
 export function gapLabel(minutes: number): string {
   const rounded = minutes >= 120 ? Math.round(minutes / 30) * 30 : minutes
-  return `${formatDuration(rounded)} libre`
+  return `${formatDuration(rounded)} ${rounded === 60 ? 'libre' : 'libres'}`
 }

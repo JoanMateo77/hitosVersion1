@@ -242,12 +242,15 @@ describe('rangeLabel', () => {
 
 describe('gapLabel', () => {
   it('bajo 2 horas usa los minutos exactos', () => {
-    expect(gapLabel(45)).toBe('45 min libre')
-    expect(gapLabel(100)).toBe('1 h 40 min libre')
+    expect(gapLabel(45)).toBe('45 min libres')
+    expect(gapLabel(100)).toBe('1 h 40 min libres')
+    expect(gapLabel(90)).toBe('1 h 30 min libres')
+  })
+  it('60 minutos exactos usa el singular', () => {
+    expect(gapLabel(60)).toBe('1 h libre')
   })
   it('desde 2 horas redondea a horas/medias', () => {
-    expect(gapLabel(130)).toBe('2 h libre')
-    expect(gapLabel(145)).toBe('2 h 30 min libre')
+    expect(gapLabel(165)).toBe('3 h libres')
   })
 })
 
