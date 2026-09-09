@@ -5,11 +5,13 @@ import {
   freeGaps,
   gapLabel,
   gridBounds,
+  groupIntoBlocks,
   layoutDay,
   rangeLabel,
   sessionSpan,
   uncoveredGaps,
   type AgendaSessionSlot,
+  type DayItemSpan,
 } from '@/domain/agenda'
 import type { CalendarEvent } from '@/lib/types'
 
@@ -32,6 +34,10 @@ function ev(over: Partial<CalendarEvent> = {}): CalendarEvent {
 
 function slot(over: Partial<AgendaSessionSlot> = {}): AgendaSessionSlot {
   return { key: 's1', goalId: 'g1', start: '08:00', end: '10:00', ...over }
+}
+
+function span(over: Partial<DayItemSpan> = {}): DayItemSpan {
+  return { key: 'a', start: '08:00', end: '09:00', ...over }
 }
 
 describe('sessionSpan', () => {
@@ -314,5 +320,64 @@ describe('gapLabel', () => {
   it('desde 2 horas redondea a horas/medias', () => {
     expect(gapLabel(130)).toBe('2 h libre')
     expect(gapLabel(145)).toBe('2 h 30 min libre')
+  })
+})
+
+describe('groupIntoBlocks', () => {
+  it('lista vacía → sin bloques', () => {
+    expect(groupIntoBlocks([])).toEqual([])
+  })
+
+  it('ítems que no se tocan → un bloque por ítem, ordenados por inicio', () => {
+    const blocks = groupIntoBlocks([
+      span({ key: 'b', start: '10:00', end: '11:00' }),
+      span({ key: 'a', start: '08:00', end: '09:00' }),
+    ])
+    expect(blocks.map((b) => b.items.map((i) => i.key))).toEqual([['a'], ['b']])
+    expect(blocks[0]).toMatchObject({ key: 'b-08:00', start: '08:00', end: '09:00', startMin: 480, endMin: 540 })
+  })
+
+  it('solape parcial → un bloque con rango real y fin efectivo máximo', () => {
+    const [b] = groupIntoBlocks([
+      span({ key: 'a', start: '08:00', end: '08:45' }),
+      span({ key: 'h', start: '08:00', end: null }),
+      span({ key: 'c', start: '08:30', end: '09:30' }),
+    ])
+    expect(b.items.map((i) => i.key)).toEqual(['a', 'h', 'c'])
+    expect(b.end).toBe('09:30')
+    expect(b.endMin).toBe(570)
+  })
+
+  it('ítems que se tocan (fin == inicio) NO se unen', () => {
+    const blocks = groupIntoBlocks([
+      span({ key: 'a', start: '08:00', end: '08:30' }),
+      span({ key: 'b', start: '08:30', end: '09:00' }),
+    ])
+    expect(blocks).toHaveLength(2)
+  })
+
+  it('un ítem puntual cubre 30 min efectivos y por eso absorbe lo que empieza dentro', () => {
+    const blocks = groupIntoBlocks([
+      span({ key: 'h', start: '20:00', end: null }),
+      span({ key: 'e', start: '20:15', end: '20:45' }),
+    ])
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0].end).toBe('20:45')
+  })
+
+  it('si ningún ítem tiene fin, el fin real del bloque es null pero el efectivo es inicio + 30', () => {
+    const [b] = groupIntoBlocks([span({ key: 'h', start: '07:00', end: null })])
+    expect(b.end).toBeNull()
+    expect(b.endMin).toBe(450)
+  })
+
+  it('empate de inicio: el más largo va primero; luego por clave', () => {
+    const [b] = groupIntoBlocks([
+      span({ key: 'corto', start: '08:00', end: '08:15' }),
+      span({ key: 'largo', start: '08:00', end: '09:00' }),
+      span({ key: 'sin-fin', start: '08:00', end: null }),
+    ])
+    // largo: fin 09:00; corto y sin-fin: fin efectivo 08:30 (empate) → por clave
+    expect(b.items.map((i) => i.key)).toEqual(['largo', 'corto', 'sin-fin'])
   })
 })

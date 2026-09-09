@@ -161,6 +161,61 @@ function effectiveEnd(startMin: number, end: string | null): number {
   return Math.max(raw, startMin + MIN_EFFECTIVE_MINUTES)
 }
 
+/* ---- Bloques de tiempo del día (2026-09) --------------------------------
+   La cronología agrupa lo que se solapa en el tiempo en UN bloque que la UI
+   despliega. Todo es puro: minutos, orden y rangos. */
+
+/** Ítem con hora del día, listo para agrupar. */
+export interface DayItemSpan {
+  key: string
+  start: string
+  end: string | null
+}
+
+/** Franja compartida: rango real y sus ítems, ordenados por inicio. */
+export interface DayBlock {
+  /** `b-${start}` del primer ítem (único: dos bloques no pueden empezar igual). */
+  key: string
+  /** Inicio del primer ítem. */
+  start: string
+  /** El mayor fin REAL de sus ítems; null si ninguno tiene fin. */
+  end: string | null
+  startMin: number
+  /** Fin EFECTIVO (mínimo 30 min por ítem): para solapes, huecos y "ahora". */
+  endMin: number
+  items: DayItemSpan[]
+}
+
+/**
+ * Agrupa los ítems con hora en bloques: se ordena por inicio (empate: el más
+ * largo primero, luego por clave) y un ítem se une al bloque abierto SOLO si
+ * empieza antes de su fin efectivo (solape estricto: lo que se toca no se
+ * une). Un ítem sin fin cuenta 30 min efectivos.
+ */
+export function groupIntoBlocks(items: DayItemSpan[]): DayBlock[] {
+  const sorted = items
+    .map((it) => {
+      const startMin = timeToMinutes(it.start)
+      return { it, startMin, effEnd: effectiveEnd(startMin, it.end) }
+    })
+    .sort((a, b) => a.startMin - b.startMin || b.effEnd - a.effEnd || a.it.key.localeCompare(b.it.key))
+  const blocks: DayBlock[] = []
+  let current: DayBlock | null = null
+  for (const { it, startMin, effEnd } of sorted) {
+    if (current && startMin < current.endMin) {
+      current.items.push(it)
+      current.endMin = Math.max(current.endMin, effEnd)
+      if (it.end && (!current.end || timeToMinutes(it.end) > timeToMinutes(current.end))) {
+        current.end = it.end
+      }
+      continue
+    }
+    current = { key: `b-${it.start}`, start: it.start, end: it.end, startMin, endMin: effEnd, items: [it] }
+    blocks.push(current)
+  }
+  return blocks
+}
+
 /**
  * Ventana visible del día: 07:00–21:00 por defecto, expandida (redondeando a
  * la hora) hasta abarcar todo ítem con hora. Un ítem sin fin cuenta como
