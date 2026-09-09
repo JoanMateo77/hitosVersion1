@@ -10,7 +10,7 @@ import tseslint from 'typescript-eslint'
  * `any` y demás. No formatea (eso queda para Prettier si se suma después).
  */
 export default tseslint.config(
-  { ignores: ['dist', 'dev-dist', 'node_modules', 'eslint.config.js'] },
+  { ignores: ['dist', 'dev-dist', 'node_modules', 'eslint.config.js', '.claude'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
