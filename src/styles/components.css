@@ -3162,7 +3162,8 @@ button.ag-row:active,
   transform: rotate(90deg);
 }
 .blk__body {
-  padding-bottom: 6px;
+  padding: 4px 4px 6px;
+  margin: -4px -4px 0;
 }
 .blk__body .ag-row {
   min-height: 48px;
@@ -3395,7 +3396,8 @@ button.ag-row:active,
   transform: rotate(90deg);
 }
 .wk-day__body {
-  padding: 0 0 10px 52px;
+  padding: 4px 4px 10px 56px;
+  margin: -4px -4px 0;
 }
 .wk-day__body .ag-row {
   min-height: 46px;
@@ -3469,7 +3471,8 @@ button.ag-row:active,
   transform: rotate(90deg);
 }
 .disclosure__body {
-  padding-top: var(--s2);
+  padding: calc(var(--s2) + 4px) 4px 4px;
+  margin: -4px -4px 0;
 }
 .disclosure__wrap,
 .blk__wrap,
