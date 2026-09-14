@@ -1,17 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import type { Goal, Habit, HabitCheck, Milestone, Session } from '@/lib/types'
+import type { Goal, Milestone, Session } from '@/lib/types'
 import { listGoals, markGoalReviewed, setGoalStatus } from '@/services/goals'
 import { listMilestones, setMilestoneDone } from '@/services/milestones'
 import { listSessionsInRange } from '@/services/sessions'
-import { listHabitChecksInRange, listHabits } from '@/services/habits'
 import { goalsDueForReview } from '@/domain/dailyPlan'
-import { habitCompleteDates } from '@/domain/habits'
-import { addDays, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
+import { addDays, startOfWeek, todayISO } from '@/lib/date'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { useToast } from '@/app/toast'
-import { Roadmap } from '@/components/Roadmap'
+import { Disclosure } from '@/components/Disclosure'
 import { IconCelebrate, IconCheck, IconSprout } from '@/components/icons'
 import { NicheGlyph } from '@/components/NicheGlyph'
 
@@ -35,9 +33,6 @@ export function Review() {
   const [milestonesByGoal, setMilestonesByGoal] = useState<Map<string, Milestone[]>>(new Map())
   // Sesiones de los últimos 30 días: contexto para decidir con datos, no de memoria.
   const [sessions, setSessions] = useState<Session[]>([])
-  // Hábitos vinculados a metas + sus marcas de esta semana: también cuentan.
-  const [habits, setHabits] = useState<Habit[]>([])
-  const [habitChecks, setHabitChecks] = useState<HabitCheck[]>([])
   const [index, setIndex] = useState(0)
   const [skipped, setSkipped] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -54,21 +49,14 @@ export function Review() {
   useEffect(() => {
     let active = true
     const today = todayISO()
-    Promise.all([
-      listGoals(userId),
-      listSessionsInRange(userId, addDays(today, -29), today),
-      listHabits(userId).catch(() => [] as Habit[]),
-      listHabitChecksInRange(userId, startOfWeek(today), today).catch(() => [] as HabitCheck[]),
-    ])
-      .then(async ([gs, sess, allHabits, checks]) => {
+    Promise.all([listGoals(userId), listSessionsInRange(userId, addDays(today, -29), today)])
+      .then(async ([gs, sess]) => {
         const due = goalsDueForReview(gs)
         // Hitos reales de cada meta a revisar (pocas): el avance se marca ahí.
         const lists = await Promise.all(due.map((g) => listMilestones(g.id)))
         if (!active) return
         setGoals(due)
         setSessions(sess)
-        setHabits(allHabits)
-        setHabitChecks(checks)
         setMilestonesByGoal(new Map(due.map((g, i) => [g.id, lists[i]])))
         setLoading(false)
       })
@@ -198,14 +186,6 @@ export function Review() {
     (s) => s.goalId === goal.id && (s.status === 'done' || s.status === 'partial'),
   )
   const weekCount = goalDone.filter((s) => s.date >= startOfWeek(todayISO())).length
-  const lastDoneDate = goalDone.map((s) => s.date).sort().pop() ?? null
-  // Los hábitos vinculados a esta meta también cuentan en el contexto. Un día
-  // suma solo si el hábito quedó completo (todas sus repeticiones).
-  const linkedHabits = habits.filter((h) => h.goalId === goal.id && h.archivedAt === null)
-  const habitDaysDone = linkedHabits.reduce(
-    (acc, h) => acc + habitCompleteDates(h, habitChecks).size,
-    0,
-  )
 
   function markPendingDone(m: Milestone) {
     return setMilestoneDone(m.id, true).then((updated) => {
@@ -237,7 +217,11 @@ export function Review() {
         <h1 className="screen__title row" style={{ alignItems: 'center', gap: 'var(--s3)' }}>
           <NicheGlyph area={goal.area} size="md" /> {goal.title}
         </h1>
-        {goal.why && <p className="screen__subtitle">Tu porqué: {goal.why}</p>}
+        {goal.why && (
+          <Disclosure summary="Tu porqué">
+            <p className="small muted" style={{ margin: 0 }}>{goal.why}</p>
+          </Disclosure>
+        )}
       </header>
 
       <div className="card stack">
@@ -246,18 +230,18 @@ export function Review() {
             ? 'CAMINO COMPLETO'
             : `ETAPA ${stage + 1} DE ${milestones.length}`}
         </span>
-        <Roadmap milestones={milestones} currentIndex={stage} />
+        {milestones.length > 0 && stage < milestones.length && (
+          <p style={{ margin: 0 }}>
+            <strong>{milestones[stage]}</strong>
+            {milestones[stage + 1] && (
+              <span className="muted"> → {milestones[stage + 1]}</span>
+            )}
+          </p>
+        )}
         <span className="faint tiny">
           {weekCount > 0
             ? `${weekCount} ${weekCount === 1 ? 'sesión cumplida' : 'sesiones cumplidas'} esta semana`
             : 'Sin sesiones esta semana'}
-          {lastDoneDate
-            ? ` · última el ${formatWeekday(lastDoneDate)}`
-            : ' · ninguna en los últimos 30 días'}
-          {linkedHabits.length > 0 &&
-            ` · hábitos vinculados: ${habitDaysDone} ${
-              habitDaysDone === 1 ? 'día completo' : 'días completos'
-            } esta semana`}
         </span>
       </div>
 
