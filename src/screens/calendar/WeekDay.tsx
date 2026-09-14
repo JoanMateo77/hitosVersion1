@@ -28,6 +28,7 @@ export function WeekDay({
   children: ReactNode
 }) {
   const [open, setOpen] = useState(defaultOpen)
+  const [mounted, setMounted] = useState(defaultOpen)
   const today = isToday(day)
   const bodyId = `wk-${day}`
   return (
@@ -39,10 +40,11 @@ export function WeekDay({
         className="wk-day__head"
         onClick={() => {
           setOpen((o) => !o)
+          setMounted(true)
           onSelect(day)
         }}
         aria-expanded={open}
-        aria-controls={open ? bodyId : undefined}
+        aria-controls={bodyId}
         aria-label={`${open ? 'Plegar' : 'Desplegar'} ${formatWeekday(day)}: ${summary.main}`}
       >
         <span className="wk-day__date">
@@ -66,11 +68,11 @@ export function WeekDay({
           <IconChevronRight size={18} />
         </span>
       </button>
-      {open && (
-        <div className="wk-day__body" id={bodyId}>
-          {children}
+      <div className="wk-day__wrap">
+        <div className="wk-day__body" id={bodyId} inert={!open}>
+          {mounted && children}
         </div>
-      )}
+      </div>
     </section>
   )
 }
