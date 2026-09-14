@@ -1102,9 +1102,23 @@
   transition: transform var(--dur-state) var(--ease-out);
   touch-action: pan-y;
 }
-/* Grabber: el indicador visual que dice "esto es una hoja, puedes arrastrarla".
-   La zona de arrastre vive en el JS de Sheet (los 48 px superiores del panel). */
-.sheet__panel::before {
+/* Grabber: la zona que dice "esto es una hoja, puedes arrastrarla". Es un
+   elemento real (no un ::before del panel) con touch-action: none, así el
+   gesto es suyo: el panel scrollea con pan-y y iOS no le quita el puntero. */
+.sheet__grabber {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  touch-action: none;
+  cursor: grab;
+}
+.sheet__grabber:active {
+  cursor: grabbing;
+}
+/* La barrita visual. */
+.sheet__grabber::before {
   content: '';
   position: absolute;
   top: 10px;

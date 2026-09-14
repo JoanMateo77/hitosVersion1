@@ -11,8 +11,6 @@ import {
 } from 'react'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 
-/** px desde el borde superior del panel: la zona del grabber. */
-const DRAG_ZONE = 48
 /** px arrastrados hacia abajo que cierran la hoja al soltar. */
 const DISMISS_AT = 80
 /**
@@ -80,35 +78,35 @@ export function Sheet({
   }, [closing])
 
   // Arrastre desde el grabber: el panel sigue al dedo; soltar lejos cierra,
-  // cerca vuelve a su sitio con la transición.
+  // cerca vuelve a su sitio con la transición. El gesto nace en el grabber —un
+  // elemento real con touch-action: none— y no en el panel, que scrollea con
+  // pan-y: si no, iOS se queda el gesto y cancela el puntero antes de empezar.
   const drag = useRef<{ startY: number; dy: number } | null>(null)
 
   function onPointerDown(e: ReactPointerEvent<HTMLElement>) {
     if (closing || !e.isPrimary) return
-    // Solo el panel mismo (su padding superior y el grabber ::before): así el
-    // arrastre nunca le roba el click al ✕ ni a nada del encabezado.
-    if (e.target !== e.currentTarget) return
-    if (e.clientY - e.currentTarget.getBoundingClientRect().top > DRAG_ZONE) return
     drag.current = { startY: e.clientY, dy: 0 }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
 
   function onPointerMove(e: ReactPointerEvent<HTMLElement>) {
-    if (!drag.current) return
+    const panel = panelRef.current
+    if (!drag.current || !panel) return
     // Solo hacia abajo: tirar hacia arriba no estira la hoja.
     drag.current.dy = Math.max(0, e.clientY - drag.current.startY)
-    e.currentTarget.style.transition = 'none'
-    e.currentTarget.style.transform = `translateY(${drag.current.dy}px)`
+    panel.style.transition = 'none'
+    panel.style.transform = `translateY(${drag.current.dy}px)`
   }
 
-  function onPointerUp(e: ReactPointerEvent<HTMLElement>) {
+  function onPointerUp() {
+    const panel = panelRef.current
     if (!drag.current) return
     const { dy } = drag.current
     drag.current = null
-    e.currentTarget.style.transition = ''
+    if (panel) panel.style.transition = ''
     // Si cierra, el transform inline queda como punto de partida de sheet-down.
     if (dy > DISMISS_AT) close()
-    else e.currentTarget.style.transform = ''
+    else if (panel) panel.style.transform = ''
   }
 
   function onAnimationEnd(e: ReactAnimationEvent<HTMLElement>) {
@@ -121,12 +119,19 @@ export function Sheet({
   const panelProps = {
     className: `sheet__panel ${panelClassName}`,
     style,
-    onPointerDown,
-    onPointerMove,
-    onPointerUp,
-    onPointerCancel: onPointerUp,
     onAnimationEnd,
   }
+
+  const grabber = (
+    <div
+      className="sheet__grabber"
+      aria-hidden="true"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    />
+  )
 
   return (
     <div
@@ -138,10 +143,12 @@ export function Sheet({
       <div className="sheet__backdrop" onClick={close} />
       {as === 'form' ? (
         <form ref={setPanel} {...panelProps} onSubmit={onSubmit}>
+          {grabber}
           {children(close)}
         </form>
       ) : (
         <div ref={setPanel} {...panelProps}>
+          {grabber}
           {children(close)}
         </div>
       )}
