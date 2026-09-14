@@ -99,6 +99,8 @@ export function Today() {
   // detrás (sin skeleton). La clave incluye la fecha: un día nuevo carga en frío.
   const cacheKey = `today:${userId}:${today}`
   const cached = sessionCache.get<TodaySnapshot>(cacheKey)
+  // Solo la carga fría (sin caché) hace la cascada de entrada; al volver, todo ya está tibio.
+  const warm = useRef(cached !== undefined).current
 
   const [goals, setGoals] = useState<Goal[]>(cached?.goals ?? [])
   const [blocks, setBlocks] = useState<ScheduleBlock[]>(cached?.blocks ?? [])
@@ -561,7 +563,7 @@ export function Today() {
               : null
 
   return (
-    <div className="screen">
+    <div className="screen" data-warm={warm ? '' : undefined}>
       <header className="screen__header">
         <div className="screen__meta">
           <span>{formatWeekday(today)}</span>

@@ -125,7 +125,6 @@ ul {
   .input,
   .textarea,
   .task__title,
-  .task__why,
   .screen__title,
   .screen__subtitle,
   p,
@@ -170,7 +169,21 @@ ul {
   *,
   *::before,
   *::after {
-    animation-duration: 0.001ms !important;
-    transition-duration: 0.001ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* El feedback significativo sobrevive como cambio de color/estado, sin desplazamiento. */
+  .check,
+  .task--done,
+  .progress__bar,
+  .ring__bar,
+  .session-plan__check {
+    transition-duration: 150ms !important;
+  }
+  .check--done,
+  .celebrate-pop {
+    animation: none !important;
   }
 }

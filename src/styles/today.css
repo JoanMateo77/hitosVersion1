@@ -12,8 +12,11 @@
 
 /* Entrada escalonada sutil: cada bloque recibe su índice vía --i. */
 .today-enter {
-  animation: today-rise 0.32s var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 40ms);
+  animation: today-rise var(--dur-state) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 24ms);
+}
+.screen[data-warm] .today-enter {
+  animation: none;
 }
 @keyframes today-rise {
   from {
@@ -23,7 +26,7 @@
 }
 
 .today-week .weekstrip__day {
-  transition: background-color 0.15s var(--ease-out), transform 0.12s var(--ease-out);
+  transition: background-color var(--dur-tap) var(--ease-out), transform var(--dur-tap) var(--ease-out);
 }
 .today-week .weekstrip__day:active:not(:disabled) {
   transform: scale(0.94);
@@ -49,7 +52,7 @@
   color: var(--text-muted);
 }
 button.today-notice {
-  transition: transform 0.12s var(--ease-out), border-color 0.15s var(--ease-out);
+  transition: transform var(--dur-tap) var(--ease-out), border-color var(--dur-tap) var(--ease-out);
 }
 button.today-notice:active {
   transform: scale(0.99);

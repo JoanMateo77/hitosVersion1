@@ -519,7 +519,7 @@ export function SessionRun() {
         {/* --- Objetivo cumplido con la app abierta --- */}
         {!needsResolution && reachedToday && (
           <>
-            <SessionRing progress={1}>
+            <SessionRing progress={1} reached>
               <IconCelebrate size={34} style={{ color: 'var(--primary)' }} />
               <span className="small muted">{targetLabel} cumplidos</span>
             </SessionRing>
