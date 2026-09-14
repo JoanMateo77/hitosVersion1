@@ -54,6 +54,8 @@ interface ResolutionOptionsProps {
   partialValue: number | null
   onPartialChange: (v: number | null) => void
   onFinish: (status: 'done' | 'partial' | 'missed', actualValue: number) => void
+  /** Solo con la sesión abierta o al cerrarla antes de tiempo: bajo "¡Lo lograste!" no se consuela. */
+  showMissedHint?: boolean
 }
 
 /** Panel de cierre honesto, compartido por vencida / sin confirmar / anticipado. */
@@ -68,6 +70,7 @@ function ResolutionOptions({
   partialValue,
   onPartialChange,
   onFinish,
+  showMissedHint = false,
 }: ResolutionOptionsProps) {
   const step = isTime ? 5 : 1
   return (
@@ -112,7 +115,9 @@ function ResolutionOptions({
       <button className="btn btn--subtle btn--block" disabled={saving} onClick={() => onFinish('missed', 0)}>
         Hoy no pude
       </button>
-      <Hint id="session-no-pude-2026-09">Decir “no pude” no rompe nada: mañana se empieza de nuevo.</Hint>
+      {showMissedHint && (
+        <Hint id="session-no-pude-2026-09">Decir “no pude” no rompe nada: mañana se empieza de nuevo.</Hint>
+      )}
     </div>
   )
 }
@@ -502,6 +507,7 @@ export function SessionRun() {
         {needsResolution && (
           <ResolutionOptions
             title={`Tu sesión de ${goal.title} quedó abierta`}
+            showMissedHint
             hint={
               session.startedAt
                 ? `La comenzaste ${session.date === today ? 'hoy' : `el ${session.date}`} · objetivo ${targetLabel}`
@@ -607,6 +613,7 @@ export function SessionRun() {
             ) : (
               <ResolutionOptions
                 title="¿Cómo cierro la sesión?"
+                showMissedHint
                 hint={`Llevas ${elapsedMinutes} min de ${session.targetValue}.`}
                 isTime={isTime}
             unit={session.unit}
