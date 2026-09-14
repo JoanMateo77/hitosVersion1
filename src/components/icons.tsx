@@ -97,15 +97,6 @@ export function IconPencil({ size = 18, className, style }: IconProps) {
   )
 }
 
-export function IconSparkles({ size = 20, className, style }: IconProps) {
-  return (
-    <svg {...base(size)} className={className} style={style} aria-hidden="true">
-      <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6Z" />
-      <path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8Z" />
-    </svg>
-  )
-}
-
 /** Logo de marca de Lógralo. Es el PNG ORIGINAL aprobado por el dueño
  *  (src/assets/logo.png, recortado de su referencia), el mismo archivo del
  *  que salen favicon.png y los íconos instalados: cero réplicas, cero

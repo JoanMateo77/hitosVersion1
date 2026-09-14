@@ -342,19 +342,6 @@ export function Today() {
   )
   const todayEvents = useMemo(() => [...events].sort(compareEvents), [events])
 
-  // El plan del día por meta: eventos vinculados, con cuántos van tachados.
-  // Es el mismo bloque que enseña la agenda, resumido en la tarjeta de sesión.
-  const planByGoal = useMemo(() => {
-    const map = new Map<string, { done: number; total: number }>()
-    for (const e of events) {
-      if (!e.goalId) continue
-      const p = map.get(e.goalId) ?? { done: 0, total: 0 }
-      p.total += 1
-      if (e.doneAt) p.done += 1
-      map.set(e.goalId, p)
-    }
-    return map
-  }, [events])
   const reviewDue = useMemo(() => goalsDueForReview(goals), [goals])
   const forgotten = useMemo(() => {
     const lastDone = new Map<string, string>()
@@ -389,9 +376,7 @@ export function Today() {
     patchSession(s.id, { status: 'done', actualValue: s.targetValue })
     setNotePrompt({ sessionId: s.id, text: '' })
     const willBeDone = todaySessions.filter((x) => doneish(x.session)).length + 1
-    if (willBeDone === todaySessions.length && todaySessions.length > 0) {
-      cheer('Cumpliste tu compromiso de hoy. Bien hecho.')
-    } else if (willBeDone === 1) {
+    if (willBeDone === 1 && todaySessions.length > 1) {
       cheer('Primera sesión del día. Así se empieza.')
     }
     void withErrorHandling(
@@ -557,8 +542,23 @@ export function Today() {
   }
   if (error) return <LoadingScreen error={error} />
 
-  // UN solo aviso contextual sobre el plan (prioridad: sin confirmar > revisión > olvidada).
-  const notice = toResolve ? 'resolve' : reviewDue.length > 0 ? 'review' : forgotten ? 'forgotten' : null
+  // UNA sola voz por vista. Prioridad: consecuencia de una acción del usuario
+  // (celebración, racha rota) > pregunta que la app necesita (sin confirmar,
+  // revisión, olvidada) > sugerencia (arrastre de ayer).
+  type Voice = 'cheer' | 'streak' | 'resolve' | 'review' | 'forgotten' | 'carryover' | null
+  const voice: Voice = cheerMessage
+    ? 'cheer'
+    : showStreakNotice && streakBroken
+      ? 'streak'
+      : toResolve
+        ? 'resolve'
+        : reviewDue.length > 0
+          ? 'review'
+          : forgotten
+            ? 'forgotten'
+            : yesterdayPending.length > 0
+              ? 'carryover'
+              : null
 
   return (
     <div className="screen">
@@ -635,13 +635,13 @@ export function Today() {
             </button>
           )}
 
-          {cheerMessage && (
+          {voice === 'cheer' && cheerMessage && (
             <div className="cheer" role="status" aria-live="polite">
               {cheerMessage}
             </div>
           )}
 
-          {showStreakNotice && streakBroken && (
+          {voice === 'streak' && streakBroken && (
             <div className="card card--tight today-notice today-enter row row--between" role="status" style={enter(2)}>
               <span className="small row row--sm">
                 <IconFlame size={16} className="today-notice__icon" />
@@ -656,7 +656,7 @@ export function Today() {
             </div>
           )}
 
-          {notice === 'resolve' && toResolve && (
+          {voice === 'resolve' && toResolve && (
             <button
               className="card card--tight card--warn today-notice today-enter row row--between"
               style={enter(2)}
@@ -672,7 +672,7 @@ export function Today() {
               <IconChevronRight size={16} className="faint" />
             </button>
           )}
-          {notice === 'review' && (
+          {voice === 'review' && (
             <button
               className="card card--tight today-notice today-enter row row--between"
               style={enter(2)}
@@ -688,7 +688,7 @@ export function Today() {
               <IconChevronRight size={16} className="faint" />
             </button>
           )}
-          {notice === 'forgotten' && forgotten && (
+          {voice === 'forgotten' && forgotten && (
             <div className="card card--tight card--warn today-notice today-enter stack stack--sm" style={enter(2)}>
               <span className="row row--sm small">
                 <IconSprout size={16} className="today-notice__icon" />
@@ -730,7 +730,6 @@ export function Today() {
                       <SessionCard
                         session={session}
                         goal={goal}
-                        plan={planByGoal.get(goal.id)}
                         onOpen={() => navigate(`/sesion/${session.id}`)}
                         onQuickDone={() => quickDone(session)}
                         onReopen={() => reopen(session)}
@@ -856,7 +855,7 @@ export function Today() {
               <span className="kicker">Lo que sumaste tú</span>
             </div>
             <div className="stack stack--sm">
-              {yesterdayPending.length > 0 && (
+              {voice === 'carryover' && yesterdayPending.length > 0 && (
                 <div className="card card--tight stack stack--sm">
                   <span className="small">
                     {yesterdayPending.length === 1

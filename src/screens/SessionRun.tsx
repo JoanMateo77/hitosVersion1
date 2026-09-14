@@ -495,14 +495,6 @@ export function SessionRun() {
           </div>
         ) : (
           <>
-        {!needsResolution && !closed && session.status === 'pending' && (
-          <div className="stack stack--sm center" style={{ alignItems: 'center', width: '100%' }}>
-            <span className="tag" style={{ fontSize: 'var(--fs-sm)', padding: '6px 12px' }}>
-              <IconLightbulb size={13} /> {suggestion}
-            </span>
-          </div>
-        )}
-
         {/* --- Cierre pendiente (otro día / sin confirmar) --- */}
         {needsResolution && (
           <ResolutionOptions
@@ -686,6 +678,11 @@ export function SessionRun() {
               summary={`Plan${planItems.length > 0 ? ` · ${planItems.filter((e) => e.doneAt !== null).length} de ${planItems.length}` : ''}`}
               defaultOpen={session.status !== 'running'}
             >
+              {session.status === 'pending' && (
+                <p className="small muted row row--sm" style={{ alignItems: 'center', marginBottom: 'var(--s3)' }}>
+                  <IconLightbulb size={13} /> <span>Idea: {suggestion}</span>
+                </p>
+              )}
               {planNotice && (
                 <div className="alert alert--warn" role="alert" style={{ marginBottom: 'var(--s3)' }}>
                   {planNotice}

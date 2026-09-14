@@ -16,8 +16,6 @@ interface SessionCardProps {
   onReopen: () => void
   /** Retomar una sesión parcial/no completada: el reloj sigue donde quedó. */
   onResume: () => void
-  /** Eventos de la agenda vinculados a la meta hoy (el plan del bloque). */
-  plan?: { done: number; total: number }
 }
 
 function targetLabel(s: Session): string {
@@ -30,22 +28,20 @@ function clock(iso: string): string {
 }
 
 /**
- * Pista de la sesión pendiente, dos datos como máximo: el rango de horas (o el
- * objetivo si no hay rango completo) y, si la meta tiene cosas agendadas hoy,
- * "Tu plan: X de Y". El porqué y la idea de contenido viven en la pantalla de
+ * Pista de la sesión pendiente: el rango de horas (o el objetivo si no hay
+ * rango completo). El porqué y la idea de contenido viven en la pantalla de
  * sesión, no aquí.
  */
-function sessionHint(s: Session, plan?: { done: number; total: number }): string {
+function sessionHint(s: Session): string {
   const span = sessionSpan(s.plannedTime, s.targetKind, s.targetValue)
   const parts: string[] = []
   if (span.start) parts.push(rangeLabel(span.start, span.end))
   // En sesiones de tiempo con rango completo, "25 min" ya se lee en las horas.
   if (!(s.targetKind === 'time' && span.end)) parts.push(targetLabel(s))
-  if (plan && plan.total > 0) parts.push(`Tu plan: ${plan.done} de ${plan.total}`)
   return parts.join(' · ')
 }
 
-export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onResume, plan }: SessionCardProps) {
+export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onResume }: SessionCardProps) {
   const closed = session.status === 'done' || session.status === 'partial' || session.status === 'missed'
 
   if (closed) {
@@ -54,7 +50,7 @@ export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onRe
         ? `Hecha${session.endedAt ? ` ${clock(session.endedAt)}` : ''}`
         : session.status === 'partial'
           ? `Parcial · ${session.actualValue ?? 0} de ${targetLabel(session)}`
-          : 'Hoy no pudiste — está bien'
+          : 'Sin cumplir'
     return (
       <div className={`session session--${session.status}`} style={nicheAccent(goal.area)}>
         <div className="session__body">
@@ -105,7 +101,7 @@ export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onRe
               : session.pausedAt
                 ? 'En pausa'
                 : 'En curso'
-            : sessionHint(session, plan)}
+            : sessionHint(session)}
         </span>
       </div>
       <div className="session__actions">
