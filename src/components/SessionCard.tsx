@@ -8,8 +8,6 @@ import { NicheIcon } from '@/components/NicheGlyph'
 interface SessionCardProps {
   session: Session
   goal: Goal
-  /** Idea de contenido para llenar la sesión (pickSuggestion). */
-  suggestion: string
   /** Abrir la pantalla de sesión (cronómetro / contador). */
   onOpen: () => void
   /** Check rápido sin cronómetro: la doy por hecha completa. */
@@ -32,32 +30,28 @@ function clock(iso: string): string {
 }
 
 /**
- * Pista de la sesión pendiente: rango de horas (el mismo idioma que la
- * agenda), el objetivo cuando el rango no lo lleva ya implícito, y, si hay
- * cosas agendadas para la meta hoy, el plan le gana a la idea genérica.
- * El objetivo vive AQUÍ (metadato) y no en el título: una sola jerarquía.
+ * Pista de la sesión pendiente, dos datos como máximo: el rango de horas (o el
+ * objetivo si no hay rango completo) y, si la meta tiene cosas agendadas hoy,
+ * "Tu plan: X de Y". El porqué y la idea de contenido viven en la pantalla de
+ * sesión, no aquí.
  */
-function sessionHint(
-  s: Session,
-  suggestion: string,
-  plan?: { done: number; total: number },
-): string {
+function sessionHint(s: Session, plan?: { done: number; total: number }): string {
   const span = sessionSpan(s.plannedTime, s.targetKind, s.targetValue)
   const parts: string[] = []
   if (span.start) parts.push(rangeLabel(span.start, span.end))
   // En sesiones de tiempo con rango completo, "25 min" ya se lee en las horas.
   if (!(s.targetKind === 'time' && span.end)) parts.push(targetLabel(s))
-  parts.push(plan && plan.total > 0 ? `Tu plan: ${plan.done} de ${plan.total}` : `Idea: ${suggestion}`)
+  if (plan && plan.total > 0) parts.push(`Tu plan: ${plan.done} de ${plan.total}`)
   return parts.join(' · ')
 }
 
-export function SessionCard({ session, goal, suggestion, onOpen, onQuickDone, onReopen, onResume, plan }: SessionCardProps) {
+export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onResume, plan }: SessionCardProps) {
   const closed = session.status === 'done' || session.status === 'partial' || session.status === 'missed'
 
   if (closed) {
     const label =
       session.status === 'done'
-        ? `Hecha${session.endedAt ? ` ${clock(session.endedAt)}` : ''} · ${targetLabel(session)}`
+        ? `Hecha${session.endedAt ? ` ${clock(session.endedAt)}` : ''}`
         : session.status === 'partial'
           ? `Parcial · ${session.actualValue ?? 0} de ${targetLabel(session)}`
           : 'Hoy no pudiste — está bien'
@@ -111,9 +105,8 @@ export function SessionCard({ session, goal, suggestion, onOpen, onQuickDone, on
               : session.pausedAt
                 ? 'En pausa'
                 : 'En curso'
-            : sessionHint(session, suggestion, plan)}
+            : sessionHint(session, plan)}
         </span>
-        {goal.why && !running && <span className="session__why">“{goal.why}”</span>}
       </div>
       <div className="session__actions">
         <button

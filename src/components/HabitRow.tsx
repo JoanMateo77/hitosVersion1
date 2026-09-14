@@ -61,10 +61,7 @@ export function HabitRow({
         <span className="task__title">{habit.title}</span>
         {multi && (
           <>
-            <span className="faint tiny">
-              {doneCount} de {target}
-              {nextTime ? ` · próxima ${formatTime12(nextTime)}` : ''}
-            </span>
+            {nextTime && <span className="faint tiny">próxima {formatTime12(nextTime)}</span>}
             <span className="lesson-dots" aria-hidden="true">
               {Array.from({ length: target }, (_, i) => (
                 <span key={i} data-read={i < doneCount ? 'true' : 'false'} />

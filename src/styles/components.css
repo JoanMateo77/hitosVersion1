@@ -2254,11 +2254,6 @@ select.input {
 .session__meta--ok {
   color: var(--success, var(--primary));
 }
-.session__why {
-  font-size: var(--fs-xs);
-  color: var(--text-faint);
-  font-style: italic;
-}
 .session__actions {
   display: flex;
   align-items: center;
