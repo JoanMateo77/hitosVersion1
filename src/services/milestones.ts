@@ -127,7 +127,7 @@ export async function reorderMilestones(updates: { id: string; position: number 
 }
 
 /**
- * Progreso de etapas por meta para la lista de Metas: cuántas hay, cuántas
+ * Progreso de etapas por meta para Metas y Progreso: cuántas hay, cuántas
  * están cumplidas y cuál sigue (título), en una sola consulta.
  */
 export async function milestoneProgressByGoal(
@@ -138,7 +138,7 @@ export async function milestoneProgressByGoal(
     .select('goal_id, done_at, title, position')
     .eq('user_id', userId)
   if (error) throw new Error(error.message)
-  type Row = { goal_id: string; done_at: string | null; title: string; position: number }
+  type Row = Pick<MilestoneRow, 'goal_id' | 'done_at' | 'title' | 'position'>
   const byGoal = new Map<string, Row[]>()
   for (const row of data as Row[]) {
     const list = byGoal.get(row.goal_id) ?? []

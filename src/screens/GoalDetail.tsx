@@ -438,7 +438,7 @@ export function GoalDetail() {
             </span>
           )}
           {deadline && (
-            <span className="tag row row--sm" style={{ gap: 4 }}>
+            <span className="tag">
               <IconCalendar size={12} /> {deadline}
             </span>
           )}
@@ -577,7 +577,7 @@ export function GoalDetail() {
               </div>
               <AdvancesTimeline items={advances.slice(0, 3)} />
               {advances.length > 3 && (
-                <Disclosure summary={`Ver todos (${advances.length})`}>
+                <Disclosure summary={`Ver más (${advances.length - 3})`}>
                   <AdvancesTimeline items={advances.slice(3)} />
                 </Disclosure>
               )}

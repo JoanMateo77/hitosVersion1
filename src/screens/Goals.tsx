@@ -308,11 +308,9 @@ function GoalCard({
         {badge && <span className="tag">{badge}</span>}
       </div>
       {deadline && (
-        <div className="row wrap" style={{ rowGap: 6 }}>
-          <span className="faint tiny row row--sm" style={{ alignItems: 'center', gap: 4 }}>
-            <IconCalendar size={12} /> {deadline}
-          </span>
-        </div>
+        <span className="faint tiny row row--sm" style={{ alignItems: 'center', gap: 4 }}>
+          <IconCalendar size={12} /> {deadline}
+        </span>
       )}
       {showProgress && (
         <div className="stack stack--sm">

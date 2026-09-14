@@ -3451,6 +3451,12 @@ button.ag-row:active,
   color: var(--text-muted);
   cursor: pointer;
 }
+.disclosure__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .disclosure__summary::-webkit-details-marker {
   display: none;
 }

@@ -132,7 +132,7 @@ export async function countDoneByGoalInRange(
   return count ?? 0
 }
 
-/** Total de acciones completadas por el usuario. Si pasás `sinceISO`, cuenta
+/** Total de acciones completadas por el usuario. Si pasas `sinceISO`, cuenta
  *  solo desde esa fecha (plan_date inclusive) — útil para "esta semana". */
 export async function countDoneTasks(userId: string, sinceISO?: string): Promise<number> {
   let query = supabase

@@ -54,7 +54,7 @@ export interface Profile {
 export interface Goal {
   id: string
   userId: string
-  /** ¿Qué querés lograr? */
+  /** ¿Qué quieres lograr? */
   title: string
   /** ¿Por qué? — ancla emocional que la app recuerda en momentos de fricción. */
   why: string | null
