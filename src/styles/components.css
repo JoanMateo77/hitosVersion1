@@ -912,7 +912,6 @@
   font-optical-sizing: auto;
 }
 .brand__mark {
-  color: var(--primary);
   display: inline-flex;
 }
 
@@ -1797,10 +1796,6 @@ select.input {
   padding: 0.16em 0.08em;
   margin-top: -0.16em;
   margin-inline: -0.08em;
-}
-.screen--full .brand__mark {
-  color: var(--primary);
-  -webkit-text-fill-color: var(--primary);
 }
 
 /* Refinamiento NEÓN: la luz sigue a la marca y a lo interactivo, no al texto plano */
@@ -3071,6 +3066,10 @@ button.ag-row {
 }
 .ag-chev {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
   color: var(--text-faint);
 }
 .ag-row--past {

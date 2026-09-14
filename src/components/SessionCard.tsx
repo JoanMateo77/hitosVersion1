@@ -2,7 +2,7 @@ import type { Goal, Session } from '@/lib/types'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { rangeLabel, sessionSpan } from '@/domain/agenda'
 import { formatTime12 } from '@/lib/date'
-import { IconPlay } from '@/components/icons'
+import { IconCheck, IconPlay } from '@/components/icons'
 import { NicheIcon } from '@/components/NicheGlyph'
 
 interface SessionCardProps {
@@ -121,7 +121,9 @@ export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onRe
             className="check session__quick"
             onClick={onQuickDone}
             aria-label={`Marcar la sesión de ${goal.title} como hecha sin cronómetro`}
-          />
+          >
+            <IconCheck size={16} />
+          </button>
         )}
       </div>
     </div>

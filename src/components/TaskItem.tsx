@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Task } from '@/lib/types'
-import { IconArrowReturn, IconCheck, IconClose, IconPencil } from '@/components/icons'
+import { IconArrowDown, IconArrowReturn, IconCheck, IconPencil, IconTrash } from '@/components/icons'
 
 interface TaskItemProps {
   task: Task
@@ -93,7 +93,7 @@ export function TaskItem({
         <IconPencil size={17} />
       </button>
       <button className="iconbtn" onClick={onRemove} aria-label={removeLabel} title={removeHint}>
-        <IconClose size={18} />
+        {isGoalTask ? <IconArrowDown size={18} /> : <IconTrash size={18} />}
       </button>
     </li>
   )

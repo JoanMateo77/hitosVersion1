@@ -62,7 +62,14 @@ import {
   todayISO,
 } from '@/lib/date'
 import { LoadingScreen } from '@/components/LoadingScreen'
-import { IconBack, IconCheck, IconClose, IconPencil, IconPlus } from '@/components/icons'
+import {
+  IconBack,
+  IconCheck,
+  IconChevronRight,
+  IconClose,
+  IconPencil,
+  IconPlus,
+} from '@/components/icons'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { NicheIcon } from '@/components/NicheGlyph'
 import { useToast } from '@/app/toast'
@@ -616,9 +623,7 @@ export function Calendar() {
             Hoy
           </button>
           <button className="iconbtn" onClick={() => shift(1)} aria-label="Siguiente">
-            <span style={{ display: 'inline-flex', transform: 'scaleX(-1)' }}>
-              <IconBack />
-            </span>
+            <IconChevronRight size={24} />
           </button>
         </div>
         <div className="seg" role="group" aria-label="Vista del calendario">

@@ -1,7 +1,7 @@
 import type { CalendarEvent } from '@/lib/types'
 import { formatTime12, formatTimeShort } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
-import { IconArrowReturn, IconChevronRight, IconPlay } from '@/components/icons'
+import { IconArrowReturn, IconCheck, IconChevronRight, IconPlay } from '@/components/icons'
 import { EventCheck } from '@/screens/calendar/EventCheck'
 import {
   CLOSED_STATES,
@@ -109,7 +109,9 @@ export function AgendaRow({
           {sub && <span className="ag-row__sub">{sub}</span>}
         </span>
         <span className="ag-row__aside" aria-hidden="true">
-          <span className={`check check--sm${h.complete ? ' check--done' : ''}`} />
+          <span className={`check check--sm${h.complete ? ' check--done' : ''}`}>
+            <IconCheck size={12} />
+          </span>
         </span>
       </button>
     )

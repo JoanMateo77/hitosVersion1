@@ -2,6 +2,9 @@ import type { CSSProperties } from 'react'
 // El logo viaja DENTRO del bundle (hash de Vite): cada versión de la app trae
 // su logo amarrado — un service worker viejo ya no puede mostrar uno desfasado.
 import logoUrl from '@/assets/logo.png'
+// Versión de 96px recortada a la grilla óptica: los usos chicos (nav, cabecera)
+// la usan en vez de escalar el PNG grande, así se ve nítida y liviana.
+import logo96Url from '@/assets/logo-96.png'
 
 /** Set de íconos como SVG inline (sin dependencias). Heredan currentColor.
  *
@@ -109,7 +112,7 @@ export function IconHito({
 }: IconProps & { animate?: boolean }) {
   return (
     <img
-      src={logoUrl}
+      src={size <= 48 ? logo96Url : logoUrl}
       width={size}
       height={size}
       className={animate ? [className, 'celebrate-pop'].filter(Boolean).join(' ') : className}
@@ -154,8 +157,8 @@ export function IconSprout({ size = 18, className, style }: IconProps) {
 export function IconQuote({ size = 18, className, style }: IconProps) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
-      <path d="M7 8c-2 0-3 1.5-3 3.5C4 14 5.5 16 8 16M8 8l-1 8" />
-      <path d="M17 8c-2 0-3 1.5-3 3.5C14 14 15.5 16 18 16M18 8l-1 8" />
+      <path d="M7 6c-2 0-3 1.5-3 3.5C4 12 5.5 14 8 14M8 6l-1 12" />
+      <path d="M17 6c-2 0-3 1.5-3 3.5C14 12 15.5 14 18 14M18 6l-1 12" />
     </svg>
   )
 }
@@ -164,8 +167,8 @@ export function IconQuote({ size = 18, className, style }: IconProps) {
 export function IconFlag({ size = 18, className, style }: IconProps) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
-      <path d="M5 21V4" />
-      <path d="M5 4h11l-2 3.5L16 11H5" />
+      <path d="M6.5 21V4" />
+      <path d="M6.5 4h11l-2 3.5L17.5 11h-11" />
     </svg>
   )
 }
@@ -242,8 +245,8 @@ export function IconCelebrate({ size = 20, className, style }: IconProps) {
 export function IconProgress({ size = 24, className, style }: IconProps) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
-      <polyline points="3 16.5 9 10.5 13 14.5 21 6.5" />
-      <polyline points="15 6.5 21 6.5 21 12.5" />
+      <polyline points="3 17.5 9 10.5 13 14.5 21 5.5" />
+      <polyline points="15 5.5 21 5.5 21 11.5" />
     </svg>
   )
 }

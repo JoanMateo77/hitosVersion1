@@ -5,8 +5,9 @@ import {
   IconArrowDown,
   IconArrowUp,
   IconCalendar,
-  IconClose,
+  IconCheck,
   IconDots,
+  IconTrash,
 } from '@/components/icons'
 
 interface MilestoneChecklistProps {
@@ -72,7 +73,9 @@ export function MilestoneChecklist({
               aria-pressed={m.doneAt !== null}
               aria-label={`${m.doneAt ? 'Desmarcar' : 'Marcar'} la etapa: ${m.title}`}
               onClick={() => onToggle(m)}
-            />
+            >
+              <IconCheck size={16} />
+            </button>
             {editingId === m.id ? (
               <input
                 className="input mstone__input"
@@ -149,7 +152,7 @@ export function MilestoneChecklist({
                   onDelete(m)
                 }}
               >
-                <IconClose size={15} />
+                <IconTrash size={15} />
               </button>
             </div>
           )}

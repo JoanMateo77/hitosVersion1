@@ -2,7 +2,7 @@ import type { Habit } from '@/lib/types'
 import { formatTime12 } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { NicheIcon } from '@/components/NicheGlyph'
-import { IconFlame } from '@/components/icons'
+import { IconCheck, IconFlame } from '@/components/icons'
 
 interface HabitRowProps {
   habit: Habit
@@ -52,7 +52,9 @@ export function HabitRow({
             : `Marcar ${multi ? `repetición ${doneCount + 1} de ${target} de` : 'el hábito:'} ${habit.title}`
         }
         onClick={onToggle}
-      />
+      >
+        <IconCheck size={16} />
+      </button>
       {/* Ícono del área teñido con --niche (lo setea nicheAccent en el contenedor). */}
       <span aria-hidden="true" className="today-habit__glyph">
         <NicheIcon area={habit.area} size={16} />

@@ -11,7 +11,6 @@ export const TEMPLATES: GoalTemplate[] = [
   {
     key: 'salud_fisico',
     label: 'Mejorar mi físico / salud',
-    emoji: '💪',
     defaultArea: 'salud',
     description: 'Bajar de peso, ganar músculo, correr tu primera carrera o crear un hábito de movimiento sostenible.',
     keywords: [
@@ -47,7 +46,6 @@ export const TEMPLATES: GoalTemplate[] = [
   {
     key: 'aprender_habilidad',
     label: 'Aprender una habilidad',
-    emoji: '📚',
     defaultArea: 'aprendizaje',
     description: 'Dominar un idioma, aprender a programar, tocar un instrumento o cualquier habilidad nueva desde cero.',
     keywords: [
@@ -86,7 +84,6 @@ export const TEMPLATES: GoalTemplate[] = [
   {
     key: 'finanzas',
     label: 'Ahorrar / mejorar finanzas',
-    emoji: '💰',
     defaultArea: 'finanzas',
     description: 'Ahorrar para un objetivo concreto, salir de deudas o construir un fondo de emergencia.',
     keywords: [
@@ -122,7 +119,6 @@ export const TEMPLATES: GoalTemplate[] = [
   {
     key: 'carrera',
     label: 'Conseguir trabajo / cambiar de carrera',
-    emoji: '🚀',
     defaultArea: 'carrera',
     description: 'Conseguir un nuevo empleo, conseguir tu primer cliente freelance o dar el salto a otro sector.',
     keywords: [
@@ -160,7 +156,6 @@ export const TEMPLATES: GoalTemplate[] = [
   {
     key: 'crecer_trabajo',
     label: 'Crecer en mi trabajo actual',
-    emoji: '📈',
     defaultArea: 'carrera',
     description: 'Destacar en tu puesto, ganarte un ascenso o un aumento, y desarrollar habilidades de liderazgo.',
     keywords: [
@@ -199,7 +194,6 @@ export const TEMPLATES: GoalTemplate[] = [
   {
     key: 'crear_publicar',
     label: 'Crear o publicar algo',
-    emoji: '🎨',
     defaultArea: 'creatividad',
     description: 'Lanzar un proyecto creativo o de contenido: newsletter, canal, blog, libro, música o portafolio.',
     keywords: [
@@ -239,7 +233,6 @@ export const TEMPLATES: GoalTemplate[] = [
   {
     key: 'emprender',
     label: 'Emprender o hacer crecer un negocio',
-    emoji: '💼',
     defaultArea: 'carrera',
     description: 'Validar una idea, conseguir tus primeras ventas o llevar tu negocio actual al siguiente nivel.',
     keywords: [
@@ -275,7 +268,6 @@ export const TEMPLATES: GoalTemplate[] = [
   {
     key: 'academico',
     label: 'Meta académica',
-    emoji: '🎓',
     defaultArea: 'aprendizaje',
     description: 'Aprobar una materia, terminar la tesis, preparar unas oposiciones o conseguir una certificación.',
     keywords: [
@@ -313,7 +305,6 @@ export const TEMPLATES: GoalTemplate[] = [
   {
     key: 'bienestar',
     label: 'Hábito de bienestar',
-    emoji: '🌱',
     defaultArea: 'bienestar',
     description: 'Incorporar un hábito que mejore tu salud mental: dormir mejor, meditar, leer o manejar el estrés.',
     keywords: [
@@ -352,7 +343,6 @@ export const TEMPLATES: GoalTemplate[] = [
   {
     key: 'relaciones',
     label: 'Mejorar mis relaciones',
-    emoji: '🤝',
     defaultArea: 'relaciones',
     description: 'Invertir tiempo de calidad en la familia, la pareja, los amigos o construir nuevas amistades.',
     keywords: [
@@ -389,7 +379,6 @@ export const TEMPLATES: GoalTemplate[] = [
   {
     key: 'personalizada',
     label: 'Meta personalizada',
-    emoji: '🎯',
     defaultArea: 'otra',
     description: 'Tú defines el objetivo, las etapas y el ritmo. Para cuando ninguna categoría encaja.',
     keywords: [],

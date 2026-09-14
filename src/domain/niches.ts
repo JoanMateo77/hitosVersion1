@@ -3,21 +3,20 @@ import type { NicheId } from '@/lib/types'
 export interface Niche {
   id: NicheId
   label: string
-  emoji: string
   /** Frase corta para mostrar bajo el nicho en el onboarding. */
   blurb: string
 }
 
 /** Catálogo de nichos. El orden es el que se muestra en el selector del onboarding. */
 export const NICHES: Niche[] = [
-  { id: 'salud', label: 'Salud y cuerpo', emoji: '💪', blurb: 'Energía, peso, ejercicio, hábitos físicos.' },
-  { id: 'finanzas', label: 'Finanzas', emoji: '💰', blurb: 'Ahorrar, ordenar gastos, salir de deudas.' },
-  { id: 'carrera', label: 'Carrera y trabajo', emoji: '🚀', blurb: 'Empleo, cambio de rumbo, crecer profesionalmente.' },
-  { id: 'aprendizaje', label: 'Aprendizaje', emoji: '📚', blurb: 'Idiomas, código, un oficio, estudiar.' },
-  { id: 'relaciones', label: 'Relaciones', emoji: '🤝', blurb: 'Familia, pareja, amistades, vínculos.' },
-  { id: 'creatividad', label: 'Crear y publicar', emoji: '🎨', blurb: 'Un libro, canal, portafolio, proyecto propio.' },
-  { id: 'bienestar', label: 'Bienestar', emoji: '🌱', blurb: 'Dormir mejor, leer, meditar, bajar el estrés.' },
-  { id: 'otra', label: 'Otra', emoji: '🎯', blurb: 'Algo que no entra en las anteriores.' },
+  { id: 'salud', label: 'Salud y cuerpo', blurb: 'Energía, peso, ejercicio, hábitos físicos.' },
+  { id: 'finanzas', label: 'Finanzas', blurb: 'Ahorrar, ordenar gastos, salir de deudas.' },
+  { id: 'carrera', label: 'Carrera y trabajo', blurb: 'Empleo, cambio de rumbo, crecer profesionalmente.' },
+  { id: 'aprendizaje', label: 'Aprendizaje', blurb: 'Idiomas, código, un oficio, estudiar.' },
+  { id: 'relaciones', label: 'Relaciones', blurb: 'Familia, pareja, amistades, vínculos.' },
+  { id: 'creatividad', label: 'Crear y publicar', blurb: 'Un libro, canal, portafolio, proyecto propio.' },
+  { id: 'bienestar', label: 'Bienestar', blurb: 'Dormir mejor, leer, meditar, bajar el estrés.' },
+  { id: 'otra', label: 'Otra', blurb: 'Algo que no entra en las anteriores.' },
 ]
 
 const NICHE_BY_ID = new Map(NICHES.map((n) => [n.id, n]))

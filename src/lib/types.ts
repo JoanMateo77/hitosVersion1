@@ -93,7 +93,6 @@ export interface GoalTemplate {
   key: string
   /** Etiqueta corta que ve el usuario al elegir tipo de meta. */
   label: string
-  emoji: string
   /** Área por defecto que sugiere esta plantilla. */
   defaultArea: NicheId
   /** Una línea explicando para qué sirve. */

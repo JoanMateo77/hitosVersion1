@@ -16,7 +16,7 @@ import {
   type CommitmentMoment,
 } from '@/domain/commitment'
 import { formatDuration } from '@/lib/date'
-import { IconClose, IconTimer } from '@/components/icons'
+import { IconTimer, IconTrash } from '@/components/icons'
 
 interface CommitmentStepProps {
   blocks: CommitmentBlockDraft[]
@@ -162,7 +162,7 @@ export function CommitmentStep({
   ) {
     const removeButton = remove && (
       <button type="button" className="iconbtn" aria-label="Quitar este momento" onClick={remove}>
-        <IconClose size={16} />
+        <IconTrash size={16} />
       </button>
     )
 
