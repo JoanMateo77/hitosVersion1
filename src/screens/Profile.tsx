@@ -8,6 +8,7 @@ import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 import { IconMoon, IconSun, IconSunrise } from '@/components/icons'
 import { FRAMES, frameForStreak } from '@/domain/frames'
 import { useCachedData } from '@/hooks/useCachedData'
+import { Disclosure } from '@/components/Disclosure'
 import type { PreferredMoment } from '@/lib/types'
 
 const MOMENTS: { id: PreferredMoment; label: string; Icon: ComponentType<{ size?: number }> }[] = [
@@ -203,7 +204,6 @@ export function ProfileScreen() {
               </button>
             ))}
           </div>
-          <span className="field__hint">Sugiere la hora de tus sesiones nuevas.</span>
         </div>
         <div className="field">
           <span className="field__label">Sesión por defecto</span>
@@ -235,7 +235,6 @@ export function ProfileScreen() {
               +
             </button>
           </div>
-          <span className="field__hint">El punto de partida al comprometer días nuevos.</span>
         </div>
       </section>
 
@@ -250,39 +249,41 @@ export function ProfileScreen() {
             </>
           )}
         </p>
-        <div className="row wrap" style={{ gap: 'var(--s4)' }}>
-          {FRAMES.map((f) => {
-            const earned = streak >= f.minStreak
-            return (
-              <div
-                key={f.id}
-                className="stack"
-                style={{ alignItems: 'center', gap: 4, opacity: earned ? 1 : 0.35 }}
-              >
-                <span
-                  aria-hidden="true"
-                  style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: '50%',
-                    background: 'var(--surface-2)',
-                    boxShadow: `0 0 0 3px ${f.color}`,
-                  }}
-                />
-                <span className="tiny" style={{ fontWeight: 600 }}>
-                  {f.label}
-                </span>
-                <span className="faint tiny">
-                  {earned ? `${f.minStreak}+ días` : `a ${f.minStreak} días`}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-        <p className="field__hint" style={{ margin: 0 }}>
-          El marco se gana cumpliendo tus días comprometidos y rodea tu foto en toda la app. Si la
-          racha se corta, el marco se pierde: refleja tu constancia de hoy, no tu récord histórico.
-        </p>
+        <Disclosure summary="Cómo se ganan los marcos">
+          <div className="row wrap" style={{ gap: 'var(--s4)' }}>
+            {FRAMES.map((f) => {
+              const earned = streak >= f.minStreak
+              return (
+                <div
+                  key={f.id}
+                  className="stack"
+                  style={{ alignItems: 'center', gap: 4, opacity: earned ? 1 : 0.35 }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: '50%',
+                      background: 'var(--surface-2)',
+                      boxShadow: `0 0 0 3px ${f.color}`,
+                    }}
+                  />
+                  <span className="tiny" style={{ fontWeight: 600 }}>
+                    {f.label}
+                  </span>
+                  <span className="faint tiny">
+                    {earned ? `${f.minStreak}+ días` : `a ${f.minStreak} días`}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+          <p className="field__hint" style={{ margin: 0 }}>
+            El marco se gana cumpliendo tus días comprometidos y rodea tu foto en toda la app. Si la
+            racha se corta, el marco se pierde: refleja tu constancia de hoy, no tu récord histórico.
+          </p>
+        </Disclosure>
       </section>
 
       {/* ----- Recordatorios ----- */}
@@ -290,16 +291,19 @@ export function ProfileScreen() {
         <span className="kicker">Recordatorios</span>
         {push === 'unsupported' ? (
           <div className="stack stack--sm">
-            <p className="small muted" style={{ margin: 0 }}>
-              Los recordatorios te avisan a la hora de cada sesión, pero este navegador no permite
-              notificaciones. En iPhone la solución toma 10 segundos: abre Lógralo en Safari, toca{' '}
-              <strong>Compartir → Añadir a pantalla de inicio</strong>, y ábrela desde ese icono —
-              funciona como una app y los recordatorios se activan aquí mismo.
-            </p>
-            <p className="faint tiny" style={{ margin: 0 }}>
-              Las apps nativas para celular y computador están en camino; por ahora la versión
-              instalada desde el navegador es la experiencia completa.
-            </p>
+            <p className="small muted" style={{ margin: 0 }}>Este navegador no permite notificaciones.</p>
+            <Disclosure summary="¿Cómo activarlos en iPhone?">
+              <p className="small muted" style={{ margin: 0 }}>
+                Los recordatorios te avisan a la hora de cada sesión, pero este navegador no permite
+                notificaciones. En iPhone la solución toma 10 segundos: abre Lógralo en Safari, toca{' '}
+                <strong>Compartir → Añadir a pantalla de inicio</strong>, y ábrela desde ese icono —
+                funciona como una app y los recordatorios se activan aquí mismo.
+              </p>
+              <p className="faint tiny" style={{ margin: 0 }}>
+                Las apps nativas para celular y computador están en camino; por ahora la versión
+                instalada desde el navegador es la experiencia completa.
+              </p>
+            </Disclosure>
           </div>
         ) : push === 'blocked' ? (
           <p className="small muted" style={{ margin: 0 }}>
@@ -371,10 +375,6 @@ export function ProfileScreen() {
           {error}
         </div>
       )}
-
-      <p className="faint tiny center" style={{ marginTop: 'var(--s8)' }}>
-        Lógralo es gratis. Si algún día te sirve de verdad, podrás apoyar el proyecto.
-      </p>
     </div>
   )
 }
