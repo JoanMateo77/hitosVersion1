@@ -132,22 +132,6 @@ export async function countDoneByGoalInRange(
   return count ?? 0
 }
 
-/** Cuenta acciones completadas por meta (para el progreso básico en Metas). */
-export async function countDoneByGoal(userId: string): Promise<Map<string, number>> {
-  const { data, error } = await supabase
-    .from('tasks')
-    .select('goal_id')
-    .eq('user_id', userId)
-    .eq('status', 'done')
-    .not('goal_id', 'is', null)
-  if (error) throw new Error(error.message)
-  const counts = new Map<string, number>()
-  for (const row of data as { goal_id: string }[]) {
-    counts.set(row.goal_id, (counts.get(row.goal_id) ?? 0) + 1)
-  }
-  return counts
-}
-
 /** Total de acciones completadas por el usuario. Si pasás `sinceISO`, cuenta
  *  solo desde esa fecha (plan_date inclusive) — útil para "esta semana". */
 export async function countDoneTasks(userId: string, sinceISO?: string): Promise<number> {

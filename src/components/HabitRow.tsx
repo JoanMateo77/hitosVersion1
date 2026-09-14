@@ -23,8 +23,8 @@ interface HabitRowProps {
 /**
  * Fila de UN TOQUE para la pantalla Hoy: el hábito entero se resuelve con el
  * check redondo, sin detalle ni cronómetro. Si el hábito se repite en el día
- * (tiene horas), el mismo check marca la siguiente repetición y bajo el título
- * se ve el progreso ("2 de 5 · próxima 3:00 pm") con un puntito por repetición.
+ * (tiene horas), el mismo check marca la siguiente repetición: bajo el título
+ * se ve un puntito por repetición y, si queda alguna pendiente, "próxima H:MM".
  * Reutiliza la anatomía de .task (check + título + meta) para que conviva
  * visualmente con el plan del día, y se tiñe por nicho.
  */

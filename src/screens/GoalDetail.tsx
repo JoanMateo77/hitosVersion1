@@ -17,7 +17,7 @@ import {
   listSessionsInRange,
   sessionStatsForGoal,
 } from '@/services/sessions'
-import { listEventsInRange, minutesByGoalInRange } from '@/services/events'
+import { minutesByGoalInRange } from '@/services/events'
 import { listHabitChecksInRange, listHabits, setHabitCheck } from '@/services/habits'
 import {
   habitCompleteDates,
@@ -37,7 +37,6 @@ import { milestoneProgress, weekConsistency } from '@/domain/sessions'
 import {
   WEEKDAY_LABELS,
   blockTimeLabel,
-  formatCommitmentSummary,
   preferredStartTime,
   validateCommitment,
   weekdayMon0,
@@ -47,12 +46,11 @@ import {
   addDays,
   formatDuration,
   formatLongDate,
-  formatTime12,
   relativeDeadline,
   startOfWeek,
   todayISO,
 } from '@/lib/date'
-import type { CalendarEvent, Goal, GoalStatus, Habit, HabitCheck, Milestone, NicheId, ScheduleBlock, Session } from '@/lib/types'
+import type { Goal, GoalStatus, Habit, HabitCheck, Milestone, NicheId, ScheduleBlock, Session } from '@/lib/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { MilestoneChecklist } from '@/components/MilestoneChecklist'
 import { CommitmentStep } from '@/components/wizard/CommitmentStep'
@@ -60,9 +58,9 @@ import { useToast } from '@/app/toast'
 import { shareAchievement } from '@/lib/shareCard'
 import {
   IconBack,
+  IconCalendar,
   IconCelebrate,
   IconCheck,
-  IconClock,
   IconCompass,
   IconDots,
   IconFlame,
@@ -70,6 +68,7 @@ import {
   IconShare,
 } from '@/components/icons'
 import { NicheGlyph } from '@/components/NicheGlyph'
+import { Disclosure } from '@/components/Disclosure'
 import { sessionCache } from '@/lib/sessionCache'
 import { useCacheMirror } from '@/hooks/useCacheMirror'
 
@@ -84,7 +83,6 @@ type GoalSnapshot = {
   weekMinutes: number
   habits: Habit[]
   habitChecks: HabitCheck[]
-  weekEvents: CalendarEvent[]
 }
 
 export function GoalDetail() {
@@ -114,7 +112,6 @@ export function GoalDetail() {
   // Integración entre zonas: hábitos vinculados y eventos de la semana de ESTA meta.
   const [habits, setHabits] = useState<Habit[]>(cached?.habits ?? [])
   const [habitChecks, setHabitChecks] = useState<HabitCheck[]>(cached?.habitChecks ?? [])
-  const [weekEvents, setWeekEvents] = useState<CalendarEvent[]>(cached?.weekEvents ?? [])
   const [loading, setLoading] = useState(cached === undefined)
   const [error, setError] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
@@ -136,7 +133,7 @@ export function GoalDetail() {
         if (sessionCache.get(cacheKey) === undefined) setLoading(true)
         const id = goalId ?? ''
         const weekStart = startOfWeek(todayISO())
-        const [g, ms, blks, weekSess, st, mins, adv, allHabits, checks, evs] = await Promise.all([
+        const [g, ms, blks, weekSess, st, mins, adv, allHabits, checks] = await Promise.all([
           getGoal(id),
           listMilestones(id),
           listScheduleForGoal(id),
@@ -149,9 +146,6 @@ export function GoalDetail() {
           listHabitChecksInRange(userId, addDays(todayISO(), -119), todayISO()).catch(
             () => [] as HabitCheck[],
           ),
-          listEventsInRange(userId, weekStart, addDays(weekStart, 6)).catch(
-            () => [] as CalendarEvent[],
-          ),
         ])
         if (!active) return
         setGoal(g)
@@ -163,7 +157,6 @@ export function GoalDetail() {
         setAdvances(adv)
         setHabits(allHabits)
         setHabitChecks(checks)
-        setWeekEvents(evs.filter((e) => e.goalId === id))
       } catch (err) {
         if (active) setError(friendlyError(err, 'No se pudo cargar la meta.'))
       } finally {
@@ -188,7 +181,6 @@ export function GoalDetail() {
     weekMinutes,
     habits,
     habitChecks,
-    weekEvents,
   })
 
   async function changeStatus(status: GoalStatus) {
@@ -399,9 +391,6 @@ export function GoalDetail() {
       habitStreak(habitDates.get(h.id) ?? new Set(), h.weekdays, todayISO()),
     ]),
   )
-  const sortedWeekEvents = [...weekEvents].sort(
-    (a, b) => a.date.localeCompare(b.date) || (a.startTime ?? '99').localeCompare(b.startTime ?? '99'),
-  )
   // El hábito de hoy se marca aquí mismo, sin salir de la meta.
   const todayDate = todayISO()
   const habitAppliesToday = (h: Habit) =>
@@ -446,6 +435,11 @@ export function GoalDetail() {
           {goal.status !== 'active' && (
             <span className="tag">
               {goal.status === 'done' ? 'Lograda' : goal.status === 'paused' ? 'Pausada' : 'Archivada'}
+            </span>
+          )}
+          {deadline && (
+            <span className="tag row row--sm" style={{ gap: 4 }}>
+              <IconCalendar size={12} /> {deadline}
             </span>
           )}
           <button
@@ -502,18 +496,13 @@ export function GoalDetail() {
             </div>
             {commitDraft === null ? (
               blocks.length > 0 ? (
-                <>
-                  <div className="row wrap">
-                    {blocks.map((b) => (
-                      <span key={b.id} className="tag">
-                        {WEEKDAY_LABELS[b.weekday]} · {blockTimeLabel(b)}
-                      </span>
-                    ))}
-                  </div>
-                  <p className="small muted" style={{ margin: 0 }}>
-                    {formatCommitmentSummary(blocks)}
-                  </p>
-                </>
+                <div className="row wrap">
+                  {blocks.map((b) => (
+                    <span key={b.id} className="tag">
+                      {WEEKDAY_LABELS[b.weekday]} · {blockTimeLabel(b)}
+                    </span>
+                  ))}
+                </div>
               ) : (
                 <p className="small muted" style={{ margin: 0 }}>
                   Sin compromiso definido. {isActive ? 'Edítalo para que tus sesiones aparezcan en Hoy.' : ''}
@@ -586,40 +575,31 @@ export function GoalDetail() {
                 <h2 style={{ fontSize: 'var(--fs-lg)' }}>Tus avances</h2>
                 <span className="small muted">{advances.length}</span>
               </div>
-              <ul className="timeline">
-                {advances.map((s) => (
-                  <li key={s.id} className="timeline__item">
-                    <span className="timeline__dot timeline__dot--done" aria-hidden="true" />
-                    <div className="timeline__card" style={{ cursor: 'default' }}>
-                      <span className="timeline__title">{s.accomplishment}</span>
-                      <span className="faint tiny">
-                        {formatLongDate(s.date)}
-                        {s.actualValue
-                          ? ` · ${s.targetKind === 'time' ? formatDuration(s.actualValue) : `${s.actualValue} ${s.unit ?? ''}`}`
-                          : ''}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <AdvancesTimeline items={advances.slice(0, 3)} />
+              {advances.length > 3 && (
+                <Disclosure summary={`Ver todos (${advances.length})`}>
+                  <AdvancesTimeline items={advances.slice(3)} />
+                </Disclosure>
+              )}
             </div>
           )}
         </div>
 
         <div className="detail-grid__side stack stack--lg">
-          <div className="card stack">
-            <InfoRow label="Área" value={niche.label} />
-            <InfoRow label="Tipo" value={template.label} />
-            {goal.targetDate && (
-              <InfoRow
-                label="Para cuándo"
-                value={`${formatLongDate(goal.targetDate)}${deadline ? ` · ${deadline}` : ''}`}
-              />
-            )}
-            {goal.successCriteria && <InfoRow label="Lo logras cuando" value={goal.successCriteria} />}
-            {weekMinutes > 0 && (
-              <InfoRow label="Agendado esta semana" value={`${formatDuration(weekMinutes)} en tu agenda`} />
-            )}
+          <div className="card">
+            <Disclosure summary="Detalles">
+              <div className="stack">
+                <InfoRow label="Área" value={niche.label} />
+                <InfoRow label="Tipo" value={template.label} />
+                {goal.targetDate && (
+                  <InfoRow label="Para cuándo" value={formatLongDate(goal.targetDate)} />
+                )}
+                {goal.successCriteria && <InfoRow label="Lo logras cuando" value={goal.successCriteria} />}
+                {weekMinutes > 0 && (
+                  <InfoRow label="Agendado esta semana" value={`${formatDuration(weekMinutes)} en tu agenda`} />
+                )}
+              </div>
+            </Disclosure>
           </div>
 
           {linkedHabits.length > 0 && (
@@ -670,30 +650,6 @@ export function GoalDetail() {
                 )
               })}
             </div>
-          )}
-
-          {sortedWeekEvents.length > 0 && (
-            <div className="card stack stack--sm">
-              <span className="kicker">En tu agenda esta semana</span>
-              {sortedWeekEvents.map((e) => (
-                <button key={e.id} className="ev" onClick={() => navigate(`/calendario?d=${e.date}`)}>
-                  <span className="ev__time">
-                    {e.allDay || !e.startTime ? 'Día' : formatTime12(e.startTime)}
-                  </span>
-                  <span className="ev__title">{e.title}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {weekMinutes === 0 && (
-            <p className="faint tiny row row--sm" style={{ alignItems: 'center' }}>
-              <IconClock size={14} /> También puedes bloquear tiempo extra en tu{' '}
-              <button className="btn--link" style={{ padding: 0 }} onClick={() => navigate('/calendario')}>
-                agenda
-              </button>{' '}
-              y vincularlo a esta meta.
-            </p>
           )}
 
           <div className="stack stack--sm">
@@ -782,6 +738,28 @@ export function GoalDetail() {
         </div>
       </div>
     </div>
+  )
+}
+
+/** Diario de avances: una entrada por sesión con nota de qué se logró. */
+function AdvancesTimeline({ items }: { items: Session[] }) {
+  return (
+    <ul className="timeline">
+      {items.map((s) => (
+        <li key={s.id} className="timeline__item">
+          <span className="timeline__dot timeline__dot--done" aria-hidden="true" />
+          <div className="timeline__card" style={{ cursor: 'default' }}>
+            <span className="timeline__title">{s.accomplishment}</span>
+            <span className="faint tiny">
+              {formatLongDate(s.date)}
+              {s.actualValue
+                ? ` · ${s.targetKind === 'time' ? formatDuration(s.actualValue) : `${s.actualValue} ${s.unit ?? ''}`}`
+                : ''}
+            </span>
+          </div>
+        </li>
+      ))}
+    </ul>
   )
 }
 
