@@ -1,6 +1,7 @@
 import type { CalendarEvent } from '@/lib/types'
 import { formatTime12, formatTimeShort } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
+import { tapHaptic } from '@/lib/haptics'
 import { IconArrowReturn, IconCheck, IconChevronRight, IconPlay } from '@/components/icons'
 import { EventCheck } from '@/screens/calendar/EventCheck'
 import {
@@ -95,7 +96,11 @@ export function AgendaRow({
         type="button"
         className={`ag-row${h.complete ? ' ag-row--done' : ''}${pastCls}`}
         style={accent}
-        onClick={() => onHabit(h)}
+        onClick={() => {
+          // Solo al marcar: desmarcar la última repetición no se celebra.
+          if (!h.complete) tapHaptic()
+          onHabit(h)
+        }}
         aria-pressed={h.complete}
         aria-label={
           h.complete

@@ -1,6 +1,7 @@
 import type { Habit } from '@/lib/types'
 import { formatTime12 } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
+import { tapHaptic } from '@/lib/haptics'
 import { NicheIcon } from '@/components/NicheGlyph'
 import { IconCheck, IconFlame } from '@/components/icons'
 
@@ -51,7 +52,11 @@ export function HabitRow({
             ? `Desmarcar ${multi ? 'la última repetición de' : 'el hábito:'} ${habit.title}`
             : `Marcar ${multi ? `repetición ${doneCount + 1} de ${target} de` : 'el hábito:'} ${habit.title}`
         }
-        onClick={onToggle}
+        onClick={() => {
+          // Solo al marcar: desmarcar no se celebra.
+          if (!done) tapHaptic()
+          onToggle()
+        }}
       >
         <IconCheck size={16} />
       </button>

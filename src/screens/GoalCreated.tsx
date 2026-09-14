@@ -99,6 +99,7 @@ export function GoalCreated() {
           <Roadmap
             milestones={milestones.length > 0 ? milestones.map((m) => m.title) : template.milestones}
             currentIndex={milestones.filter((m) => m.doneAt !== null).length}
+            intro
           />
         </div>
 

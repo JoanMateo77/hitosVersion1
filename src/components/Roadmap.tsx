@@ -1,9 +1,16 @@
+import type { CSSProperties } from 'react'
+
 interface RoadmapProps {
   milestones: string[]
   /** Índice del hito en el que está el usuario ahora (resaltado). */
   currentIndex?: number
   /** Si se pasa, cada hito es tocable para fijar el avance en ese punto. */
   onSelect?: (index: number) => void
+  /**
+   * Primera vez que se ve el camino (pantalla "¡Meta creada!"): la curva se
+   * traza y los nodos aparecen uno a uno. Solo ahí — en el detalle sería ruido.
+   */
+  intro?: boolean
 }
 
 const STEP_H = 64
@@ -21,7 +28,7 @@ const HALO_R = 16
  * al lado de cada nodo. Mantenemos la lista accesible (con botones cuando onSelect)
  * y la curva como decoración. La parte verde del camino refleja el progreso real.
  */
-export function Roadmap({ milestones, currentIndex = 0, onSelect }: RoadmapProps) {
+export function Roadmap({ milestones, currentIndex = 0, onSelect, intro = false }: RoadmapProps) {
   const n = milestones.length
   if (n === 0) return null
 
@@ -48,7 +55,7 @@ export function Roadmap({ milestones, currentIndex = 0, onSelect }: RoadmapProps
   const progressPct = n > 1 ? (Math.min(currentIndex, n - 1) / (n - 1)) * 100 : 0
 
   return (
-    <div className="roadmap" style={{ height: totalHeight }}>
+    <div className={`roadmap${intro ? ' roadmap--intro' : ''}`} style={{ height: totalHeight }}>
       <svg
         className="roadmap__svg"
         width={SVG_WIDTH}
@@ -56,7 +63,9 @@ export function Roadmap({ milestones, currentIndex = 0, onSelect }: RoadmapProps
         viewBox={`0 0 ${SVG_WIDTH} ${totalHeight}`}
         aria-hidden="true"
       >
-        <path d={pathD} className="roadmap__path roadmap__path--base" />
+        {/* pathLength normaliza la curva a 100: así el dasharray se lee como % y
+            el trazado de entrada (`path-draw`) interpola de `0 100` a `100 100`. */}
+        <path d={pathD} className="roadmap__path roadmap__path--base" pathLength={100} />
         <path
           d={pathD}
           className="roadmap__path roadmap__path--done"
@@ -66,7 +75,11 @@ export function Roadmap({ milestones, currentIndex = 0, onSelect }: RoadmapProps
         {points.map((p, i) => {
           const state = i < currentIndex ? 'done' : i === currentIndex ? 'current' : 'upcoming'
           return (
-            <g key={i} className={`roadmap__svg-step roadmap__svg-step--${state}`}>
+            <g
+              key={i}
+              className={`roadmap__svg-step roadmap__svg-step--${state}`}
+              style={{ '--i': i } as CSSProperties}
+            >
               {state === 'current' && (
                 <circle cx={p.x} cy={p.y} r={HALO_R} className="roadmap__halo" />
               )}

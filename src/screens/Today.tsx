@@ -121,7 +121,7 @@ export function Today() {
   // Tras un ✓ rápido ofrecemos anotar el avance: es el camino más usado y el
   // diario de la meta no debería quedarse sin entradas justo ahí.
   const [notePrompt, setNotePrompt] = useState<{ sessionId: string; text: string } | null>(null)
-  const { cheerMessage, cheer } = useCheer()
+  const { cheerMessage, cheerLeaving, cheer } = useCheer()
   const { toast } = useToast()
 
   // Garantiza que el cierre de sesiones viejas y la generación del día corran
@@ -638,7 +638,11 @@ export function Today() {
           )}
 
           {voice === 'cheer' && cheerMessage && (
-            <div className="cheer" role="status" aria-live="polite">
+            <div
+              className={`cheer${cheerLeaving ? ' cheer--leaving' : ''}`}
+              role="status"
+              aria-live="polite"
+            >
               {cheerMessage}
             </div>
           )}

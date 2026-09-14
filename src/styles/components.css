@@ -596,10 +596,13 @@
 }
 .roadmap__path--base {
   stroke: var(--border);
+  /* Con pathLength=100 esto es "la curva entera": explícito para que el trazado
+     de entrada (path-draw) tenga a dónde interpolar (`none` no interpola). */
+  stroke-dasharray: 100 100;
 }
 .roadmap__path--done {
   stroke: var(--primary);
-  transition: stroke-dasharray 0.6s var(--ease-out);
+  transition: stroke-dasharray var(--dur-focal) var(--ease-out);
   filter: drop-shadow(0 0 4px color-mix(in srgb, var(--primary) 40%, transparent));
 }
 .roadmap__circle {
@@ -684,6 +687,26 @@
 }
 .roadmap__label--done {
   color: var(--text-faint);
+}
+
+/* Primera vez que se ve el camino ("¡Meta creada!"): la curva se dibuja sola y
+   los nodos van cayendo uno a uno. Solo con .roadmap--intro — en el detalle de
+   meta el camino ya está ahí y animarlo cada visita sería ruido. */
+.roadmap--intro .roadmap__path--base,
+.roadmap--intro .roadmap__path--done {
+  animation: path-draw 900ms var(--ease-out) both;
+}
+@keyframes path-draw {
+  from {
+    stroke-dasharray: 0 100;
+  }
+}
+.roadmap--intro .roadmap__svg-step {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: celebrate-pop var(--dur-layout) var(--ease-spring) both;
+  /* Escalonado: cada nodo entra 120 ms después del anterior (--i lo pone el JSX). */
+  animation-delay: calc(240ms + var(--i, 0) * 120ms);
 }
 
 /* Legacy (clases del viejo roadmap, dejadas como no-op para no romper otros usos) */
@@ -874,6 +897,38 @@
   100% {
     transform: scale(1);
     opacity: 1;
+  }
+}
+
+/* ---- Meta lograda: el único momento focal de la app -------------------- */
+/* Velo de celebración: entra, se queda un par de segundos y se va solo. Nunca
+   bloquea (pointer-events: none) y no tiene botón: no es un modal, es un
+   aplauso. El componente se desmonta cuando termina `won-out`. */
+.won {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-content: center;
+  gap: var(--s3);
+  text-align: center;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  animation: won-in var(--dur-state) var(--ease-out) both, won-out var(--dur-state) ease-in 2.2s both;
+  pointer-events: none;
+}
+.won__title {
+  font-size: var(--fs-xl);
+  color: var(--text);
+}
+@keyframes won-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes won-out {
+  to {
+    opacity: 0;
   }
 }
 
@@ -1918,6 +1973,11 @@ select.input {
     transform: translate(-50%, 0);
   }
 }
+/* Salida: la misma entrada al revés. Debe ir después de .toast (misma
+   especificidad) para ganar el shorthand de animation. */
+.toast--leaving {
+  animation: toast-in 160ms ease-in reverse forwards;
+}
 @media (min-width: 1024px) {
   /* Desktop: sin BottomNav, toast pegado a la esquina inferior derecha. */
   .toast {
@@ -1958,6 +2018,10 @@ select.input {
     opacity: 1;
     transform: translateY(0);
   }
+}
+/* Salida: la entrada al revés, 160 ms antes de que el hook lo quite del DOM. */
+.cheer--leaving {
+  animation: cheer-in 160ms ease-in reverse forwards;
 }
 @media (prefers-reduced-motion: reduce) {
   .cheer {
@@ -2351,6 +2415,20 @@ select.input {
   gap: var(--s3);
   min-height: 48px;
   padding: 2px 0;
+}
+/* Etapa recién cumplida: la fila se enciende en verde y se apaga. El logro se
+   ve donde ocurrió, no solo en el toast que aparece abajo. */
+.mstone--just-done {
+  animation: mstone-flash 700ms var(--ease-out);
+  border-radius: var(--radius-sm);
+}
+@keyframes mstone-flash {
+  from {
+    background: color-mix(in srgb, var(--success) 22%, transparent);
+  }
+  to {
+    background: transparent;
+  }
 }
 .mstone__title {
   flex: 1;

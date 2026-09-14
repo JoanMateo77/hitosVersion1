@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Task } from '@/lib/types'
+import { tapHaptic } from '@/lib/haptics'
 import { IconArrowDown, IconArrowReturn, IconCheck, IconPencil, IconTrash } from '@/components/icons'
 
 interface TaskItemProps {
@@ -70,7 +71,11 @@ export function TaskItem({
     <li className={`task${done ? ' task--done' : ''}${isFocus ? ' task--focus' : ''}`}>
       <button
         className={`check${done ? ' check--done' : ''}`}
-        onClick={onToggle}
+        onClick={() => {
+          // Solo al marcar: vibrar cuando el usuario deshace sería ruido.
+          if (!done) tapHaptic()
+          onToggle()
+        }}
         aria-label={done ? 'Marcar como pendiente' : 'Marcar como hecha'}
         aria-pressed={done}
       >

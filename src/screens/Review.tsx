@@ -8,6 +8,7 @@ import { listSessionsInRange } from '@/services/sessions'
 import { goalsDueForReview } from '@/domain/dailyPlan'
 import { addDays, startOfWeek, todayISO } from '@/lib/date'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { Celebration } from '@/components/Celebration'
 import { useToast } from '@/app/toast'
 import { Disclosure } from '@/components/Disclosure'
 import { IconCelebrate, IconCheck, IconSprout } from '@/components/icons'
@@ -38,6 +39,8 @@ export function Review() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [working, setWorking] = useState(false)
+  // Momento focal: una meta quedó lograda dentro de la revisión.
+  const [won, setWon] = useState<string | null>(null)
   // Tally de lo que hiciste en esta sesión, para el resumen final.
   const [tally, setTally] = useState<Record<TallyKey, number>>({
     kept: 0,
@@ -131,6 +134,9 @@ export function Review() {
 
     return (
       <div className="screen review-focus">
+        {/* Primero en el árbol a propósito: lograr la última meta pasa a este
+            resumen en el mismo tick, y así la celebración no se remonta. */}
+        {won && <Celebration title={won} onDone={() => setWon(null)} />}
         <div className="empty">
           {reviewedAny ? (
             <IconCelebrate size={56} style={{ color: 'var(--primary)' }} />
@@ -202,6 +208,7 @@ export function Review() {
 
   return (
     <div className="screen review-focus">
+      {won && <Celebration title={won} onDone={() => setWon(null)} />}
       <button
         type="button"
         className="btn--link"
@@ -274,6 +281,7 @@ export function Review() {
                   // Completar la última etapa cierra el ciclo: camino completo + meta lograda.
                   await markPendingDone(firstPending)
                   await setGoalStatus(goal.id, 'done')
+                  setWon('¡Meta lograda!')
                   toast('¡Meta lograda! Recorriste todo el camino.', 'success')
                 }, 'achieved')
               }
@@ -303,6 +311,7 @@ export function Review() {
               act(async () => {
                 // Camino ya completo pero la meta seguía activa: cerramos el ciclo.
                 await setGoalStatus(goal.id, 'done')
+                setWon('¡Meta lograda!')
                 toast('¡Meta lograda!', 'success')
               }, 'achieved')
             }

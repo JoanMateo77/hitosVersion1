@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { getGoal, setGoalStatus, updateGoal, type GoalEdit } from '@/services/goals'
@@ -45,10 +45,12 @@ import {
 } from '@/lib/date'
 import type { Goal, GoalStatus, Habit, HabitCheck, Milestone, NicheId, ScheduleBlock, Session } from '@/lib/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { Celebration } from '@/components/Celebration'
 import { MilestoneChecklist } from '@/components/MilestoneChecklist'
 import { CommitmentStep } from '@/components/wizard/CommitmentStep'
 import { useToast } from '@/app/toast'
 import { shareAchievement } from '@/lib/shareCard'
+import { successHaptic } from '@/lib/haptics'
 import {
   IconBack,
   IconCalendar,
@@ -116,6 +118,18 @@ export function GoalDetail() {
   // Confirmación al lograr con etapas pendientes.
   const [confirmAchieve, setConfirmAchieve] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
+  // Momento focal: la meta quedó lograda. El velo se va solo (won-out).
+  const [won, setWon] = useState<string | null>(null)
+  // Etapa recién cumplida: se enciende 700 ms y se apaga.
+  const [justDoneId, setJustDoneId] = useState<string | null>(null)
+  const flashTimer = useRef<number | null>(null)
+
+  useEffect(
+    () => () => {
+      if (flashTimer.current !== null) window.clearTimeout(flashTimer.current)
+    },
+    [],
+  )
 
   useEffect(() => {
     let active = true
@@ -191,6 +205,7 @@ export function GoalDetail() {
         toast('Pausada. La retomas cuando quieras.')
       } else if (status === 'done') {
         setOfferAchieve(false)
+        setWon('¡Meta lograda!')
         toast('¡Meta lograda! Bien hecho.', 'success')
       } else if (status === 'archived') {
         toast('Archivada.')
@@ -243,7 +258,15 @@ export function GoalDetail() {
       if (willBeDone) {
         const pendingLeft = next.filter((x) => x.doneAt === null).length
         if (pendingLeft === 0) setOfferAchieve(true)
-        else toast('Etapa cumplida.', 'success')
+        else {
+          // La etapa se enciende un instante: el logro se ve donde ocurrió, no
+          // solo en el toast que aparece abajo.
+          setJustDoneId(m.id)
+          successHaptic()
+          if (flashTimer.current !== null) window.clearTimeout(flashTimer.current)
+          flashTimer.current = window.setTimeout(() => setJustDoneId(null), 700)
+          toast('Etapa cumplida.', 'success')
+        }
       } else {
         setOfferAchieve(false)
       }
@@ -410,6 +433,7 @@ export function GoalDetail() {
 
   return (
     <div className="screen" style={nicheAccent(goal.area)}>
+      {won && <Celebration title={won} onDone={() => setWon(null)} />}
       <BackButton onClick={goBack} />
 
       <header className="screen__header" style={{ marginTop: 'var(--s4)' }}>
@@ -531,6 +555,7 @@ export function GoalDetail() {
             <MilestoneChecklist
               milestones={sortedMilestones}
               disabled={!isActive || updating}
+              justDoneId={justDoneId}
               onToggle={(m) => void toggleMilestone(m)}
               onRename={(m, t) => void renameMilestone(m, t)}
               onSetDate={(m, d) => void dateMilestone(m, d)}

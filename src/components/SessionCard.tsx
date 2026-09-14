@@ -1,5 +1,6 @@
 import type { Goal, Session } from '@/lib/types'
 import { nicheAccent } from '@/lib/nicheAccent'
+import { tapHaptic } from '@/lib/haptics'
 import { rangeLabel, sessionSpan } from '@/domain/agenda'
 import { formatTime12 } from '@/lib/date'
 import { IconCheck, IconPlay } from '@/components/icons'
@@ -119,7 +120,11 @@ export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onRe
           <button
             type="button"
             className="check session__quick"
-            onClick={onQuickDone}
+            onClick={() => {
+              // El check rápido siempre marca (la sesión abierta pasa a hecha).
+              tapHaptic()
+              onQuickDone()
+            }}
             aria-label={`Marcar la sesión de ${goal.title} como hecha sin cronómetro`}
           >
             <IconCheck size={16} />
