@@ -272,11 +272,11 @@ export function IconProgress({ size = 24, className, style, filled = false }: Ic
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <polyline points="3 17.5 9 10.5 13 14.5 21 5.5" />
-      <path
-        d="M15 5.5h6v6z"
-        fill={filled ? 'currentColor' : 'none'}
-        fillOpacity={filled ? 0.2 : undefined}
-      />
+      {filled ? (
+        <path d="M15 5.5h6v6z" fill="currentColor" fillOpacity={0.2} />
+      ) : (
+        <polyline points="15 5.5 21 5.5 21 11.5" />
+      )}
     </svg>
   )
 }
