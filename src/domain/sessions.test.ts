@@ -6,6 +6,7 @@ import {
   isStaleRunning,
   isTimeReached,
   milestoneProgress,
+  nextMilestoneTitle,
   pickSuggestion,
   remainingSeconds,
   weekConsistency,
@@ -60,6 +61,13 @@ function milestone(done: boolean, position: number): Milestone {
     targetDate: null,
     doneAt: done ? '2026-06-01T00:00:00Z' : null,
     createdAt: '2026-05-01T00:00:00Z',
+  }
+}
+
+function ms(over: Partial<Milestone>): Milestone {
+  return {
+    id: 'm', goalId: 'g', userId: 'u', title: 'Etapa', position: 0, targetDate: null,
+    doneAt: null, createdAt: '2026-06-01T00:00:00Z', ...over,
   }
 }
 
@@ -195,5 +203,20 @@ describe('currentStreakCommitted', () => {
   })
   it('sin días comprometidos no hay racha', () => {
     expect(currentStreakCommitted(new Set(['2026-06-12']), new Set(), '2026-06-13')).toBe(0)
+  })
+})
+
+describe('nextMilestoneTitle', () => {
+  it('la primera etapa sin cumplir por posición, aunque llegue desordenada', () => {
+    const list = [
+      ms({ id: 'b', title: 'Segunda', position: 1 }),
+      ms({ id: 'a', title: 'Primera', position: 0, doneAt: '2026-06-02T00:00:00Z' }),
+      ms({ id: 'c', title: 'Tercera', position: 2 }),
+    ]
+    expect(nextMilestoneTitle(list)).toBe('Segunda')
+  })
+  it('null si no hay etapas o todas están cumplidas', () => {
+    expect(nextMilestoneTitle([])).toBeNull()
+    expect(nextMilestoneTitle([ms({ doneAt: '2026-06-02T00:00:00Z' })])).toBeNull()
   })
 })

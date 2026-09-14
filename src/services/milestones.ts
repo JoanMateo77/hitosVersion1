@@ -1,5 +1,6 @@
 import type { Milestone } from '@/lib/types'
 import type { MilestoneDraft } from '@/domain/commitment'
+import { nextMilestoneTitle } from '@/domain/sessions'
 import { supabase } from '@/lib/supabase'
 
 interface MilestoneRow {
@@ -125,21 +126,34 @@ export async function reorderMilestones(updates: { id: string; position: number 
   }
 }
 
-/** Progreso {done,total} por meta del usuario (listas de Metas y Progreso). */
+/**
+ * Progreso de etapas por meta para la lista de Metas: cuántas hay, cuántas
+ * están cumplidas y cuál sigue (título), en una sola consulta.
+ */
 export async function milestoneProgressByGoal(
   userId: string,
-): Promise<Map<string, { done: number; total: number }>> {
+): Promise<Map<string, { done: number; total: number; nextTitle: string | null }>> {
   const { data, error } = await supabase
     .from('milestones')
-    .select('goal_id, done_at')
+    .select('goal_id, done_at, title, position')
     .eq('user_id', userId)
   if (error) throw new Error(error.message)
-  const map = new Map<string, { done: number; total: number }>()
-  for (const row of data as { goal_id: string; done_at: string | null }[]) {
-    const entry = map.get(row.goal_id) ?? { done: 0, total: 0 }
-    entry.total += 1
-    if (row.done_at) entry.done += 1
-    map.set(row.goal_id, entry)
+  type Row = { goal_id: string; done_at: string | null; title: string; position: number }
+  const byGoal = new Map<string, Row[]>()
+  for (const row of data as Row[]) {
+    const list = byGoal.get(row.goal_id) ?? []
+    list.push(row)
+    byGoal.set(row.goal_id, list)
+  }
+  const map = new Map<string, { done: number; total: number; nextTitle: string | null }>()
+  for (const [goalId, rows] of byGoal) {
+    map.set(goalId, {
+      done: rows.filter((r) => r.done_at).length,
+      total: rows.length,
+      nextTitle: nextMilestoneTitle(
+        rows.map((r) => ({ position: r.position, doneAt: r.done_at, title: r.title })),
+      ),
+    })
   }
   return map
 }

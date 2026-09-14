@@ -73,6 +73,14 @@ export function milestoneProgress(milestones: Milestone[]): {
   return { done, total, ratio: total > 0 ? done / total : 0 }
 }
 
+/** Título de la próxima etapa por cumplir (la primera sin `doneAt` por posición), o null. */
+export function nextMilestoneTitle(
+  milestones: Array<Pick<Milestone, 'position' | 'doneAt' | 'title'>>,
+): string | null {
+  const next = [...milestones].sort((a, b) => a.position - b.position).find((m) => !m.doneAt)
+  return next ? next.title : null
+}
+
 /**
  * Consistencia semanal: sesiones cumplidas (done|partial, incluidas las
  * espontáneas) sobre las comprometidas (una por bloque por semana).
