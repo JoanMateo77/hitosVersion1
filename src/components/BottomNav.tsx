@@ -1,5 +1,5 @@
-import type { CSSProperties } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import type { CSSProperties, MouseEvent } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   IconCalendar,
   IconFlame,
@@ -7,6 +7,7 @@ import {
   IconProgress,
   IconToday,
 } from '@/components/icons'
+import { withViewTransition } from '@/lib/viewTransition'
 
 // 5 pestañas máximo: Perfil vive en el avatar del TopBar para que cada zona
 // táctil quede cómoda en pantallas chicas.
@@ -22,6 +23,7 @@ const TABS = [
 
 export function BottomNav() {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   const activeIndex = TABS.findIndex((tab) => {
     const alsoMatch = 'alsoMatch' in tab ? tab.alsoMatch : undefined
     return tab.to === '/'
@@ -52,6 +54,11 @@ export function BottomNav() {
                     : ''
                 }`
               }
+              onClick={(e: MouseEvent<HTMLAnchorElement>) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+                e.preventDefault()
+                withViewTransition(() => navigate(to))
+              }}
             >
               <Icon size={23} filled={active} />
               <span>{label}</span>

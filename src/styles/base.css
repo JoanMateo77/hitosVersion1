@@ -135,15 +135,13 @@ ul {
   }
 }
 
-/* View Transitions API — cuando el navegador soporta @view-transition, las rutas
-   cruzan con un fade-and-slide en vez de saltar a blanco. La sidebar y la topbar
-   tienen view-transition-name propio (en components.css), así no parpadean. */
-@view-transition {
-  navigation: auto;
-}
+/* View Transitions API — las dispara `withViewTransition` (src/lib/viewTransition.ts)
+   al navegar entre pestañas y de la tarjeta de una meta a su detalle; la app es SPA,
+   así que `@view-transition { navigation: auto }` nunca aplicaría. La sidebar y la
+   topbar tienen view-transition-name propio (en components.css), así no parpadean. */
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: 220ms;
+  animation-duration: 200ms;
   animation-timing-function: var(--ease-out);
 }
 ::view-transition-old(root) {
@@ -151,6 +149,10 @@ ul {
 }
 ::view-transition-new(root) {
   animation-name: route-fade-in;
+}
+::view-transition-group(*) {
+  animation-duration: var(--dur-layout);
+  animation-timing-function: var(--ease-ios);
 }
 @keyframes route-fade-out {
   to {

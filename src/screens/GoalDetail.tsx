@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { getGoal, setGoalStatus, updateGoal, type GoalEdit } from '@/services/goals'
@@ -433,7 +433,12 @@ export function GoalDetail() {
             Editar
           </button>
         </div>
-        <h1 className="screen__title">{goal.title}</h1>
+        <h1
+          className="screen__title"
+          style={{ viewTransitionName: `goal-${goal.id}` } as CSSProperties}
+        >
+          {goal.title}
+        </h1>
       </header>
 
       <div className="detail-grid">
