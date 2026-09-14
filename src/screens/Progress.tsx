@@ -11,15 +11,21 @@ import { getNiche } from '@/domain/niches'
 import { isGoalClosed } from '@/domain/goals'
 import { bestStreakCommitted, currentStreakCommitted, weekConsistency } from '@/domain/sessions'
 import { weekdayMon0, WEEKDAY_LABELS } from '@/domain/commitment'
-import { addDays, formatDuration, formatLongDate, startOfWeek, todayISO } from '@/lib/date'
+import { addDays, formatLongDate, startOfWeek, todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { useCachedData } from '@/hooks/useCachedData'
+import { Disclosure } from '@/components/Disclosure'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
 import { IconCheck, IconFlame, IconProgress } from '@/components/icons'
 import { NicheGlyph } from '@/components/NicheGlyph'
 
 const HISTORY_DAYS = 120
+
+/** Una entrada de "Tu camino": un hito cumplido o una meta cerrada. */
+type Entry =
+  | { kind: 'milestone'; date: string; milestone: Milestone; goal: Goal }
+  | { kind: 'goal'; date: string; goal: Goal }
 
 /**
  * Progreso: ¿cómo viene mi semana? ¿cómo avanza cada meta? ¿qué construí?
@@ -119,17 +125,7 @@ export function Progress() {
   })
   const anyHistory = weeks.some((w) => w.total > 0)
 
-  // ----- Minutos invertidos por meta (ventana de 120 días) -----
-  const minutesByGoal = new Map<string, number>()
-  for (const s of sessions) {
-    if (!doneish(s) || s.targetKind !== 'time') continue
-    minutesByGoal.set(s.goalId, (minutesByGoal.get(s.goalId) ?? 0) + (s.actualValue ?? 0))
-  }
-
   // ----- Tu camino: hitos cumplidos + metas cerradas, por fecha -----
-  type Entry =
-    | { kind: 'milestone'; date: string; milestone: Milestone; goal: Goal }
-    | { kind: 'goal'; date: string; goal: Goal }
   const entries: Entry[] = []
   for (const m of doneMilestones) {
     const goal = goalById.get(m.goalId)
@@ -140,7 +136,7 @@ export function Progress() {
       entries.push({ kind: 'goal', date: g.completedAt ?? g.createdAt, goal: g })
   }
   entries.sort((a, b) => b.date.localeCompare(a.date))
-  const timeline = entries.slice(0, 12)
+  const timeline = entries
 
   return (
     <div className="screen">
@@ -225,22 +221,24 @@ export function Progress() {
                     : st === 'free'
                       ? '1px solid var(--border-soft)'
                       : 'none'
+                const stateLabel =
+                  st === 'done'
+                    ? 'cumplido'
+                    : st === 'partial'
+                      ? 'parcial'
+                      : st === 'missed'
+                        ? 'sin cumplir'
+                        : st === 'future'
+                          ? 'por venir'
+                          : 'libre'
+                const dayLabel = `${WEEKDAY_LABELS[i]}: ${stateLabel}`
                 return (
                   <div key={d} style={{ flex: 1, textAlign: 'center' }}>
                     <div
                       style={{ height: 26, borderRadius: 7, background: bg, border }}
                       role="img"
-                      aria-label={`${WEEKDAY_LABELS[i]}: ${
-                        st === 'done'
-                          ? 'cumplido'
-                          : st === 'partial'
-                            ? 'parcial'
-                            : st === 'missed'
-                              ? 'sin cumplir'
-                              : st === 'future'
-                                ? 'por venir'
-                                : 'libre'
-                      }`}
+                      aria-label={dayLabel}
+                      title={dayLabel}
                     />
                     <span className="faint" style={{ fontSize: 9 }}>
                       {WEEKDAY_LABELS[i]}
@@ -249,9 +247,6 @@ export function Progress() {
                 )
               })}
             </div>
-            <p className="faint tiny" style={{ marginTop: 4 }}>
-              Verde: cumplido · ámbar: parcial · punteado: por venir
-            </p>
           </div>
         </div>
       </section>
@@ -271,7 +266,6 @@ export function Progress() {
                 weekSessions.filter((s) => s.goalId === g.id),
                 weekStart,
               )
-              const minutes = minutesByGoal.get(g.id) ?? 0
               return (
                 <button
                   key={g.id}
@@ -303,7 +297,6 @@ export function Progress() {
                     {prog.total > 0
                       ? `Etapa ${Math.min(prog.done + 1, prog.total)} de ${prog.total}`
                       : 'Sin etapas'}
-                    {minutes > 0 ? ` · ${formatDuration(minutes)} invertidas` : ''}
                   </span>
                 </button>
               )
@@ -326,7 +319,6 @@ export function Progress() {
               const dates = habitDates.get(h.id) ?? new Set<string>()
               const streakH = habitStreak(dates, h.weekdays, today)
               const week7 = habitWeek(dates, h, weekStart)
-              const linkedGoal = h.goalId ? goalById.get(h.goalId) : null
               return (
                 <button
                   key={h.id}
@@ -338,7 +330,6 @@ export function Progress() {
                     <span className="row row--sm" style={{ alignItems: 'center', minWidth: 0 }}>
                       <NicheGlyph area={h.area} size="sm" />
                       <strong className="nowrap-ellipsis">{h.title}</strong>
-                      {linkedGoal && <span className="tag">{linkedGoal.title}</span>}
                     </span>
                     {streakH >= 2 && (
                       <span className="streak-chip" style={{ flex: 'none' }}>
@@ -364,30 +355,25 @@ export function Progress() {
 
       {/* ----- Últimas 8 semanas ----- */}
       {anyHistory && (
-        <section className="card stack stack--sm" aria-label="Últimas 8 semanas">
-          <span className="kicker">Últimas 8 semanas</span>
-          <div className="row" style={{ alignItems: 'flex-end', gap: 6, height: 56 }}>
-            {weeks.map((w, i) => (
-              <div
-                key={w.start}
-                style={{
-                  flex: 1,
-                  borderRadius: '4px 4px 0 0',
-                  background: i === 7 ? 'var(--success)' : 'var(--success-soft)',
-                  height: `${Math.max(6, w.ratio * 100)}%`,
-                  border: w.total === 0 ? '1px dashed var(--border-soft)' : 'none',
-                }}
-                role="img"
-                aria-label={`Semana del ${formatLongDate(w.start)}: ${Math.round(w.ratio * 100)}% cumplido`}
-              />
-            ))}
-          </div>
-          <p className="faint tiny">
-            % de sesiones cumplidas por semana · esta semana:{' '}
-            {/* Mismo dato que la última barra (weeks[7]): antes el pie usaba otro
-                denominador y podía decir 8% mientras la barra pintaba 100%. */}
-            {Math.round(weeks[weeks.length - 1].ratio * 100)}%
-          </p>
+        <section className="card" aria-label="Últimas 8 semanas">
+          <Disclosure summary="Últimas 8 semanas">
+            <div className="row" style={{ alignItems: 'flex-end', gap: 6, height: 56 }}>
+              {weeks.map((w, i) => (
+                <div
+                  key={w.start}
+                  style={{
+                    flex: 1,
+                    borderRadius: '4px 4px 0 0',
+                    background: i === 7 ? 'var(--success)' : 'var(--success-soft)',
+                    height: `${Math.max(6, w.ratio * 100)}%`,
+                    border: w.total === 0 ? '1px dashed var(--border-soft)' : 'none',
+                  }}
+                  role="img"
+                  aria-label={`Semana del ${formatLongDate(w.start)}: ${Math.round(w.ratio * 100)}% cumplido`}
+                />
+              ))}
+            </div>
+          </Disclosure>
         </section>
       )}
       </div>
@@ -403,54 +389,64 @@ export function Progress() {
           <p className="muted">Cada etapa que cumplas y cada meta que logres queda aquí.</p>
         </div>
       ) : (
-        <ul className="timeline">
-          {timeline.map((e) => (
-            <li
-              key={e.kind === 'milestone' ? `m-${e.milestone.id}` : `g-${e.goal.id}`}
-              className="timeline__item"
-              style={nicheAccent(e.goal.area)}
-            >
-              <span
-                className={`timeline__dot${
-                  e.kind === 'goal' && e.goal.status === 'done' ? ' timeline__dot--done' : ''
-                }`}
-                aria-hidden="true"
-              />
-              <button
-                type="button"
-                className="timeline__card"
-                onClick={() => navigate(`/metas/${e.goal.id}`)}
-              >
-                <div className="row row--between" style={{ alignItems: 'flex-start', gap: 'var(--s2)' }}>
-                  <span className="timeline__title row row--sm" style={{ alignItems: 'center' }}>
-                    {e.kind === 'milestone' ? (
-                      <>
-                        <IconCheck size={14} style={{ color: 'var(--success)', flex: 'none' }} />
-                        {e.milestone.title}
-                      </>
-                    ) : (
-                      <>
-                        <NicheGlyph area={e.goal.area} size="sm" />
-                        {e.goal.title}
-                      </>
-                    )}
-                  </span>
-                  <span className="tag">
-                    {e.kind === 'milestone' ? 'Etapa' : e.goal.status === 'done' ? 'Lograda' : 'Archivada'}
-                  </span>
-                </div>
-                <span className="faint tiny">
-                  {e.kind === 'milestone' ? e.goal.title : getNiche(e.goal.area).label} ·{' '}
-                  {formatLongDate(e.date.slice(0, 10))}
-                  {/* Si la meta de este hito está en pausa, decirlo: si no, aparece
-                      en el camino pero no en "Tus metas", y confunde. */}
-                  {e.goal.status === 'paused' && ' · en pausa'}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <>
+          <TimelineList entries={timeline.slice(0, 5)} onOpen={(goalId) => navigate(`/metas/${goalId}`)} />
+          {timeline.length > 5 && (
+            <Disclosure summary={`Ver más (${timeline.length - 5})`}>
+              <TimelineList entries={timeline.slice(5)} onOpen={(goalId) => navigate(`/metas/${goalId}`)} />
+            </Disclosure>
+          )}
+        </>
       )}
     </div>
+  )
+}
+
+/** Lista de entradas de "Tu camino": hitos cumplidos y metas cerradas. */
+function TimelineList({ entries, onOpen }: { entries: Entry[]; onOpen: (goalId: string) => void }) {
+  return (
+    <ul className="timeline">
+      {entries.map((e) => (
+        <li
+          key={e.kind === 'milestone' ? `m-${e.milestone.id}` : `g-${e.goal.id}`}
+          className="timeline__item"
+          style={nicheAccent(e.goal.area)}
+        >
+          <span
+            className={`timeline__dot${
+              e.kind === 'goal' && e.goal.status === 'done' ? ' timeline__dot--done' : ''
+            }`}
+            aria-hidden="true"
+          />
+          <button type="button" className="timeline__card" onClick={() => onOpen(e.goal.id)}>
+            <div className="row row--between" style={{ alignItems: 'flex-start', gap: 'var(--s2)' }}>
+              <span className="timeline__title row row--sm" style={{ alignItems: 'center' }}>
+                {e.kind === 'milestone' ? (
+                  <>
+                    <IconCheck size={14} style={{ color: 'var(--success)', flex: 'none' }} />
+                    {e.milestone.title}
+                  </>
+                ) : (
+                  <>
+                    <NicheGlyph area={e.goal.area} size="sm" />
+                    {e.goal.title}
+                  </>
+                )}
+              </span>
+              <span className="tag">
+                {e.kind === 'milestone' ? 'Etapa' : e.goal.status === 'done' ? 'Lograda' : 'Archivada'}
+              </span>
+            </div>
+            <span className="faint tiny">
+              {e.kind === 'milestone' ? e.goal.title : getNiche(e.goal.area).label} ·{' '}
+              {formatLongDate(e.date.slice(0, 10))}
+              {/* Si la meta de este hito está en pausa, decirlo: si no, aparece
+                  en el camino pero no en "Tus metas", y confunde. */}
+              {e.goal.status === 'paused' && ' · en pausa'}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
   )
 }
