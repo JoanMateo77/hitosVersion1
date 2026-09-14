@@ -974,6 +974,173 @@ git commit -m "feat(motion): celebración al lograr, etapa que se enciende, cami
 
 ---
 
+### Task 11: Novedades al actualizar (aviso que el usuario cierra)
+
+**Files:**
+- Create: `src/domain/novedades.ts`, `src/domain/novedades.test.ts`, `src/content/novedades.ts`, `src/hooks/useNovedades.ts`, `src/lib/storage.ts`
+- Modify: `src/screens/Today.tsx` (slot de voz de la Tarea 3; funciones locales `safeGetItem`/`safeSetItem` ~línea 939), `src/screens/Profile.tsx` (junto al `Disclosure` "Cómo se ganan los marcos"), `src/styles/components.css`
+
+**Interfaces:**
+```ts
+export interface Novedad { id: string; titulo: string; items: string[] }   // id = fecha ISO del despliegue
+export function novedadPendiente(lista: Novedad[], vistaId: string | null): Novedad | null
+export const NOVEDADES: Novedad[]                                           // la primera es la vigente
+export function useNovedades(): { novedad: Novedad | null; cerrar: () => void }
+export function safeGetItem(key: string): string | null; export function safeSetItem(key: string, value: string): void
+```
+
+- [ ] **Step 1: Test que falla** (`src/domain/novedades.test.ts`)
+
+```ts
+import { describe, expect, it } from 'vitest'
+import { novedadPendiente, type Novedad } from '@/domain/novedades'
+
+const lista: Novedad[] = [
+  { id: '2026-09-15', titulo: 'Agenda por bloques', items: ['Bloques desplegables'] },
+  { id: '2026-08-01', titulo: 'Hábitos', items: ['Repeticiones por día'] },
+]
+
+describe('novedadPendiente', () => {
+  it('sin novedades no hay aviso', () => {
+    expect(novedadPendiente([], null)).toBeNull()
+  })
+  it('la más reciente ya vista no se repite', () => {
+    expect(novedadPendiente(lista, '2026-09-15')).toBeNull()
+  })
+  it('una versión nueva vuelve a avisar aunque se haya visto la anterior', () => {
+    expect(novedadPendiente(lista, '2026-08-01')?.id).toBe('2026-09-15')
+  })
+  it('sin registro previo se muestra la vigente', () => {
+    expect(novedadPendiente(lista, null)?.id).toBe('2026-09-15')
+  })
+})
+```
+
+- [ ] **Step 2: Dominio, contenido, storage y hook**
+
+`src/domain/novedades.ts`:
+```ts
+export interface Novedad {
+  /** Fecha ISO del despliegue; cambiarla es lo que vuelve a mostrar el aviso. */
+  id: string
+  titulo: string
+  items: string[]
+}
+
+/** La novedad vigente si el usuario aún no la cerró; null si ya la vio o no hay. */
+export function novedadPendiente(lista: Novedad[], vistaId: string | null): Novedad | null {
+  const vigente = lista[0]
+  if (!vigente) return null
+  return vigente.id === vistaId ? null : vigente
+}
+```
+`src/content/novedades.ts`:
+```ts
+import type { Novedad } from '@/domain/novedades'
+
+/**
+ * Qué subimos. Antes de cada despliegue agrega una entrada AL PRINCIPIO con la
+ * fecha como `id`: si el `id` no cambia, el aviso no vuelve a salir. Una frase
+ * por punto, en el lenguaje del usuario (qué puede hacer ahora, no qué archivo
+ * tocamos). Máximo cuatro puntos: lo demás no se lee.
+ */
+export const NOVEDADES: Novedad[] = [
+  {
+    id: '2026-09-15',
+    titulo: 'Agenda por bloques y una app más limpia',
+    items: [
+      'La agenda agrupa lo que coincide en la misma hora: toca un bloque para desplegarlo.',
+      'Cada hábito ocupa una sola fila y el check marca la siguiente repetición.',
+      'Menos texto en todas las pantallas: lo secundario se pliega con "Ver más".',
+    ],
+  },
+]
+```
+`src/lib/storage.ts`: mover aquí `safeGetItem` y `safeSetItem` de `Today.tsx` (mismo cuerpo, con `export`) y hacer que `Today.tsx` las importe.
+`src/hooks/useNovedades.ts`:
+```ts
+import { useCallback, useState } from 'react'
+import { NOVEDADES } from '@/content/novedades'
+import { novedadPendiente } from '@/domain/novedades'
+import { safeGetItem, safeSetItem } from '@/lib/storage'
+
+const KEY = 'logralo.novedades.vista'
+
+/** El aviso de novedades vigente y su cierre (persistido por dispositivo). */
+export function useNovedades() {
+  const [vistaId, setVistaId] = useState<string | null>(() => safeGetItem(KEY))
+  const novedad = novedadPendiente(NOVEDADES, vistaId)
+  const cerrar = useCallback(() => {
+    if (!novedad) return
+    safeSetItem(KEY, novedad.id)
+    setVistaId(novedad.id)
+  }, [novedad])
+  return { novedad, cerrar }
+}
+```
+
+- [ ] **Step 3: Tests en verde** — `npx vitest run src/domain/novedades.test.ts` → PASS.
+
+- [ ] **Step 4: La voz de novedades en Hoy y el historial en Perfil**
+
+En `Today.tsx`, `const { novedad, cerrar: cerrarNovedades } = useNovedades()` y en el slot de voz `'novedades'` va PRIMERO (`novedad ? 'novedades' : cheerMessage ? 'cheer' : …`; ampliar el tipo `Voice`). Render, en el mismo lugar del cheer:
+```tsx
+{voice === 'novedades' && novedad && (
+  <div className="card card--tight today-notice stack stack--sm" role="status">
+    <span className="row row--sm small" style={{ alignItems: 'center' }}>
+      <IconHito size={16} />
+      <strong>Novedades · {novedad.titulo}</strong>
+    </span>
+    <ul className="novedades__list small muted">
+      {novedad.items.map((t) => (
+        <li key={t}>{t}</li>
+      ))}
+    </ul>
+    <button className="btn btn--sm btn--subtle today-self-start" onClick={cerrarNovedades}>
+      Entendido
+    </button>
+  </div>
+)}
+```
+En `Profile.tsx`, después del `Disclosure` "Cómo se ganan los marcos":
+```tsx
+<Disclosure summary="Novedades">
+  <div className="stack">
+    {NOVEDADES.map((n) => (
+      <div key={n.id} className="stack stack--sm">
+        <span className="small">
+          <strong>{n.titulo}</strong> <span className="faint tiny">· {formatLongDate(n.id)}</span>
+        </span>
+        <ul className="novedades__list small muted">
+          {n.items.map((t) => (
+            <li key={t}>{t}</li>
+          ))}
+        </ul>
+      </div>
+    ))}
+  </div>
+</Disclosure>
+```
+CSS (`components.css`, junto a `.hint`):
+```css
+.novedades__list {
+  margin: 0;
+  padding-left: 1.1em;
+  display: grid;
+  gap: 4px;
+}
+```
+
+- [ ] **Step 5: Gates y commit**
+
+Run: `npm run typecheck && npm run lint && npm test && npm run build`
+```bash
+git add -A src
+git commit -m "feat(novedades): aviso de qué cambió tras actualizar, con cierre y texto editable"
+```
+
+---
+
 ## Fuera de este plan (decisiones de producto, se listan en la PR)
 
 - V7: consolidar la gamificación (chip de racha en Hoy, anillo de marco en TopBar/SideNav) en una sola superficie y renombrar "Leyenda".
