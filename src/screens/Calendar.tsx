@@ -70,7 +70,7 @@ import {
   IconPencil,
   IconPlus,
 } from '@/components/icons'
-import { useFocusTrap } from '@/hooks/useFocusTrap'
+import { Sheet } from '@/components/Sheet'
 import { NicheIcon } from '@/components/NicheGlyph'
 import { useToast } from '@/app/toast'
 import { sessionCache } from '@/lib/sessionCache'
@@ -908,15 +908,6 @@ function BlockSheet({
   const [time, setTime] = useState('')
   const [adding, setAdding] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const panelRef = useRef<HTMLDivElement>(null)
-  useFocusTrap(panelRef, onClose)
-  useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prev
-    }
-  }, [])
 
   const isClosed = CLOSED_STATES.includes(it.state)
   const showState = it.state !== 'pending' && it.state !== 'projected'
@@ -939,86 +930,83 @@ function BlockSheet({
   }
 
   return (
-    <div className="sheet" role="dialog" aria-modal="true">
-      <div className="sheet__backdrop" onClick={onClose} />
-      <div
-        ref={panelRef}
-        className="sheet__panel stack stack--lg"
-        style={nicheAccent(it.goal.area)}
-      >
-        <div className="row row--between">
-          <h2 style={{ fontSize: 'var(--fs-lg)' }}>{it.goal.title}</h2>
-          <button type="button" className="iconbtn iconbtn--sm" onClick={onClose} aria-label="Cerrar">
-            <IconClose />
-          </button>
-        </div>
-        <p className="small muted bsheet__when">
-          {it.span.start ? `${rangeLabel(it.span.start, it.span.end)} · ` : ''}
-          {it.targetLabel}
-          {showState && <SessionStateTag state={it.state} />}
-        </p>
-
-        <div className="stack stack--sm">
-          {sub.length > 0 && (
-            <ul className="ev__sublist bsheet__list">
-              {sub.map((e) => (
-                <EventSubRow key={e.id} e={e} onOpen={onOpenEvent} onToggle={onToggleEvent} />
-              ))}
-            </ul>
-          )}
-          <form className="bsheet__add" onSubmit={(e) => void submitQuickAdd(e)}>
-            <input
-              ref={inputRef}
-              className="input"
-              placeholder="Agregar al plan…"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              maxLength={200}
-              autoCapitalize="sentences"
-              autoCorrect="on"
-              enterKeyHint="done"
-            />
-            <input
-              className="input bsheet__add-time"
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              aria-label="Hora (opcional)"
-            />
-            <button
-              type="submit"
-              className="iconbtn"
-              disabled={!title.trim() || adding}
-              aria-label="Agregar al plan"
-            >
-              <IconPlus size={18} />
+    <Sheet onClose={onClose} label={it.goal.title} style={nicheAccent(it.goal.area)}>
+      {(close) => (
+        <>
+          <div className="row row--between">
+            <h2 style={{ fontSize: 'var(--fs-lg)' }}>{it.goal.title}</h2>
+            <button type="button" className="iconbtn iconbtn--sm" onClick={close} aria-label="Cerrar">
+              <IconClose />
             </button>
-          </form>
-        </div>
+          </div>
+          <p className="small muted bsheet__when">
+            {it.span.start ? `${rangeLabel(it.span.start, it.span.end)} · ` : ''}
+            {it.targetLabel}
+            {showState && <SessionStateTag state={it.state} />}
+          </p>
 
-        {it.session ? (
-          <button
-            className="btn btn--primary btn--block"
-            onClick={() => onOpenSession(it.session as Session)}
-          >
-            {openToday
-              ? it.session.status === 'running'
-                ? 'Continuar la sesión'
-                : 'Empezar ahora'
-              : 'Ver el detalle de la sesión'}
-          </button>
-        ) : (
-          <button className="btn btn--primary btn--block" onClick={onSetTime}>
-            Fijar la hora
-          </button>
-        )}
-        {it.session && !isClosed && (
-          <button className="btn btn--ghost btn--block" onClick={onSetTime}>
-            Cambiar la hora
-          </button>
-        )}
-      </div>
-    </div>
+          <div className="stack stack--sm">
+            {sub.length > 0 && (
+              <ul className="ev__sublist bsheet__list">
+                {sub.map((e) => (
+                  <EventSubRow key={e.id} e={e} onOpen={onOpenEvent} onToggle={onToggleEvent} />
+                ))}
+              </ul>
+            )}
+            <form className="bsheet__add" onSubmit={(e) => void submitQuickAdd(e)}>
+              <input
+                ref={inputRef}
+                className="input"
+                placeholder="Agregar al plan…"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={200}
+                autoCapitalize="sentences"
+                autoCorrect="on"
+                enterKeyHint="done"
+              />
+              <input
+                className="input bsheet__add-time"
+                type="time"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                aria-label="Hora (opcional)"
+              />
+              <button
+                type="submit"
+                className="iconbtn"
+                disabled={!title.trim() || adding}
+                aria-label="Agregar al plan"
+              >
+                <IconPlus size={18} />
+              </button>
+            </form>
+          </div>
+
+          {it.session ? (
+            <button
+              className="btn btn--primary btn--block"
+              onClick={() => onOpenSession(it.session as Session)}
+            >
+              {openToday
+                ? it.session.status === 'running'
+                  ? 'Continuar la sesión'
+                  : 'Empezar ahora'
+                : 'Ver el detalle de la sesión'}
+            </button>
+          ) : (
+            <button className="btn btn--primary btn--block" onClick={onSetTime}>
+              Fijar la hora
+            </button>
+          )}
+          {it.session && !isClosed && (
+            <button className="btn btn--ghost btn--block" onClick={onSetTime}>
+              Cambiar la hora
+            </button>
+          )}
+        </>
+      )}
+    </Sheet>
   )
 }
 
@@ -1072,15 +1060,6 @@ function ReorganizeSheet({
     Object.fromEntries(events.map((e) => [e.id, e.startTime ?? ''])),
   )
   const [saving, setSaving] = useState(false)
-  const panelRef = useRef<HTMLDivElement>(null)
-  useFocusTrap(panelRef, onClose)
-  useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prev
-    }
-  }, [])
 
   const empty = sessions.length === 0 && habitRows.length === 0 && events.length === 0
 
@@ -1109,9 +1088,10 @@ function ReorganizeSheet({
   /**
    * Aplica solo lo modificado, en secuencia. Al primer error se detiene: el
    * de migración pendiente (`missing-column`) muestra SU mensaje una vez; los
-   * demás, el genérico. La hoja solo se cierra si todo salió.
+   * demás, el genérico. La hoja solo se cierra si todo salió (y se va animada:
+   * guardar no desmonta la hoja, el cierre es nuestro).
    */
-  async function save() {
+  async function save(close: () => void) {
     if (saving || !dirty) return
     setSaving(true)
     try {
@@ -1128,7 +1108,7 @@ function ReorganizeSheet({
         await onEventTime(e, eventDrafts[e.id])
       }
       toast('Día reorganizado.', 'success')
-      onClose()
+      close()
     } catch (err) {
       const code = (err as Error & { code?: string }).code
       toast(
@@ -1155,125 +1135,126 @@ function ReorganizeSheet({
   }
 
   return (
-    <div className="sheet" role="dialog" aria-modal="true">
-      <div className="sheet__backdrop" onClick={onClose} />
-      <div ref={panelRef} className="sheet__panel stack stack--lg">
-        <div className="row row--between">
-          <h2 style={{ fontSize: 'var(--fs-lg)' }}>Reorganizar el {formatWeekday(day)}</h2>
-          <button type="button" className="iconbtn iconbtn--sm" onClick={onClose} aria-label="Cerrar">
-            <IconClose />
-          </button>
-        </div>
-        <p className="small muted" style={{ margin: 0 }}>
-          Cambia las horas SOLO de este día. Tu rutina de siempre no se toca.
-        </p>
-
-        {empty && <p className="faint small">Nada con hora que reorganizar este día.</p>}
-
-        {sessions.length > 0 && (
-          <div className="stack stack--sm">
-            <p className="reorg-kicker">Sesiones</p>
-            {sessions.map((s) => (
-              <div key={s.key} className="reorg-row" style={nicheAccent(s.goal.area)}>
-                <span className="reorg-row__icon">
-                  <NicheIcon area={s.goal.area} size={14} />
-                </span>
-                <span className="reorg-row__label">{s.goal.title}</span>
-                <input
-                  className="input reorg-row__time"
-                  type="time"
-                  value={sessionDrafts[s.key] ?? ''}
-                  onChange={(e) =>
-                    setSessionDrafts((prev) => ({ ...prev, [s.key]: e.target.value }))
-                  }
-                  aria-label={`Hora de la sesión de ${s.goal.title}`}
-                />
-              </div>
-            ))}
+    <Sheet onClose={onClose} label={`Reorganizar el ${formatWeekday(day)}`}>
+      {(close) => (
+        <>
+          <div className="row row--between">
+            <h2 style={{ fontSize: 'var(--fs-lg)' }}>Reorganizar el {formatWeekday(day)}</h2>
+            <button type="button" className="iconbtn iconbtn--sm" onClick={close} aria-label="Cerrar">
+              <IconClose />
+            </button>
           </div>
-        )}
+          <p className="small muted" style={{ margin: 0 }}>
+            Cambia las horas SOLO de este día. Tu rutina de siempre no se toca.
+          </p>
 
-        {habitRows.length > 0 && (
-          <div className="stack stack--sm">
-            <p className="reorg-kicker">Hábitos</p>
-            {habitRows.map((r) => {
-              const drafts = habitDrafts[r.habit.id] ?? ['']
-              return (
-                <div key={r.habit.id} className="reorg-habit" style={nicheAccent(r.habit.area)}>
-                  {drafts.map((t, i) => (
-                    <div key={i} className="reorg-row">
-                      <span className="reorg-row__icon">
-                        {i === 0 && <NicheIcon area={r.habit.area} size={14} />}
-                      </span>
-                      <span className="reorg-row__label">
-                        {i === 0 ? (
-                          r.habit.title
-                        ) : (
-                          <span className="faint">Repetición {i + 1}</span>
-                        )}
-                      </span>
-                      <input
-                        className="input reorg-row__time"
-                        type="time"
-                        value={t}
-                        onChange={(e) =>
-                          setHabitDrafts((prev) => ({
-                            ...prev,
-                            [r.habit.id]: drafts.map((x, j) => (j === i ? e.target.value : x)),
-                          }))
-                        }
-                        aria-label={`Hora de ${r.habit.title}${
-                          drafts.length > 1 ? `, repetición ${i + 1}` : ''
-                        }`}
-                      />
-                    </div>
-                  ))}
-                  {r.hasOverride && (
-                    <button
-                      type="button"
-                      className="btn--link reorg-clear"
-                      onClick={() => void clearOverride(r)}
-                    >
-                      Volver a su horario de siempre
-                    </button>
-                  )}
+          {empty && <p className="faint small">Nada con hora que reorganizar este día.</p>}
+
+          {sessions.length > 0 && (
+            <div className="stack stack--sm">
+              <p className="reorg-kicker">Sesiones</p>
+              {sessions.map((s) => (
+                <div key={s.key} className="reorg-row" style={nicheAccent(s.goal.area)}>
+                  <span className="reorg-row__icon">
+                    <NicheIcon area={s.goal.area} size={14} />
+                  </span>
+                  <span className="reorg-row__label">{s.goal.title}</span>
+                  <input
+                    className="input reorg-row__time"
+                    type="time"
+                    value={sessionDrafts[s.key] ?? ''}
+                    onChange={(e) =>
+                      setSessionDrafts((prev) => ({ ...prev, [s.key]: e.target.value }))
+                    }
+                    aria-label={`Hora de la sesión de ${s.goal.title}`}
+                  />
                 </div>
-              )
-            })}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
 
-        {events.length > 0 && (
-          <div className="stack stack--sm">
-            <p className="reorg-kicker">Eventos</p>
-            {events.map((e) => (
-              <div key={e.id} className="reorg-row">
-                <span className="reorg-row__label">{e.title}</span>
-                <input
-                  className="input reorg-row__time"
-                  type="time"
-                  value={eventDrafts[e.id] ?? ''}
-                  onChange={(ev) =>
-                    setEventDrafts((prev) => ({ ...prev, [e.id]: ev.target.value }))
-                  }
-                  aria-label={`Hora de inicio de ${e.title}`}
-                />
-              </div>
-            ))}
-          </div>
-        )}
+          {habitRows.length > 0 && (
+            <div className="stack stack--sm">
+              <p className="reorg-kicker">Hábitos</p>
+              {habitRows.map((r) => {
+                const drafts = habitDrafts[r.habit.id] ?? ['']
+                return (
+                  <div key={r.habit.id} className="reorg-habit" style={nicheAccent(r.habit.area)}>
+                    {drafts.map((t, i) => (
+                      <div key={i} className="reorg-row">
+                        <span className="reorg-row__icon">
+                          {i === 0 && <NicheIcon area={r.habit.area} size={14} />}
+                        </span>
+                        <span className="reorg-row__label">
+                          {i === 0 ? (
+                            r.habit.title
+                          ) : (
+                            <span className="faint">Repetición {i + 1}</span>
+                          )}
+                        </span>
+                        <input
+                          className="input reorg-row__time"
+                          type="time"
+                          value={t}
+                          onChange={(e) =>
+                            setHabitDrafts((prev) => ({
+                              ...prev,
+                              [r.habit.id]: drafts.map((x, j) => (j === i ? e.target.value : x)),
+                            }))
+                          }
+                          aria-label={`Hora de ${r.habit.title}${
+                            drafts.length > 1 ? `, repetición ${i + 1}` : ''
+                          }`}
+                        />
+                      </div>
+                    ))}
+                    {r.hasOverride && (
+                      <button
+                        type="button"
+                        className="btn--link reorg-clear"
+                        onClick={() => void clearOverride(r)}
+                      >
+                        Volver a su horario de siempre
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
 
-        {!empty && (
-          <button
-            className="btn btn--primary btn--block"
-            disabled={!dirty || saving}
-            onClick={() => void save()}
-          >
-            {saving ? 'Guardando…' : 'Guardar cambios'}
-          </button>
-        )}
-      </div>
-    </div>
+          {events.length > 0 && (
+            <div className="stack stack--sm">
+              <p className="reorg-kicker">Eventos</p>
+              {events.map((e) => (
+                <div key={e.id} className="reorg-row">
+                  <span className="reorg-row__label">{e.title}</span>
+                  <input
+                    className="input reorg-row__time"
+                    type="time"
+                    value={eventDrafts[e.id] ?? ''}
+                    onChange={(ev) =>
+                      setEventDrafts((prev) => ({ ...prev, [e.id]: ev.target.value }))
+                    }
+                    aria-label={`Hora de inicio de ${e.title}`}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!empty && (
+            <button
+              className="btn btn--primary btn--block"
+              disabled={!dirty || saving}
+              onClick={() => void save(close)}
+            >
+              {saving ? 'Guardando…' : 'Guardar cambios'}
+            </button>
+          )}
+        </>
+      )}
+    </Sheet>
   )
 }
 
@@ -1289,43 +1270,35 @@ function PlanSessionSheet({
   onPick: (g: Goal) => void
   onClose: () => void
 }) {
-  const panelRef = useRef<HTMLDivElement>(null)
-  useFocusTrap(panelRef, onClose)
-  useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prev
-    }
-  }, [])
   return (
-    <div className="sheet" role="dialog" aria-modal="true">
-      <div className="sheet__backdrop" onClick={onClose} />
-      <div ref={panelRef} className="sheet__panel stack stack--lg">
-        <div className="row row--between">
-          <h2 style={{ fontSize: 'var(--fs-lg)' }}>¿A qué meta le sumas una sesión?</h2>
-          <button type="button" className="iconbtn iconbtn--sm" onClick={onClose} aria-label="Cerrar">
-            <IconClose />
-          </button>
-        </div>
-        <p className="small muted" style={{ margin: 0 }}>
-          Se agrega para el {formatWeekday(date)}, además de tu compromiso.
-        </p>
-        <div className="stack stack--sm">
-          {goals.map((g) => (
-            <button
-              key={g.id}
-              type="button"
-              className="chip"
-              style={{ justifyContent: 'flex-start' }}
-              onClick={() => onPick(g)}
-            >
-              <NicheIcon area={g.area} size={14} /> {g.title}
+    <Sheet onClose={onClose} label="¿A qué meta le sumas una sesión?">
+      {(close) => (
+        <>
+          <div className="row row--between">
+            <h2 style={{ fontSize: 'var(--fs-lg)' }}>¿A qué meta le sumas una sesión?</h2>
+            <button type="button" className="iconbtn iconbtn--sm" onClick={close} aria-label="Cerrar">
+              <IconClose />
             </button>
-          ))}
-        </div>
-      </div>
-    </div>
+          </div>
+          <p className="small muted" style={{ margin: 0 }}>
+            Se agrega para el {formatWeekday(date)}, además de tu compromiso.
+          </p>
+          <div className="stack stack--sm">
+            {goals.map((g) => (
+              <button
+                key={g.id}
+                type="button"
+                className="chip"
+                style={{ justifyContent: 'flex-start' }}
+                onClick={() => onPick(g)}
+              >
+                <NicheIcon area={g.area} size={14} /> {g.title}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </Sheet>
   )
 }
 
@@ -1352,61 +1325,53 @@ function TimeSheet({
 }) {
   const initialTime = block?.startTime ?? session?.plannedTime ?? suggested ?? ''
   const [time, setTime] = useState(initialTime)
-  const panelRef = useRef<HTMLDivElement>(null)
-  useFocusTrap(panelRef, onClose)
-  useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prev
-    }
-  }, [])
   const target = block ?? session
   const hadTime = block ? block.startTime : session?.plannedTime
   return (
-    <div className="sheet" role="dialog" aria-modal="true">
-      <div className="sheet__backdrop" onClick={onClose} />
-      <div ref={panelRef} className="sheet__panel stack stack--lg">
-        <div className="row row--between">
-          <h2 style={{ fontSize: 'var(--fs-lg)' }}>¿A qué hora te queda cómodo?</h2>
-          <button type="button" className="iconbtn iconbtn--sm" onClick={onClose} aria-label="Cerrar">
-            <IconClose />
-          </button>
-        </div>
-        <p className="small muted" style={{ margin: 0 }}>
-          Sesión de <strong>{goal.title}</strong>
-          {block ? ` · todos los ${WEEKDAY_PLURALS[block.weekday]}` : ' · solo este día'}
-          {target &&
-            ` · ${target.targetKind === 'time' ? formatDuration(target.targetValue) : `${target.targetValue} ${target.unit ?? ''}`}`}
-        </p>
-        <input
-          className="input"
-          type="time"
-          value={time}
-          onChange={(e) => setTime(e.target.value)}
-          aria-label="Hora de la sesión"
-        />
-        {target?.targetKind === 'time' && time && (
-          <p className="faint tiny" style={{ margin: 0 }} aria-live="polite">
-            Quedaría {rangeLabel(time, sessionSpan(time, target.targetKind, target.targetValue).end)}
-            . La duración se ajusta desde el detalle de la meta.
+    <Sheet onClose={onClose} label="¿A qué hora te queda cómodo?">
+      {(close) => (
+        <>
+          <div className="row row--between">
+            <h2 style={{ fontSize: 'var(--fs-lg)' }}>¿A qué hora te queda cómodo?</h2>
+            <button type="button" className="iconbtn iconbtn--sm" onClick={close} aria-label="Cerrar">
+              <IconClose />
+            </button>
+          </div>
+          <p className="small muted" style={{ margin: 0 }}>
+            Sesión de <strong>{goal.title}</strong>
+            {block ? ` · todos los ${WEEKDAY_PLURALS[block.weekday]}` : ' · solo este día'}
+            {target &&
+              ` · ${target.targetKind === 'time' ? formatDuration(target.targetValue) : `${target.targetValue} ${target.unit ?? ''}`}`}
           </p>
-        )}
-        <button className="btn btn--primary btn--block" disabled={!time} onClick={() => onSave(time)}>
-          {block ? `Guardar para todos los ${WEEKDAY_PLURALS[block.weekday]}` : 'Guardar la hora'}
-        </button>
-        {hadTime && (
-          <button className="btn btn--ghost btn--block" onClick={() => onSave(null)}>
-            Quitar hora
+          <input
+            className="input"
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            aria-label="Hora de la sesión"
+          />
+          {target?.targetKind === 'time' && time && (
+            <p className="faint tiny" style={{ margin: 0 }} aria-live="polite">
+              Quedaría {rangeLabel(time, sessionSpan(time, target.targetKind, target.targetValue).end)}
+              . La duración se ajusta desde el detalle de la meta.
+            </p>
+          )}
+          <button className="btn btn--primary btn--block" disabled={!time} onClick={() => onSave(time)}>
+            {block ? `Guardar para todos los ${WEEKDAY_PLURALS[block.weekday]}` : 'Guardar la hora'}
           </button>
-        )}
-        {onDelete && (
-          <button className="btn btn--ghost btn--block" onClick={onDelete}>
-            Quitar esta sesión
-          </button>
-        )}
-      </div>
-    </div>
+          {hadTime && (
+            <button className="btn btn--ghost btn--block" onClick={() => onSave(null)}>
+              Quitar hora
+            </button>
+          )}
+          {onDelete && (
+            <button className="btn btn--ghost btn--block" onClick={onDelete}>
+              Quitar esta sesión
+            </button>
+          )}
+        </>
+      )}
+    </Sheet>
   )
 }
 
@@ -1477,28 +1442,17 @@ function EventEditor({
   )
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
-  const panelRef = useRef<HTMLFormElement>(null)
-
-  function close() {
+  // Cerrar a propósito (✕, fondo, Escape, arrastre) tira el borrador: lo corre
+  // la hoja cuando termina su animación de salida.
+  function discardDraft() {
     clearFormDraft(draftKey)
     onClose()
   }
-  useFocusTrap(panelRef, close)
 
   useEffect(() => {
     saveFormDraft(draftKey, { title, eventDate, allDay, startTime, endTime, goalId, notes })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, eventDate, allDay, startTime, endTime, goalId, notes])
-
-  // Body-lock mientras el sheet está abierto: el fondo no scrollea, no hay leakage
-  // de gestos. Restauramos el estado anterior al cerrar para no pisar usos previos.
-  useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prev
-    }
-  }, [])
 
   /** Fija la hora de inicio y, si el fin está vacío, lo prellena a inicio + 1 h. */
   function pickStartTime(value: string) {
@@ -1566,130 +1520,136 @@ function EventEditor({
   }
 
   return (
-    <div className="sheet" role="dialog" aria-modal="true">
-      <div className="sheet__backdrop" onClick={close} />
-      <form ref={panelRef} className="sheet__panel stack stack--lg" onSubmit={handleSubmit}>
-        <div className="row row--between">
-          <h2 style={{ fontSize: 'var(--fs-lg)' }}>{initial ? 'Editar evento' : 'Nuevo evento'}</h2>
-          <button type="button" className="iconbtn iconbtn--sm" onClick={close} aria-label="Cerrar">
-            <IconClose />
-          </button>
-        </div>
+    <Sheet
+      onClose={discardDraft}
+      label={initial ? 'Editar evento' : 'Nuevo evento'}
+      as="form"
+      onSubmit={handleSubmit}
+    >
+      {(close) => (
+        <>
+          <div className="row row--between">
+            <h2 style={{ fontSize: 'var(--fs-lg)' }}>{initial ? 'Editar evento' : 'Nuevo evento'}</h2>
+            <button type="button" className="iconbtn iconbtn--sm" onClick={close} aria-label="Cerrar">
+              <IconClose />
+            </button>
+          </div>
 
-        <input
-          className="input"
-          autoFocus
-          placeholder="¿Qué tienes? Ej: Clase de inglés"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          maxLength={200}
-          autoCapitalize="sentences"
-          autoCorrect="on"
-          enterKeyHint="next"
-          inputMode="text"
-        />
-
-        <div className="field">
-          <span className="field__label">Cuándo</span>
-          {eventDate && <span className="muted small">{formatWeekday(eventDate)}</span>}
           <input
             className="input"
-            type="date"
-            value={eventDate}
-            onChange={(e) => setEventDate(e.target.value)}
-          />
-          <div className="seg" role="group" aria-label="Tipo de evento" style={{ alignSelf: 'flex-start' }}>
-            <button
-              type="button"
-              className={`seg__btn${allDay ? ' seg__btn--active' : ''}`}
-              aria-pressed={allDay}
-              onClick={() => setAllDay(true)}
-            >
-              Todo el día
-            </button>
-            <button
-              type="button"
-              className={`seg__btn${!allDay ? ' seg__btn--active' : ''}`}
-              aria-pressed={!allDay}
-              onClick={enableSchedule}
-            >
-              Con horario
-            </button>
-          </div>
-          {!allDay && (
-            <>
-              <div className="row">
-                <input
-                  className="input"
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => pickStartTime(e.target.value)}
-                  aria-label="Hora de inicio"
-                />
-                <span className="faint">a</span>
-                <input
-                  className="input"
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  aria-label="Hora de fin"
-                />
-              </div>
-              {timeRangeInvalid && (
-                <p className="alert alert--error" role="alert" style={{ marginTop: 'var(--s2)' }}>
-                  La hora de fin tiene que ser posterior a la de inicio.
-                </p>
-              )}
-            </>
-          )}
-        </div>
-
-        {goals.length > 0 && (
-          <div className="field">
-            <span className="field__label">¿Es para una meta?</span>
-            <span className="field__hint">
-              Opcional. Vincularlo suma a lo agendado de esa meta.
-            </span>
-            <select className="input" value={goalId} onChange={(e) => setGoalId(e.target.value)}>
-              <option value="">Sin meta</option>
-              {goals.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.title}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        <div className="field">
-          <span className="field__label">Notas</span>
-          <textarea
-            className="textarea"
-            placeholder="Detalles, lugar, link… (opcional)"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            autoFocus
+            placeholder="¿Qué tienes? Ej: Clase de inglés"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={200}
             autoCapitalize="sentences"
             autoCorrect="on"
-            enterKeyHint="enter"
+            enterKeyHint="next"
+            inputMode="text"
           />
-        </div>
 
-        {err && <div className="alert alert--error">{err}</div>}
+          <div className="field">
+            <span className="field__label">Cuándo</span>
+            {eventDate && <span className="muted small">{formatWeekday(eventDate)}</span>}
+            <input
+              className="input"
+              type="date"
+              value={eventDate}
+              onChange={(e) => setEventDate(e.target.value)}
+            />
+            <div className="seg" role="group" aria-label="Tipo de evento" style={{ alignSelf: 'flex-start' }}>
+              <button
+                type="button"
+                className={`seg__btn${allDay ? ' seg__btn--active' : ''}`}
+                aria-pressed={allDay}
+                onClick={() => setAllDay(true)}
+              >
+                Todo el día
+              </button>
+              <button
+                type="button"
+                className={`seg__btn${!allDay ? ' seg__btn--active' : ''}`}
+                aria-pressed={!allDay}
+                onClick={enableSchedule}
+              >
+                Con horario
+              </button>
+            </div>
+            {!allDay && (
+              <>
+                <div className="row">
+                  <input
+                    className="input"
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => pickStartTime(e.target.value)}
+                    aria-label="Hora de inicio"
+                  />
+                  <span className="faint">a</span>
+                  <input
+                    className="input"
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    aria-label="Hora de fin"
+                  />
+                </div>
+                {timeRangeInvalid && (
+                  <p className="alert alert--error" role="alert" style={{ marginTop: 'var(--s2)' }}>
+                    La hora de fin tiene que ser posterior a la de inicio.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
 
-        <button className="btn btn--primary btn--block" type="submit" disabled={!canSave || saving}>
-          {saving ? 'Guardando…' : initial ? 'Guardar cambios' : 'Crear evento'}
-        </button>
-        {initial && (
-          <button
-            type="button"
-            className="btn btn--danger btn--block"
-            onClick={handleDelete}
-            disabled={saving}
-          >
-            Borrar evento
+          {goals.length > 0 && (
+            <div className="field">
+              <span className="field__label">¿Es para una meta?</span>
+              <span className="field__hint">
+                Opcional. Vincularlo suma a lo agendado de esa meta.
+              </span>
+              <select className="input" value={goalId} onChange={(e) => setGoalId(e.target.value)}>
+                <option value="">Sin meta</option>
+                {goals.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="field">
+            <span className="field__label">Notas</span>
+            <textarea
+              className="textarea"
+              placeholder="Detalles, lugar, link… (opcional)"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              autoCapitalize="sentences"
+              autoCorrect="on"
+              enterKeyHint="enter"
+            />
+          </div>
+
+          {err && <div className="alert alert--error">{err}</div>}
+
+          <button className="btn btn--primary btn--block" type="submit" disabled={!canSave || saving}>
+            {saving ? 'Guardando…' : initial ? 'Guardar cambios' : 'Crear evento'}
           </button>
-        )}
-      </form>
-    </div>
+          {initial && (
+            <button
+              type="button"
+              className="btn btn--danger btn--block"
+              onClick={handleDelete}
+              disabled={saving}
+            >
+              Borrar evento
+            </button>
+          )}
+        </>
+      )}
+    </Sheet>
   )
 }

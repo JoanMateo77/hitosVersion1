@@ -1097,10 +1097,13 @@
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   padding: calc(var(--s6) + 8px) var(--s5) calc(var(--safe-bottom) + var(--s5));
   box-shadow: var(--shadow);
-  animation: sheet-up 320ms var(--ease-ios);
+  animation: sheet-up var(--dur-layout) var(--ease-ios);
+  /* El arrastre escribe transform inline; al soltar cerca, vuelve con esto. */
+  transition: transform var(--dur-state) var(--ease-out);
   touch-action: pan-y;
 }
-/* Grabber: el indicador visual que dice "esto es una hoja, podés arrastrarla". */
+/* Grabber: el indicador visual que dice "esto es una hoja, puedes arrastrarla".
+   La zona de arrastre vive en el JS de Sheet (los 48 px superiores del panel). */
 .sheet__panel::before {
   content: '';
   position: absolute;
@@ -1116,7 +1119,15 @@
   position: absolute;
   inset: 0;
   background: rgba(12, 10, 8, 0.62);
-  animation: sheet-fade 220ms var(--ease-out);
+  animation: sheet-fade var(--dur-state) var(--ease-out);
+}
+/* Salida: la hoja se va hacia abajo y el fondo se apaga. `sheet-down` solo
+   define el destino, así arranca desde donde la dejó el arrastre. */
+.sheet--closing .sheet__panel {
+  animation: sheet-down var(--dur-state) var(--ease-ios) forwards;
+}
+.sheet--closing .sheet__backdrop {
+  animation: sheet-fade 160ms ease-in reverse forwards;
 }
 @keyframes sheet-up {
   from {
@@ -1124,6 +1135,11 @@
   }
   to {
     transform: translateY(0);
+  }
+}
+@keyframes sheet-down {
+  to {
+    transform: translateY(100%);
   }
 }
 @keyframes sheet-fade {
