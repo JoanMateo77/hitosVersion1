@@ -1934,6 +1934,13 @@ select.input {
   color: var(--text);
 }
 
+.novedades__list {
+  margin: 0;
+  padding-left: 1.1em;
+  display: grid;
+  gap: 4px;
+}
+
 /* ---- Toast — feedback operativo efímero ------------------------------- */
 .toast {
   position: fixed;

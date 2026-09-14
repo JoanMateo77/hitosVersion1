@@ -9,6 +9,8 @@ import { IconMoon, IconSun, IconSunrise } from '@/components/icons'
 import { FRAMES, frameForStreak } from '@/domain/frames'
 import { useCachedData } from '@/hooks/useCachedData'
 import { Disclosure } from '@/components/Disclosure'
+import { NOVEDADES } from '@/content/novedades'
+import { formatLongDate } from '@/lib/date'
 import type { PreferredMoment } from '@/lib/types'
 
 const MOMENTS: { id: PreferredMoment; label: string; Icon: ComponentType<{ size?: number }> }[] = [
@@ -283,6 +285,22 @@ export function ProfileScreen() {
             El marco se gana cumpliendo tus días comprometidos y rodea tu foto en toda la app. Si la
             racha se corta, el marco se pierde: refleja tu constancia de hoy, no tu récord histórico.
           </p>
+        </Disclosure>
+        <Disclosure summary="Novedades">
+          <div className="stack">
+            {NOVEDADES.map((n) => (
+              <div key={n.id} className="stack stack--sm">
+                <span className="small">
+                  <strong>{n.titulo}</strong> <span className="faint tiny">· {formatLongDate(n.id)}</span>
+                </span>
+                <ul className="novedades__list small muted">
+                  {n.items.map((t) => (
+                    <li key={t}>{t}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </Disclosure>
       </section>
 

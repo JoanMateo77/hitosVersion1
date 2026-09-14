@@ -59,15 +59,18 @@ import {
   IconChevronRight,
   IconClock,
   IconFlame,
+  IconHito,
   IconPlus,
   IconQuote,
   IconSprout,
 } from '@/components/icons'
 import { NicheIcon } from '@/components/NicheGlyph'
 import { useCheer } from '@/hooks/useCheer'
+import { useNovedades } from '@/hooks/useNovedades'
 import { useToast } from '@/app/toast'
 import { ensureCommitmentBackfill } from '@/services/backfill'
 import { syncTimezone } from '@/lib/push'
+import { safeGetItem, safeSetItem } from '@/lib/storage'
 import { sessionCache } from '@/lib/sessionCache'
 import { useCacheMirror } from '@/hooks/useCacheMirror'
 import '@/styles/today.css'
@@ -122,6 +125,7 @@ export function Today() {
   // diario de la meta no debería quedarse sin entradas justo ahí.
   const [notePrompt, setNotePrompt] = useState<{ sessionId: string; text: string } | null>(null)
   const { cheerMessage, cheerLeaving, cheer } = useCheer()
+  const { novedad, cerrar: cerrarNovedades } = useNovedades()
   const { toast } = useToast()
 
   // Garantiza que el cierre de sesiones viejas y la generación del día corran
@@ -547,20 +551,22 @@ export function Today() {
   // UNA sola voz por vista. Prioridad: consecuencia de una acción del usuario
   // (celebración, racha rota) > pregunta que la app necesita (sin confirmar,
   // revisión, olvidada) > sugerencia (arrastre de ayer).
-  type Voice = 'cheer' | 'streak' | 'resolve' | 'review' | 'forgotten' | 'carryover' | null
-  const voice: Voice = cheerMessage
-    ? 'cheer'
-    : showStreakNotice && streakBroken
-      ? 'streak'
-      : toResolve
-        ? 'resolve'
-        : reviewDue.length > 0
-          ? 'review'
-          : forgotten
-            ? 'forgotten'
-            : yesterdayPending.length > 0
-              ? 'carryover'
-              : null
+  type Voice = 'novedades' | 'cheer' | 'streak' | 'resolve' | 'review' | 'forgotten' | 'carryover' | null
+  const voice: Voice = novedad
+    ? 'novedades'
+    : cheerMessage
+      ? 'cheer'
+      : showStreakNotice && streakBroken
+        ? 'streak'
+        : toResolve
+          ? 'resolve'
+          : reviewDue.length > 0
+            ? 'review'
+            : forgotten
+              ? 'forgotten'
+              : yesterdayPending.length > 0
+                ? 'carryover'
+                : null
 
   return (
     <div className="screen" data-warm={warm ? '' : undefined}>
@@ -635,6 +641,23 @@ export function Today() {
                 {runningSession.pausedAt ? 'En pausa — toca para continuar' : 'Toca para abrir el cronómetro'}
               </span>
             </button>
+          )}
+
+          {voice === 'novedades' && novedad && (
+            <div className="card card--tight today-notice stack stack--sm" role="status">
+              <span className="row row--sm small" style={{ alignItems: 'center' }}>
+                <IconHito size={16} />
+                <strong>Novedades · {novedad.titulo}</strong>
+              </span>
+              <ul className="novedades__list small muted">
+                {novedad.items.map((t) => (
+                  <li key={t}>{t}</li>
+                ))}
+              </ul>
+              <button className="btn btn--sm btn--subtle today-self-start" onClick={cerrarNovedades}>
+                Entendido
+              </button>
+            </div>
           )}
 
           {voice === 'cheer' && cheerMessage && (
@@ -938,20 +961,4 @@ export function Today() {
       </div>
     </div>
   )
-}
-
-/** localStorage tolerante (Safari privado, storage lleno): nunca rompe el render. */
-function safeGetItem(key: string): string | null {
-  try {
-    return localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}
-function safeSetItem(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value)
-  } catch {
-    /* ignore */
-  }
 }
