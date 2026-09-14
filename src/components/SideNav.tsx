@@ -29,6 +29,13 @@ export function SideNav() {
   const { pathname } = useLocation()
   const initial = (email.charAt(0) || '·').toUpperCase()
   const days = daysSince(profile.createdAt)
+  const activeIndex = NAV.findIndex((item) => {
+    const alsoMatch = 'alsoMatch' in item ? item.alsoMatch : undefined
+    return item.to === '/'
+      ? pathname === '/'
+      : pathname.startsWith(item.to) ||
+          (alsoMatch !== undefined && pathname.startsWith(alsoMatch))
+  })
 
   // Foto y marco por racha, igual que en la TopBar móvil (misma clave de cache:
   // un solo cálculo por sesión entre las tres superficies).
@@ -78,7 +85,7 @@ export function SideNav() {
       </div>
 
       <nav className="sidenav__nav">
-        {NAV.map((item) => {
+        {NAV.map((item, index) => {
           const alsoMatch = 'alsoMatch' in item ? item.alsoMatch : undefined
           const { to, label, Icon } = item
           return (
@@ -94,7 +101,7 @@ export function SideNav() {
                 }`
               }
             >
-              <Icon size={20} />
+              <Icon size={20} filled={index === activeIndex} />
               <span>{label}</span>
             </NavLink>
           )

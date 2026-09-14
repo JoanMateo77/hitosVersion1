@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   IconCalendar,
@@ -21,12 +22,23 @@ const TABS = [
 
 export function BottomNav() {
   const { pathname } = useLocation()
+  const activeIndex = TABS.findIndex((tab) => {
+    const alsoMatch = 'alsoMatch' in tab ? tab.alsoMatch : undefined
+    return tab.to === '/'
+      ? pathname === '/'
+      : pathname.startsWith(tab.to) ||
+          (alsoMatch !== undefined && pathname.startsWith(alsoMatch))
+  })
   return (
     <nav className="bottomnav" aria-label="Navegación principal">
-      <div className="bottomnav__inner">
-        {TABS.map((tab) => {
+      <div
+        className="bottomnav__inner"
+        style={{ '--tab': Math.max(0, activeIndex) } as CSSProperties}
+      >
+        {TABS.map((tab, index) => {
           const alsoMatch = 'alsoMatch' in tab ? tab.alsoMatch : undefined
           const { to, label, Icon } = tab
+          const active = index === activeIndex
           return (
             <NavLink
               key={to}
@@ -41,7 +53,7 @@ export function BottomNav() {
                 }`
               }
             >
-              <Icon size={23} />
+              <Icon size={23} filled={active} />
               <span>{label}</span>
             </NavLink>
           )
