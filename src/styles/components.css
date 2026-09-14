@@ -3436,3 +3436,47 @@ button.ag-row:active,
     padding-left: 0;
   }
 }
+
+/* ==== Desplegable (Disclosure) ==============================================
+   <details> nativo con resumen a la izquierda y chevron a la derecha. Es la
+   gramática única para plegar historia, metadatos y explicaciones. */
+.disclosure {
+  width: 100%;
+}
+.disclosure__summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  min-height: 44px;
+  padding: var(--s2) 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.disclosure__summary::-webkit-details-marker {
+  display: none;
+}
+.disclosure__summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+.disclosure__chev {
+  display: inline-flex;
+  color: var(--text-faint);
+  transition: transform 0.2s var(--ease-out);
+}
+.disclosure[open] > .disclosure__summary .disclosure__chev {
+  transform: rotate(90deg);
+}
+.disclosure__body {
+  padding-top: var(--s2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .disclosure__chev {
+    transition: none;
+  }
+}
