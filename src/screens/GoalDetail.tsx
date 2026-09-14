@@ -19,14 +19,7 @@ import {
 } from '@/services/sessions'
 import { minutesByGoalInRange } from '@/services/events'
 import { listHabitChecksInRange, listHabits, setHabitCheck } from '@/services/habits'
-import {
-  habitCompleteDates,
-  habitDoneCount,
-  habitIsComplete,
-  habitStreak,
-  habitTarget,
-  nextSlot,
-} from '@/domain/habits'
+import { habitDoneCount, habitIsComplete, habitTarget, nextSlot } from '@/domain/habits'
 import { getTemplate } from '@/domain/templates'
 import { NICHES, getNiche } from '@/domain/niches'
 import { nicheAccent } from '@/lib/nicheAccent'
@@ -63,7 +56,6 @@ import {
   IconCheck,
   IconCompass,
   IconDots,
-  IconFlame,
   IconQuote,
   IconShare,
 } from '@/components/icons'
@@ -380,17 +372,8 @@ export function GoalDetail() {
   const consistency = weekConsistency(blocks, weekSessions, startOfWeek(todayISO()))
   const isActive = goal.status === 'active'
 
-  // Hábitos que suman a esta meta, con su racha — la zona de hábitos deja de ser una isla.
+  // Hábitos que suman a esta meta — la zona de hábitos deja de ser una isla.
   const linkedHabits = habits.filter((h) => h.goalId === goal.id && h.archivedAt === null)
-  // Un día cuenta solo si el hábito quedó COMPLETO (todas sus repeticiones):
-  // la misma vara que Hoy, Hábitos y Progreso.
-  const habitDates = new Map(linkedHabits.map((h) => [h.id, habitCompleteDates(h, habitChecks)]))
-  const habitStreaks = new Map(
-    linkedHabits.map((h) => [
-      h.id,
-      habitStreak(habitDates.get(h.id) ?? new Set(), h.weekdays, todayISO()),
-    ]),
-  )
   // El hábito de hoy se marca aquí mismo, sin salir de la meta.
   const todayDate = todayISO()
   const habitAppliesToday = (h: Habit) =>
@@ -635,16 +618,6 @@ export function GoalDetail() {
                       onClick={() => navigate('/habitos')}
                     >
                       <span className="small nowrap-ellipsis">{h.title}</span>
-                      {target > 1 && habitAppliesToday(h) && !done && (
-                        <span className="faint tiny" style={{ flex: 'none' }}>
-                          {doneCount} de {target} hoy
-                        </span>
-                      )}
-                      {(habitStreaks.get(h.id) ?? 0) >= 2 && (
-                        <span className="streak-chip" style={{ flex: 'none' }}>
-                          <IconFlame size={12} /> {habitStreaks.get(h.id)}
-                        </span>
-                      )}
                     </button>
                   </div>
                 )

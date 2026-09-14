@@ -231,7 +231,6 @@ function GoalPeek({
             <NicheGlyph area={goal.area} size="md" />
             <span className="goal-card__title">{goal.title}</span>
           </div>
-          {goal.why && <p className="small muted">Porque {goal.why}</p>}
           {nextTitle && (
             <p className="small" style={{ margin: 0 }}>
               <span className="faint">Siguiente:</span> {nextTitle}
@@ -320,11 +319,6 @@ function GoalCard({
               style={{ width: `${Math.round((progressDone / Math.max(1, progressTotal)) * 100)}%` }}
             />
           </div>
-          <span className="faint tiny">
-            {pathComplete
-              ? 'Camino completo'
-              : `Etapa ${progressDone + 1} de ${progressTotal}`}
-          </span>
         </div>
       )}
     </button>

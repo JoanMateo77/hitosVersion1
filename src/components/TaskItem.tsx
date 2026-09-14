@@ -6,8 +6,6 @@ interface TaskItemProps {
   task: Task
   /** Título de la meta de origen, si la acción deriva de una meta. */
   goalTitle?: string | null
-  /** Porqué de la meta, anclaje emocional que mostramos junto a la acción. */
-  goalWhy?: string | null
   /** True si la tarea pertenece al foco de la semana — borde verde a la izquierda. */
   isFocus?: boolean
   onToggle: () => void
@@ -18,7 +16,6 @@ interface TaskItemProps {
 export function TaskItem({
   task,
   goalTitle,
-  goalWhy,
   isFocus,
   onToggle,
   onEdit,
@@ -89,9 +86,6 @@ export function TaskItem({
               {goalTitle}
             </span>
           </span>
-        )}
-        {goalWhy && goalWhy.trim() && (
-          <span className="task__why faint tiny">Porque {goalWhy.trim()}</span>
         )}
       </div>
 

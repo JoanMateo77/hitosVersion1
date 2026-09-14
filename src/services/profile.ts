@@ -170,7 +170,7 @@ export async function uploadAvatar(userId: string, file: File): Promise<Profile>
 
 /**
  * Racha actual sobre días comprometidos, con la MISMA métrica que Progreso
- * (currentStreakCommitted sobre bloques de metas activas). Se carga hasta un
+ * (globalStreak sobre bloques de metas activas). Se carga hasta un
  * año de sesiones para que el marco Leyenda (≥50) pueda calcularse completo.
  */
 export async function fetchCurrentStreak(userId: string): Promise<number> {

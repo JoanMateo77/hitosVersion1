@@ -51,6 +51,7 @@ import { friendlyError } from '@/lib/errors'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { TaskItem } from '@/components/TaskItem'
 import { SessionCard } from '@/components/SessionCard'
+import { Disclosure } from '@/components/Disclosure'
 import { Hint } from '@/components/Hint'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
@@ -880,7 +881,6 @@ export function Today() {
                       key={task.id}
                       task={task}
                       goalTitle={null}
-                      goalWhy={null}
                       onToggle={() => toggleTask(task)}
                       onEdit={(title) => editTask(task, title)}
                       onRemove={() => removeTask(task)}
@@ -909,25 +909,24 @@ export function Today() {
 
           {todayEvents.length > 0 && (
             <section aria-label="Tu agenda de hoy" className="today-enter" style={enter(6)}>
-              <div className="section-head">
-                <span className="kicker">Tu agenda de hoy</span>
-                <button className="btn--link" onClick={() => navigate('/calendario')}>
-                  Ver agenda
-                </button>
-              </div>
-              <div className="stack stack--sm">
-                {todayEvents.map((e) => (
-                  <button
-                    key={e.id}
-                    className="ev"
-                    aria-label={`Ver "${e.title}" en la agenda`}
-                    onClick={() => navigate(`/calendario?d=${e.date}`)}
-                  >
-                    <span className="ev__time">{e.allDay || !e.startTime ? 'Día' : formatTime12(e.startTime)}</span>
-                    <span className="ev__title">{e.title}</span>
+              <Disclosure summary={`Tu agenda de hoy · ${todayEvents.length}`}>
+                <div className="stack stack--sm">
+                  {todayEvents.map((e) => (
+                    <button
+                      key={e.id}
+                      className="ev"
+                      aria-label={`Ver "${e.title}" en la agenda`}
+                      onClick={() => navigate(`/calendario?d=${e.date}`)}
+                    >
+                      <span className="ev__time">{e.allDay || !e.startTime ? 'Día' : formatTime12(e.startTime)}</span>
+                      <span className="ev__title">{e.title}</span>
+                    </button>
+                  ))}
+                  <button className="btn--link" onClick={() => navigate('/calendario')}>
+                    Ver agenda
                   </button>
-                ))}
-              </div>
+                </div>
+              </Disclosure>
             </section>
           )}
         </aside>

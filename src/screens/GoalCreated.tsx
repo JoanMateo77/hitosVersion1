@@ -4,7 +4,7 @@ import { getGoal } from '@/services/goals'
 import { listMilestones } from '@/services/milestones'
 import { listScheduleForGoal } from '@/services/schedule'
 import { getTemplate } from '@/domain/templates'
-import { WEEKDAY_LABELS, blockTimeLabel, formatCommitmentSummary, weekdayMon0 } from '@/domain/commitment'
+import { blockTimeLabel, formatCommitmentSummary, weekdayMon0 } from '@/domain/commitment'
 import { addDays, formatWeekday, todayISO } from '@/lib/date'
 import type { Goal, Milestone, ScheduleBlock } from '@/lib/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
@@ -105,13 +105,6 @@ export function GoalCreated() {
         {schedule.length > 0 && (
           <div className="card card--tight stack stack--sm">
             <span className="kicker">Tu compromiso</span>
-            <div className="row wrap">
-              {schedule.map((b) => (
-                <span key={b.id} className="tag">
-                  {WEEKDAY_LABELS[b.weekday]} · {blockTimeLabel(b)}
-                </span>
-              ))}
-            </div>
             <p className="small">{formatCommitmentSummary(schedule)}</p>
           </div>
         )}
