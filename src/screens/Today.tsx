@@ -36,7 +36,15 @@ import {
 import { HabitRow } from '@/components/HabitRow'
 import { compareEvents } from '@/domain/calendar'
 import { carryoverCandidates, findForgottenGoal, goalsDueForReview } from '@/domain/dailyPlan'
-import { bestStreakCommitted, currentStreakCommitted, formatClock, remainingSeconds } from '@/domain/sessions'
+import {
+  activeCommittedWeekdays,
+  bestStreakCommitted,
+  dayState,
+  doneDatesOf,
+  formatClock,
+  globalStreak,
+  remainingSeconds,
+} from '@/domain/sessions'
 import { WEEKDAY_LABELS, weekdayMon0 } from '@/domain/commitment'
 import { addDays, formatTime12, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
 import { friendlyError } from '@/lib/errors'
@@ -245,30 +253,28 @@ export function Today() {
   const doneCount = todaySessions.filter((x) => doneish(x.session)).length
   const allResolved = todaySessions.length > 0 && resolvedCount === todaySessions.length
 
+  // Días de la semana con compromiso de alguna meta activa (misma vara para
+  // la racha y para el estado de cada día de la tira semanal).
+  const committedWeekdays = useMemo(() => activeCommittedWeekdays(goals, blocks), [goals, blocks])
+
   // Racha sobre días comprometidos (los días sin compromiso no la rompen).
-  const streak = useMemo(() => {
-    const doneDates = new Set<string>()
-    for (const s of history) if (doneish(s)) doneDates.add(s.date)
-    for (const s of sessions) if (doneish(s)) doneDates.add(s.date)
-    const committedWeekdays = new Set(blocks.map((b) => b.weekday))
-    return currentStreakCommitted(doneDates, committedWeekdays, today)
-  }, [history, sessions, blocks, today])
+  const streak = useMemo(
+    () => globalStreak(goals, blocks, [...history, ...sessions], today),
+    [goals, history, sessions, blocks, today],
+  )
 
   // Racha recién rota: veníamos con racha (≥2) y el último día comprometido quedó
   // sin cumplir. El chip desaparecía sin explicación — el silencio es peor.
   const streakBroken = useMemo(() => {
     if (streak !== 0 || blocks.length === 0) return null
-    const doneDates = new Set<string>()
-    for (const s of history) if (doneish(s)) doneDates.add(s.date)
-    for (const s of sessions) if (doneish(s)) doneDates.add(s.date)
+    const doneDates = doneDatesOf([...history, ...sessions])
     if (doneDates.size === 0) return null
     const lastDone = [...doneDates].sort().pop()!
     if (lastDone < addDays(today, -14)) return null
-    const committed = new Set(blocks.map((b) => b.weekday))
-    const best = bestStreakCommitted(doneDates, committed, addDays(today, -119), today)
+    const best = bestStreakCommitted(doneDates, committedWeekdays, addDays(today, -119), today)
     if (best < 2) return null
     return { best, lastDone }
-  }, [streak, history, sessions, blocks, today])
+  }, [streak, history, sessions, blocks, committedWeekdays, today])
 
   const [streakNoticeDismissed, setStreakNoticeDismissed] = useState(false)
   const showStreakNotice =
@@ -435,14 +441,10 @@ export function Today() {
   }
 
   /** Estado agregado de un día para la tira semanal. */
-  function stripState(date: string): 'done' | 'partial' | 'missed' | 'future' | 'free' {
-    const isCommitted = blocks.some((b) => b.weekday === weekdayMon0(date))
+  function stripState(date: string) {
+    const committed = committedWeekdays.has(weekdayMon0(date))
     const day = (date === today ? sessions : history).filter((x) => x.date === date)
-    if (date > today) return isCommitted ? 'future' : 'free'
-    if (day.some((x) => x.status === 'done')) return 'done'
-    if (day.some((x) => x.status === 'partial')) return 'partial'
-    if (date === today) return isCommitted || day.length > 0 ? 'future' : 'free'
-    return day.length > 0 || isCommitted ? 'missed' : 'free'
+    return dayState(date, today, day, committed)
   }
 
   function addSpontaneous(goal: Goal) {

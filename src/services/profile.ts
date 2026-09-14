@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { listGoals } from '@/services/goals'
 import { listScheduleForUser } from '@/services/schedule'
 import { listSessionsInRange } from '@/services/sessions'
-import { currentStreakCommitted } from '@/domain/sessions'
+import { globalStreak } from '@/domain/sessions'
 import { addDays, todayISO } from '@/lib/date'
 
 interface ProfileRow {
@@ -180,13 +180,7 @@ export async function fetchCurrentStreak(userId: string): Promise<number> {
     listScheduleForUser(userId),
     listSessionsInRange(userId, addDays(today, -364), today),
   ])
-  const activeGoalIds = new Set(goals.filter((g) => g.status === 'active').map((g) => g.id))
-  const activeBlocks = blocks.filter((b) => activeGoalIds.has(b.goalId))
-  const doneDates = new Set(
-    sessions.filter((s) => s.status === 'done' || s.status === 'partial').map((s) => s.date),
-  )
-  const committedWeekdays = new Set(activeBlocks.map((b) => b.weekday))
-  return currentStreakCommitted(doneDates, committedWeekdays, today)
+  return globalStreak(goals, blocks, sessions, today)
 }
 
 /** Fija o quita la meta prioritaria (ordena el día; no oculta nada). */

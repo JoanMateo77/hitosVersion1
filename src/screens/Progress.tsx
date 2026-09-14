@@ -9,7 +9,13 @@ import { listHabitChecksInRange, listHabits } from '@/services/habits'
 import { habitCompleteDates, habitStreak, habitWeek } from '@/domain/habits'
 import { getNiche } from '@/domain/niches'
 import { isGoalClosed } from '@/domain/goals'
-import { bestStreakCommitted, currentStreakCommitted, weekConsistency } from '@/domain/sessions'
+import {
+  activeCommittedWeekdays,
+  bestStreakCommitted,
+  dayState as domainDayState,
+  globalStreak,
+  weekConsistency,
+} from '@/domain/sessions'
 import { weekdayMon0, WEEKDAY_LABELS } from '@/domain/commitment'
 import { addDays, formatLongDate, startOfWeek, todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
@@ -94,24 +100,22 @@ export function Progress() {
   const activeBlocks = blocks.filter((b) => goalById.get(b.goalId)?.status === 'active')
   const weekSessions = sessions.filter((s) => s.date >= weekStart)
   const week = weekConsistency(activeBlocks, weekSessions, weekStart)
+  const committedWeekdays = activeCommittedWeekdays(goals, blocks)
+  const streak = globalStreak(goals, blocks, sessions, today)
   const doneDates = new Set(sessions.filter(doneish).map((s) => s.date))
-  const committedWeekdays = new Set(activeBlocks.map((b) => b.weekday))
-  const streak = currentStreakCommitted(doneDates, committedWeekdays, today)
   const best = Math.max(
     streak,
     bestStreakCommitted(doneDates, committedWeekdays, addDays(today, -(HISTORY_DAYS - 1)), today),
   )
 
   /** Estado visual de cada día de la semana en curso. */
-  function dayState(date: string): 'done' | 'partial' | 'missed' | 'future' | 'free' {
-    const isCommitted = committedWeekdays.has(weekdayMon0(date))
-    if (date > today) return isCommitted ? 'future' : 'free'
-    const day = sessions.filter((s) => s.date === date)
-    if (!isCommitted && day.length === 0) return 'free'
-    if (day.some((s) => s.status === 'done')) return 'done'
-    if (day.some((s) => s.status === 'partial')) return 'partial'
-    if (date === today) return 'future' // hoy sigue en juego
-    return 'missed'
+  function dayState(date: string) {
+    return domainDayState(
+      date,
+      today,
+      sessions.filter((s) => s.date === date),
+      committedWeekdays.has(weekdayMon0(date)),
+    )
   }
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
 
