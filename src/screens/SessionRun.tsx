@@ -19,6 +19,8 @@ import { formatTime12, todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SessionRing } from '@/components/SessionRing'
+import { Disclosure } from '@/components/Disclosure'
+import { Hint } from '@/components/Hint'
 import {
   IconBack,
   IconCelebrate,
@@ -110,7 +112,7 @@ function ResolutionOptions({
       <button className="btn btn--subtle btn--block" disabled={saving} onClick={() => onFinish('missed', 0)}>
         Hoy no pude
       </button>
-      <p className="faint tiny center">Decir “no pude” no rompe nada: mañana se empieza de nuevo.</p>
+      <Hint id="session-no-pude-2026-09">Decir “no pude” no rompe nada: mañana se empieza de nuevo.</Hint>
     </div>
   )
 }
@@ -434,6 +436,9 @@ export function SessionRun() {
         <span className="kicker row row--sm" style={{ alignItems: 'center' }}>
           <NicheGlyph area={goal.area} size="sm" />
           {goal.title} · {targetLabel}
+          {milestones.length > 0 && currentMilestone && (
+            <> · Etapa {milestones.filter((m) => m.doneAt !== null).length + 1} de {milestones.length}</>
+          )}
         </span>
 
         {finishedStatus ? (
@@ -487,28 +492,11 @@ export function SessionRun() {
           <>
         {!needsResolution && !closed && (
           <div className="stack stack--sm center" style={{ alignItems: 'center', width: '100%' }}>
-            {currentMilestone && (
-              <div
-                className="focus-card stack"
-                style={{ width: '100%', textAlign: 'center', gap: 4, padding: 'var(--s3) var(--s4)' }}
-              >
-                <span className="focus-card__kicker" style={{ justifyContent: 'center' }}>
-                  Estás construyendo
-                </span>
-                <strong
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontSize: 'var(--fs-xl)',
-                    lineHeight: 1.25,
-                  }}
-                >
-                  {currentMilestone.title}
-                </strong>
-              </div>
+            {session.status === 'pending' && (
+              <span className="tag" style={{ fontSize: 'var(--fs-sm)', padding: '6px 12px' }}>
+                <IconLightbulb size={13} /> {suggestion}
+              </span>
             )}
-            <span className="tag" style={{ fontSize: 'var(--fs-sm)', padding: '6px 12px' }}>
-              <IconLightbulb size={13} /> {suggestion}
-            </span>
           </div>
         )}
 
@@ -689,72 +677,69 @@ export function SessionRun() {
         {/* --- El plan de esta sesión: lo agendado para esta meta hoy --- */}
         {!needsResolution && (planItems.length > 0 || (!closed && session?.goalId)) && (
           <section className="session-plan" aria-label="El plan de esta sesión">
-            <header className="session-plan__head">
-              <h3 className="session-plan__title">El plan de esta sesión</h3>
-              {planItems.length > 0 && (
-                <span className="session-plan__count">
-                  {planItems.filter((e) => e.doneAt !== null).length} de {planItems.length}
-                </span>
+            <Disclosure
+              summary={`Plan${planItems.length > 0 ? ` · ${planItems.filter((e) => e.doneAt !== null).length} de ${planItems.length}` : ''}`}
+              defaultOpen={session.status !== 'running'}
+            >
+              {planNotice && (
+                <div className="alert alert--warn" role="alert">
+                  {planNotice}
+                </div>
               )}
-            </header>
-            {planNotice && (
-              <div className="alert alert--warn" role="alert">
-                {planNotice}
-              </div>
-            )}
-            <ul className="session-plan__list">
-              {planItems.map((e, i) => {
-                const done = e.doneAt !== null
-                const noteLine = e.notes?.split('\n')[0].trim() || null
-                return (
-                  <li key={e.id} className="session-plan__item" style={{ '--i': i } as CSSProperties}>
-                    <button
-                      type="button"
-                      className={`session-plan__check${done ? ' session-plan__check--done' : ''}`}
-                      aria-pressed={done}
-                      aria-label={`${done ? 'Desmarcar' : 'Marcar'} ${e.title}`}
-                      disabled={closed}
-                      onClick={() => void togglePlanItem(e)}
-                    >
-                      {done && <IconCheck size={12} />}
-                    </button>
-                    <span className="session-plan__time">
-                      {e.startTime ? formatTime12(e.startTime) : '—'}
-                    </span>
-                    <span className={`session-plan__text${done ? ' session-plan__text--done' : ''}`}>
-                      <span className="session-plan__name">{e.title}</span>
-                      {noteLine && <span className="session-plan__note">{noteLine}</span>}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-            {!closed && (
-              <form className="session-plan__add" onSubmit={(e) => void addPlanItem(e)}>
-                <input
-                  className="input session-plan__add-title"
-                  value={planDraft}
-                  onChange={(e) => setPlanDraft(e.target.value)}
-                  placeholder="Agregar al plan…"
-                  maxLength={200}
-                  aria-label="Agregar algo al plan de esta sesión"
-                />
-                <input
-                  type="time"
-                  className="input session-plan__add-time"
-                  value={planDraftTime}
-                  onChange={(e) => setPlanDraftTime(e.target.value)}
-                  aria-label="Hora (opcional)"
-                />
-                <button
-                  type="submit"
-                  className="btn btn--sm"
-                  disabled={!planDraft.trim() || addingPlan}
-                >
-                  Sumar
-                </button>
-              </form>
-            )}
+              <ul className="session-plan__list">
+                {planItems.map((e, i) => {
+                  const done = e.doneAt !== null
+                  const noteLine = e.notes?.split('\n')[0].trim() || null
+                  return (
+                    <li key={e.id} className="session-plan__item" style={{ '--i': i } as CSSProperties}>
+                      <button
+                        type="button"
+                        className={`session-plan__check${done ? ' session-plan__check--done' : ''}`}
+                        aria-pressed={done}
+                        aria-label={`${done ? 'Desmarcar' : 'Marcar'} ${e.title}`}
+                        disabled={closed}
+                        onClick={() => void togglePlanItem(e)}
+                      >
+                        {done && <IconCheck size={12} />}
+                      </button>
+                      <span className="session-plan__time">
+                        {e.startTime ? formatTime12(e.startTime) : '—'}
+                      </span>
+                      <span className={`session-plan__text${done ? ' session-plan__text--done' : ''}`}>
+                        <span className="session-plan__name">{e.title}</span>
+                        {noteLine && <span className="session-plan__note">{noteLine}</span>}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+              {!closed && (
+                <form className="session-plan__add" onSubmit={(e) => void addPlanItem(e)}>
+                  <input
+                    className="input session-plan__add-title"
+                    value={planDraft}
+                    onChange={(e) => setPlanDraft(e.target.value)}
+                    placeholder="Agregar al plan…"
+                    maxLength={200}
+                    aria-label="Agregar algo al plan de esta sesión"
+                  />
+                  <input
+                    type="time"
+                    className="input session-plan__add-time"
+                    value={planDraftTime}
+                    onChange={(e) => setPlanDraftTime(e.target.value)}
+                    aria-label="Hora (opcional)"
+                  />
+                  <button
+                    type="submit"
+                    className="btn btn--sm"
+                    disabled={!planDraft.trim() || addingPlan}
+                  >
+                    Sumar
+                  </button>
+                </form>
+              )}
+            </Disclosure>
           </section>
         )}
           </>
