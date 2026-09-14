@@ -68,11 +68,19 @@ function daysLabel(weekdays: number[]): string {
   return weekdays.map((d) => WEEKDAY_LABELS[d]).join(' · ')
 }
 
-/** "Todos los días", "Lun, Mié y Vie · 3 veces al día": días y repeticiones; las horas viven en el menú. */
+/** "Todos los días", "Lu · Mi · Vi · 3 veces al día": días y repeticiones; las horas viven en el menú. */
 function pautaLabel(habit: Habit): string {
   const base = daysLabel(habit.weekdays)
   const n = habit.times?.length ?? 0
   return n > 1 ? `${base} · ${n} veces al día` : base
+}
+
+/** Aclara en el chip por qué una meta vinculada ya no está entre las activas. */
+function goalStatusSuffix(status: Goal['status']): string {
+  if (status === 'paused') return ' · pausada'
+  if (status === 'done') return ' · lograda'
+  if (status === 'archived') return ' · archivada'
+  return ''
 }
 
 /** Horas listas para guardar: sin vacías y ordenadas ascendente; null si no hay. */
@@ -116,7 +124,7 @@ function TimesEditor({ times, onChange }: { times: string[]; onChange: (t: strin
         style={{ alignSelf: 'flex-start' }}
         onClick={() => onChange([...times, ''])}
       >
-        + agregar otro momento
+        {times.length === 0 ? '+ agregar una hora' : '+ agregar otro momento'}
       </button>
     </div>
   )
@@ -184,6 +192,9 @@ export function Habits() {
   useCacheMirror(cacheKey, habits !== null, { habits: habits ?? [], checksByHabit, goals })
 
   const activeGoals = goals.filter((g) => g.status === 'active')
+  // Mapa completo (no solo activas): el menú ⋯ necesita poder mostrar la
+  // meta vinculada aunque esté pausada/lograda/archivada.
+  const goalById = new Map(goals.map((g) => [g.id, g] as const))
 
   // --- Formulario de creación ---
   const [formOpen, setFormOpen] = useState(false)
@@ -366,6 +377,23 @@ export function Habits() {
   const active = habits?.filter((h) => h.archivedAt === null) ?? []
   const archived = habits?.filter((h) => h.archivedAt !== null) ?? []
 
+  // Chips de ideas: mismo contenido en el estado vacío y en el Disclosure.
+  const ideaChips = (
+    <div className="row wrap">
+      {HABIT_IDEAS.map((idea) => (
+        <button
+          key={idea.title}
+          type="button"
+          className="chip"
+          style={nicheAccent(idea.area)}
+          onClick={() => openWith(idea)}
+        >
+          {idea.title}
+        </button>
+      ))}
+    </div>
+  )
+
   return (
     <div className="screen">
       <header className="row row--between screen__header" style={{ alignItems: 'flex-end' }}>
@@ -473,7 +501,7 @@ export function Habits() {
           {formError && <div className="alert alert--warn" role="alert">{formError}</div>}
 
           <p className="faint tiny" style={{ margin: 0 }}>
-            Sin días marcados aplica todos los días; cada hora que agregues es una repetición.
+            Sin días marcados, el hábito aplica todos los días; cada hora que agregues es una repetición.
           </p>
 
           <div className="row">
@@ -512,6 +540,13 @@ export function Habits() {
                 const target = habitTarget(habit)
                 const doneCount = habitDoneCount(checks, habit.id, today)
                 const doneToday = doneCount >= target
+                // La meta vinculada siempre debe poder verse y elegirse en el
+                // menú, aunque ya no esté activa (pausada/lograda/archivada).
+                const linkedGoal = habit.goalId ? goalById.get(habit.goalId) : undefined
+                const goalChips =
+                  linkedGoal && !activeGoals.some((g) => g.id === linkedGoal.id)
+                    ? [...activeGoals, linkedGoal]
+                    : activeGoals
                 return (
                   <li key={habit.id} className="card card--tight stack stack--sm" style={nicheAccent(habit.area)}>
                     <div className="row" style={{ alignItems: 'center' }}>
@@ -587,7 +622,7 @@ export function Habits() {
                           times={menuTimes}
                           onChange={(next) => void changeHabitTimes(habit, next)}
                         />
-                        {activeGoals.length > 0 && (
+                        {(activeGoals.length > 0 || habit.goalId) && (
                           <>
                             <span className="kicker">¿Suma a una meta?</span>
                             <div className="row wrap" role="group" aria-label={`Meta de: ${habit.title}`}>
@@ -599,7 +634,7 @@ export function Habits() {
                               >
                                 Ninguna
                               </button>
-                              {activeGoals.map((g) => (
+                              {goalChips.map((g) => (
                                 <button
                                   key={g.id}
                                   type="button"
@@ -608,6 +643,7 @@ export function Habits() {
                                   onClick={() => void changeHabitGoal(habit, g.id)}
                                 >
                                   <NicheIcon area={g.area} size={14} /> {g.title}
+                                  {g.status !== 'active' && goalStatusSuffix(g.status)}
                                 </button>
                               ))}
                             </div>
@@ -636,37 +672,11 @@ export function Habits() {
                   <IconLightbulb size={14} /> Ideas populares
                 </span>
               </div>
-              <div className="row wrap">
-                {HABIT_IDEAS.map((idea) => (
-                  <button
-                    key={idea.title}
-                    type="button"
-                    className="chip"
-                    style={nicheAccent(idea.area)}
-                    onClick={() => openWith(idea)}
-                  >
-                    {idea.title}
-                  </button>
-                ))}
-              </div>
+              {ideaChips}
             </section>
           ) : (
             <div style={{ marginTop: 'var(--s5)' }}>
-              <Disclosure summary="Ideas para sumar">
-                <div className="row wrap">
-                  {HABIT_IDEAS.map((idea) => (
-                    <button
-                      key={idea.title}
-                      type="button"
-                      className="chip"
-                      style={nicheAccent(idea.area)}
-                      onClick={() => openWith(idea)}
-                    >
-                      {idea.title}
-                    </button>
-                  ))}
-                </div>
-              </Disclosure>
+              <Disclosure summary="Ideas para sumar">{ideaChips}</Disclosure>
             </div>
           )}
 

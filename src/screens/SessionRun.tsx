@@ -490,13 +490,11 @@ export function SessionRun() {
           </div>
         ) : (
           <>
-        {!needsResolution && !closed && (
+        {!needsResolution && !closed && session.status === 'pending' && (
           <div className="stack stack--sm center" style={{ alignItems: 'center', width: '100%' }}>
-            {session.status === 'pending' && (
-              <span className="tag" style={{ fontSize: 'var(--fs-sm)', padding: '6px 12px' }}>
-                <IconLightbulb size={13} /> {suggestion}
-              </span>
-            )}
+            <span className="tag" style={{ fontSize: 'var(--fs-sm)', padding: '6px 12px' }}>
+              <IconLightbulb size={13} /> {suggestion}
+            </span>
           </div>
         )}
 
@@ -682,7 +680,7 @@ export function SessionRun() {
               defaultOpen={session.status !== 'running'}
             >
               {planNotice && (
-                <div className="alert alert--warn" role="alert">
+                <div className="alert alert--warn" role="alert" style={{ marginBottom: 'var(--s3)' }}>
                   {planNotice}
                 </div>
               )}

@@ -294,8 +294,8 @@ export function ProfileScreen() {
             <p className="small muted" style={{ margin: 0 }}>Este navegador no permite notificaciones.</p>
             <Disclosure summary="¿Cómo activarlos en iPhone?">
               <p className="small muted" style={{ margin: 0 }}>
-                Los recordatorios te avisan a la hora de cada sesión, pero este navegador no permite
-                notificaciones. En iPhone la solución toma 10 segundos: abre Lógralo en Safari, toca{' '}
+                Los recordatorios te avisan a la hora de cada sesión. En iPhone la solución toma 10
+                segundos: abre Lógralo en Safari, toca{' '}
                 <strong>Compartir → Añadir a pantalla de inicio</strong>, y ábrela desde ese icono —
                 funciona como una app y los recordatorios se activan aquí mismo.
               </p>
