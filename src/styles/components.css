@@ -790,7 +790,11 @@
   background: var(--primary-soft);
   border-radius: var(--radius-pill);
   transform: translateX(calc(var(--tab) * 100%)) scaleX(0.5);
-  transition: transform var(--dur-state) var(--ease-ios);
+  opacity: 0;
+  transition: transform var(--dur-state) var(--ease-ios), opacity var(--dur-tap) var(--ease-out);
+}
+.bottomnav__inner[data-active]::before {
+  opacity: 1;
 }
 .bottomnav__item {
   flex: 1;
@@ -914,7 +918,7 @@
   text-align: center;
   color: var(--primary);
   background: color-mix(in srgb, var(--bg) 88%, transparent);
-  animation: won-in var(--dur-state) var(--ease-out) both, won-out var(--dur-state) ease-in 2.2s both;
+  animation: won-in var(--dur-state) var(--ease-out) both, won-out 160ms ease-in 2.2s both;
   pointer-events: none;
 }
 .won__title {
@@ -1939,6 +1943,7 @@ select.input {
   padding-left: 1.1em;
   display: grid;
   gap: 4px;
+  list-style: disc;
 }
 
 /* ---- Toast — feedback operativo efímero ------------------------------- */
@@ -3543,8 +3548,9 @@ button.ag-row:active,
 }
 
 /* ==== Desplegable (Disclosure) ==============================================
-   <details> nativo con resumen a la izquierda y chevron a la derecha. Es la
-   gramática única para plegar historia, metadatos y explicaciones. */
+   Botón + cuerpo siempre presentes en el árbol; el plegado se anima con
+   grid-template-rows. Chevron a la derecha, es la gramática única para
+   plegar historia, metadatos y explicaciones. */
 .disclosure {
   width: 100%;
 }

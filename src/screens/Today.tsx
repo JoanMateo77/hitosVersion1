@@ -550,8 +550,9 @@ export function Today() {
 
   // UNA sola voz por vista. Prioridad: consecuencia de una acción del usuario
   // (celebración, racha rota) > pregunta que la app necesita (sin confirmar,
-  // revisión, olvidada) > sugerencia (arrastre de ayer).
-  type Voice = 'novedades' | 'cheer' | 'streak' | 'resolve' | 'review' | 'forgotten' | 'carryover' | null
+  // revisión, olvidada). Las tareas pendientes de ayer no compiten por esta
+  // voz: viven siempre en "Lo que sumaste tú".
+  type Voice = 'novedades' | 'cheer' | 'streak' | 'resolve' | 'review' | 'forgotten' | null
   const voice: Voice = novedad
     ? 'novedades'
     : cheerMessage
@@ -564,9 +565,7 @@ export function Today() {
             ? 'review'
             : forgotten
               ? 'forgotten'
-              : yesterdayPending.length > 0
-                ? 'carryover'
-                : null
+              : null
 
   return (
     <div className="screen" data-warm={warm ? '' : undefined}>
@@ -884,7 +883,7 @@ export function Today() {
               <span className="kicker">Lo que sumaste tú</span>
             </div>
             <div className="stack stack--sm">
-              {voice === 'carryover' && yesterdayPending.length > 0 && (
+              {yesterdayPending.length > 0 && (
                 <div className="card card--tight stack stack--sm">
                   <span className="small">
                     {yesterdayPending.length === 1

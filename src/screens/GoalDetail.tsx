@@ -256,17 +256,16 @@ export function GoalDetail() {
       const next = milestones.map((x) => (x.id === m.id ? updated : x))
       setMilestones(next)
       if (willBeDone) {
+        // La etapa se enciende un instante: el logro se ve donde ocurrió, no
+        // solo en el toast (o el velo de celebración) que sigue después. Esto
+        // vale también para la última etapa, la que dispara offerAchieve.
+        setJustDoneId(m.id)
+        successHaptic()
+        if (flashTimer.current !== null) window.clearTimeout(flashTimer.current)
+        flashTimer.current = window.setTimeout(() => setJustDoneId(null), 700)
         const pendingLeft = next.filter((x) => x.doneAt === null).length
         if (pendingLeft === 0) setOfferAchieve(true)
-        else {
-          // La etapa se enciende un instante: el logro se ve donde ocurrió, no
-          // solo en el toast que aparece abajo.
-          setJustDoneId(m.id)
-          successHaptic()
-          if (flashTimer.current !== null) window.clearTimeout(flashTimer.current)
-          flashTimer.current = window.setTimeout(() => setJustDoneId(null), 700)
-          toast('Etapa cumplida.', 'success')
-        }
+        else toast('Etapa cumplida.', 'success')
       } else {
         setOfferAchieve(false)
       }

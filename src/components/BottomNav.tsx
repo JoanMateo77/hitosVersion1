@@ -35,7 +35,8 @@ export function BottomNav() {
     <nav className="bottomnav" aria-label="Navegación principal">
       <div
         className="bottomnav__inner"
-        style={{ '--tab': Math.max(0, activeIndex) } as CSSProperties}
+        style={activeIndex >= 0 ? ({ '--tab': activeIndex } as CSSProperties) : undefined}
+        data-active={activeIndex >= 0 ? '' : undefined}
       >
         {TABS.map((tab, index) => {
           const alsoMatch = 'alsoMatch' in tab ? tab.alsoMatch : undefined

@@ -3,7 +3,7 @@ import { nicheAccent } from '@/lib/nicheAccent'
 import { tapHaptic } from '@/lib/haptics'
 import { rangeLabel, sessionSpan } from '@/domain/agenda'
 import { formatTime12 } from '@/lib/date'
-import { IconCheck, IconPlay } from '@/components/icons'
+import { IconPlay } from '@/components/icons'
 import { NicheIcon } from '@/components/NicheGlyph'
 
 interface SessionCardProps {
@@ -126,9 +126,7 @@ export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onRe
               onQuickDone()
             }}
             aria-label={`Marcar la sesión de ${goal.title} como hecha sin cronómetro`}
-          >
-            <IconCheck size={16} />
-          </button>
+          />
         )}
       </div>
     </div>
