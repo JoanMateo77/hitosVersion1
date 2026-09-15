@@ -1,4 +1,5 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import type { MouseEvent } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { fetchCurrentStreak } from '@/services/profile'
 import { frameForStreak } from '@/domain/frames'
@@ -13,6 +14,7 @@ import {
   IconToday,
 } from '@/components/icons'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
+import { withViewTransition } from '@/lib/viewTransition'
 
 const NAV = [
   { to: '/', label: 'Hoy', Icon: IconToday },
@@ -27,8 +29,16 @@ const NAV = [
 export function SideNav() {
   const { userId, email, profile } = useSession()
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   const initial = (email.charAt(0) || '·').toUpperCase()
   const days = daysSince(profile.createdAt)
+  const activeIndex = NAV.findIndex((item) => {
+    const alsoMatch = 'alsoMatch' in item ? item.alsoMatch : undefined
+    return item.to === '/'
+      ? pathname === '/'
+      : pathname.startsWith(item.to) ||
+          (alsoMatch !== undefined && pathname.startsWith(alsoMatch))
+  })
 
   // Foto y marco por racha, igual que en la TopBar móvil (misma clave de cache:
   // un solo cálculo por sesión entre las tres superficies).
@@ -78,7 +88,7 @@ export function SideNav() {
       </div>
 
       <nav className="sidenav__nav">
-        {NAV.map((item) => {
+        {NAV.map((item, index) => {
           const alsoMatch = 'alsoMatch' in item ? item.alsoMatch : undefined
           const { to, label, Icon } = item
           return (
@@ -93,8 +103,13 @@ export function SideNav() {
                     : ''
                 }`
               }
+              onClick={(e: MouseEvent<HTMLAnchorElement>) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+                e.preventDefault()
+                withViewTransition(() => navigate(to))
+              }}
             >
-              <Icon size={20} />
+              <Icon size={20} filled={index === activeIndex} />
               <span>{label}</span>
             </NavLink>
           )

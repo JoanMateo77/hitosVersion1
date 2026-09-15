@@ -93,7 +93,6 @@ export interface GoalTemplate {
   key: string
   /** Etiqueta corta que ve el usuario al elegir tipo de meta. */
   label: string
-  emoji: string
   /** Área por defecto que sugiere esta plantilla. */
   defaultArea: NicheId
   /** Una línea explicando para qué sirve. */
@@ -104,13 +103,6 @@ export interface GoalTemplate {
   milestones: string[]
   /** Pool de acciones cortas y concretas para el plan del día. */
   actions: string[]
-  /**
-   * Pool de acciones de *arranque* para la primera etapa (currentMilestone 0).
-   * Opcional: si no está, se usa `actions`. Sirve para que el día 0 proponga
-   * "empezar" (anotar tu punto de partida, elegir recurso…) en vez de acciones
-   * de régimen.
-   */
-  kickoffActions?: string[]
   /** Con qué frecuencia esta meta pide una acción. */
   cadence: Cadence
   /** Cada cuántos días se sugiere revisar la meta. */

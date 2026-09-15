@@ -68,6 +68,12 @@
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-ios: cubic-bezier(0.32, 0.72, 0.18, 1);
 
+  /* Duraciones: acuse de recibo, cambio de estado, layout/overlay y UNA entrada focal. */
+  --dur-tap: 120ms;
+  --dur-state: 220ms;
+  --dur-layout: 320ms;
+  --dur-focal: 560ms;
+
   /* Glow: solo el tema neón lo enciende; en los demás no aporta sombra. */
   --glow: 0 0 0 transparent;
 

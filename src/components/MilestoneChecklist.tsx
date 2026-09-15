@@ -5,14 +5,17 @@ import {
   IconArrowDown,
   IconArrowUp,
   IconCalendar,
-  IconClose,
+  IconCheck,
   IconDots,
+  IconTrash,
 } from '@/components/icons'
 
 interface MilestoneChecklistProps {
   milestones: Milestone[]
   /** true cuando la meta no está activa: solo lectura. */
   disabled?: boolean
+  /** Etapa recién cumplida: se enciende un instante para que el logro se vea. */
+  justDoneId?: string | null
   onToggle: (m: Milestone) => void
   onRename: (m: Milestone, title: string) => void
   onSetDate: (m: Milestone, date: string | null) => void
@@ -28,6 +31,7 @@ interface MilestoneChecklistProps {
 export function MilestoneChecklist({
   milestones,
   disabled = false,
+  justDoneId = null,
   onToggle,
   onRename,
   onSetDate,
@@ -64,7 +68,11 @@ export function MilestoneChecklist({
     <ul className="stack" style={{ gap: 0, listStyle: 'none', padding: 0, margin: 0 }}>
       {milestones.map((m, index) => (
         <li key={m.id}>
-          <div className={`mstone${m.doneAt ? ' mstone--done' : ''}`}>
+          <div
+            className={`mstone${m.doneAt ? ' mstone--done' : ''}${
+              justDoneId === m.id ? ' mstone--just-done' : ''
+            }`}
+          >
             <button
               type="button"
               className={`check${m.doneAt ? ' check--done' : ''}`}
@@ -72,7 +80,9 @@ export function MilestoneChecklist({
               aria-pressed={m.doneAt !== null}
               aria-label={`${m.doneAt ? 'Desmarcar' : 'Marcar'} la etapa: ${m.title}`}
               onClick={() => onToggle(m)}
-            />
+            >
+              <IconCheck size={16} />
+            </button>
             {editingId === m.id ? (
               <input
                 className="input mstone__input"
@@ -149,7 +159,7 @@ export function MilestoneChecklist({
                   onDelete(m)
                 }}
               >
-                <IconClose size={15} />
+                <IconTrash size={15} />
               </button>
             </div>
           )}

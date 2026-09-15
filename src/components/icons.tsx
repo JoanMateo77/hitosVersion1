@@ -2,6 +2,9 @@ import type { CSSProperties } from 'react'
 // El logo viaja DENTRO del bundle (hash de Vite): cada versión de la app trae
 // su logo amarrado — un service worker viejo ya no puede mostrar uno desfasado.
 import logoUrl from '@/assets/logo.png'
+// Versión de 96px recortada a la grilla óptica: los usos chicos (nav, cabecera)
+// la usan en vez de escalar el PNG grande, así se ve nítida y liviana.
+import logo96Url from '@/assets/logo-96.png'
 
 /** Set de íconos como SVG inline (sin dependencias). Heredan currentColor.
  *
@@ -12,10 +15,14 @@ interface IconProps {
   className?: string
   /** Override puntual (color, margin, etc.). Para casos limitados — preferí className. */
   style?: CSSProperties
+  /** Variante rellena (20% de currentColor) — solo la honran los íconos de nav activa. */
+  filled?: boolean
 }
 
 function base(size: number) {
-  const strokeWidth = size <= 16 ? 1.6 : size <= 22 ? 1.85 : 2
+  // Trazo renderizado ≈ 1,75 px entre 16 y 24 px; más fino en miniatura y
+  // acotado en tamaños héroe (antes iba de 0,73 px a 4,7 px).
+  const strokeWidth = Math.min(2.75, Math.max(1.6, 42 / size))
   return {
     width: size,
     height: size,
@@ -28,19 +35,33 @@ function base(size: number) {
   }
 }
 
-export function IconToday({ size = 24, className, style }: IconProps) {
+export function IconToday({ size = 24, className, style, filled = false }: IconProps) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19" />
+      <rect
+        x="4"
+        y="4"
+        width="16"
+        height="16"
+        rx="4.5"
+        fill={filled ? 'currentColor' : 'none'}
+        fillOpacity={filled ? 0.2 : undefined}
+      />
+      <path d="M8.5 12.3l2.4 2.4 4.8-5.2" />
     </svg>
   )
 }
 
-export function IconGoals({ size = 24, className, style }: IconProps) {
+export function IconGoals({ size = 24, className, style, filled = false }: IconProps) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
-      <circle cx="12" cy="12" r="9" />
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        fill={filled ? 'currentColor' : 'none'}
+        fillOpacity={filled ? 0.2 : undefined}
+      />
       <circle cx="12" cy="12" r="5" />
       <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
     </svg>
@@ -97,15 +118,6 @@ export function IconPencil({ size = 18, className, style }: IconProps) {
   )
 }
 
-export function IconSparkles({ size = 20, className, style }: IconProps) {
-  return (
-    <svg {...base(size)} className={className} style={style} aria-hidden="true">
-      <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6Z" />
-      <path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8Z" />
-    </svg>
-  )
-}
-
 /** Logo de marca de Lógralo. Es el PNG ORIGINAL aprobado por el dueño
  *  (src/assets/logo.png, recortado de su referencia), el mismo archivo del
  *  que salen favicon.png y los íconos instalados: cero réplicas, cero
@@ -118,7 +130,7 @@ export function IconHito({
 }: IconProps & { animate?: boolean }) {
   return (
     <img
-      src={logoUrl}
+      src={size <= 48 ? logo96Url : logoUrl}
       width={size}
       height={size}
       className={animate ? [className, 'celebrate-pop'].filter(Boolean).join(' ') : className}
@@ -130,10 +142,18 @@ export function IconHito({
   )
 }
 
-export function IconCalendar({ size = 24, className, style }: IconProps) {
+export function IconCalendar({ size = 24, className, style, filled = false }: IconProps) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
-      <rect x="3" y="4.5" width="18" height="16" rx="2.5" />
+      <rect
+        x="3"
+        y="4.5"
+        width="18"
+        height="16"
+        rx="2.5"
+        fill={filled ? 'currentColor' : 'none'}
+        fillOpacity={filled ? 0.2 : undefined}
+      />
       <path d="M3 9.5h18M8 2.5v4M16 2.5v4" />
     </svg>
   )
@@ -163,8 +183,8 @@ export function IconSprout({ size = 18, className, style }: IconProps) {
 export function IconQuote({ size = 18, className, style }: IconProps) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
-      <path d="M7 8c-2 0-3 1.5-3 3.5C4 14 5.5 16 8 16M8 8l-1 8" />
-      <path d="M17 8c-2 0-3 1.5-3 3.5C14 14 15.5 16 18 16M18 8l-1 8" />
+      <path d="M7 6c-2 0-3 1.5-3 3.5C4 12 5.5 14 8 14M8 6l-1 12" />
+      <path d="M17 6c-2 0-3 1.5-3 3.5C14 12 15.5 14 18 14M18 6l-1 12" />
     </svg>
   )
 }
@@ -173,8 +193,8 @@ export function IconQuote({ size = 18, className, style }: IconProps) {
 export function IconFlag({ size = 18, className, style }: IconProps) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
-      <path d="M5 21V4" />
-      <path d="M5 4h11l-2 3.5L16 11H5" />
+      <path d="M6.5 21V4" />
+      <path d="M6.5 4h11l-2 3.5L17.5 11h-11" />
     </svg>
   )
 }
@@ -248,11 +268,15 @@ export function IconCelebrate({ size = 20, className, style }: IconProps) {
   )
 }
 
-export function IconProgress({ size = 24, className, style }: IconProps) {
+export function IconProgress({ size = 24, className, style, filled = false }: IconProps) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
-      <polyline points="3 16.5 9 10.5 13 14.5 21 6.5" />
-      <polyline points="15 6.5 21 6.5 21 12.5" />
+      <polyline points="3 17.5 9 10.5 13 14.5 21 5.5" />
+      {filled ? (
+        <path d="M15 5.5h6v6z" fill="currentColor" fillOpacity={0.2} />
+      ) : (
+        <polyline points="15 5.5 21 5.5 21 11.5" />
+      )}
     </svg>
   )
 }
@@ -311,10 +335,14 @@ export function IconSunrise({ size = 18, className, style }: IconProps) {
 /* ===== Estados y acciones ================================================ */
 
 /** Llama — racha de días cumplidos. */
-export function IconFlame({ size = 16, className, style }: IconProps) {
+export function IconFlame({ size = 16, className, style, filled = false }: IconProps) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
-      <path d="M12 21.5c3.9 0 6.5-2.5 6.5-6.2 0-2.6-1.4-4.6-2.9-6.3-.8 1-1.4 1.5-2.2 2-.2-3-1.3-6-4-8.5.2 2.6-.6 4.4-2 6C5.9 10.2 5.5 12 5.5 15.3c0 3.7 2.6 6.2 6.5 6.2Z" />
+      <path
+        d="M12 21.5c3.9 0 6.5-2.5 6.5-6.2 0-2.6-1.4-4.6-2.9-6.3-.8 1-1.4 1.5-2.2 2-.2-3-1.3-6-4-8.5.2 2.6-.6 4.4-2 6C5.9 10.2 5.5 12 5.5 15.3c0 3.7 2.6 6.2 6.5 6.2Z"
+        fill={filled ? 'currentColor' : 'none'}
+        fillOpacity={filled ? 0.2 : undefined}
+      />
       <path d="M12 21.5c1.9 0 3.2-1.3 3.2-3.2 0-1.4-.9-2.5-2-3.6-.9 1-2.2 1.6-3.4 2.7-.6.5-1 1.2-1 2 .1 1.1 1.3 2.1 3.2 2.1Z" />
     </svg>
   )

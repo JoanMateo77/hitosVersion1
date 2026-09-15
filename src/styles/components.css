@@ -118,7 +118,7 @@
   font-weight: 600;
   background: var(--surface-2);
   color: var(--text);
-  transition: transform 0.06s ease, background 0.15s ease, opacity 0.15s ease;
+  transition: transform var(--dur-tap) var(--ease-out), background var(--dur-tap) var(--ease-out), opacity var(--dur-tap) var(--ease-out);
   user-select: none;
   min-height: 48px;
 }
@@ -185,7 +185,7 @@
   border: 1px solid var(--border-soft);
   color: var(--text);
   flex: none;
-  transition: transform 0.08s ease, background 0.15s ease;
+  transition: transform var(--dur-tap) var(--ease-out), background var(--dur-tap) var(--ease-out);
 }
 .iconbtn:active {
   transform: scale(0.92);
@@ -227,7 +227,7 @@
   border-radius: var(--radius);
   color: var(--text);
   padding: 13px 14px;
-  transition: border-color 0.15s ease;
+  transition: border-color var(--dur-tap) var(--ease-out);
 }
 .input::placeholder,
 .textarea::placeholder {
@@ -256,7 +256,7 @@
   border: 1.5px solid var(--border-soft);
   border-radius: var(--radius);
   color: var(--text);
-  transition: border-color 0.12s ease, background 0.12s ease, transform 0.06s ease;
+  transition: border-color var(--dur-tap) var(--ease-out), background var(--dur-tap) var(--ease-out), transform var(--dur-tap) var(--ease-out);
 }
 .option:active {
   transform: scale(0.99);
@@ -357,14 +357,6 @@
   font-size: var(--fs-xs);
   color: var(--text-faint);
 }
-.task__why {
-  margin-top: 4px;
-  padding-left: 10px;
-  border-left: 2px solid color-mix(in srgb, var(--primary) 50%, transparent);
-  line-height: 1.4;
-  color: var(--text-muted);
-}
-
 /* Check redondo */
 .check {
   flex: none;
@@ -377,8 +369,8 @@
   align-items: center;
   justify-content: center;
   color: transparent;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease,
-    transform 0.08s ease;
+  transition: background var(--dur-tap) var(--ease-out), border-color var(--dur-tap) var(--ease-out),
+    color var(--dur-tap) var(--ease-out), transform var(--dur-tap) var(--ease-out);
   margin-top: 1px;
   position: relative;
 }
@@ -464,8 +456,13 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius);
+  background: color-mix(in srgb, var(--niche, var(--text)) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--niche, var(--text)) 22%, var(--border-soft));
+  color: color-mix(in srgb, var(--niche, var(--primary)) 55%, var(--text));
+}
+[data-theme='oscuro'] .glyph {
   background: color-mix(in srgb, var(--niche, var(--text)) 14%, var(--surface-2));
-  border: 1px solid color-mix(in srgb, var(--niche, var(--text)) 26%, var(--border-soft));
+  border-color: color-mix(in srgb, var(--niche, var(--text)) 26%, var(--border-soft));
   color: color-mix(in srgb, var(--niche, var(--primary)) 78%, var(--text));
 }
 .glyph--sm {
@@ -493,7 +490,7 @@
   padding: 4px;
   border-radius: var(--radius-sm);
   color: var(--text-faint);
-  transition: color 0.15s ease, transform 0.1s ease;
+  transition: color var(--dur-tap) var(--ease-out), transform var(--dur-tap) var(--ease-out);
 }
 .goal-card__star:active {
   transform: scale(0.88);
@@ -529,7 +526,6 @@
   height: 100%;
   background: var(--success);
   border-radius: var(--radius-pill);
-  transition: width 0.3s ease;
 }
 
 /* ---- Foco de la semana (recomendación continua) ------------------------- */
@@ -600,17 +596,20 @@
 }
 .roadmap__path--base {
   stroke: var(--border);
+  /* Con pathLength=100 esto es "la curva entera": explícito para que el trazado
+     de entrada (path-draw) tenga a dónde interpolar (`none` no interpola). */
+  stroke-dasharray: 100 100;
 }
 .roadmap__path--done {
   stroke: var(--primary);
-  transition: stroke-dasharray 0.6s var(--ease-out);
+  transition: stroke-dasharray var(--dur-focal) var(--ease-out);
   filter: drop-shadow(0 0 4px color-mix(in srgb, var(--primary) 40%, transparent));
 }
 .roadmap__circle {
   fill: var(--surface);
   stroke: var(--border);
   stroke-width: 2;
-  transition: fill 0.25s var(--ease-out), stroke 0.25s var(--ease-out);
+  transition: fill var(--dur-state) var(--ease-out), stroke var(--dur-state) var(--ease-out);
 }
 .roadmap__svg-step--done .roadmap__circle {
   fill: var(--primary);
@@ -669,7 +668,7 @@
   margin-left: -6px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background var(--dur-tap) var(--ease-out);
 }
 .roadmap__label-hit:hover {
   background: var(--surface-2);
@@ -688,6 +687,26 @@
 }
 .roadmap__label--done {
   color: var(--text-faint);
+}
+
+/* Primera vez que se ve el camino ("¡Meta creada!"): la curva se dibuja sola y
+   los nodos van cayendo uno a uno. Solo con .roadmap--intro — en el detalle de
+   meta el camino ya está ahí y animarlo cada visita sería ruido. */
+.roadmap--intro .roadmap__path--base,
+.roadmap--intro .roadmap__path--done {
+  animation: path-draw 900ms var(--ease-out) both;
+}
+@keyframes path-draw {
+  from {
+    stroke-dasharray: 0 100;
+  }
+}
+.roadmap--intro .roadmap__svg-step {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: celebrate-pop var(--dur-layout) var(--ease-spring) both;
+  /* Escalonado: cada nodo entra 120 ms después del anterior (--i lo pone el JSX). */
+  animation-delay: calc(240ms + var(--i, 0) * 120ms);
 }
 
 /* Legacy (clases del viejo roadmap, dejadas como no-op para no romper otros usos) */
@@ -753,10 +772,29 @@
   display: flex;
 }
 .bottomnav__inner {
+  position: relative;
+  --tab: 0;
   width: 100%;
   max-width: var(--app-width);
   margin: 0 auto;
   display: flex;
+}
+.bottomnav__inner::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 0;
+  width: 20%;
+  height: 30px;
+  z-index: -1;
+  background: var(--primary-soft);
+  border-radius: var(--radius-pill);
+  transform: translateX(calc(var(--tab) * 100%)) scaleX(0.5);
+  opacity: 0;
+  transition: transform var(--dur-state) var(--ease-ios), opacity var(--dur-tap) var(--ease-out);
+}
+.bottomnav__inner[data-active]::before {
+  opacity: 1;
 }
 .bottomnav__item {
   flex: 1;
@@ -771,7 +809,7 @@
   background: none;
   border: none;
   padding-top: 8px;
-  transition: transform 0.08s ease, color 0.15s ease;
+  transition: transform var(--dur-tap) var(--ease-out), color var(--dur-tap) var(--ease-out);
   -webkit-user-select: none;
   user-select: none;
 }
@@ -850,7 +888,7 @@
 /* Pop de entrada para el ícono de celebración (GoalCreated). Lo desactiva
    prefers-reduced-motion vía la regla global de base.css. */
 .celebrate-pop {
-  animation: celebrate-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: celebrate-pop var(--dur-focal) var(--ease-spring);
 }
 @keyframes celebrate-pop {
   0% {
@@ -866,12 +904,38 @@
   }
 }
 
-/* Auto-dibujo del logo de marca (solo en Auth, vía prop `animate`): el camino se
-   traza y los 3 hitos popean hacia la meta. El estado BASE es el logo TERMINADO;
-   la animación vive dentro de prefers-reduced-motion:no-preference, así quien pide
-   menos movimiento ve el logo íntegro y nunca a medio dibujar. */
-@media (prefers-reduced-motion: no-preference) {
+/* ---- Meta lograda: el único momento focal de la app -------------------- */
+/* Velo de celebración: entra, se queda un par de segundos y se va solo. Nunca
+   bloquea (pointer-events: none) y no tiene botón: no es un modal, es un
+   aplauso. El componente se desmonta cuando termina `won-out`. */
+.won {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-content: center;
+  gap: var(--s3);
+  text-align: center;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  animation: won-in var(--dur-state) var(--ease-out) both, won-out 160ms ease-in 2.2s both;
+  pointer-events: none;
 }
+.won__title {
+  font-size: var(--fs-xl);
+  color: var(--text);
+}
+@keyframes won-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes won-out {
+  to {
+    opacity: 0;
+  }
+}
+
 /* ---- Spinner — tres hitos del camino caminando -------------------------- */
 .spinner {
   display: inline-flex;
@@ -927,7 +991,6 @@
   font-optical-sizing: auto;
 }
 .brand__mark {
-  color: var(--primary);
   display: inline-flex;
 }
 
@@ -1093,11 +1156,28 @@
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   padding: calc(var(--s6) + 8px) var(--s5) calc(var(--safe-bottom) + var(--s5));
   box-shadow: var(--shadow);
-  animation: sheet-up 320ms cubic-bezier(0.32, 0.72, 0.18, 1);
+  animation: sheet-up var(--dur-layout) var(--ease-ios);
+  /* El arrastre escribe transform inline; al soltar cerca, vuelve con esto. */
+  transition: transform var(--dur-state) var(--ease-out);
   touch-action: pan-y;
 }
-/* Grabber: el indicador visual que dice "esto es una hoja, podés arrastrarla". */
-.sheet__panel::before {
+/* Grabber: la zona que dice "esto es una hoja, puedes arrastrarla". Es un
+   elemento real (no un ::before del panel) con touch-action: none, así el
+   gesto es suyo: el panel scrollea con pan-y y iOS no le quita el puntero. */
+.sheet__grabber {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  touch-action: none;
+  cursor: grab;
+}
+.sheet__grabber:active {
+  cursor: grabbing;
+}
+/* La barrita visual. */
+.sheet__grabber::before {
   content: '';
   position: absolute;
   top: 10px;
@@ -1112,7 +1192,15 @@
   position: absolute;
   inset: 0;
   background: rgba(12, 10, 8, 0.62);
-  animation: sheet-fade 220ms ease-out;
+  animation: sheet-fade var(--dur-state) var(--ease-out);
+}
+/* Salida: la hoja se va hacia abajo y el fondo se apaga. `sheet-down` solo
+   define el destino, así arranca desde donde la dejó el arrastre. */
+.sheet--closing .sheet__panel {
+  animation: sheet-down var(--dur-state) var(--ease-ios) forwards;
+}
+.sheet--closing .sheet__backdrop {
+  animation: sheet-fade 160ms ease-in reverse forwards;
 }
 @keyframes sheet-up {
   from {
@@ -1120,6 +1208,11 @@
   }
   to {
     transform: translateY(0);
+  }
+}
+@keyframes sheet-down {
+  to {
+    transform: translateY(100%);
   }
 }
 @keyframes sheet-fade {
@@ -1257,7 +1350,7 @@ select.input {
   border-bottom: 1px solid var(--border-soft);
   -webkit-user-select: none;
   user-select: none;
-  transition: transform 0.28s var(--ease-out);
+  transition: transform var(--dur-state) var(--ease-out);
 }
 /* Al scrollear hacia abajo la barra cede el espacio al contenido; vuelve al
    subir o al llegar arriba (lo maneja TopBar.tsx). reduced-motion la deja fija
@@ -1558,7 +1651,7 @@ select.input {
     border-radius: var(--radius);
     color: var(--text-muted);
     font-weight: 600;
-    transition: background 0.12s ease, color 0.12s ease;
+    transition: background var(--dur-tap) var(--ease-out), color var(--dur-tap) var(--ease-out);
   }
   .sidenav__item:hover {
     background: var(--surface);
@@ -1620,7 +1713,7 @@ select.input {
 .ev,
 .goal-card {
   box-shadow: var(--shadow-sm);
-  transition: transform 0.12s ease, box-shadow 0.18s ease, border-color 0.15s ease;
+  transition: transform var(--dur-tap) var(--ease-out), box-shadow var(--dur-state) var(--ease-out), border-color var(--dur-tap) var(--ease-out);
 }
 
 /* Estados táctiles (hover solo con puntero; tap depress en todos) */
@@ -1730,27 +1823,12 @@ select.input {
 }
 .progress__bar {
   background: linear-gradient(90deg, var(--success), color-mix(in srgb, var(--success) 78%, #fff));
-  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* Barra inferior: indicador tipo pastilla en el ítem activo */
-.bottomnav__item {
-  position: relative;
-}
-.bottomnav__item--active::before {
-  content: '';
-  position: absolute;
-  top: 6px;
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-pill);
-  background: var(--primary-soft);
-  z-index: -1;
+  transition: width var(--dur-layout) var(--ease-out);
 }
 
 /* Completar tarea: pequeño "pop" (respeta prefers-reduced-motion de base.css) */
 .check--done {
-  animation: check-pop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: check-pop var(--dur-state) var(--ease-spring);
 }
 @keyframes check-pop {
   0% {
@@ -1765,7 +1843,7 @@ select.input {
 }
 .task--done {
   opacity: 0.72;
-  transition: opacity 0.2s ease;
+  transition: opacity var(--dur-state) var(--ease-out);
 }
 
 /* Foco accesible: el outline en base.css ya hace el trabajo; acá sólo el ajuste
@@ -1813,10 +1891,6 @@ select.input {
   margin-top: -0.16em;
   margin-inline: -0.08em;
 }
-.screen--full .brand__mark {
-  color: var(--primary);
-  -webkit-text-fill-color: var(--primary);
-}
 
 /* Refinamiento NEÓN: la luz sigue a la marca y a lo interactivo, no al texto plano */
 /* Refinamiento CLARO: separar tarjetas por sombra (no solo borde) */
@@ -1840,11 +1914,6 @@ select.input {
   font-size: var(--fs-sm);
   line-height: 1.4;
 }
-.hint__icon {
-  flex: none;
-  margin-top: 2px;
-  color: var(--primary);
-}
 .hint__body {
   flex: 1;
   min-width: 0;
@@ -1862,11 +1931,19 @@ select.input {
   color: var(--text-faint);
   margin: -4px -8px -4px 0;
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition: background var(--dur-tap) var(--ease-out), color var(--dur-tap) var(--ease-out);
 }
 .hint__close:hover {
   background: color-mix(in srgb, var(--primary) 14%, transparent);
   color: var(--text);
+}
+
+.novedades__list {
+  margin: 0;
+  padding-left: 1.1em;
+  display: grid;
+  gap: 4px;
+  list-style: disc;
 }
 
 /* ---- Toast — feedback operativo efímero ------------------------------- */
@@ -1908,6 +1985,11 @@ select.input {
     transform: translate(-50%, 0);
   }
 }
+/* Salida: la misma entrada al revés. Debe ir después de .toast (misma
+   especificidad) para ganar el shorthand de animation. */
+.toast--leaving {
+  animation: toast-in 160ms ease-in reverse forwards;
+}
 @media (min-width: 1024px) {
   /* Desktop: sin BottomNav, toast pegado a la esquina inferior derecha. */
   .toast {
@@ -1937,7 +2019,7 @@ select.input {
   color: var(--text);
   font-size: var(--fs-sm);
   text-align: center;
-  animation: cheer-in 220ms ease-out;
+  animation: cheer-in 220ms var(--ease-out);
 }
 @keyframes cheer-in {
   from {
@@ -1948,6 +2030,10 @@ select.input {
     opacity: 1;
     transform: translateY(0);
   }
+}
+/* Salida: la entrada al revés, 160 ms antes de que el hook lo quite del DOM. */
+.cheer--leaving {
+  animation: cheer-in 160ms ease-in reverse forwards;
 }
 @media (prefers-reduced-motion: reduce) {
   .cheer {
@@ -2049,7 +2135,7 @@ select.input {
   color: var(--on-primary);
   font-size: var(--fs-sm);
   text-decoration: none;
-  transition: top 0.15s ease;
+  transition: top var(--dur-tap) var(--ease-out);
 }
 .skip-link:focus-visible {
   top: var(--s3);
@@ -2096,7 +2182,7 @@ select.input {
   padding: var(--s4);
   background: color-mix(in srgb, var(--bg) 72%, transparent);
   backdrop-filter: blur(3px);
-  animation: goal-peek-fade 0.2s ease-out;
+  animation: goal-peek-fade var(--dur-state) var(--ease-out);
 }
 @keyframes goal-peek-fade {
   from {
@@ -2195,7 +2281,7 @@ select.input {
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
   cursor: pointer;
-  transition: border-color 0.15s ease, transform 0.08s ease;
+  transition: border-color var(--dur-tap) var(--ease-out), transform var(--dur-tap) var(--ease-out);
 }
 .timeline__card:hover {
   border-color: var(--border);
@@ -2306,12 +2392,13 @@ select.input {
   stroke: var(--niche, var(--primary));
   stroke-width: 10;
   stroke-linecap: round;
-  transition: stroke-dashoffset 0.6s linear;
+  transition: stroke-dashoffset 1000ms linear, stroke var(--dur-layout) var(--ease-out);
 }
-@media (prefers-reduced-motion: reduce) {
-  .ring__bar {
-    transition: none;
-  }
+.ring--reached .ring__bar {
+  stroke: var(--success);
+}
+.ring--reached .ring__center {
+  animation: check-pop var(--dur-layout) var(--ease-spring);
 }
 .ring__center {
   position: absolute;
@@ -2340,6 +2427,20 @@ select.input {
   gap: var(--s3);
   min-height: 48px;
   padding: 2px 0;
+}
+/* Etapa recién cumplida: la fila se enciende en verde y se apaga. El logro se
+   ve donde ocurrió, no solo en el toast que aparece abajo. */
+.mstone--just-done {
+  animation: mstone-flash 700ms var(--ease-out);
+  border-radius: var(--radius-sm);
+}
+@keyframes mstone-flash {
+  from {
+    background: color-mix(in srgb, var(--success) 22%, transparent);
+  }
+  to {
+    background: transparent;
+  }
 }
 .mstone__title {
   flex: 1;
@@ -2621,8 +2722,8 @@ select.input {
 
 /* Entrada en cascada: los items suben y aparecen; --i escalona el delay. */
 .learn-enter {
-  animation: learn-rise 0.4s var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 55ms);
+  animation: learn-rise var(--dur-layout) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 36ms);
 }
 @keyframes learn-rise {
   from {
@@ -2638,7 +2739,7 @@ select.input {
   width: 100%;
   text-align: left;
   border-color: color-mix(in srgb, var(--niche, var(--primary)) 24%, var(--border-soft));
-  transition: transform 0.12s ease, box-shadow 0.18s ease, border-color 0.15s ease;
+  transition: transform var(--dur-tap) var(--ease-out), box-shadow var(--dur-state) var(--ease-out), border-color var(--dur-tap) var(--ease-out);
 }
 .learn-card::before {
   content: '';
@@ -2674,7 +2775,7 @@ select.input {
   height: 100%;
   border-radius: var(--radius-pill);
   background: var(--niche, var(--success));
-  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: width var(--dur-layout) var(--ease-out);
 }
 
 /* "Sigue: …" — el próximo paso concreto, no solo un contador. */
@@ -2690,7 +2791,7 @@ select.input {
   text-align: left;
   align-items: center;
   gap: var(--s3);
-  transition: transform 0.12s ease, box-shadow 0.18s ease, border-color 0.15s ease;
+  transition: transform var(--dur-tap) var(--ease-out), box-shadow var(--dur-state) var(--ease-out), border-color var(--dur-tap) var(--ease-out);
 }
 .lesson-row__num {
   flex: none;
@@ -2723,7 +2824,7 @@ select.input {
   height: 6px;
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--niche, var(--primary)) 28%, var(--border));
-  transition: width 0.25s var(--ease-out), background 0.2s ease;
+  transition: width var(--dur-state) var(--ease-out), background var(--dur-state) var(--ease-out);
 }
 .lesson-dots span[data-read='true'] {
   background: var(--niche, var(--primary));
@@ -2839,7 +2940,7 @@ select.input {
   font-size: var(--fs-sm);
   color: var(--text);
   word-break: break-word;
-  transition: color 0.15s var(--ease-out);
+  transition: color var(--dur-tap) var(--ease-out);
 }
 .ev-sub--done .ev-sub__time {
   color: var(--text-faint);
@@ -2957,7 +3058,7 @@ select.input {
   align-self: flex-start;
   padding-left: calc(16px + var(--s3)); /* alinea con el label, pasado el icono */
   font-size: var(--fs-xs);
-  transition: color 0.15s var(--ease-out);
+  transition: color var(--dur-tap) var(--ease-out);
 }
 
 /* ==== Agenda: cronología del día (2026-09) =================================
@@ -2993,6 +3094,9 @@ select.input {
   border-radius: 0;
   text-align: left;
   color: var(--text);
+}
+button.ag-row {
+  transition: opacity var(--dur-tap) var(--ease-out);
 }
 .ag__kicker + .ag-row,
 .ag-now + .ag-row,
@@ -3082,6 +3186,10 @@ select.input {
 }
 .ag-chev {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
   color: var(--text-faint);
 }
 .ag-row--past {
@@ -3115,9 +3223,14 @@ button.ag-row:active,
   padding: 8px 0;
   background: none;
   border: 0;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   text-align: left;
   color: var(--text);
+  transition: background-color var(--dur-tap) var(--ease-out), transform var(--dur-tap) var(--ease-out);
+}
+.blk__head:active {
+  background: var(--surface-2);
+  transform: scale(0.995);
 }
 .blk__sum {
   min-width: 0;
@@ -3155,18 +3268,22 @@ button.ag-row:active,
   width: 7px;
   height: 7px;
   border-radius: 50%;
+  background: color-mix(in srgb, var(--niche, var(--text-faint)) 70%, var(--text));
+}
+[data-theme='oscuro'] .blk__dot {
   background: var(--niche, var(--text-faint));
 }
 .blk__chev {
   display: inline-flex;
   color: var(--text-faint);
-  transition: transform 0.2s var(--ease-out);
+  transition: transform var(--dur-state) var(--ease-out);
 }
 .blk--open .blk__chev {
   transform: rotate(90deg);
 }
 .blk__body {
-  padding-bottom: 6px;
+  padding: 4px 4px 6px;
+  margin: -4px -4px 0;
 }
 .blk__body .ag-row {
   min-height: 48px;
@@ -3187,12 +3304,6 @@ button.ag-row:active,
   font-weight: 600;
   color: var(--primary);
 }
-@media (prefers-reduced-motion: reduce) {
-  .blk__chev {
-    transition: none;
-  }
-}
-
 /* Cabecera de la agenda: fecha a la izquierda, acciones (✎, +) a la derecha. */
 .ag-hdr {
   display: flex;
@@ -3323,9 +3434,14 @@ button.ag-row:active,
   padding: 12px 0;
   background: none;
   border: 0;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   text-align: left;
   color: var(--text);
+  transition: background-color var(--dur-tap) var(--ease-out), transform var(--dur-tap) var(--ease-out);
+}
+.wk-day__head:active {
+  background: var(--surface-2);
+  transform: scale(0.995);
 }
 .wk-day__date {
   display: flex;
@@ -3386,18 +3502,22 @@ button.ag-row:active,
   width: 6px;
   height: 6px;
   border-radius: 50%;
+  background: color-mix(in srgb, var(--niche, var(--text-faint)) 70%, var(--text));
+}
+[data-theme='oscuro'] .wk-day__dot {
   background: var(--niche, var(--text-faint));
 }
 .wk-day__chev {
   display: inline-flex;
   color: var(--text-faint);
-  transition: transform 0.2s var(--ease-out);
+  transition: transform var(--dur-state) var(--ease-out);
 }
 .wk-day--open .wk-day__chev {
   transform: rotate(90deg);
 }
 .wk-day__body {
-  padding: 0 0 10px 52px;
+  padding: 4px 4px 10px 56px;
+  margin: -4px -4px 0;
 }
 .wk-day__body .ag-row {
   min-height: 46px;
@@ -3406,11 +3526,6 @@ button.ag-row:active,
 .wk-day__body .ag-row__title,
 .wk-day__body .blk__titles {
   font-size: 14px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .wk-day__chev {
-    transition: none;
-  }
 }
 /* Escritorio: los siete días como tarjetas en cuadrícula, todos abiertos. */
 @media (min-width: 1024px) {
@@ -3433,12 +3548,18 @@ button.ag-row:active,
 }
 
 /* ==== Desplegable (Disclosure) ==============================================
-   <details> nativo con resumen a la izquierda y chevron a la derecha. Es la
-   gramática única para plegar historia, metadatos y explicaciones. */
+   Botón + cuerpo siempre presentes en el árbol; el plegado se anima con
+   grid-template-rows. Chevron a la derecha, es la gramática única para
+   plegar historia, metadatos y explicaciones. */
 .disclosure {
   width: 100%;
 }
 .disclosure__summary {
+  width: 100%;
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: left;
   list-style: none;
   display: flex;
   align-items: center;
@@ -3457,9 +3578,6 @@ button.ag-row:active,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.disclosure__summary::-webkit-details-marker {
-  display: none;
-}
 .disclosure__summary:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
@@ -3468,16 +3586,30 @@ button.ag-row:active,
 .disclosure__chev {
   display: inline-flex;
   color: var(--text-faint);
-  transition: transform 0.2s var(--ease-out);
+  transition: transform var(--dur-state) var(--ease-out);
 }
-.disclosure[open] > .disclosure__summary .disclosure__chev {
+.disclosure--open > .disclosure__summary .disclosure__chev {
   transform: rotate(90deg);
 }
 .disclosure__body {
-  padding-top: var(--s2);
+  padding: calc(var(--s2) + 4px) 4px 4px;
+  margin: -4px -4px 0;
 }
-@media (prefers-reduced-motion: reduce) {
-  .disclosure__chev {
-    transition: none;
-  }
+.disclosure__wrap,
+.blk__wrap,
+.wk-day__wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-layout) var(--ease-out);
+}
+.disclosure--open > .disclosure__wrap,
+.blk--open > .blk__wrap,
+.wk-day--open > .wk-day__wrap {
+  grid-template-rows: 1fr;
+}
+.disclosure__wrap > .disclosure__body,
+.blk__wrap > .blk__body,
+.wk-day__wrap > .wk-day__body {
+  min-height: 0;
+  overflow: hidden;
 }

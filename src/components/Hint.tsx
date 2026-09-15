@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useFirstTimeHint } from '@/hooks/useFirstTimeHint'
-import { IconClose, IconLightbulb } from '@/components/icons'
+import { IconClose } from '@/components/icons'
 
 interface HintProps {
   /** Identificador único — al cambiarlo, "resetea" el hint para todos los usuarios. */
@@ -18,9 +18,6 @@ export function Hint({ id, children }: HintProps) {
   if (!visible) return null
   return (
     <div className="hint" role="note">
-      <span className="hint__icon" aria-hidden="true">
-        <IconLightbulb size={14} />
-      </span>
       <span className="hint__body">{children}</span>
       <button className="hint__close" type="button" onClick={dismiss} aria-label="Entendido">
         <IconClose size={14} />

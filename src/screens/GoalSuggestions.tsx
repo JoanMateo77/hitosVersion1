@@ -64,8 +64,8 @@ export function GoalSuggestions() {
         <h1 className="screen__title">Ideas para ti</h1>
         <p className="screen__subtitle">
           {niche === 'otra'
-            ? 'Metas listas para empezar, cada una con sus etapas sugeridas. Elige una o escribe la tuya.'
-            : `Sugerencias de ${nicheInfo.label.toLowerCase()}, con etapas listas para empezar. Elige una o escribe la tuya.`}
+            ? 'Metas listas para empezar, cada una con sus etapas típicas. Elige una o escribe la tuya.'
+            : `Ideas de ${nicheInfo.label.toLowerCase()}, con etapas listas para empezar. Elige una o escribe la tuya.`}
         </p>
       </header>
 

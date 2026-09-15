@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { getGoal, setGoalStatus, updateGoal, type GoalEdit } from '@/services/goals'
@@ -19,14 +19,7 @@ import {
 } from '@/services/sessions'
 import { minutesByGoalInRange } from '@/services/events'
 import { listHabitChecksInRange, listHabits, setHabitCheck } from '@/services/habits'
-import {
-  habitCompleteDates,
-  habitDoneCount,
-  habitIsComplete,
-  habitStreak,
-  habitTarget,
-  nextSlot,
-} from '@/domain/habits'
+import { habitDoneCount, habitIsComplete, habitTarget, nextSlot } from '@/domain/habits'
 import { getTemplate } from '@/domain/templates'
 import { NICHES, getNiche } from '@/domain/niches'
 import { nicheAccent } from '@/lib/nicheAccent'
@@ -52,10 +45,12 @@ import {
 } from '@/lib/date'
 import type { Goal, GoalStatus, Habit, HabitCheck, Milestone, NicheId, ScheduleBlock, Session } from '@/lib/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { Celebration } from '@/components/Celebration'
 import { MilestoneChecklist } from '@/components/MilestoneChecklist'
 import { CommitmentStep } from '@/components/wizard/CommitmentStep'
 import { useToast } from '@/app/toast'
 import { shareAchievement } from '@/lib/shareCard'
+import { successHaptic } from '@/lib/haptics'
 import {
   IconBack,
   IconCalendar,
@@ -63,7 +58,6 @@ import {
   IconCheck,
   IconCompass,
   IconDots,
-  IconFlame,
   IconQuote,
   IconShare,
 } from '@/components/icons'
@@ -124,6 +118,18 @@ export function GoalDetail() {
   // Confirmación al lograr con etapas pendientes.
   const [confirmAchieve, setConfirmAchieve] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
+  // Momento focal: la meta quedó lograda. El velo se va solo (won-out).
+  const [won, setWon] = useState<string | null>(null)
+  // Etapa recién cumplida: se enciende 700 ms y se apaga.
+  const [justDoneId, setJustDoneId] = useState<string | null>(null)
+  const flashTimer = useRef<number | null>(null)
+
+  useEffect(
+    () => () => {
+      if (flashTimer.current !== null) window.clearTimeout(flashTimer.current)
+    },
+    [],
+  )
 
   useEffect(() => {
     let active = true
@@ -199,6 +205,7 @@ export function GoalDetail() {
         toast('Pausada. La retomas cuando quieras.')
       } else if (status === 'done') {
         setOfferAchieve(false)
+        setWon('¡Meta lograda!')
         toast('¡Meta lograda! Bien hecho.', 'success')
       } else if (status === 'archived') {
         toast('Archivada.')
@@ -249,6 +256,13 @@ export function GoalDetail() {
       const next = milestones.map((x) => (x.id === m.id ? updated : x))
       setMilestones(next)
       if (willBeDone) {
+        // La etapa se enciende un instante: el logro se ve donde ocurrió, no
+        // solo en el toast (o el velo de celebración) que sigue después. Esto
+        // vale también para la última etapa, la que dispara offerAchieve.
+        setJustDoneId(m.id)
+        successHaptic()
+        if (flashTimer.current !== null) window.clearTimeout(flashTimer.current)
+        flashTimer.current = window.setTimeout(() => setJustDoneId(null), 700)
         const pendingLeft = next.filter((x) => x.doneAt === null).length
         if (pendingLeft === 0) setOfferAchieve(true)
         else toast('Etapa cumplida.', 'success')
@@ -380,17 +394,8 @@ export function GoalDetail() {
   const consistency = weekConsistency(blocks, weekSessions, startOfWeek(todayISO()))
   const isActive = goal.status === 'active'
 
-  // Hábitos que suman a esta meta, con su racha — la zona de hábitos deja de ser una isla.
+  // Hábitos que suman a esta meta — la zona de hábitos deja de ser una isla.
   const linkedHabits = habits.filter((h) => h.goalId === goal.id && h.archivedAt === null)
-  // Un día cuenta solo si el hábito quedó COMPLETO (todas sus repeticiones):
-  // la misma vara que Hoy, Hábitos y Progreso.
-  const habitDates = new Map(linkedHabits.map((h) => [h.id, habitCompleteDates(h, habitChecks)]))
-  const habitStreaks = new Map(
-    linkedHabits.map((h) => [
-      h.id,
-      habitStreak(habitDates.get(h.id) ?? new Set(), h.weekdays, todayISO()),
-    ]),
-  )
   // El hábito de hoy se marca aquí mismo, sin salir de la meta.
   const todayDate = todayISO()
   const habitAppliesToday = (h: Habit) =>
@@ -427,6 +432,7 @@ export function GoalDetail() {
 
   return (
     <div className="screen" style={nicheAccent(goal.area)}>
+      {won && <Celebration title={won} onDone={() => setWon(null)} />}
       <BackButton onClick={goBack} />
 
       <header className="screen__header" style={{ marginTop: 'var(--s4)' }}>
@@ -450,7 +456,12 @@ export function GoalDetail() {
             Editar
           </button>
         </div>
-        <h1 className="screen__title">{goal.title}</h1>
+        <h1
+          className="screen__title"
+          style={{ viewTransitionName: `goal-${goal.id}` } as CSSProperties}
+        >
+          {goal.title}
+        </h1>
       </header>
 
       <div className="detail-grid">
@@ -543,6 +554,7 @@ export function GoalDetail() {
             <MilestoneChecklist
               milestones={sortedMilestones}
               disabled={!isActive || updating}
+              justDoneId={justDoneId}
               onToggle={(m) => void toggleMilestone(m)}
               onRename={(m, t) => void renameMilestone(m, t)}
               onSetDate={(m, d) => void dateMilestone(m, d)}
@@ -635,16 +647,6 @@ export function GoalDetail() {
                       onClick={() => navigate('/habitos')}
                     >
                       <span className="small nowrap-ellipsis">{h.title}</span>
-                      {target > 1 && habitAppliesToday(h) && !done && (
-                        <span className="faint tiny" style={{ flex: 'none' }}>
-                          {doneCount} de {target} hoy
-                        </span>
-                      )}
-                      {(habitStreaks.get(h.id) ?? 0) >= 2 && (
-                        <span className="streak-chip" style={{ flex: 'none' }}>
-                          <IconFlame size={12} /> {habitStreaks.get(h.id)}
-                        </span>
-                      )}
                     </button>
                   </div>
                 )

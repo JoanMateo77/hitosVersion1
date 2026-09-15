@@ -31,7 +31,7 @@ import { useCacheMirror } from '@/hooks/useCacheMirror'
 import { Disclosure } from '@/components/Disclosure'
 import { NicheGlyph, NicheIcon } from '@/components/NicheGlyph'
 import { SkeletonList } from '@/components/Skeleton'
-import { IconClose, IconDots, IconFlame, IconLightbulb, IconPlus } from '@/components/icons'
+import { IconCheck, IconDots, IconFlame, IconLightbulb, IconPlus, IconTrash } from '@/components/icons'
 
 /** Mapa de estado de día → modificador de weekstrip (due se dibuja como "future":
  *  todavía se puede cumplir, igual que una sesión pendiente). */
@@ -114,7 +114,7 @@ function TimesEditor({ times, onChange }: { times: string[]; onChange: (t: strin
             aria-label={`Quitar el momento ${i + 1}`}
             onClick={() => onChange(times.filter((_, j) => j !== i))}
           >
-            <IconClose size={16} />
+            <IconTrash size={16} />
           </button>
         </div>
       ))}
@@ -558,7 +558,9 @@ export function Habits() {
                           aria-pressed={doneToday}
                           aria-label={`${doneToday ? 'Desmarcar' : 'Marcar'} hoy el hábito: ${habit.title}`}
                           onClick={() => void toggleToday(habit)}
-                        />
+                        >
+                          <IconCheck size={16} />
+                        </button>
                       )}
                       <NicheGlyph area={habit.area} size="sm" />
                       <div style={{ flex: 1, minWidth: 0 }}>

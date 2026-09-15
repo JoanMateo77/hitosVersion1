@@ -1,8 +1,9 @@
 import type { Habit } from '@/lib/types'
 import { formatTime12 } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
+import { tapHaptic } from '@/lib/haptics'
 import { NicheIcon } from '@/components/NicheGlyph'
-import { IconFlame } from '@/components/icons'
+import { IconCheck, IconFlame } from '@/components/icons'
 
 interface HabitRowProps {
   habit: Habit
@@ -51,8 +52,14 @@ export function HabitRow({
             ? `Desmarcar ${multi ? 'la última repetición de' : 'el hábito:'} ${habit.title}`
             : `Marcar ${multi ? `repetición ${doneCount + 1} de ${target} de` : 'el hábito:'} ${habit.title}`
         }
-        onClick={onToggle}
-      />
+        onClick={() => {
+          // Solo al marcar: desmarcar no se celebra.
+          if (!done) tapHaptic()
+          onToggle()
+        }}
+      >
+        <IconCheck size={16} />
+      </button>
       {/* Ícono del área teñido con --niche (lo setea nicheAccent en el contenedor). */}
       <span aria-hidden="true" className="today-habit__glyph">
         <NicheIcon area={habit.area} size={16} />

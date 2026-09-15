@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createBlendy, type Blendy } from 'blendy'
 import { useSession } from '@/app/session'
@@ -8,6 +8,7 @@ import { milestoneProgressByGoal } from '@/services/milestones'
 import { isGoalClosed } from '@/domain/goals'
 import { relativeDeadline } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
+import { withViewTransition } from '@/lib/viewTransition'
 import type { Goal, GoalStatus } from '@/lib/types'
 import { useCachedData } from '@/hooks/useCachedData'
 import { LoadingScreen } from '@/components/LoadingScreen'
@@ -83,7 +84,7 @@ export function Goals() {
   function openGoal(goal: Goal) {
     // Reduced-motion o Blendy no listo: directo al detalle completo (como antes).
     if (reducedMotion.current || !blendyRef.current) {
-      navigate(`/metas/${goal.id}`)
+      withViewTransition(() => navigate(`/metas/${goal.id}`))
       return
     }
     setPeek(goal)
@@ -200,7 +201,7 @@ export function Goals() {
         <GoalPeek
           goal={peek}
           nextTitle={data.progress.get(peek.id)?.nextTitle ?? null}
-          onOpen={() => navigate(`/metas/${peek.id}`)}
+          onOpen={() => withViewTransition(() => navigate(`/metas/${peek.id}`))}
           onClose={closePeek}
         />
       )}
@@ -229,9 +230,13 @@ function GoalPeek({
         <div className="goal-peek" onClick={(e) => e.stopPropagation()} style={nicheAccent(goal.area)}>
           <div className="goal-card__top">
             <NicheGlyph area={goal.area} size="md" />
-            <span className="goal-card__title">{goal.title}</span>
+            <span
+              className="goal-card__title"
+              style={{ viewTransitionName: `goal-${goal.id}` } as CSSProperties}
+            >
+              {goal.title}
+            </span>
           </div>
-          {goal.why && <p className="small muted">Porque {goal.why}</p>}
           {nextTitle && (
             <p className="small" style={{ margin: 0 }}>
               <span className="faint">Siguiente:</span> {nextTitle}
@@ -320,11 +325,6 @@ function GoalCard({
               style={{ width: `${Math.round((progressDone / Math.max(1, progressTotal)) * 100)}%` }}
             />
           </div>
-          <span className="faint tiny">
-            {pathComplete
-              ? 'Camino completo'
-              : `Etapa ${progressDone + 1} de ${progressTotal}`}
-          </span>
         </div>
       )}
     </button>

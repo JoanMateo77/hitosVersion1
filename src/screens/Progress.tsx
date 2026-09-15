@@ -6,10 +6,17 @@ import { listDoneMilestones, milestoneProgressByGoal } from '@/services/mileston
 import { listScheduleForUser } from '@/services/schedule'
 import { listSessionsInRange } from '@/services/sessions'
 import { listHabitChecksInRange, listHabits } from '@/services/habits'
-import { habitCompleteDates, habitStreak, habitWeek } from '@/domain/habits'
+import { habitCompleteDates, habitStreak } from '@/domain/habits'
 import { getNiche } from '@/domain/niches'
 import { isGoalClosed } from '@/domain/goals'
-import { bestStreakCommitted, currentStreakCommitted, weekConsistency } from '@/domain/sessions'
+import {
+  activeCommittedWeekdays,
+  bestStreakCommitted,
+  dayState as domainDayState,
+  doneDatesOf,
+  globalStreak,
+  weekConsistency,
+} from '@/domain/sessions'
 import { weekdayMon0, WEEKDAY_LABELS } from '@/domain/commitment'
 import { addDays, formatLongDate, startOfWeek, todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
@@ -80,12 +87,10 @@ export function Progress() {
   // Solo los días COMPLETOS (todas las repeticiones) cuentan para racha y
   // semana: la misma vara que Hoy y Hábitos, o las pantallas se contradicen.
   const habitDates = new Map(activeHabits.map((h) => [h.id, habitCompleteDates(h, habitChecks)]))
-  const HABIT_DOT: Record<'done' | 'missed' | 'due' | 'free', string> = {
-    done: 'done',
-    missed: 'missed',
-    due: 'future',
-    free: 'free',
-  }
+  const bestHabitStreak = Math.max(
+    0,
+    ...activeHabits.map((h) => habitStreak(habitDates.get(h.id) ?? new Set<string>(), h.weekdays, today)),
+  )
 
   // ----- Tu semana -----
   // Solo cuentan los bloques de metas ACTIVAS: las pausadas no aparecen en la
@@ -94,24 +99,22 @@ export function Progress() {
   const activeBlocks = blocks.filter((b) => goalById.get(b.goalId)?.status === 'active')
   const weekSessions = sessions.filter((s) => s.date >= weekStart)
   const week = weekConsistency(activeBlocks, weekSessions, weekStart)
-  const doneDates = new Set(sessions.filter(doneish).map((s) => s.date))
-  const committedWeekdays = new Set(activeBlocks.map((b) => b.weekday))
-  const streak = currentStreakCommitted(doneDates, committedWeekdays, today)
+  const committedWeekdays = activeCommittedWeekdays(goals, blocks)
+  const streak = globalStreak(goals, blocks, sessions, today)
+  const doneDates = doneDatesOf(sessions)
   const best = Math.max(
     streak,
     bestStreakCommitted(doneDates, committedWeekdays, addDays(today, -(HISTORY_DAYS - 1)), today),
   )
 
   /** Estado visual de cada día de la semana en curso. */
-  function dayState(date: string): 'done' | 'partial' | 'missed' | 'future' | 'free' {
-    const isCommitted = committedWeekdays.has(weekdayMon0(date))
-    if (date > today) return isCommitted ? 'future' : 'free'
-    const day = sessions.filter((s) => s.date === date)
-    if (!isCommitted && day.length === 0) return 'free'
-    if (day.some((s) => s.status === 'done')) return 'done'
-    if (day.some((s) => s.status === 'partial')) return 'partial'
-    if (date === today) return 'future' // hoy sigue en juego
-    return 'missed'
+  function dayState(date: string) {
+    return domainDayState(
+      date,
+      today,
+      sessions.filter((s) => s.date === date),
+      committedWeekdays.has(weekdayMon0(date)),
+    )
   }
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
 
@@ -293,11 +296,6 @@ export function Progress() {
                       }}
                     />
                   </div>
-                  <span className="faint tiny">
-                    {prog.total > 0
-                      ? `Etapa ${Math.min(prog.done + 1, prog.total)} de ${prog.total}`
-                      : 'Sin etapas'}
-                  </span>
                 </button>
               )
             })}
@@ -307,49 +305,14 @@ export function Progress() {
 
       {/* ----- Tus hábitos ----- */}
       {activeHabits.length > 0 && (
-        <section aria-label="Tus hábitos">
-          <div className="section-head">
-            <span className="kicker">Tus hábitos</span>
-            <button className="btn--link" onClick={() => navigate('/habitos')}>
-              Gestionar
-            </button>
-          </div>
-          <div className="stack stack--sm">
-            {activeHabits.map((h) => {
-              const dates = habitDates.get(h.id) ?? new Set<string>()
-              const streakH = habitStreak(dates, h.weekdays, today)
-              const week7 = habitWeek(dates, h, weekStart)
-              return (
-                <button
-                  key={h.id}
-                  className="card card--tight stack stack--sm"
-                  style={{ ...nicheAccent(h.area), width: '100%', textAlign: 'left' }}
-                  onClick={() => navigate('/habitos')}
-                >
-                  <div className="row row--between" style={{ alignItems: 'center' }}>
-                    <span className="row row--sm" style={{ alignItems: 'center', minWidth: 0 }}>
-                      <NicheGlyph area={h.area} size="sm" />
-                      <strong className="nowrap-ellipsis">{h.title}</strong>
-                    </span>
-                    {streakH >= 2 && (
-                      <span className="streak-chip" style={{ flex: 'none' }}>
-                        <IconFlame size={13} /> {streakH}
-                      </span>
-                    )}
-                  </div>
-                  <div className="row" style={{ gap: 4 }} aria-label="Tu semana">
-                    {week7.map((state, i) => (
-                      <span
-                        key={i}
-                        className={`weekstrip__dot weekstrip__dot--${HABIT_DOT[state]}`}
-                        title={WEEKDAY_LABELS[i]}
-                      />
-                    ))}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
+        <section aria-label="Tus hábitos" className="card card--tight row row--between" style={{ alignItems: 'center' }}>
+          <span className="small">
+            {activeHabits.length} {activeHabits.length === 1 ? 'hábito activo' : 'hábitos activos'}
+            {bestHabitStreak >= 2 ? ` · mejor racha ${bestHabitStreak} días` : ''}
+          </span>
+          <button className="btn--link" onClick={() => navigate('/habitos')}>
+            Ver hábitos
+          </button>
         </section>
       )}
 
