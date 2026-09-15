@@ -45,3 +45,6 @@ IA_barata_gestora_metas.docx
 PLAN-arreglos-tier1.pdf
 *.docx
 public/logo-previews.png
+
+# Planes de implementación: solo locales, no se suben.
+docs/superpowers/plans/
