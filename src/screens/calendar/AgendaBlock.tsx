@@ -30,6 +30,7 @@ export function AgendaBlock({
   onAdd?: () => void
 } & AgendaRowHandlers) {
   const [open, setOpen] = useState(defaultOpen)
+  const [mounted, setMounted] = useState(defaultOpen)
   const sessions = items.filter((i) => i.kind === 'session').length
   const first = items.find((i) => i.kind === 'session') ?? items[0]
   const titles = items.map(rowTitle).join(' · ')
@@ -49,9 +50,12 @@ export function AgendaBlock({
       <button
         type="button"
         className="blk__head"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          setOpen((o) => !o)
+          setMounted(true)
+        }}
         aria-expanded={open}
-        aria-controls={open ? bodyId : undefined}
+        aria-controls={bodyId}
         aria-label={`${open ? 'Plegar' : 'Desplegar'} el bloque de ${formatTime12(block.start)}: ${titles}`}
       >
         <TimeColumn start={block.start} end={block.end} />
@@ -70,18 +74,22 @@ export function AgendaBlock({
           <IconChevronRight size={18} />
         </span>
       </button>
-      {open && (
-        <div className="blk__body" id={bodyId}>
-          {items.map((it) => (
-            <AgendaRow key={it.key} item={it} past={past} {...handlers} />
-          ))}
-          {onAdd && (
-            <button type="button" className="blk__add" onClick={onAdd}>
-              <IconPlus size={14} /> Agregar algo a las {formatTime12(block.start)}
-            </button>
+      <div className="blk__wrap">
+        <div className="blk__body" id={bodyId} inert={!open}>
+          {mounted && (
+            <>
+              {items.map((it) => (
+                <AgendaRow key={it.key} item={it} past={past} {...handlers} />
+              ))}
+              {onAdd && (
+                <button type="button" className="blk__add" onClick={onAdd}>
+                  <IconPlus size={14} /> Agregar algo a las {formatTime12(block.start)}
+                </button>
+              )}
+            </>
           )}
         </div>
-      )}
+      </div>
     </div>
   )
 }

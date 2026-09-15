@@ -23,14 +23,15 @@ import {
 } from '@/domain/habits'
 import { NICHES } from '@/domain/niches'
 import { WEEKDAY_LABELS } from '@/domain/commitment'
-import { addDays, formatTime12, startOfWeek, todayISO } from '@/lib/date'
+import { addDays, startOfWeek, todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { friendlyError } from '@/lib/errors'
 import { sessionCache } from '@/lib/sessionCache'
 import { useCacheMirror } from '@/hooks/useCacheMirror'
+import { Disclosure } from '@/components/Disclosure'
 import { NicheGlyph, NicheIcon } from '@/components/NicheGlyph'
 import { SkeletonList } from '@/components/Skeleton'
-import { IconArrowReturn, IconClose, IconDots, IconFlame, IconLightbulb, IconPlus } from '@/components/icons'
+import { IconCheck, IconDots, IconFlame, IconLightbulb, IconPlus, IconTrash } from '@/components/icons'
 
 /** Mapa de estado de día → modificador de weekstrip (due se dibuja como "future":
  *  todavía se puede cumplir, igual que una sesión pendiente). */
@@ -67,17 +68,19 @@ function daysLabel(weekdays: number[]): string {
   return weekdays.map((d) => WEEKDAY_LABELS[d]).join(' · ')
 }
 
-/**
- * Pauta completa del hábito: días + horas. "Todos los días" como siempre si no
- * tiene horas; con horas suma "5 veces al día · 8:00 am – 8:00 pm" (o la hora
- * única si es una sola).
- */
+/** "Todos los días", "Lu · Mi · Vi · 3 veces al día": días y repeticiones; las horas viven en el menú. */
 function pautaLabel(habit: Habit): string {
   const base = daysLabel(habit.weekdays)
-  const times = habit.times
-  if (!times || times.length === 0) return base
-  if (times.length === 1) return `${base} · ${formatTime12(times[0])}`
-  return `${base} · ${times.length} veces al día · ${formatTime12(times[0])} – ${formatTime12(times[times.length - 1])}`
+  const n = habit.times?.length ?? 0
+  return n > 1 ? `${base} · ${n} veces al día` : base
+}
+
+/** Aclara en el chip por qué una meta vinculada ya no está entre las activas. */
+function goalStatusSuffix(status: Goal['status']): string {
+  if (status === 'paused') return ' · pausada'
+  if (status === 'done') return ' · lograda'
+  if (status === 'archived') return ' · archivada'
+  return ''
 }
 
 /** Horas listas para guardar: sin vacías y ordenadas ascendente; null si no hay. */
@@ -95,47 +98,33 @@ function TimesEditor({ times, onChange }: { times: string[]; onChange: (t: strin
   return (
     <div className="stack stack--sm">
       <span className="kicker">¿A qué horas?</span>
-      {times.length === 0 ? (
-        <p className="faint tiny" style={{ margin: 0 }}>
-          Una vez al día, sin hora fija. Agrega momentos si quieres repetirlo o
-          hacerlo a una hora concreta.
-        </p>
-      ) : (
-        <>
-          {times.map((t, i) => (
-            <div key={i} className="row" style={{ alignItems: 'center' }}>
-              <input
-                className="input"
-                type="time"
-                value={t}
-                aria-label={`Momento ${i + 1}`}
-                onChange={(e) => onChange(times.map((x, j) => (j === i ? e.target.value : x)))}
-              />
-              <button
-                type="button"
-                className="iconbtn iconbtn--sm"
-                style={{ flex: 'none' }}
-                aria-label={`Quitar el momento ${i + 1}`}
-                onClick={() => onChange(times.filter((_, j) => j !== i))}
-              >
-                <IconClose size={16} />
-              </button>
-            </div>
-          ))}
-          <p className="faint tiny" style={{ margin: 0 }}>
-            {times.length === 1
-              ? '1 vez al día. Cada momento que agregues es una repetición.'
-              : `${times.length} veces al día: se cumple completando todas.`}
-          </p>
-        </>
-      )}
+      {times.map((t, i) => (
+        <div key={i} className="row" style={{ alignItems: 'center' }}>
+          <input
+            className="input"
+            type="time"
+            value={t}
+            aria-label={`Momento ${i + 1}`}
+            onChange={(e) => onChange(times.map((x, j) => (j === i ? e.target.value : x)))}
+          />
+          <button
+            type="button"
+            className="iconbtn iconbtn--sm"
+            style={{ flex: 'none' }}
+            aria-label={`Quitar el momento ${i + 1}`}
+            onClick={() => onChange(times.filter((_, j) => j !== i))}
+          >
+            <IconTrash size={16} />
+          </button>
+        </div>
+      ))}
       <button
         type="button"
         className="btn--link"
         style={{ alignSelf: 'flex-start' }}
         onClick={() => onChange([...times, ''])}
       >
-        + agregar otro momento
+        {times.length === 0 ? '+ agregar una hora' : '+ agregar otro momento'}
       </button>
     </div>
   )
@@ -203,7 +192,9 @@ export function Habits() {
   useCacheMirror(cacheKey, habits !== null, { habits: habits ?? [], checksByHabit, goals })
 
   const activeGoals = goals.filter((g) => g.status === 'active')
-  const goalById = new Map(goals.map((g) => [g.id, g]))
+  // Mapa completo (no solo activas): el menú ⋯ necesita poder mostrar la
+  // meta vinculada aunque esté pausada/lograda/archivada.
+  const goalById = new Map(goals.map((g) => [g.id, g] as const))
 
   // --- Formulario de creación ---
   const [formOpen, setFormOpen] = useState(false)
@@ -386,6 +377,23 @@ export function Habits() {
   const active = habits?.filter((h) => h.archivedAt === null) ?? []
   const archived = habits?.filter((h) => h.archivedAt !== null) ?? []
 
+  // Chips de ideas: mismo contenido en el estado vacío y en el Disclosure.
+  const ideaChips = (
+    <div className="row wrap">
+      {HABIT_IDEAS.map((idea) => (
+        <button
+          key={idea.title}
+          type="button"
+          className="chip"
+          style={nicheAccent(idea.area)}
+          onClick={() => openWith(idea)}
+        >
+          {idea.title}
+        </button>
+      ))}
+    </div>
+  )
+
   return (
     <div className="screen">
       <header className="row row--between screen__header" style={{ alignItems: 'flex-end' }}>
@@ -459,11 +467,6 @@ export function Habits() {
                 </button>
               ))}
             </div>
-            {days.length === 0 && (
-              <p className="faint tiny" style={{ margin: 0 }}>
-                Sin días marcados, el hábito aplica todos los días.
-              </p>
-            )}
           </div>
 
           <TimesEditor times={formTimes} onChange={setFormTimes} />
@@ -492,13 +495,14 @@ export function Habits() {
                   </button>
                 ))}
               </div>
-              <p className="faint tiny" style={{ margin: 0 }}>
-                El hábito aparece en el detalle de su meta y cuenta en la revisión semanal.
-              </p>
             </div>
           )}
 
           {formError && <div className="alert alert--warn" role="alert">{formError}</div>}
+
+          <p className="faint tiny" style={{ margin: 0 }}>
+            Sin días marcados, el hábito aplica todos los días; cada hora que agregues es una repetición.
+          </p>
 
           <div className="row">
             <button className="btn btn--primary" disabled={saving} onClick={() => void handleCreate()}>
@@ -536,6 +540,13 @@ export function Habits() {
                 const target = habitTarget(habit)
                 const doneCount = habitDoneCount(checks, habit.id, today)
                 const doneToday = doneCount >= target
+                // La meta vinculada siempre debe poder verse y elegirse en el
+                // menú, aunque ya no esté activa (pausada/lograda/archivada).
+                const linkedGoal = habit.goalId ? goalById.get(habit.goalId) : undefined
+                const goalChips =
+                  linkedGoal && !activeGoals.some((g) => g.id === linkedGoal.id)
+                    ? [...activeGoals, linkedGoal]
+                    : activeGoals
                 return (
                   <li key={habit.id} className="card card--tight stack stack--sm" style={nicheAccent(habit.area)}>
                     <div className="row" style={{ alignItems: 'center' }}>
@@ -547,7 +558,9 @@ export function Habits() {
                           aria-pressed={doneToday}
                           aria-label={`${doneToday ? 'Desmarcar' : 'Marcar'} hoy el hábito: ${habit.title}`}
                           onClick={() => void toggleToday(habit)}
-                        />
+                        >
+                          <IconCheck size={16} />
+                        </button>
                       )}
                       <NicheGlyph area={habit.area} size="sm" />
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -556,11 +569,6 @@ export function Habits() {
                           <span className="faint tiny">{pautaLabel(habit)}</span>
                           {target > 1 && dueToday && (
                             <span className="tag">{doneCount} de {target} hoy</span>
-                          )}
-                          {habit.goalId && goalById.get(habit.goalId) && (
-                            <span className="tag">
-                              <IconArrowReturn size={11} /> {goalById.get(habit.goalId)!.title}
-                            </span>
                           )}
                         </span>
                       </div>
@@ -616,7 +624,7 @@ export function Habits() {
                           times={menuTimes}
                           onChange={(next) => void changeHabitTimes(habit, next)}
                         />
-                        {activeGoals.length > 0 && (
+                        {(activeGoals.length > 0 || habit.goalId) && (
                           <>
                             <span className="kicker">¿Suma a una meta?</span>
                             <div className="row wrap" role="group" aria-label={`Meta de: ${habit.title}`}>
@@ -628,7 +636,7 @@ export function Habits() {
                               >
                                 Ninguna
                               </button>
-                              {activeGoals.map((g) => (
+                              {goalChips.map((g) => (
                                 <button
                                   key={g.id}
                                   type="button"
@@ -637,6 +645,7 @@ export function Habits() {
                                   onClick={() => void changeHabitGoal(habit, g.id)}
                                 >
                                   <NicheIcon area={g.area} size={14} /> {g.title}
+                                  {g.status !== 'active' && goalStatusSuffix(g.status)}
                                 </button>
                               ))}
                             </div>
@@ -658,26 +667,20 @@ export function Habits() {
           )}
 
           {/* Ideas populares: un toque precarga el formulario; nada se crea sin confirmar. */}
-          <section className="stack stack--sm" style={{ marginTop: 'var(--s5)' }}>
-            <div className="section-head">
-              <span className="kicker row row--sm" style={{ alignItems: 'center' }}>
-                <IconLightbulb size={14} /> Ideas populares
-              </span>
+          {active.length === 0 ? (
+            <section className="stack stack--sm" style={{ marginTop: 'var(--s5)' }}>
+              <div className="section-head">
+                <span className="kicker row row--sm" style={{ alignItems: 'center' }}>
+                  <IconLightbulb size={14} /> Ideas populares
+                </span>
+              </div>
+              {ideaChips}
+            </section>
+          ) : (
+            <div style={{ marginTop: 'var(--s5)' }}>
+              <Disclosure summary="Ideas para sumar">{ideaChips}</Disclosure>
             </div>
-            <div className="row wrap">
-              {HABIT_IDEAS.map((idea) => (
-                <button
-                  key={idea.title}
-                  type="button"
-                  className="chip"
-                  style={nicheAccent(idea.area)}
-                  onClick={() => openWith(idea)}
-                >
-                  {idea.title}
-                </button>
-              ))}
-            </div>
-          </section>
+          )}
 
           {archived.length > 0 && (
             <details className="goals-finished">

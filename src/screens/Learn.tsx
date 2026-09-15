@@ -13,7 +13,7 @@ import {
   IconBook,
   IconCheck,
   IconChevronRight,
-  IconLightbulb,
+  IconPlay,
 } from '@/components/icons'
 
 /** Modo de lectura de una lección: resumen (~80 palabras) o a fondo (250-350). */
@@ -253,7 +253,7 @@ export function Learn() {
             aria-label="Aplícalo hoy"
           >
             <span className="kicker row row--sm" style={{ alignItems: 'center' }}>
-              <IconLightbulb size={14} /> Aplícalo hoy
+              <IconPlay size={14} /> Aplícalo hoy
             </span>
             <p className="small" style={{ margin: 0 }}>
               {lesson.apply}

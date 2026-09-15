@@ -16,27 +16,6 @@
   text-align: left;
 }
 
-.session-plan__head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--s3);
-}
-
-.session-plan__title {
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--text-muted);
-}
-
-/* "2 de 5" — tabular para que no baile al tachar. */
-.session-plan__count {
-  font-size: var(--fs-xs);
-  color: var(--text-faint);
-  font-variant-numeric: tabular-nums;
-}
-
 .session-plan__list {
   list-style: none;
   margin: 0;
@@ -51,8 +30,8 @@
   display: flex;
   align-items: flex-start;
   gap: var(--s3);
-  animation: session-plan-rise 0.3s var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 40ms);
+  animation: session-plan-rise var(--dur-state) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 32ms);
 }
 @keyframes session-plan-rise {
   from {
@@ -77,10 +56,10 @@
   justify-content: center;
   padding: 0;
   transition:
-    transform 0.12s var(--ease-out),
-    background-color 0.15s var(--ease-out),
-    border-color 0.15s var(--ease-out),
-    color 0.15s var(--ease-out);
+    transform var(--dur-tap) var(--ease-out),
+    background-color var(--dur-tap) var(--ease-out),
+    border-color var(--dur-tap) var(--ease-out),
+    color var(--dur-tap) var(--ease-out);
 }
 .session-plan__check:active:not(:disabled) {
   transform: scale(0.9);
@@ -111,8 +90,8 @@
   min-width: 0;
   font-size: var(--fs-sm);
   transition:
-    opacity 0.15s var(--ease-out),
-    color 0.15s var(--ease-out);
+    opacity var(--dur-tap) var(--ease-out),
+    color var(--dur-tap) var(--ease-out);
 }
 .session-plan__note {
   font-size: var(--fs-xs);

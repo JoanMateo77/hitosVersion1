@@ -1,8 +1,9 @@
 import type { Habit } from '@/lib/types'
 import { formatTime12 } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
+import { tapHaptic } from '@/lib/haptics'
 import { NicheIcon } from '@/components/NicheGlyph'
-import { IconFlame } from '@/components/icons'
+import { IconCheck, IconFlame } from '@/components/icons'
 
 interface HabitRowProps {
   habit: Habit
@@ -23,8 +24,8 @@ interface HabitRowProps {
 /**
  * Fila de UN TOQUE para la pantalla Hoy: el hábito entero se resuelve con el
  * check redondo, sin detalle ni cronómetro. Si el hábito se repite en el día
- * (tiene horas), el mismo check marca la siguiente repetición y bajo el título
- * se ve el progreso ("2 de 5 · próxima 3:00 pm") con un puntito por repetición.
+ * (tiene horas), el mismo check marca la siguiente repetición: bajo el título
+ * se ve un puntito por repetición y, si queda alguna pendiente, "próxima H:MM".
  * Reutiliza la anatomía de .task (check + título + meta) para que conviva
  * visualmente con el plan del día, y se tiñe por nicho.
  */
@@ -51,8 +52,14 @@ export function HabitRow({
             ? `Desmarcar ${multi ? 'la última repetición de' : 'el hábito:'} ${habit.title}`
             : `Marcar ${multi ? `repetición ${doneCount + 1} de ${target} de` : 'el hábito:'} ${habit.title}`
         }
-        onClick={onToggle}
-      />
+        onClick={() => {
+          // Solo al marcar: desmarcar no se celebra.
+          if (!done) tapHaptic()
+          onToggle()
+        }}
+      >
+        <IconCheck size={16} />
+      </button>
       {/* Ícono del área teñido con --niche (lo setea nicheAccent en el contenedor). */}
       <span aria-hidden="true" className="today-habit__glyph">
         <NicheIcon area={habit.area} size={16} />
@@ -61,10 +68,7 @@ export function HabitRow({
         <span className="task__title">{habit.title}</span>
         {multi && (
           <>
-            <span className="faint tiny">
-              {doneCount} de {target}
-              {nextTime ? ` · próxima ${formatTime12(nextTime)}` : ''}
-            </span>
+            {nextTime && <span className="faint tiny">próxima {formatTime12(nextTime)}</span>}
             <span className="lesson-dots" aria-hidden="true">
               {Array.from({ length: target }, (_, i) => (
                 <span key={i} data-read={i < doneCount ? 'true' : 'false'} />

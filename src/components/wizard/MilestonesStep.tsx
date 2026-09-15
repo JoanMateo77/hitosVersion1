@@ -5,8 +5,8 @@ import {
   IconArrowDown,
   IconArrowUp,
   IconCalendar,
-  IconClose,
   IconDots,
+  IconTrash,
 } from '@/components/icons'
 
 interface MilestonesStepProps {
@@ -149,7 +149,7 @@ export function MilestonesStep({ milestones, onChange }: MilestonesStepProps) {
                 aria-label="Quitar la etapa"
                 onClick={() => remove(index)}
               >
-                <IconClose size={15} />
+                <IconTrash size={15} />
               </button>
             </div>
           )}

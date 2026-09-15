@@ -36,14 +36,22 @@ import {
 import { HabitRow } from '@/components/HabitRow'
 import { compareEvents } from '@/domain/calendar'
 import { carryoverCandidates, findForgottenGoal, goalsDueForReview } from '@/domain/dailyPlan'
-import { bestStreakCommitted, currentStreakCommitted, formatClock, pickSuggestion, remainingSeconds, weekConsistency } from '@/domain/sessions'
+import {
+  activeCommittedWeekdays,
+  bestStreakCommitted,
+  dayState,
+  doneDatesOf,
+  formatClock,
+  globalStreak,
+  remainingSeconds,
+} from '@/domain/sessions'
 import { WEEKDAY_LABELS, weekdayMon0 } from '@/domain/commitment'
-import { getTemplate } from '@/domain/templates'
 import { addDays, formatTime12, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
 import { friendlyError } from '@/lib/errors'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { TaskItem } from '@/components/TaskItem'
 import { SessionCard } from '@/components/SessionCard'
+import { Disclosure } from '@/components/Disclosure'
 import { Hint } from '@/components/Hint'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
@@ -51,15 +59,18 @@ import {
   IconChevronRight,
   IconClock,
   IconFlame,
+  IconHito,
   IconPlus,
   IconQuote,
   IconSprout,
 } from '@/components/icons'
 import { NicheIcon } from '@/components/NicheGlyph'
 import { useCheer } from '@/hooks/useCheer'
+import { useNovedades } from '@/hooks/useNovedades'
 import { useToast } from '@/app/toast'
 import { ensureCommitmentBackfill } from '@/services/backfill'
 import { syncTimezone } from '@/lib/push'
+import { safeGetItem, safeSetItem } from '@/lib/storage'
 import { sessionCache } from '@/lib/sessionCache'
 import { useCacheMirror } from '@/hooks/useCacheMirror'
 import '@/styles/today.css'
@@ -91,6 +102,8 @@ export function Today() {
   // detrás (sin skeleton). La clave incluye la fecha: un día nuevo carga en frío.
   const cacheKey = `today:${userId}:${today}`
   const cached = sessionCache.get<TodaySnapshot>(cacheKey)
+  // Solo la carga fría (sin caché) hace la cascada de entrada; al volver, todo ya está tibio.
+  const warm = useRef(cached !== undefined).current
 
   const [goals, setGoals] = useState<Goal[]>(cached?.goals ?? [])
   const [blocks, setBlocks] = useState<ScheduleBlock[]>(cached?.blocks ?? [])
@@ -111,7 +124,8 @@ export function Today() {
   // Tras un ✓ rápido ofrecemos anotar el avance: es el camino más usado y el
   // diario de la meta no debería quedarse sin entradas justo ahí.
   const [notePrompt, setNotePrompt] = useState<{ sessionId: string; text: string } | null>(null)
-  const { cheerMessage, cheer } = useCheer()
+  const { cheerMessage, cheerLeaving, cheer } = useCheer()
+  const { novedad, cerrar: cerrarNovedades } = useNovedades()
   const { toast } = useToast()
 
   // Garantiza que el cierre de sesiones viejas y la generación del día corran
@@ -246,36 +260,28 @@ export function Today() {
   const doneCount = todaySessions.filter((x) => doneish(x.session)).length
   const allResolved = todaySessions.length > 0 && resolvedCount === todaySessions.length
 
-  // Racha sobre días comprometidos (los días sin compromiso no la rompen).
-  const streak = useMemo(() => {
-    const doneDates = new Set<string>()
-    for (const s of history) if (doneish(s)) doneDates.add(s.date)
-    for (const s of sessions) if (doneish(s)) doneDates.add(s.date)
-    const committedWeekdays = new Set(blocks.map((b) => b.weekday))
-    return currentStreakCommitted(doneDates, committedWeekdays, today)
-  }, [history, sessions, blocks, today])
+  // Días de la semana con compromiso de alguna meta activa (misma vara para
+  // la racha y para el estado de cada día de la tira semanal).
+  const committedWeekdays = useMemo(() => activeCommittedWeekdays(goals, blocks), [goals, blocks])
 
-  // Resumen numérico de la semana: la tira muestra estados, esto muestra la cuenta.
-  const week = useMemo(
-    () => weekConsistency(blocks, [...history, ...sessions], startOfWeek(today)),
-    [blocks, history, sessions, today],
+  // Racha sobre días comprometidos (los días sin compromiso no la rompen).
+  const streak = useMemo(
+    () => globalStreak(goals, blocks, [...history, ...sessions], today),
+    [goals, history, sessions, blocks, today],
   )
 
   // Racha recién rota: veníamos con racha (≥2) y el último día comprometido quedó
   // sin cumplir. El chip desaparecía sin explicación — el silencio es peor.
   const streakBroken = useMemo(() => {
     if (streak !== 0 || blocks.length === 0) return null
-    const doneDates = new Set<string>()
-    for (const s of history) if (doneish(s)) doneDates.add(s.date)
-    for (const s of sessions) if (doneish(s)) doneDates.add(s.date)
+    const doneDates = doneDatesOf([...history, ...sessions])
     if (doneDates.size === 0) return null
     const lastDone = [...doneDates].sort().pop()!
     if (lastDone < addDays(today, -14)) return null
-    const committed = new Set(blocks.map((b) => b.weekday))
-    const best = bestStreakCommitted(doneDates, committed, addDays(today, -119), today)
+    const best = bestStreakCommitted(doneDates, committedWeekdays, addDays(today, -119), today)
     if (best < 2) return null
     return { best, lastDone }
-  }, [streak, history, sessions, blocks, today])
+  }, [streak, history, sessions, blocks, committedWeekdays, today])
 
   const [streakNoticeDismissed, setStreakNoticeDismissed] = useState(false)
   const showStreakNotice =
@@ -342,19 +348,6 @@ export function Today() {
   )
   const todayEvents = useMemo(() => [...events].sort(compareEvents), [events])
 
-  // El plan del día por meta: eventos vinculados, con cuántos van tachados.
-  // Es el mismo bloque que enseña la agenda, resumido en la tarjeta de sesión.
-  const planByGoal = useMemo(() => {
-    const map = new Map<string, { done: number; total: number }>()
-    for (const e of events) {
-      if (!e.goalId) continue
-      const p = map.get(e.goalId) ?? { done: 0, total: 0 }
-      p.total += 1
-      if (e.doneAt) p.done += 1
-      map.set(e.goalId, p)
-    }
-    return map
-  }, [events])
   const reviewDue = useMemo(() => goalsDueForReview(goals), [goals])
   const forgotten = useMemo(() => {
     const lastDone = new Map<string, string>()
@@ -389,9 +382,7 @@ export function Today() {
     patchSession(s.id, { status: 'done', actualValue: s.targetValue })
     setNotePrompt({ sessionId: s.id, text: '' })
     const willBeDone = todaySessions.filter((x) => doneish(x.session)).length + 1
-    if (willBeDone === todaySessions.length && todaySessions.length > 0) {
-      cheer('Cumpliste tu compromiso de hoy. Bien hecho.')
-    } else if (willBeDone === 1) {
+    if (willBeDone === 1 && todaySessions.length > 1) {
       cheer('Primera sesión del día. Así se empieza.')
     }
     void withErrorHandling(
@@ -442,14 +433,10 @@ export function Today() {
   }
 
   /** Estado agregado de un día para la tira semanal. */
-  function stripState(date: string): 'done' | 'partial' | 'missed' | 'future' | 'free' {
-    const isCommitted = blocks.some((b) => b.weekday === weekdayMon0(date))
+  function stripState(date: string) {
+    const committed = committedWeekdays.has(weekdayMon0(date))
     const day = (date === today ? sessions : history).filter((x) => x.date === date)
-    if (date > today) return isCommitted ? 'future' : 'free'
-    if (day.some((x) => x.status === 'done')) return 'done'
-    if (day.some((x) => x.status === 'partial')) return 'partial'
-    if (date === today) return isCommitted || day.length > 0 ? 'future' : 'free'
-    return day.length > 0 || isCommitted ? 'missed' : 'free'
+    return dayState(date, today, day, committed)
   }
 
   function addSpontaneous(goal: Goal) {
@@ -561,11 +548,27 @@ export function Today() {
   }
   if (error) return <LoadingScreen error={error} />
 
-  // UN solo aviso contextual sobre el plan (prioridad: sin confirmar > revisión > olvidada).
-  const notice = toResolve ? 'resolve' : reviewDue.length > 0 ? 'review' : forgotten ? 'forgotten' : null
+  // UNA sola voz por vista. Prioridad: consecuencia de una acción del usuario
+  // (celebración, racha rota) > pregunta que la app necesita (sin confirmar,
+  // revisión, olvidada). Las tareas pendientes de ayer no compiten por esta
+  // voz: viven siempre en "Lo que sumaste tú".
+  type Voice = 'novedades' | 'cheer' | 'streak' | 'resolve' | 'review' | 'forgotten' | null
+  const voice: Voice = novedad
+    ? 'novedades'
+    : cheerMessage
+      ? 'cheer'
+      : showStreakNotice && streakBroken
+        ? 'streak'
+        : toResolve
+          ? 'resolve'
+          : reviewDue.length > 0
+            ? 'review'
+            : forgotten
+              ? 'forgotten'
+              : null
 
   return (
-    <div className="screen">
+    <div className="screen" data-warm={warm ? '' : undefined}>
       <header className="screen__header">
         <div className="screen__meta">
           <span>{formatWeekday(today)}</span>
@@ -619,15 +622,6 @@ export function Today() {
                 )
               })}
             </div>
-
-            {week.committed > 0 && (
-              <p className="faint tiny today-week__summary">
-                {week.done >= week.committed
-                  ? `Compromiso semanal cumplido: ${week.done} ${week.done === 1 ? 'sesión' : 'sesiones'}.`
-                  : `${week.done} de ${week.committed} sesiones de tu compromiso esta semana.`}
-              </p>
-            )}
-
           </div>
 
           {runningSession && goalById.get(runningSession.goalId) && (
@@ -648,13 +642,34 @@ export function Today() {
             </button>
           )}
 
-          {cheerMessage && (
-            <div className="cheer" role="status" aria-live="polite">
+          {voice === 'novedades' && novedad && (
+            <div className="card card--tight today-notice stack stack--sm" role="status">
+              <span className="row row--sm small" style={{ alignItems: 'center' }}>
+                <IconHito size={16} />
+                <strong>Novedades · {novedad.titulo}</strong>
+              </span>
+              <ul className="novedades__list small muted">
+                {novedad.items.map((t) => (
+                  <li key={t}>{t}</li>
+                ))}
+              </ul>
+              <button className="btn btn--sm btn--subtle today-self-start" onClick={cerrarNovedades}>
+                Entendido
+              </button>
+            </div>
+          )}
+
+          {voice === 'cheer' && cheerMessage && (
+            <div
+              className={`cheer${cheerLeaving ? ' cheer--leaving' : ''}`}
+              role="status"
+              aria-live="polite"
+            >
               {cheerMessage}
             </div>
           )}
 
-          {showStreakNotice && streakBroken && (
+          {voice === 'streak' && streakBroken && (
             <div className="card card--tight today-notice today-enter row row--between" role="status" style={enter(2)}>
               <span className="small row row--sm">
                 <IconFlame size={16} className="today-notice__icon" />
@@ -669,7 +684,7 @@ export function Today() {
             </div>
           )}
 
-          {notice === 'resolve' && toResolve && (
+          {voice === 'resolve' && toResolve && (
             <button
               className="card card--tight card--warn today-notice today-enter row row--between"
               style={enter(2)}
@@ -685,7 +700,7 @@ export function Today() {
               <IconChevronRight size={16} className="faint" />
             </button>
           )}
-          {notice === 'review' && (
+          {voice === 'review' && (
             <button
               className="card card--tight today-notice today-enter row row--between"
               style={enter(2)}
@@ -701,7 +716,7 @@ export function Today() {
               <IconChevronRight size={16} className="faint" />
             </button>
           )}
-          {notice === 'forgotten' && forgotten && (
+          {voice === 'forgotten' && forgotten && (
             <div className="card card--tight card--warn today-notice today-enter stack stack--sm" style={enter(2)}>
               <span className="row row--sm small">
                 <IconSprout size={16} className="today-notice__icon" />
@@ -743,8 +758,6 @@ export function Today() {
                       <SessionCard
                         session={session}
                         goal={goal}
-                        suggestion={pickSuggestion(getTemplate(goal.templateKey), goal.id, today)}
-                        plan={planByGoal.get(goal.id)}
                         onOpen={() => navigate(`/sesion/${session.id}`)}
                         onQuickDone={() => quickDone(session)}
                         onReopen={() => reopen(session)}
@@ -895,7 +908,6 @@ export function Today() {
                       key={task.id}
                       task={task}
                       goalTitle={null}
-                      goalWhy={null}
                       onToggle={() => toggleTask(task)}
                       onEdit={(title) => editTask(task, title)}
                       onRemove={() => removeTask(task)}
@@ -924,45 +936,28 @@ export function Today() {
 
           {todayEvents.length > 0 && (
             <section aria-label="Tu agenda de hoy" className="today-enter" style={enter(6)}>
-              <div className="section-head">
-                <span className="kicker">Tu agenda de hoy</span>
-                <button className="btn--link" onClick={() => navigate('/calendario')}>
-                  Ver agenda
-                </button>
-              </div>
-              <div className="stack stack--sm">
-                {todayEvents.map((e) => (
-                  <button
-                    key={e.id}
-                    className="ev"
-                    aria-label={`Ver "${e.title}" en la agenda`}
-                    onClick={() => navigate(`/calendario?d=${e.date}`)}
-                  >
-                    <span className="ev__time">{e.allDay || !e.startTime ? 'Día' : formatTime12(e.startTime)}</span>
-                    <span className="ev__title">{e.title}</span>
+              <Disclosure summary={`Tu agenda de hoy · ${todayEvents.length}`}>
+                <div className="stack stack--sm">
+                  {todayEvents.map((e) => (
+                    <button
+                      key={e.id}
+                      className="ev"
+                      aria-label={`Ver "${e.title}" en la agenda`}
+                      onClick={() => navigate(`/calendario?d=${e.date}`)}
+                    >
+                      <span className="ev__time">{e.allDay || !e.startTime ? 'Día' : formatTime12(e.startTime)}</span>
+                      <span className="ev__title">{e.title}</span>
+                    </button>
+                  ))}
+                  <button className="btn--link" onClick={() => navigate('/calendario')}>
+                    Ver agenda
                   </button>
-                ))}
-              </div>
+                </div>
+              </Disclosure>
             </section>
           )}
         </aside>
       </div>
     </div>
   )
-}
-
-/** localStorage tolerante (Safari privado, storage lleno): nunca rompe el render. */
-function safeGetItem(key: string): string | null {
-  try {
-    return localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}
-function safeSetItem(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value)
-  } catch {
-    /* ignore */
-  }
 }

@@ -1,4 +1,4 @@
-import type { GoalTemplate, Milestone, ScheduleBlock, Session } from '@/lib/types'
+import type { Goal, GoalTemplate, Milestone, ScheduleBlock, Session } from '@/lib/types'
 import { addDays, parseISO } from '@/lib/date'
 
 /**
@@ -73,6 +73,14 @@ export function milestoneProgress(milestones: Milestone[]): {
   return { done, total, ratio: total > 0 ? done / total : 0 }
 }
 
+/** Título de la próxima etapa por cumplir (la primera sin `doneAt` por posición), o null. */
+export function nextMilestoneTitle(
+  milestones: Array<Pick<Milestone, 'position' | 'doneAt' | 'title'>>,
+): string | null {
+  const next = [...milestones].sort((a, b) => a.position - b.position).find((m) => !m.doneAt)
+  return next ? next.title : null
+}
+
 /**
  * Consistencia semanal: sesiones cumplidas (done|partial, incluidas las
  * espontáneas) sobre las comprometidas (una por bloque por semana).
@@ -119,6 +127,50 @@ export function currentStreakCommitted(
     cursor = addDays(cursor, -1)
   }
   return streak
+}
+
+/** Días de la semana (lunes=0) con bloque de alguna meta ACTIVA. Es la única
+ *  vara para la racha global: Hoy, Progreso y Perfil la comparten. */
+export function activeCommittedWeekdays(
+  goals: Pick<Goal, 'id' | 'status'>[],
+  blocks: Pick<ScheduleBlock, 'goalId' | 'weekday'>[],
+): Set<number> {
+  const active = new Set(goals.filter((g) => g.status === 'active').map((g) => g.id))
+  return new Set(blocks.filter((b) => active.has(b.goalId)).map((b) => b.weekday))
+}
+
+/** Fechas con al menos una sesión hecha o parcial. */
+export function doneDatesOf(sessions: Pick<Session, 'date' | 'status'>[]): Set<string> {
+  const out = new Set<string>()
+  for (const s of sessions) if (s.status === 'done' || s.status === 'partial') out.add(s.date)
+  return out
+}
+
+/** Racha global actual con la misma métrica en toda la app. */
+export function globalStreak(
+  goals: Pick<Goal, 'id' | 'status'>[],
+  blocks: Pick<ScheduleBlock, 'goalId' | 'weekday'>[],
+  sessions: Pick<Session, 'date' | 'status'>[],
+  todayISO: string,
+): number {
+  return currentStreakCommitted(doneDatesOf(sessions), activeCommittedWeekdays(goals, blocks), todayISO)
+}
+
+export type DayState = 'done' | 'partial' | 'missed' | 'future' | 'free'
+
+/** Estado de un día para las tiras de 7 días (Hoy y Progreso comparten reglas). */
+export function dayState(
+  dateISO: string,
+  todayISO: string,
+  daySessions: Pick<Session, 'status'>[],
+  committed: boolean,
+): DayState {
+  if (dateISO > todayISO) return committed ? 'future' : 'free'
+  if (!committed && daySessions.length === 0) return 'free'
+  if (daySessions.some((s) => s.status === 'done')) return 'done'
+  if (daySessions.some((s) => s.status === 'partial')) return 'partial'
+  if (dateISO === todayISO) return 'future'
+  return 'missed'
 }
 
 /**

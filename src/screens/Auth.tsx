@@ -161,7 +161,7 @@ export function Auth() {
 
       {/* Hero editorial — sólo visible en desktop ≥1024px. */}
       <aside className="auth-hero">
-        <span className="brand__mark auth-hero__mark" style={{ color: 'var(--primary)' }}>
+        <span className="brand__mark auth-hero__mark">
           <IconHito size={96} animate />
         </span>
         <span className="brand auth-hero__brand">Lógralo</span>
@@ -174,7 +174,7 @@ export function Auth() {
 
       <div className="auth-form-wrap">
         <header className="auth-form__brand center stack stack--sm">
-          <span className="brand__mark auth__brand-mark" style={{ color: 'var(--primary)' }}>
+          <span className="brand__mark auth__brand-mark">
             <IconHito size={72} animate />
           </span>
           <span

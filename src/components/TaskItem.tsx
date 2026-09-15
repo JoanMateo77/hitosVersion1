@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import type { Task } from '@/lib/types'
-import { IconArrowReturn, IconCheck, IconClose, IconPencil } from '@/components/icons'
+import { tapHaptic } from '@/lib/haptics'
+import { IconArrowDown, IconArrowReturn, IconCheck, IconPencil, IconTrash } from '@/components/icons'
 
 interface TaskItemProps {
   task: Task
   /** Título de la meta de origen, si la acción deriva de una meta. */
   goalTitle?: string | null
-  /** Porqué de la meta, anclaje emocional que mostramos junto a la acción. */
-  goalWhy?: string | null
   /** True si la tarea pertenece al foco de la semana — borde verde a la izquierda. */
   isFocus?: boolean
   onToggle: () => void
@@ -18,7 +17,6 @@ interface TaskItemProps {
 export function TaskItem({
   task,
   goalTitle,
-  goalWhy,
   isFocus,
   onToggle,
   onEdit,
@@ -73,7 +71,11 @@ export function TaskItem({
     <li className={`task${done ? ' task--done' : ''}${isFocus ? ' task--focus' : ''}`}>
       <button
         className={`check${done ? ' check--done' : ''}`}
-        onClick={onToggle}
+        onClick={() => {
+          // Solo al marcar: vibrar cuando el usuario deshace sería ruido.
+          if (!done) tapHaptic()
+          onToggle()
+        }}
         aria-label={done ? 'Marcar como pendiente' : 'Marcar como hecha'}
         aria-pressed={done}
       >
@@ -90,16 +92,13 @@ export function TaskItem({
             </span>
           </span>
         )}
-        {goalWhy && goalWhy.trim() && (
-          <span className="task__why faint tiny">Porque {goalWhy.trim()}</span>
-        )}
       </div>
 
       <button className="iconbtn" onClick={() => setEditing(true)} aria-label="Editar">
         <IconPencil size={17} />
       </button>
       <button className="iconbtn" onClick={onRemove} aria-label={removeLabel} title={removeHint}>
-        <IconClose size={18} />
+        {isGoalTask ? <IconArrowDown size={18} /> : <IconTrash size={18} />}
       </button>
     </li>
   )

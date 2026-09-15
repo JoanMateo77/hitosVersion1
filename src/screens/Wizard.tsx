@@ -341,7 +341,7 @@ export function Wizard() {
         {step === 1 && (
           <Question
             title="¿Qué tipo de meta es?"
-            hint="El tipo define las etapas que te sugerimos. Preseleccionamos el más parecido a tu meta; cámbialo si no encaja."
+            hint="Elegimos un tipo por las palabras de tu meta. Cámbialo si no encaja."
           >
             <div className="stack stack--sm">
               {stepTemplates.map((t) => (
@@ -380,7 +380,7 @@ export function Wizard() {
         {step === 3 && (
           <Question
             title="Estas son tus etapas"
-            hint="El camino sugerido para tu tipo de meta, en orden. Edita, reordena o agrega las que necesites."
+            hint="El camino típico de este tipo de meta, en orden. Edita, reordena o agrega las que necesites."
           >
             <MilestonesStep
               milestones={milestones}

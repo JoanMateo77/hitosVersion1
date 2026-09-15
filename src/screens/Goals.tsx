@@ -1,15 +1,14 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createBlendy, type Blendy } from 'blendy'
 import { useSession } from '@/app/session'
 import { listGoals } from '@/services/goals'
-import { countDoneByGoal } from '@/services/tasks'
 import { updatePriorityGoal } from '@/services/profile'
 import { milestoneProgressByGoal } from '@/services/milestones'
-import { getNiche } from '@/domain/niches'
 import { isGoalClosed } from '@/domain/goals'
 import { relativeDeadline } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
+import { withViewTransition } from '@/lib/viewTransition'
 import type { Goal, GoalStatus } from '@/lib/types'
 import { useCachedData } from '@/hooks/useCachedData'
 import { LoadingScreen } from '@/components/LoadingScreen'
@@ -46,12 +45,11 @@ export function Goals() {
   const { data, loading, error } = useCachedData(
     `goals:${userId}`,
     async () => {
-      const [goals, counts, progress] = await Promise.all([
+      const [goals, progress] = await Promise.all([
         listGoals(userId),
-        countDoneByGoal(userId),
         milestoneProgressByGoal(userId),
       ])
-      return { goals, counts, progress }
+      return { goals, progress }
     },
     [userId],
   )
@@ -86,7 +84,7 @@ export function Goals() {
   function openGoal(goal: Goal) {
     // Reduced-motion o Blendy no listo: directo al detalle completo (como antes).
     if (reducedMotion.current || !blendyRef.current) {
-      navigate(`/metas/${goal.id}`)
+      withViewTransition(() => navigate(`/metas/${goal.id}`))
       return
     }
     setPeek(goal)
@@ -132,7 +130,6 @@ export function Goals() {
     <li key={goal.id} data-blendy-from={bid(goal.id)}>
       <GoalCard
         goal={goal}
-        doneCount={data.counts.get(goal.id) ?? 0}
         progress={data.progress.get(goal.id)}
         isPriority={profile.priorityGoalId === goal.id}
         onTogglePriority={goal.status === 'active' ? () => void togglePriority(goal) : undefined}
@@ -203,9 +200,8 @@ export function Goals() {
       {peek && (
         <GoalPeek
           goal={peek}
-          doneCount={data.counts.get(peek.id) ?? 0}
-          progress={data.progress.get(peek.id)}
-          onOpen={() => navigate(`/metas/${peek.id}`)}
+          nextTitle={data.progress.get(peek.id)?.nextTitle ?? null}
+          onOpen={() => withViewTransition(() => navigate(`/metas/${peek.id}`))}
           onClose={closePeek}
         />
       )}
@@ -219,60 +215,32 @@ export function Goals() {
  */
 function GoalPeek({
   goal,
-  doneCount,
-  progress,
+  nextTitle,
   onOpen,
   onClose,
 }: {
   goal: Goal
-  doneCount: number
-  progress?: { done: number; total: number }
+  nextTitle: string | null
   onOpen: () => void
   onClose: () => void
 }) {
-  const niche = getNiche(goal.area)
-  const progressDone = progress?.done ?? 0
-  const progressTotal = progress?.total ?? 0
-  const pathComplete = progressTotal > 0 && progressDone >= progressTotal
-  const deadline =
-    isGoalClosed(goal.status) || pathComplete ? null : relativeDeadline(goal.targetDate)
-  const showProgress =
-    (goal.status === 'active' || goal.status === 'paused') && progressTotal > 1
-
   return (
     <div className="goal-peek-backdrop" onClick={onClose}>
       <div data-blendy-to={bid(goal.id)}>
         <div className="goal-peek" onClick={(e) => e.stopPropagation()} style={nicheAccent(goal.area)}>
           <div className="goal-card__top">
             <NicheGlyph area={goal.area} size="md" />
-            <span className="goal-card__title">{goal.title}</span>
+            <span
+              className="goal-card__title"
+              style={{ viewTransitionName: `goal-${goal.id}` } as CSSProperties}
+            >
+              {goal.title}
+            </span>
           </div>
-          <div className="row wrap" style={{ rowGap: 6 }}>
-            <span className="tag tag--niche">{niche.label}</span>
-            {deadline && (
-              <span className="faint tiny row row--sm" style={{ alignItems: 'center', gap: 4 }}>
-                <IconCalendar size={12} /> {deadline}
-              </span>
-            )}
-            {doneCount > 0 && (
-              <span className="faint tiny">
-                · {doneCount} {doneCount === 1 ? 'acción hecha' : 'acciones hechas'}
-              </span>
-            )}
-          </div>
-          {goal.why && <p className="small muted">Porque {goal.why}</p>}
-          {showProgress && (
-            <div className="stack stack--sm">
-              <div className="progress">
-                <div
-                  className="progress__bar"
-                  style={{ width: `${Math.round((progressDone / Math.max(1, progressTotal)) * 100)}%` }}
-                />
-              </div>
-              <span className="faint tiny">
-                {pathComplete ? 'Camino completo' : `Etapa ${progressDone + 1} de ${progressTotal}`}
-              </span>
-            </div>
+          {nextTitle && (
+            <p className="small" style={{ margin: 0 }}>
+              <span className="faint">Siguiente:</span> {nextTitle}
+            </p>
           )}
           <button className="btn btn--primary btn--block" onClick={onOpen}>
             Abrir meta
@@ -288,20 +256,17 @@ function GoalPeek({
 
 function GoalCard({
   goal,
-  doneCount,
   progress,
   isPriority = false,
   onTogglePriority,
   onClick,
 }: {
   goal: Goal
-  doneCount: number
   progress?: { done: number; total: number }
   isPriority?: boolean
   onTogglePriority?: () => void
   onClick: () => void
 }) {
-  const niche = getNiche(goal.area)
   const progressDone = progress?.done ?? 0
   const progressTotal = progress?.total ?? 0
   const pathComplete = progressTotal > 0 && progressDone >= progressTotal
@@ -347,17 +312,11 @@ function GoalCard({
         )}
         {badge && <span className="tag">{badge}</span>}
       </div>
-      <div className="row wrap" style={{ rowGap: 6 }}>
-        <span className="tag tag--niche">{niche.label}</span>
-        {deadline && (
-          <span className="faint tiny row row--sm" style={{ alignItems: 'center', gap: 4 }}>
-            <IconCalendar size={12} /> {deadline}
-          </span>
-        )}
-        {doneCount > 0 && (
-          <span className="faint tiny">· {doneCount} {doneCount === 1 ? 'acción hecha' : 'acciones hechas'}</span>
-        )}
-      </div>
+      {deadline && (
+        <span className="faint tiny row row--sm" style={{ alignItems: 'center', gap: 4 }}>
+          <IconCalendar size={12} /> {deadline}
+        </span>
+      )}
       {showProgress && (
         <div className="stack stack--sm">
           <div className="progress">
@@ -366,11 +325,6 @@ function GoalCard({
               style={{ width: `${Math.round((progressDone / Math.max(1, progressTotal)) * 100)}%` }}
             />
           </div>
-          <span className="faint tiny">
-            {pathComplete
-              ? 'Camino completo'
-              : `Etapa ${progressDone + 1} de ${progressTotal}`}
-          </span>
         </div>
       )}
     </button>

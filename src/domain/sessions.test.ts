@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
+  activeCommittedWeekdays,
   bestStreakCommitted,
   currentStreakCommitted,
+  dayState,
+  doneDatesOf,
   elapsedSeconds,
+  globalStreak,
   isStaleRunning,
   isTimeReached,
   milestoneProgress,
+  nextMilestoneTitle,
   pickSuggestion,
   remainingSeconds,
   weekConsistency,
@@ -60,6 +65,13 @@ function milestone(done: boolean, position: number): Milestone {
     targetDate: null,
     doneAt: done ? '2026-06-01T00:00:00Z' : null,
     createdAt: '2026-05-01T00:00:00Z',
+  }
+}
+
+function ms(over: Partial<Milestone>): Milestone {
+  return {
+    id: 'm', goalId: 'g', userId: 'u', title: 'Etapa', position: 0, targetDate: null,
+    doneAt: null, createdAt: '2026-06-01T00:00:00Z', ...over,
   }
 }
 
@@ -195,5 +207,75 @@ describe('currentStreakCommitted', () => {
   })
   it('sin días comprometidos no hay racha', () => {
     expect(currentStreakCommitted(new Set(['2026-06-12']), new Set(), '2026-06-13')).toBe(0)
+  })
+})
+
+describe('nextMilestoneTitle', () => {
+  it('la primera etapa sin cumplir por posición, aunque llegue desordenada', () => {
+    const list = [
+      ms({ id: 'b', title: 'Segunda', position: 1 }),
+      ms({ id: 'a', title: 'Primera', position: 0, doneAt: '2026-06-02T00:00:00Z' }),
+      ms({ id: 'c', title: 'Tercera', position: 2 }),
+    ]
+    expect(nextMilestoneTitle(list)).toBe('Segunda')
+  })
+  it('null si no hay etapas o todas están cumplidas', () => {
+    expect(nextMilestoneTitle([])).toBeNull()
+    expect(nextMilestoneTitle([ms({ doneAt: '2026-06-02T00:00:00Z' })])).toBeNull()
+  })
+})
+
+describe('globalStreak', () => {
+  const goals = [
+    { id: 'g1', status: 'active' as const },
+    { id: 'g2', status: 'paused' as const },
+  ]
+  const blocks = [
+    { goalId: 'g1', weekday: 0 }, // lunes
+    { goalId: 'g2', weekday: 2 }, // miércoles, de una meta pausada
+  ] as Pick<ScheduleBlock, 'goalId' | 'weekday'>[]
+
+  it('ignora los bloques de metas no activas', () => {
+    expect([...activeCommittedWeekdays(goals, blocks)]).toEqual([0])
+  })
+
+  it('solo cuenta sesiones done o partial', () => {
+    const dates = doneDatesOf([
+      { date: '2026-09-07', status: 'done' },
+      { date: '2026-09-08', status: 'partial' },
+      { date: '2026-09-09', status: 'missed' },
+    ] as Session[])
+    expect([...dates].sort()).toEqual(['2026-09-07', '2026-09-08'])
+  })
+
+  it('la racha no se rompe por un miércoles de una meta pausada', () => {
+    // 2026-09-14 es lunes. Lunes 7 y lunes 14 cumplidos; miércoles 9 sin sesión.
+    const sessions = [
+      { date: '2026-09-07', status: 'done' },
+      { date: '2026-09-14', status: 'done' },
+    ] as Session[]
+    expect(globalStreak(goals, blocks, sessions, '2026-09-14')).toBe(2)
+  })
+})
+
+describe('dayState', () => {
+  const today = '2026-09-14'
+  it('futuro comprometido es future, futuro libre es free', () => {
+    expect(dayState('2026-09-15', today, [], true)).toBe('future')
+    expect(dayState('2026-09-15', today, [], false)).toBe('free')
+  })
+  it('pasado sin compromiso ni sesiones es free', () => {
+    expect(dayState('2026-09-10', today, [], false)).toBe('free')
+  })
+  it('done gana a partial', () => {
+    expect(dayState('2026-09-10', today, [{ status: 'partial' }, { status: 'done' }] as Session[], true)).toBe('done')
+    expect(dayState('2026-09-10', today, [{ status: 'partial' }] as Session[], true)).toBe('partial')
+  })
+  it('hoy comprometido y sin cumplir sigue en juego', () => {
+    expect(dayState(today, today, [{ status: 'pending' }] as Session[], true)).toBe('future')
+  })
+  it('pasado comprometido sin cumplir es missed', () => {
+    expect(dayState('2026-09-10', today, [], true)).toBe('missed')
+    expect(dayState('2026-09-10', today, [{ status: 'missed' }] as Session[], false)).toBe('missed')
   })
 })
