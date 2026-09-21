@@ -42,12 +42,12 @@ async function drawCard(card: AchievementCard): Promise<HTMLCanvasElement> {
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Canvas no disponible')
 
-  // Fondo crema cálido con halo naranja
-  ctx.fillStyle = '#faf5ec'
+  // Fondo gris claro con halo azul (los mismos tokens del tema claro)
+  ctx.fillStyle = '#f2f2f7'
   ctx.fillRect(0, 0, W, H)
   const halo = ctx.createRadialGradient(W * 0.8, H * 0.1, 0, W * 0.8, H * 0.1, W * 0.9)
-  halo.addColorStop(0, 'rgba(249, 115, 22, 0.16)')
-  halo.addColorStop(1, 'rgba(249, 115, 22, 0)')
+  halo.addColorStop(0, 'rgba(91, 108, 255, 0.16)')
+  halo.addColorStop(1, 'rgba(91, 108, 255, 0)')
   ctx.fillStyle = halo
   ctx.fillRect(0, 0, W, H)
 
@@ -63,27 +63,27 @@ async function drawCard(card: AchievementCard): Promise<HTMLCanvasElement> {
   }
 
   // Kicker
-  ctx.fillStyle = '#75664e'
-  ctx.font = '600 44px Manrope, sans-serif'
+  ctx.fillStyle = '#6e6e73'
+  ctx.font = '600 44px Archivo, sans-serif'
   ctx.fillText(card.kicker.toUpperCase(), 96, 420)
 
   // Título (display, multilínea)
-  ctx.fillStyle = '#261d12'
-  ctx.font = '600 96px Fraunces, Georgia, serif'
+  ctx.fillStyle = '#1c1c1e'
+  ctx.font = '800 96px Archivo, sans-serif'
   const lines = wrapText(ctx, card.title, W - 192)
   lines.forEach((l, i) => ctx.fillText(l, 96, 540 + i * 116))
 
   // Stats
-  ctx.fillStyle = '#15803d'
-  ctx.font = '700 48px Manrope, sans-serif'
+  ctx.fillStyle = '#1f9d55'
+  ctx.font = '700 48px Archivo, sans-serif'
   ctx.fillText(card.stats, 96, 540 + lines.length * 116 + 60)
 
   // Wordmark
-  ctx.fillStyle = '#ea580c'
-  ctx.font = '800 56px Manrope, sans-serif'
+  ctx.fillStyle = '#5b6cff'
+  ctx.font = '800 56px Archivo, sans-serif'
   ctx.fillText('LOGRALO', 96, H - 96)
-  ctx.fillStyle = '#75664e'
-  ctx.font = '500 40px Manrope, sans-serif'
+  ctx.fillStyle = '#6e6e73'
+  ctx.font = '500 40px Archivo, sans-serif'
   ctx.fillText('· metas con compromiso', 96 + 290, H - 96)
 
   return canvas

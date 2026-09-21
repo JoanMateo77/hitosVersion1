@@ -43,14 +43,15 @@ body {
   touch-action: manipulation;
 }
 
+/* Archivo no tiene eje óptico: la jerarquía la hace el peso. 800 + tracking
+   negativo es el título del mockup. */
 h1,
 h2,
 h3 {
   font-family: var(--font-display);
-  line-height: var(--lh-display);
-  font-weight: 500;
-  letter-spacing: var(--tracking-display);
-  font-optical-sizing: auto;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 button {

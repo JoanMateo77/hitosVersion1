@@ -6,21 +6,21 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=4" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Fraunces (display, opsz + wght variables) + Manrope (body, wght variable).
+    <!-- Archivo: una sola familia para toda la app (pesos 400 a 800).
          Display swap evita el flash de texto invisible. -->
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap"
     />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <!-- Theme-color declarativo por scheme: el status bar acierta antes de que el script corra. -->
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf5ec" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#121110" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f2f2f7" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
     <!-- Aplica la variante guardada antes de pintar (sin parpadeo). Una identidad,
-         dos variantes: claro/oscuro cálido; "sistema" sigue al SO. Los temas viejos
+         dos variantes: claro/oscuro; "sistema" sigue al SO. Los temas viejos
          (negro, neón) migran a oscuro. -->
     <script>
       try {
@@ -30,7 +30,7 @@
           : raw === 'negro' || raw === 'neon' ? 'oscuro'
           : pref
         document.documentElement.dataset.theme = t
-        var c = { claro: '#faf5ec', oscuro: '#121110' }[t]
+        var c = { claro: '#f2f2f7', oscuro: '#000000' }[t]
         var metas = document.querySelectorAll('meta[name="theme-color"]')
         if (c) metas.forEach(function (m) { m.setAttribute('content', c) })
       } catch (e) {}

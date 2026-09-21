@@ -4,6 +4,8 @@ import type { Profile } from '@/lib/types'
 export interface SessionValue {
   userId: string
   email: string
+  /** Nombre corto para la cabecera de Hoy ("Buenas tardes, Juan"). '' si no hay. */
+  displayName: string
   profile: Profile
   /** Actualiza el perfil en memoria tras el onboarding o cambios de ajustes. */
   setProfile: (profile: Profile) => void

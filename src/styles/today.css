@@ -1,13 +1,20 @@
-/* ==== Hoy — armonía visual ================================================
-   Complementa components.css SOLO para la pantalla Hoy: un ritmo vertical
-   único, la misma anatomía para todos los avisos y estados vacíos, y la
-   entrada en cascada que ya usan Aprender y el plan de sesión. Todo deriva
-   de tokens; prefers-reduced-motion lo apaga la regla global de base.css. */
+/* ==== Hoy — rediseño 2026-09 (mockup docs/diseno/2026-09-21-hoy) ==========
+   Pantalla en columna única: cabecera con saludo, tres tarjetas de resumen,
+   tira semanal, UN héroe ("tu siguiente paso"), UNA voz y la lista "más tarde
+   hoy". Todo deriva de tokens; los valores de tamaño/gap salen del mockup.
+   prefers-reduced-motion lo apaga la regla global de base.css. */
 
-/* Ritmo: los bloques de la columna principal respiran a --s5, igual que la
-   columna lateral (.today-side). Dentro de cada sección manda stack--sm. */
-.today-main {
-  --gap: var(--s5);
+/* ---- Lienzo de la pantalla ---------------------------------------------- */
+.screen.today {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+/* Hoy trae su propia cabecera: sin TopBar, el área segura la paga la pantalla. */
+.shell .screen.today {
+  padding-top: calc(var(--safe-top) + 14px);
 }
 
 /* Entrada escalonada sutil: cada bloque recibe su índice vía --i. */
@@ -25,60 +32,569 @@
   }
 }
 
-.today-week .weekstrip__day {
-  transition: background-color var(--dur-tap) var(--ease-out), transform var(--dur-tap) var(--ease-out);
+/* ---- Cabecera: saludo + fecha + avatar ---------------------------------- */
+.today-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
 }
-.today-week .weekstrip__day:active:not(:disabled) {
-  transform: scale(0.94);
+.today-head__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
-
-/* El stack ya separa: el cheer no necesita su margen propio aquí. */
-.today-main .cheer {
-  margin-bottom: 0;
+.today-head__greet {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 0;
 }
-
-/* Avisos contextuales (racha, sin confirmar, revisión, olvidada): UNA sola
-   anatomía — icono 16 arriba-izquierda, texto, acción a la derecha. */
-.today-notice {
-  width: 100%;
-  text-align: left;
-}
-.today-notice .row--sm {
-  align-items: flex-start;
-}
-.today-notice__icon {
-  flex: none;
-  margin-top: 2px;
+.today-head__date {
+  font-size: 15px;
   color: var(--text-muted);
 }
-button.today-notice {
-  transition: transform var(--dur-tap) var(--ease-out), border-color var(--dur-tap) var(--ease-out);
-}
-button.today-notice:active {
-  transform: scale(0.99);
-}
-
-/* Estados vacíos: iguales entre sí — centrados, con el mismo radio y padding
-   que el resto de tarjetas del día (nada de tarjetón radius-lg suelto). */
-.today-empty {
+.today-avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
   align-items: center;
-  text-align: center;
-  padding: var(--s5) var(--s4);
-}
-.today-empty .row {
   justify-content: center;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+  /* Gris degradado del mockup + anillo del marco ganado por racha (--ring). */
+  background: linear-gradient(135deg, var(--text-faint), var(--surface-3));
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ring, var(--primary));
+}
+.today-avatar__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-/* Botón suelto alineado al inicio sin estilos inline. */
-.today-self-start {
+/* ---- Tres tarjetas de resumen ------------------------------------------- */
+.today-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s2);
+}
+.today-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  min-width: 0;
+  padding: 10px 12px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+}
+.today-stat__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.today-stat__value {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.today-stat__value--ok {
+  color: var(--success);
+}
+.today-stat__value--streak {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.today-stat__flame {
+  flex: none;
+  color: var(--primary);
+}
+.today-stat__total {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-faint);
+}
+.today-stat__caption {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-kicker);
+  text-transform: uppercase;
+  /* Más presente que el muted, sin llegar al texto pleno (mockup). */
+  color: color-mix(in srgb, var(--text) 80%, var(--text-muted));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Barra segmentada: un segmento por sesión/repetición cumplida. */
+.today-bar {
+  display: flex;
+  gap: 3px;
+}
+.today-bar__seg,
+.today-bar__track {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-2);
+}
+.today-bar__seg--on {
+  background: var(--success-fill);
+}
+.today-bar__track {
+  overflow: hidden;
+}
+.today-bar__fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--success-fill);
+}
+
+/* ---- Tira semanal ------------------------------------------------------- */
+.today-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.today-week__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+  transition: background-color var(--dur-tap) var(--ease-out), transform var(--dur-tap) var(--ease-out);
+}
+.today-week__day:active:not(:disabled) {
+  transform: scale(0.94);
+}
+.today-week__day:disabled {
+  cursor: default;
+}
+.today-week__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.today-week__num {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--text) 80%, var(--text-muted));
+}
+/* Día sin compromiso: contorno punteado, sin superficie. */
+.today-week__day--free {
+  background: none;
+  border: 1px dashed var(--border-soft);
+}
+.today-week__day--free .today-week__label,
+.today-week__day--free .today-week__num {
+  color: var(--text-faint);
+}
+.today-week__day--done .today-week__num {
+  color: var(--success);
+  font-weight: 700;
+}
+.today-week__day--partial .today-week__num {
+  color: var(--warning);
+  font-weight: 700;
+}
+.today-week__day--missed .today-week__label,
+.today-week__day--missed .today-week__num {
+  color: var(--text-faint);
+}
+/* Hoy manda: bloque sólido invertido. */
+.today-week__day--today,
+.today-week__day--today.today-week__day--free {
+  background: var(--text);
+  border-color: transparent;
+}
+.today-week__day--today .today-week__label {
+  color: var(--bg);
+  font-weight: 700;
+}
+.today-week__day--today .today-week__num {
+  color: var(--bg);
+  font-weight: 800;
+}
+
+/* ---- Secciones (kicker + cuerpo) ---------------------------------------- */
+.today-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+.today-kicker {
+  padding: 0 4px;
+}
+
+/* ---- El héroe: tu siguiente paso ---------------------------------------- */
+.today-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 16px 14px;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(160deg, var(--primary-tint) 0%, var(--surface) 65%);
+}
+/* En negro puro el degradado necesita un filo que lo despegue del fondo. */
+[data-theme='oscuro'] .today-hero {
+  box-shadow: inset 0 0 0 1px rgba(125, 140, 255, 0.3);
+}
+.today-hero__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+}
+.today-hero__state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primary-strong);
+}
+.today-hero__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--primary);
+  flex: none;
+}
+.today-hero__meta {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.today-hero__body {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+.today-hero__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.today-hero__title {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  /* Títulos largos: tres líneas como máximo; el resto vive en la meta. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.today-hero__sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.today-hero__clock {
+  flex: none;
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.today-hero__actions {
+  display: flex;
+  gap: 10px;
+}
+.today-hero__cta,
+.today-hero__ghost {
+  flex: 1;
+  min-width: 0;
+  height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-weight: 700;
+  transition: transform var(--dur-tap) var(--ease-out), filter var(--dur-tap) var(--ease-out);
+}
+.today-hero__cta {
+  background: var(--gradient-brand);
+  color: #fff;
+  box-shadow: var(--shadow-primary);
+}
+.today-hero__ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+  font-weight: 600;
+}
+.today-hero__square {
+  flex: none;
+  width: 50px;
+  height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  color: var(--text);
+  transition: transform var(--dur-tap) var(--ease-out);
+}
+.today-hero__cta:active,
+.today-hero__ghost:active,
+.today-hero__square:active {
+  transform: scale(0.97);
+}
+.today-hero__link {
   align-self: flex-start;
 }
 
-/* Glyph de nicho en la fila de hábito (reemplaza el estilo inline y alinea
-   el icono con la primera línea del título, como en la tarjeta de sesión). */
-.today-habit__glyph {
+/* Panel "¿Qué lograste?" — cuelga del héroe, misma superficie que las filas. */
+.today-note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s3) 14px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+}
+
+/* ---- Una sola voz: UNA fila ---------------------------------------------- */
+.today-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: 12px 14px;
+  background: var(--surface);
+  border: none;
+  border-radius: var(--radius-lg);
+  color: var(--text);
+  text-align: left;
+}
+.today-row--stack {
+  align-items: flex-start;
+}
+.today-row--link {
+  transition: transform var(--dur-tap) var(--ease-out);
+}
+.today-row--link:active {
+  transform: scale(0.99);
+}
+.today-row__glyph {
   flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
   display: inline-flex;
-  margin-top: 5px;
-  color: var(--niche, var(--text-muted));
+  align-items: center;
+  justify-content: center;
+}
+.today-row__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.today-row__title {
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.today-row__sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Acción de descarte en la fila de aviso: texto compacto, no un botón con caja. */
+.today-row__action {
+  flex: none;
+  padding: 6px 0 6px 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.today-row__chev {
+  flex: none;
+  color: var(--text-faint);
+}
+.today-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  margin-top: 2px;
+}
+/* La celebración usa la misma fila; su animación de entrada/salida viene de
+   .cheer (components.css), pero no su caja ni su centrado. */
+.today-row.cheer {
+  margin-bottom: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  font-size: inherit;
+  text-align: left;
+}
+
+/* ---- Más tarde hoy ------------------------------------------------------- */
+.today-later__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s2);
+  padding-right: 4px;
+}
+.today-later__add {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 2px;
+}
+/* Zona táctil de 44px sobre un ícono de 16. */
+.today-later__add::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
+}
+.today-later__add:active {
+  color: var(--text);
+}
+
+.today-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.today-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 56px;
+  padding: 0 16px;
+}
+.today-item + .today-item {
+  border-top: 1px solid var(--border-soft);
+}
+.today-item__glyph {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.today-item__glyph--session {
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+.today-item__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.today-item__title {
+  font-size: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.today-item__sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.today-item--done .today-item__title {
+  text-decoration: line-through;
+  color: var(--text-faint);
+}
+.today-item--empty {
+  color: var(--text-muted);
+}
+.today-item__links {
+  display: flex;
+  flex: none;
+  gap: var(--s1);
+}
+.today-item__link {
+  padding: 8px 4px;
+  font-size: 13px;
+}
+/* Círculo de marcado: 26px visuales, 44px de zona táctil. */
+.today-item__check {
+  position: relative;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--text-faint);
+  background: transparent;
+  color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--dur-tap) var(--ease-out), border-color var(--dur-tap) var(--ease-out),
+    color var(--dur-tap) var(--ease-out), transform var(--dur-tap) var(--ease-out);
+}
+.today-item__check::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+}
+.today-item__check:active {
+  transform: scale(0.86);
+}
+.today-item__check--done {
+  background: var(--success-fill);
+  border-color: var(--success-fill);
+  color: #fff;
+}
+
+/* ---- Escritorio: la misma columna, centrada ------------------------------ */
+@media (min-width: 1024px) {
+  .screen.today {
+    max-width: 560px;
+    margin: 0 auto;
+  }
 }

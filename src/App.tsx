@@ -7,6 +7,7 @@ import { useAuth } from '@/app/useAuth'
 import { SessionProvider } from '@/app/session'
 import { wantsWizardAfterOnboarding } from '@/app/onboardingIntent'
 import { ensureProfile } from '@/services/profile'
+import { displayNameFrom } from '@/domain/today'
 import type { Profile } from '@/lib/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { AppShell } from '@/components/AppShell'
@@ -76,10 +77,26 @@ function AuthedApp() {
       </div>
     )
   }
-  return <ProfiledApp userId={user.id} email={user.email ?? ''} />
+  return (
+    <ProfiledApp
+      userId={user.id}
+      email={user.email ?? ''}
+      // El nombre visible sale de los metadatos del proveedor y, si no hay, del
+      // email: la cabecera de Hoy saluda por nombre sin pedir nada extra.
+      displayName={displayNameFrom(user.user_metadata, user.email ?? '')}
+    />
+  )
 }
 
-function ProfiledApp({ userId, email }: { userId: string; email: string }) {
+function ProfiledApp({
+  userId,
+  email,
+  displayName,
+}: {
+  userId: string
+  email: string
+  displayName: string
+}) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -111,7 +128,7 @@ function ProfiledApp({ userId, email }: { userId: string; email: string }) {
   const onboarded = Boolean(profile.onboardedAt)
 
   return (
-    <SessionProvider value={{ userId, email, profile, setProfile }}>
+    <SessionProvider value={{ userId, email, displayName, profile, setProfile }}>
       <div className="app">
         <RouteScrollManager />
         <Suspense fallback={<LoadingScreen />}>
