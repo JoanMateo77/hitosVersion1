@@ -590,6 +590,28 @@
   border-color: var(--success-fill);
   color: #fff;
 }
+/* Sesión hecha: el check es solo estado (se deshace con el enlace, no con un toque). */
+.today-item__check--static {
+  pointer-events: none;
+}
+/* Sesión pendiente: chevron que abre el cronómetro (44px de zona táctil). */
+.today-item__open {
+  position: relative;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.today-item__open::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+}
 
 /* ---- Escritorio: la misma columna, centrada ------------------------------ */
 @media (min-width: 1024px) {

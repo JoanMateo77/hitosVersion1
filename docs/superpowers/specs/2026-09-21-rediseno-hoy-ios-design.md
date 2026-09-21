@@ -141,8 +141,8 @@ Siempre hay exactamente una tarjeta héroe; su contenido depende del estado, en 
 2. **Próxima sesión pendiente** de hoy (la de hora más temprana; sin hora al final):
    - Kicker "SIGUIENTE SESIÓN" + derecha el rango horario o "Sin hora".
    - Título, "{objetivo} comprometidos" (p. ej. "25 min" o "10 páginas") y sin reloj.
-   - Botones: primario "Empezar sesión" (navega a `/sesion/:id?start=1`) y cuadrado con ✓ que
-     la marca hecha sin cronómetro (comportamiento actual de `quickDone`).
+   - Botón único: primario "Empezar sesión" (navega a `/sesion/:id?start=1`). No hay check
+     rápido: una sesión (25 min, 1 h…) se cumple con el cronómetro, nunca con un toque.
 3. **Día cumplido** (todas las sesiones resueltas): kicker "COMPROMISO DE HOY", título
    "Cumpliste tu compromiso de hoy." o "Cerraste el día: X de Y cumplidas." o "Hoy no pudiste.
    Mañana se empieza de nuevo."; botón ghost "Sesión espontánea" (abre el selector de meta).
@@ -172,8 +172,9 @@ entrada "Agrega algo para hoy…" (Enter guarda). Lista en una sola tarjeta (rad
 - Título (16px, 500, una línea con elipsis) y subtítulo (13px muted): rango horario o "Sin hora";
   hábitos con repeticiones: "próxima 3:00 pm · 2 de 5".
 - Derecha: círculo de 26px, borde 2px `--text-faint`; al marcar se rellena `--success-fill` con
-  ✓ blanca. Sesión → `quickDone`; hábito → `toggleHabit`; tarea → `toggleTask`; evento →
-  `setEventDone`.
+  ✓ blanca. Hábito → `toggleHabit`; tarea → `toggleTask`; evento → `setEventDone`.
+- Las sesiones NO llevan círculo: pendiente → chevron que abre `/sesion/:id` (se cumplen con el
+  cronómetro); hecha → check fijo no interactivo + enlace "Deshacer"; parcial → enlace "Retomar".
 - Orden: por hora de inicio ascendente; sin hora al final. Se excluye la sesión del héroe.
 - Los ítems ya hechos se mueven a un `Disclosure` al final: "Hecho hoy · N" (título tachado).
 - Tareas pendientes de ayer: primera fila de la lista, ícono de reloj, "N tareas de ayer" /

@@ -151,7 +151,7 @@ export function Today() {
   // Tras un ✓ rápido ofrecemos anotar el avance: es el camino más usado y el
   // diario de la meta no debería quedarse sin entradas justo ahí.
   const [notePrompt, setNotePrompt] = useState<{ sessionId: string; text: string } | null>(null)
-  const { cheerMessage, cheerLeaving, cheer } = useCheer()
+  const { cheerMessage, cheerLeaving } = useCheer()
   const { novedad, cerrar: cerrarNovedades } = useNovedades()
   const { toast } = useToast()
 
@@ -412,26 +412,6 @@ export function Today() {
     }
   }
 
-  function quickDone(s: Session) {
-    const prev = { status: s.status, actualValue: s.actualValue, endedAt: s.endedAt }
-    patchSession(s.id, { status: 'done', actualValue: s.targetValue })
-    setNotePrompt({ sessionId: s.id, text: '' })
-    const willBeDone = todaySessions.filter((x) => doneish(x.session)).length + 1
-    if (willBeDone === 1 && todaySessions.length > 1) {
-      cheer('Primera sesión del día. Así se empieza.')
-    }
-    void withErrorHandling(
-      async () => {
-        const updated = await finishSession(s.id, { status: 'done', actualValue: s.targetValue })
-        patchSession(s.id, updated)
-      },
-      () => {
-        patchSession(s.id, prev)
-        setNotePrompt(null)
-      },
-    )
-  }
-
   /**
    * ■ del héroe: cierra la sesión en curso con el resultado honesto — `done` si
    * alcanzó el objetivo, `partial` si no — y abre el panel "¿Qué lograste?".
@@ -655,15 +635,9 @@ export function Today() {
   const laterDone = laterItems.filter((i) => i.done)
   const hasPartialSession = todaySessions.some((x) => x.session.status === 'partial')
 
-  /** Un toque en el círculo de la lista: marca o desmarca, según el tipo. */
+  /** Un toque en el círculo de la lista: marca o desmarca, según el tipo.
+   *  Las sesiones no pasan por aquí: se cumplen con el cronómetro. */
   function toggleLater(item: LaterItem) {
-    if (item.kind === 'session') {
-      const s = sessions.find((x) => x.id === item.id)
-      if (!s) return
-      if (item.done) reopen(s)
-      else quickDone(s)
-      return
-    }
     if (item.kind === 'habit') {
       const h = todayHabits.find((x) => x.id === item.id)
       if (h) toggleHabit(h)
@@ -685,9 +659,8 @@ export function Today() {
   }
 
   function renderLater(item: LaterItem) {
-    const partial =
-      item.kind === 'session' &&
-      sessions.find((x) => x.id === item.id)?.status === 'partial'
+    const session = item.kind === 'session' ? sessions.find((x) => x.id === item.id) : undefined
+    const partial = session?.status === 'partial'
     return (
       <li key={`${item.kind}:${item.id}`} className={`today-item${item.done ? ' today-item--done' : ''}`}>
         <span
@@ -700,27 +673,46 @@ export function Today() {
           <span className="today-item__title">{item.title}</span>
           <span className="today-item__sub">{item.subtitle}</span>
         </span>
-        {partial && (
+        {session ? (
+          // Una sesión (25 min, 1 h…) no se cierra con un toque: se abre y se
+          // cumple con el cronómetro. Hecha: check fijo y "Deshacer"; parcial: "Retomar".
+          <>
+            {partial && (
+              <button type="button" className="btn--link today-item__link" onClick={() => resumeClosed(session)}>
+                Retomar
+              </button>
+            )}
+            {session.status === 'done' && (
+              <button type="button" className="btn--link today-item__link" onClick={() => reopen(session)}>
+                Deshacer
+              </button>
+            )}
+            {item.done ? (
+              <span className="today-item__check today-item__check--done today-item__check--static" aria-hidden="true">
+                <IconCheck size={14} />
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="today-item__open"
+                aria-label={`Abrir la sesión "${item.title}"`}
+                onClick={() => navigate(`/sesion/${session.id}`)}
+              >
+                <IconChevronRight size={16} />
+              </button>
+            )}
+          </>
+        ) : (
           <button
             type="button"
-            className="btn--link today-item__link"
-            onClick={() => {
-              const s = sessions.find((x) => x.id === item.id)
-              if (s) resumeClosed(s)
-            }}
+            className={`today-item__check${item.done ? ' today-item__check--done' : ''}`}
+            aria-pressed={item.done}
+            aria-label={item.done ? `Desmarcar "${item.title}"` : `Marcar "${item.title}" como hecho`}
+            onClick={() => toggleLater(item)}
           >
-            Retomar
+            {item.done && <IconCheck size={14} />}
           </button>
         )}
-        <button
-          type="button"
-          className={`today-item__check${item.done ? ' today-item__check--done' : ''}`}
-          aria-pressed={item.done}
-          aria-label={item.done ? `Desmarcar "${item.title}"` : `Marcar "${item.title}" como hecho`}
-          onClick={() => toggleLater(item)}
-        >
-          {item.done && <IconCheck size={14} />}
-        </button>
       </li>
     )
   }
@@ -958,14 +950,6 @@ export function Today() {
                 onClick={() => navigate(`/sesion/${heroPending.id}?start=1`)}
               >
                 <IconPlay size={16} /> Empezar sesión
-              </button>
-              <button
-                type="button"
-                className="today-hero__square"
-                aria-label="Marcar la sesión como hecha"
-                onClick={() => quickDone(heroPending)}
-              >
-                <IconCheck size={18} />
               </button>
             </div>
           </div>
