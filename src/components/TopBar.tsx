@@ -61,8 +61,9 @@ export function TopBar() {
         className={({ isActive }) => `topbar__avatar${isActive ? ' topbar__avatar--active' : ''}`}
         style={{
           overflow: 'hidden',
-          // Anillo del marco ganado con la racha (ver src/domain/frames.ts).
-          boxShadow: frame ? `0 0 0 3px ${frame.color}` : undefined,
+          // Anillo del marco ganado con la racha (ver src/domain/frames.ts), o
+          // --primary por defecto si aún no hay marco (igual que en Hoy).
+          boxShadow: `0 0 0 3px ${frame?.color ?? 'var(--primary)'}`,
         }}
       >
         {profile.avatarUrl ? (

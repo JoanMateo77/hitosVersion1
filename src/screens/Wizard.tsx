@@ -517,7 +517,7 @@ function ReviewCard({
   return (
     <div className="card card--tight stack stack--sm" style={{ marginTop: 'var(--s4)' }}>
       <span className="kicker">Tu meta</span>
-      <strong style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--fs-xl)' }}>
+      <strong style={{ fontWeight: 600, fontSize: 'var(--fs-xl)' }}>
         {title || '—'}
       </strong>
       <div className="row wrap">

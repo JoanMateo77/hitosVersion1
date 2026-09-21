@@ -227,8 +227,8 @@
 .input,
 .textarea {
   width: 100%;
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
+  background: var(--surface-2);
+  border: 1px solid transparent;
   border-radius: var(--radius);
   color: var(--text);
   padding: 13px 14px;
@@ -259,7 +259,7 @@
   padding: var(--s4);
   background: var(--surface);
   border: 1.5px solid var(--border-soft);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   color: var(--text);
   transition: border-color var(--dur-tap) var(--ease-out), background var(--dur-tap) var(--ease-out), transform var(--dur-tap) var(--ease-out);
 }
@@ -389,8 +389,8 @@
   transform: scale(0.86);
 }
 .check--done {
-  background: var(--success);
-  border-color: var(--success);
+  background: var(--success-fill);
+  border-color: var(--success-fill);
   color: var(--on-primary);
 }
 
@@ -538,7 +538,7 @@
 }
 .progress__bar {
   height: 100%;
-  background: var(--success);
+  background: var(--success-fill);
   border-radius: var(--radius-pill);
 }
 
@@ -694,8 +694,7 @@
 }
 .roadmap__label--current {
   color: var(--text);
-  font-family: var(--font-display);
-  font-weight: 500;
+  font-weight: 600;
   font-size: var(--fs-lg);
   letter-spacing: var(--tracking-display);
 }
@@ -836,7 +835,7 @@
   background: var(--primary);
 }
 .stepper__dot--done {
-  background: var(--success);
+  background: var(--success-fill);
 }
 
 /* ---- Estado vacío ------------------------------------------------------- */
@@ -999,8 +998,9 @@
 .seg {
   display: inline-flex;
   gap: 2px;
-  background: var(--surface);
-  border: 1px solid var(--border-soft);
+  /* Control segmentado estilo iOS: pista --surface-2, opción activa "perfora" a --surface. */
+  background: var(--surface-2);
+  border: 1px solid transparent;
   border-radius: var(--radius-pill);
   padding: 3px;
 }
@@ -1017,8 +1017,8 @@
   border: none;
 }
 .seg__btn--active {
-  background: var(--primary);
-  color: var(--on-primary);
+  background: var(--surface);
+  color: var(--text);
 }
 
 /* ---- Calendario / agenda ------------------------------------------------ */
@@ -1141,7 +1141,7 @@
 .sheet__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(12, 10, 8, 0.62);
+  background: rgba(0, 0, 0, 0.62);
 }
 .sheet__panel {
   position: relative;
@@ -1192,7 +1192,7 @@
 .sheet__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(12, 10, 8, 0.62);
+  background: rgba(0, 0, 0, 0.62);
   animation: sheet-fade var(--dur-state) var(--ease-out);
 }
 /* Salida: la hoja se va hacia abajo y el fondo se apaga. `sheet-down` solo
@@ -1385,19 +1385,23 @@ select.input {
   display: none;
 }
 
-/* Selector de tema, variante apilada (sidebar) */
+/* Selector de tema, variante apilada (sidebar): pista iOS en --surface-2, el
+   segmento activo "perfora" hasta --surface (el fondo de la barra lateral). */
 .themeswitch {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: 3px;
 }
 .themeswitch__btn {
   display: flex;
   align-items: center;
   gap: var(--s2);
   padding: var(--s2) var(--s3);
-  border-radius: var(--radius);
-  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  border: none;
   background: none;
   color: var(--text-muted);
   font-weight: 600;
@@ -1405,12 +1409,10 @@ select.input {
   text-align: left;
 }
 .themeswitch__btn:hover {
-  background: var(--surface);
   color: var(--text);
 }
 .themeswitch__btn--active {
-  background: var(--primary-soft);
-  border-color: var(--primary);
+  background: var(--surface);
   color: var(--text);
 }
 
@@ -1529,11 +1531,10 @@ select.input {
     display: none;
   }
   .auth-form-card {
-    background: var(--bg-elev);
+    background: var(--surface);
     border: 1px solid var(--border-soft);
     border-radius: var(--radius-xl);
     padding: var(--s10) var(--s8);
-    box-shadow: var(--shadow);
   }
   /* El theme switcher queda en la esquina superior derecha (ya lo cubre .auth__theme). */
 }
@@ -1583,7 +1584,7 @@ select.input {
     width: var(--sidenav-width);
     flex: none;
     padding: var(--s6) var(--s4) calc(var(--safe-bottom) + var(--s4));
-    background: var(--bg-elev);
+    background: var(--surface);
     border-right: 1px solid var(--border-soft);
     -webkit-user-select: none;
     user-select: none;
@@ -1597,7 +1598,9 @@ select.input {
     align-items: center;
     gap: var(--s3);
     padding: var(--s3);
-    background: var(--surface);
+    /* --surface-2 (no --surface): la barra ya vive en --surface, y una tarjeta
+       del mismo tono encima quedaba sin distinguirse. */
+    background: var(--surface-2);
     border: 1px solid var(--border-soft);
     border-radius: var(--radius);
     margin-bottom: var(--s4);
@@ -1814,7 +1817,7 @@ select.input {
   background: var(--surface-2);
 }
 .progress__bar {
-  background: linear-gradient(90deg, var(--success), color-mix(in srgb, var(--success) 78%, #fff));
+  background: var(--success-fill);
   transition: width var(--dur-layout) var(--ease-out);
 }
 
@@ -1890,7 +1893,7 @@ select.input {
   align-items: flex-start;
   gap: var(--s3);
   padding: var(--s3) var(--s4);
-  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+  background: var(--primary-soft);
   border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
   border-radius: var(--radius);
   color: var(--text);
@@ -2367,7 +2370,7 @@ select.input {
 }
 .ring__track {
   fill: none;
-  stroke: var(--border-soft);
+  stroke: var(--surface-2);
   stroke-width: 10;
 }
 .ring__bar {
@@ -2378,7 +2381,7 @@ select.input {
   transition: stroke-dashoffset 1000ms linear, stroke var(--dur-layout) var(--ease-out);
 }
 .ring--reached .ring__bar {
-  stroke: var(--success);
+  stroke: var(--success-fill);
 }
 .ring--reached .ring__center {
   animation: check-pop var(--dur-layout) var(--ease-spring);
@@ -2394,6 +2397,8 @@ select.input {
 }
 .ring__time {
   font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
   font-family: var(--font-display);
 }
@@ -2734,8 +2739,10 @@ select.input {
    editorial de "esto se lee", no de "esto se escanea". */
 .lesson-idea {
   margin: 0;
-  font-size: var(--fs-lg);
-  line-height: var(--lh-body);
+  /* Archivo (grotesca) en párrafo largo pide un cuerpo más chico y más aire
+     que la Fraunces que reemplazó: 16px cómodo, interlineado 1.6. */
+  font-size: var(--fs-md);
+  line-height: 1.6;
 }
 .lesson-idea::first-letter {
   font-family: var(--font-display);
@@ -2851,6 +2858,12 @@ select.input {
   width: 20px;
   height: 20px;
   margin-top: 0;
+}
+/* Relleno plano (más luz que --success) para que el disco de 20px se lea
+   como color sólido en la agenda, igual que las barras de Hoy. */
+.check--sm.check--done {
+  background: var(--success-fill);
+  border-color: var(--success-fill);
 }
 
 /* "hecha" celebra en verde, coherente con los checks de cumplido. */
@@ -3248,7 +3261,7 @@ button.ag-row:active,
   border: 0;
   font-size: 12px;
   font-weight: 500;
-  color: var(--text-faint);
+  color: var(--text-muted);
   text-align: left;
   position: relative;
 }
@@ -3433,7 +3446,7 @@ button.ag-row:active,
   }
   .cal-week .wk-day {
     border: 1px solid var(--border-soft);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     background: var(--surface);
     padding: var(--s2) var(--s4);
     box-shadow: var(--shadow-sm);

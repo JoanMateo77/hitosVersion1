@@ -64,7 +64,8 @@ export function SideNav() {
           aria-hidden="true"
           style={{
             overflow: 'hidden',
-            boxShadow: frame ? `0 0 0 3px ${frame.color}` : undefined,
+            // Anillo del marco ganado, o --primary por defecto (igual que en Hoy).
+            boxShadow: `0 0 0 3px ${frame?.color ?? 'var(--primary)'}`,
           }}
         >
           {profile.avatarUrl ? (

@@ -65,8 +65,8 @@
   transform: scale(0.9);
 }
 .session-plan__check--done {
-  background: var(--success);
-  border-color: var(--success);
+  background: var(--success-fill);
+  border-color: var(--success-fill);
   color: #fff;
 }
 .session-plan__check:disabled {
