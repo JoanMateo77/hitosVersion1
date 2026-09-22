@@ -147,6 +147,11 @@ export function Today() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [newTitle, setNewTitle] = useState('')
   const [addingTask, setAddingTask] = useState(false)
+  // Al abrir la entrada de tarea, el foco va al campo (sin autoFocus en el JSX).
+  const addInputRef = useRef<HTMLInputElement | null>(null)
+  useEffect(() => {
+    if (addingTask) addInputRef.current?.focus()
+  }, [addingTask])
   const [pickingSpontaneous, setPickingSpontaneous] = useState(false)
   // Tras un ✓ rápido ofrecemos anotar el avance: es el camino más usado y el
   // diario de la meta no debería quedarse sin entradas justo ahí.
@@ -919,8 +924,7 @@ export function Today() {
           <div className="today-hero">
             <div className="today-hero__top">
               <span className="today-hero__state">
-                <span className="today-hero__dot" aria-hidden="true" />
-                Siguiente sesión
+                <span className="today-hero__dot" aria-hidden="true" />Siguiente sesión
               </span>
               <span className="today-hero__meta">
                 {(() => {
@@ -957,8 +961,7 @@ export function Today() {
           <div className="today-hero">
             <div className="today-hero__top">
               <span className="today-hero__state">
-                <span className="today-hero__dot" aria-hidden="true" />
-                Compromiso de hoy
+                <span className="today-hero__dot" aria-hidden="true" />Compromiso de hoy
               </span>
             </div>
             <span className="today-hero__title">
@@ -974,8 +977,7 @@ export function Today() {
           <div className="today-hero">
             <div className="today-hero__top">
               <span className="today-hero__state">
-                <span className="today-hero__dot" aria-hidden="true" />
-                Día libre
+                <span className="today-hero__dot" aria-hidden="true" />Día libre
               </span>
             </div>
             <span className="today-hero__title">Hoy no comprometiste sesiones.</span>
@@ -985,8 +987,7 @@ export function Today() {
           <div className="today-hero">
             <div className="today-hero__top">
               <span className="today-hero__state">
-                <span className="today-hero__dot" aria-hidden="true" />
-                Empieza aquí
+                <span className="today-hero__dot" aria-hidden="true" />Empieza aquí
               </span>
             </div>
             <span className="today-hero__title">Tu día se arma alrededor de una meta.</span>
@@ -1160,8 +1161,8 @@ export function Today() {
         {addingTask && (
           <form className="row" onSubmit={addTask}>
             <input
+              ref={addInputRef}
               className="input"
-              autoFocus
               placeholder="Agrega algo para hoy…"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
