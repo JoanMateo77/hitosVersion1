@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { WEEKDAY_PLURALS } from '@/domain/commitment'
 import { remindersLabel } from '@/domain/habits'
 import { getNiche } from '@/domain/niches'
@@ -27,16 +27,22 @@ export function SheetStepFrequency({
   patch,
   reminders,
   onReminders,
-}: {
+}: Readonly<{
   draft: HabitDraft
   patch: (over: Partial<HabitDraft>) => void
   /** Interruptor de recordatorios (apagado ⇒ se guardan sin horas). */
   reminders: boolean
   onReminders: (on: boolean) => void
-}) {
+}>) {
   const [hoursOpen, setHoursOpen] = useState(false)
   const multi = draft.timesPerDay > 1
   const selected = draft.weekdays.length === 0 ? ALL_DAYS : draft.weekdays
+
+  // Id estable por hora, ajeno a su posición en el array: así la fila no se
+  // remonta (y no pierde el foco del input) cuando se agrega o quita otra
+  // hora antes que ella.
+  const nextTimeId = useRef(0)
+  const [timeIds, setTimeIds] = useState<number[]>(() => draft.times.map(() => nextTimeId.current++))
 
   function toggleDay(day: number) {
     const next = selected.includes(day)
@@ -59,13 +65,22 @@ export function SheetStepFrequency({
 
   function addHour() {
     setHoursOpen(true)
+    setTimeIds((ids) => [...ids, nextTimeId.current++])
     patch({ times: [...draft.times, FIRST_TIME] })
+  }
+
+  function removeHour(index: number) {
+    setTimeIds((ids) => ids.filter((_, i) => i !== index))
+    patch({ times: draft.times.filter((_, i) => i !== index) })
   }
 
   function toggleReminders() {
     const on = !reminders
     onReminders(on)
-    if (on && draft.times.length === 0) patch({ times: [FIRST_TIME] })
+    if (on && draft.times.length === 0) {
+      setTimeIds([nextTimeId.current++])
+      patch({ times: [FIRST_TIME] })
+    }
     if (!on) setHoursOpen(false)
   }
 
@@ -218,9 +233,7 @@ export function SheetStepFrequency({
         {reminders && hoursOpen && (
           <div className="hsheet-hours">
             {draft.times.map((time, index) => (
-              // El índice es la identidad aquí: con la hora como clave, cada
-              // tecla remontaría el input y se perdería el foco.
-              <div className="hsheet-hour" key={index}>
+              <div className="hsheet-hour" key={timeIds[index]}>
                 <input
                   className="hsheet-hour__input"
                   type="time"
@@ -232,7 +245,7 @@ export function SheetStepFrequency({
                   type="button"
                   className="hsheet-hour__remove"
                   aria-label={`Quitar la hora ${index + 1}`}
-                  onClick={() => patch({ times: draft.times.filter((_, i) => i !== index) })}
+                  onClick={() => removeHour(index)}
                 >
                   <IconTrash size={16} />
                 </button>

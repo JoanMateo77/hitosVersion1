@@ -20,14 +20,14 @@ export function SheetStepIdentity({
   nameRef,
   invalid,
   onEnter,
-}: {
+}: Readonly<{
   draft: HabitDraft
   patch: (over: Partial<HabitDraft>) => void
   nameRef: RefObject<HTMLInputElement | null>
   /** El nombre quedó vacío al intentar continuar. */
   invalid: boolean
   onEnter: () => void
-}) {
+}>) {
   const [showAll, setShowAll] = useState(false)
 
   // El icono elegido siempre está a la vista: si no es de los 7 rápidos,

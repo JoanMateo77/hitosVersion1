@@ -181,7 +181,7 @@ export function habitWithDayTimes(
   override?: { times: string[] } | null,
 ): Habit {
   if (!override) return habit
-  const times = [...override.times].sort()
+  const times = [...override.times].sort((a, b) => a.localeCompare(b))
   return { ...habit, times: times.length > 0 ? times : null }
 }
 
@@ -243,7 +243,7 @@ export function habitDayRow(habit: Habit, checks: HabitCheck[], dateISO: string)
   if (times.length > 0) {
     const next = nextSlot(habit, checks, dateISO)
     // Completo: la hora de la última repetición que sí tiene hora.
-    const slot = next === null ? Math.min(target, times.length) - 1 : next
+    const slot = next ?? Math.min(target, times.length) - 1
     time = slot >= 0 && slot < times.length ? times[slot] : null
   }
   return { doneCount, target, complete, time }
@@ -326,7 +326,7 @@ export function habitStreakOf(
     if (done.has(cursor)) {
       streak++
       pastPause = true
-    } else if (appliesOnWalk(habit, cursor, skips, pastPause)) {
+    } else if (appliesOnWalk(habit, cursor, skips, pastPause ? appliesByWeekday : habitAppliesOn)) {
       break
     }
     cursor = addDays(cursor, -1)
@@ -334,16 +334,22 @@ export function habitStreakOf(
   return streak
 }
 
-/** Aplicabilidad durante un recorrido hacia atrás (ver habitStreakOf). */
+/** Chequeo de aplicabilidad tal como lo piden habitStreakOf y habitBestStreak. */
+type AppliesCheck = (habit: Habit, dateISO: string, skips?: Set<string>) => boolean
+
+/**
+ * Aplicabilidad durante un recorrido hacia atrás (ver habitStreakOf). En vez
+ * de un booleano que elija internamente la regla, quien recorre pasa el
+ * chequeo que toca (con pausa o sin ella) según ya haya cruzado el primer día
+ * cumplido.
+ */
 function appliesOnWalk(
   habit: Habit,
   dateISO: string,
   skips: Set<string>,
-  pastPause: boolean,
+  appliesCheck: AppliesCheck,
 ): boolean {
-  return pastPause
-    ? appliesByWeekday(habit, dateISO, skips)
-    : habitAppliesOn(habit, dateISO, skips)
+  return appliesCheck(habit, dateISO, skips)
 }
 
 /**
@@ -369,7 +375,7 @@ export function habitBestStreak(
       run++
       if (run > best) best = run
       pastPause = true
-    } else if (appliesOnWalk(habit, cursor, skips, pastPause)) {
+    } else if (appliesOnWalk(habit, cursor, skips, pastPause ? appliesByWeekday : habitAppliesOn)) {
       run = 0
     }
     cursor = addDays(cursor, -1)
@@ -501,7 +507,7 @@ export function daysLabel(weekdays: number[]): string {
   if (days.length === 0 || days.length === 7) return 'Todos los días'
   if (days.length === 2 && days[0] === 5 && days[1] === 6) return 'Fin de semana'
   const contiguous = days.every((d, i) => i === 0 || d === days[i - 1] + 1)
-  if (contiguous && days.length >= 3) return `${DAY_ABBR[days[0]]} a ${DAY_ABBR[days[days.length - 1]]}`
+  if (contiguous && days.length >= 3) return `${DAY_ABBR[days[0]]} a ${DAY_ABBR[days.at(-1)!]}`
   return days.map((d) => DAY_ABBR[d]).join(' · ')
 }
 
@@ -593,6 +599,13 @@ function habitsCountingOn(
   )
 }
 
+/** Fase de una fecha respecto de hoy, para la franja semanal. */
+function phaseOf(date: string, today: string): 'past' | 'today' | 'future' {
+  if (date < today) return 'past'
+  if (date === today) return 'today'
+  return 'future'
+}
+
 export function weekRings(
   habits: Habit[],
   checks: HabitCheck[],
@@ -605,8 +618,7 @@ export function weekRings(
     const date = addDays(weekStartISO, i)
     const due = habitsCountingOn(habits, checks, date, skips)
     const done = due.filter((h) => habitIsComplete(h, checks, date)).length
-    const phase = date < today ? 'past' : date === today ? 'today' : 'future'
-    rings.push({ date, ratio: due.length === 0 ? 0 : done / due.length, phase })
+    rings.push({ date, ratio: due.length === 0 ? 0 : done / due.length, phase: phaseOf(date, today) })
   }
   return rings
 }

@@ -175,11 +175,11 @@ describe('nextSlot', () => {
   })
   it('null cuando el día está completo', () => {
     const all = [check({ slot: 0 }), check({ slot: 1 }), check({ slot: 2 })]
-    expect(nextSlot(h, all, '2026-06-08')).toBe(null)
+    expect(nextSlot(h, all, '2026-06-08')).toBeNull()
   })
   it('sin horas: 0 pendiente, null tras el único check', () => {
     expect(nextSlot(habit(), [], '2026-06-08')).toBe(0)
-    expect(nextSlot(habit(), [check()], '2026-06-08')).toBe(null)
+    expect(nextSlot(habit(), [check()], '2026-06-08')).toBeNull()
   })
 })
 
@@ -390,7 +390,7 @@ describe('habitDayRow con más repeticiones que horas', () => {
   const h = habit({ timesPerDay: 3, times: ['09:00'] })
   it('la repetición sin hora (slot >= times.length) no muestra ninguna', () => {
     expect(habitDayRow(h, [], '2026-06-08').time).toBe('09:00')
-    expect(habitDayRow(h, [check({ slot: 0 })], '2026-06-08').time).toBe(null)
+    expect(habitDayRow(h, [check({ slot: 0 })], '2026-06-08').time).toBeNull()
   })
   it('completo: cae en la última repetición que sí tiene hora', () => {
     const todas = [check({ slot: 0 }), check({ slot: 1 }), check({ slot: 2 })]

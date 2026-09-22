@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import { useToast } from '@/app/toast'
+import { useToast, type ToastTone } from '@/app/toast'
 import {
   listHabitChecksInRange,
   listHabitSkipsInRange,
@@ -110,7 +110,67 @@ function frequencyWithUnit(habit: Habit): string | null {
 }
 
 /** Pestaña de origen, para que "‹ Hábitos" vuelva a donde estabas. */
-const TABS = ['hoy', 'todos', 'archivados']
+const TABS = new Set(['hoy', 'todos', 'archivados'])
+
+type ToastFn = (message: string, tone?: ToastTone) => void
+
+/**
+ * Aplica un cambio optimista y lo revierte si la llamada al servicio falla.
+ * Vive fuera del componente (toast y los callbacks llegan como parámetros)
+ * para no sumarle a HabitDetail la complejidad de su propio try/catch.
+ */
+async function runAction(
+  toast: ToastFn,
+  apply: () => void,
+  revert: () => void,
+  call: () => Promise<void>,
+  ok: string,
+  fallback: string,
+): Promise<void> {
+  apply()
+  try {
+    await call()
+    toast(ok)
+  } catch (e: unknown) {
+    revert()
+    toast(actionError(e, fallback), 'warning')
+  }
+}
+
+/** Los saltos con el de hoy puesto o quitado, según toque. */
+function withSkipToggle(
+  skips: HabitSkip[],
+  habitId: string,
+  date: string,
+  on: boolean,
+): HabitSkip[] {
+  return on ? [...skips, { habitId, date }] : skips.filter((s) => s.date !== date)
+}
+
+/** "Hoy no cuenta para este hábito." / "Salto deshecho.". */
+function skipToggleMessage(on: boolean): string {
+  return on ? 'Hoy no cuenta para este hábito.' : 'Salto deshecho.'
+}
+
+/** "Pausado hasta el 30 sept." / "Hábito reanudado.". */
+function pauseMessage(dateISO: string | null): string {
+  return dateISO ? `Pausado hasta el ${shortDate(dateISO)}.` : 'Hábito reanudado.'
+}
+
+/** `archivedAt` que corresponde al nuevo estado (archivar vs. reactivar). */
+function archivedAtFor(archive: boolean): string | null {
+  return archive ? new Date().toISOString() : null
+}
+
+/** "Hábito archivado." / "Hábito reactivado.". */
+function archiveMessage(archive: boolean): string {
+  return archive ? 'Hábito archivado.' : 'Hábito reactivado.'
+}
+
+/** Mensaje de error de archivar/reactivar. */
+function archiveErrorMessage(archive: boolean): string {
+  return archive ? 'No se pudo archivar el hábito.' : 'No se pudo reactivar el hábito.'
+}
 
 export function HabitDetail() {
   const { habitId } = useParams<{ habitId: string }>()
@@ -133,7 +193,7 @@ export function HabitDetail() {
 
   // Volver a la lista conservando la pestaña de origen (state o ?tab).
   const rawTab = (location.state as { tab?: string } | null)?.tab ?? params.get('tab')
-  const tab = rawTab && TABS.includes(rawTab) ? rawTab : null
+  const tab = rawTab && TABS.has(rawTab) ? rawTab : null
   const backTo = tab ? `/habitos?tab=${tab}` : '/habitos'
 
   useEffect(() => {
@@ -219,33 +279,16 @@ export function HabitDetail() {
   const frequency = frequencyWithUnit(habit)
   const subtitle = [frequency, days, getNiche(habit.area).label].filter(Boolean).join(' · ')
 
-  async function runAction(
-    apply: () => void,
-    revert: () => void,
-    call: () => Promise<void>,
-    ok: string,
-    fallback: string,
-  ) {
-    apply()
-    try {
-      await call()
-      toast(ok)
-    } catch (e: unknown) {
-      revert()
-      toast(actionError(e, fallback), 'warning')
-    }
-  }
-
   function toggleSkipToday() {
     const id = current.id
     const next = !skippedToday
     const before = skips
     void runAction(
-      () =>
-        setSkips(next ? [...before, { habitId: id, date: today }] : before.filter((s) => s.date !== today)),
+      toast,
+      () => setSkips(withSkipToggle(before, id, today, next)),
       () => setSkips(before),
       () => setHabitSkipped(userId, id, today, next),
-      next ? 'Hoy no cuenta para este hábito.' : 'Salto deshecho.',
+      skipToggleMessage(next),
       'No se pudo guardar el salto.',
     )
   }
@@ -254,12 +297,13 @@ export function HabitDetail() {
     const before = current
     setPauseOpen(false)
     void runAction(
+      toast,
       () => setHabit({ ...before, pausedUntil: dateISO }),
       () => setHabit(before),
       async () => {
         setHabit(await setHabitPausedUntil(before.id, dateISO))
       },
-      dateISO ? `Pausado hasta el ${shortDate(dateISO)}.` : 'Hábito reanudado.',
+      pauseMessage(dateISO),
       'No se pudo pausar el hábito.',
     )
   }
@@ -268,13 +312,14 @@ export function HabitDetail() {
     const before = current
     const archive = before.archivedAt === null
     void runAction(
-      () => setHabit({ ...before, archivedAt: archive ? new Date().toISOString() : null }),
+      toast,
+      () => setHabit({ ...before, archivedAt: archivedAtFor(archive) }),
       () => setHabit(before),
       async () => {
         setHabit(await setHabitArchived(before.id, archive))
       },
-      archive ? 'Hábito archivado.' : 'Hábito reactivado.',
-      archive ? 'No se pudo archivar el hábito.' : 'No se pudo reactivar el hábito.',
+      archiveMessage(archive),
+      archiveErrorMessage(archive),
     )
   }
 

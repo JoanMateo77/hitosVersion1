@@ -36,6 +36,7 @@ import {
   todayHeadline,
   weekRings,
   type HabitSuggestion,
+  type HabitWeekRing,
 } from '@/domain/habits'
 import { NICHES } from '@/domain/niches'
 import { WEEKDAY_LABELS } from '@/domain/commitment'
@@ -150,6 +151,200 @@ interface SheetState {
   mode: 'create' | 'edit'
   initial: HabitDraft
   step: 1 | 2 | 3
+}
+
+/** Subtítulo de la cabecera, uno por pestaña (y el del primer uso). */
+function habitsSubtitle(
+  firstRun: boolean,
+  tab: Tab,
+  today: string,
+  headline: { done: number; total: number },
+  activeCount: number,
+  areaCount: number,
+  archivedCount: number,
+): ReactNode {
+  if (firstRun) return dayLabel(today)
+  if (tab === 'hoy') {
+    return (
+      <>
+        {dayLabel(today)} ·{' '}
+        <span className="hab-head__count">
+          {headline.done} de {headline.total}
+        </span>{' '}
+        hechos
+      </>
+    )
+  }
+  if (tab === 'todos') {
+    const activeWord = activeCount === 1 ? 'activo' : 'activos'
+    const areaWord = areaCount === 1 ? 'área' : 'áreas'
+    return `${activeCount} ${activeWord} · ${areaCount} ${areaWord}`
+  }
+  if (archivedCount === 0) return 'Ningún archivado'
+  const archivedWord = archivedCount === 1 ? 'archivado' : 'archivados'
+  return `${archivedCount} ${archivedWord}`
+}
+
+/** Selector de pestaña: un grupo de controles, de ahí el fieldset con su legend oculta. */
+function HabitsTabControl({
+  tab,
+  onSelect,
+}: Readonly<{ tab: Tab; onSelect: (next: Tab) => void }>) {
+  return (
+    <fieldset className="hab-seg">
+      <legend className="sr-only">Vista de hábitos</legend>
+      {TABS.map((option) => (
+        <button
+          key={option.id}
+          type="button"
+          aria-pressed={tab === option.id}
+          className={`hab-seg__opt${tab === option.id ? ' is-on' : ''}`}
+          onClick={() => onSelect(option.id)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </fieldset>
+  )
+}
+
+/** Texto accesible de un día de la franja semanal ("Lunes: 40 % de tus hábitos"). */
+function weekRingCaption(ring: HabitWeekRing, weekdayLabel: string): string {
+  if (ring.phase === 'future') return `${weekdayLabel}: todavía no llega`
+  return `${weekdayLabel}: ${Math.round(ring.ratio * 100)} % de tus hábitos`
+}
+
+/**
+ * Franja semanal de anillos de avance. Cada anillo es puramente decorativo
+ * (aria-hidden): su lectura para lector de pantalla vive en el span oculto
+ * que lo acompaña, así el gráfico no exige un rol que no le corresponde.
+ */
+function HabitsWeekStrip({ rings }: Readonly<{ rings: HabitWeekRing[] }>) {
+  return (
+    <div className="hab-week">
+      {rings.map((ring, i) => (
+        <div key={ring.date} className="hab-week__day">
+          <span
+            className={`hab-week__label${ring.phase === 'today' ? ' is-today' : ''}`}
+            aria-hidden="true"
+          >
+            {WEEK_LETTERS[i]}
+          </span>
+          <span
+            className={`hab-ring${ring.phase === 'future' ? ' hab-ring--future' : ''}`}
+            style={{ '--hab-ratio': `${Math.round(ring.ratio * 100)}%` } as CSSProperties}
+            aria-hidden="true"
+          />
+          <span className="sr-only">{weekRingCaption(ring, WEEKDAY_LABELS[i])}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Primer uso: hero + 4 sugerencias que abren la hoja ya precargada. */
+function HabitsFirstRun({
+  archivedCount,
+  onPick,
+  onSeeArchived,
+}: Readonly<{
+  archivedCount: number
+  onPick: (suggestion: HabitSuggestion) => void
+  onSeeArchived: () => void
+}>) {
+  return (
+    <>
+      <div className="hab-first">
+        <div className="hab-first__tiles" aria-hidden="true">
+          {HERO_TILES.map((tile) => (
+            <span key={tile.icon} className="hab-first__tile">
+              <HabitIcon icon={tile.icon} color={tile.color} size="lg" />
+            </span>
+          ))}
+        </div>
+        <p className="hab-first__title">Tu primer hábito</p>
+        <p className="hab-first__text">
+          Algo pequeño que puedas hacer todos los días. Elige uno para empezar o crea el tuyo
+          con el +.
+        </p>
+      </div>
+      <section className="hab-section" aria-label="Sugerencias">
+        <span className="hab-kicker">Sugerencias</span>
+        <ul className="hab-list">
+          {FIRST_SUGGESTIONS.map((suggestion: HabitSuggestion) => (
+            <li key={suggestion.title} className="hab-list__item">
+              <HabitSuggestionRow suggestion={suggestion} onPick={() => onPick(suggestion)} />
+            </li>
+          ))}
+        </ul>
+      </section>
+      {archivedCount > 0 && (
+        <button type="button" className="hab-first__link" onClick={onSeeArchived}>
+          Ver archivados ({archivedCount})
+        </button>
+      )}
+    </>
+  )
+}
+
+/** Pestaña Archivados: vacío o la lista con su nota de cierre. */
+function HabitsArchivedTab({
+  archived,
+  checksByHabit,
+  skipSet,
+  historyFrom,
+  today,
+  onRestore,
+}: Readonly<{
+  archived: Habit[]
+  checksByHabit: Map<string, HabitCheck[]>
+  skipSet: Set<string>
+  historyFrom: string
+  today: string
+  onRestore: (habit: Habit) => void
+}>) {
+  if (archived.length === 0) {
+    return (
+      <div className="hab-empty">
+        <span className="hab-empty__icon" aria-hidden="true">
+          <IconArchive size={28} />
+        </span>
+        <p className="hab-empty__title">Nada archivado</p>
+        <p className="hab-empty__text">
+          Cuando un hábito ya no encaje, deslízalo a la izquierda y elige Archivar. Se guarda
+          aquí con su historial.
+        </p>
+      </div>
+    )
+  }
+  return (
+    <>
+      <ul className="hab-list">
+        {archived.map((habit) => (
+          <li key={habit.id} className="hab-list__item">
+            <HabitArchivedRow
+              habit={habit}
+              caption={archivedCaption(
+                habit,
+                habitBestStreak(
+                  habit,
+                  checksByHabit.get(habit.id) ?? EMPTY_CHECKS,
+                  skipSet,
+                  historyFrom,
+                  today,
+                ),
+                today,
+              )}
+              onRestore={() => onRestore(habit)}
+            />
+          </li>
+        ))}
+      </ul>
+      <p className="hab-note">
+        Los archivados no cuentan para la racha ni aparecen en Hoy. Su historial se conserva.
+      </p>
+    </>
+  )
 }
 
 export function Habits() {
@@ -293,7 +488,7 @@ export function Habits() {
     if (previous === false && dayComplete) setDayDone(true)
   }, [habits, dayComplete])
 
-  const dayDoneRef = useRef<HTMLDivElement | null>(null)
+  const dayDoneRef = useRef<HTMLOutputElement | null>(null)
   useEffect(() => {
     if (!dayDone) return
     const timer = window.setTimeout(() => setDayDone(false), DAY_DONE_MS)
@@ -426,27 +621,15 @@ export function Habits() {
   }
 
   // --- Subtítulo de la cabecera ---------------------------------------------
-  let subtitle: ReactNode = dayLabel(today)
-  if (!firstRun && tab === 'hoy') {
-    subtitle = (
-      <>
-        {dayLabel(today)} ·{' '}
-        <span className="hab-head__count">
-          {headline.done} de {headline.total}
-        </span>{' '}
-        hechos
-      </>
-    )
-  } else if (!firstRun && tab === 'todos') {
-    subtitle = `${active.length} ${active.length === 1 ? 'activo' : 'activos'} · ${groups.length} ${
-      groups.length === 1 ? 'área' : 'áreas'
-    }`
-  } else if (!firstRun && tab === 'archivados') {
-    subtitle =
-      archived.length === 0
-        ? 'Ningún archivado'
-        : `${archived.length} ${archived.length === 1 ? 'archivado' : 'archivados'}`
-  }
+  const subtitle = habitsSubtitle(
+    firstRun,
+    tab,
+    today,
+    headline,
+    active.length,
+    groups.length,
+    archived.length,
+  )
 
   return (
     <div className="screen hab-screen">
@@ -467,74 +650,27 @@ export function Habits() {
 
       {loadError && <div className="alert alert--warn">{loadError}</div>}
       {actionError && (
-        <div className="alert alert--warn" role="status" aria-live="polite">
+        <output className="alert alert--warn" aria-live="polite">
           {actionError}
-        </div>
+        </output>
       )}
 
-      {habits !== null && !firstRun && (
-        <div className="hab-seg" role="group" aria-label="Vista de hábitos">
-          {TABS.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              aria-pressed={tab === option.id}
-              className={`hab-seg__opt${tab === option.id ? ' is-on' : ''}`}
-              onClick={() => selectTab(option.id)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {habits !== null && !firstRun && <HabitsTabControl tab={tab} onSelect={selectTab} />}
 
       {habits === null && !loadError && <SkeletonList rows={4} />}
 
       {firstRun && (
-        <>
-          <div className="hab-first">
-            <div className="hab-first__tiles" aria-hidden="true">
-              {HERO_TILES.map((tile) => (
-                <span key={tile.icon} className="hab-first__tile">
-                  <HabitIcon icon={tile.icon} color={tile.color} size="lg" />
-                </span>
-              ))}
-            </div>
-            <p className="hab-first__title">Tu primer hábito</p>
-            <p className="hab-first__text">
-              Algo pequeño que puedas hacer todos los días. Elige uno para empezar o crea el tuyo
-              con el +.
-            </p>
-          </div>
-          <section className="hab-section" aria-label="Sugerencias">
-            <span className="hab-kicker">Sugerencias</span>
-            <ul className="hab-list">
-              {FIRST_SUGGESTIONS.map((suggestion: HabitSuggestion) => (
-                <li key={suggestion.title} className="hab-list__item">
-                  <HabitSuggestionRow
-                    suggestion={suggestion}
-                    onPick={() => openSheet(draftFromSuggestion(suggestion))}
-                  />
-                </li>
-              ))}
-            </ul>
-          </section>
-          {archived.length > 0 && (
-            <button
-              type="button"
-              className="hab-first__link"
-              onClick={() => selectTab('archivados')}
-            >
-              Ver archivados ({archived.length})
-            </button>
-          )}
-        </>
+        <HabitsFirstRun
+          archivedCount={archived.length}
+          onPick={(suggestion) => openSheet(draftFromSuggestion(suggestion))}
+          onSeeArchived={() => selectTab('archivados')}
+        />
       )}
 
       {habits !== null && !firstRun && tab === 'hoy' && (
         <>
           {hint.visible && pending.length > 0 && (
-            <div className="hab-hint" role="status">
+            <output className="hab-hint">
               <span className="hab-hint__icon" aria-hidden="true">
                 <IconChevronLeft size={16} />
               </span>
@@ -544,31 +680,10 @@ export function Habits() {
               <button type="button" className="hab-hint__done" onClick={hint.dismiss}>
                 Entendido
               </button>
-            </div>
+            </output>
           )}
 
-          <div className="hab-week" role="group" aria-label="Tu semana">
-            {rings.map((ring, i) => (
-              <div key={ring.date} className="hab-week__day">
-                <span
-                  className={`hab-week__label${ring.phase === 'today' ? ' is-today' : ''}`}
-                  aria-hidden="true"
-                >
-                  {WEEK_LETTERS[i]}
-                </span>
-                <span
-                  role="img"
-                  className={`hab-ring${ring.phase === 'future' ? ' hab-ring--future' : ''}`}
-                  style={{ '--hab-ratio': `${Math.round(ring.ratio * 100)}%` } as CSSProperties}
-                  aria-label={
-                    ring.phase === 'future'
-                      ? `${WEEKDAY_LABELS[i]}: todavía no llega`
-                      : `${WEEKDAY_LABELS[i]}: ${Math.round(ring.ratio * 100)} % de tus hábitos`
-                  }
-                />
-              </div>
-            ))}
-          </div>
+          <HabitsWeekStrip rings={rings} />
 
           {pending.length > 0 && (
             <section className="hab-section" aria-label="Por hacer">
@@ -682,46 +797,14 @@ export function Habits() {
 
       {habits !== null && tab === 'archivados' && (
         <>
-          {archived.length === 0 ? (
-            <div className="hab-empty">
-              <span className="hab-empty__icon" aria-hidden="true">
-                <IconArchive size={28} />
-              </span>
-              <p className="hab-empty__title">Nada archivado</p>
-              <p className="hab-empty__text">
-                Cuando un hábito ya no encaje, deslízalo a la izquierda y elige Archivar. Se guarda
-                aquí con su historial.
-              </p>
-            </div>
-          ) : (
-            <>
-              <ul className="hab-list">
-                {archived.map((habit) => (
-                  <li key={habit.id} className="hab-list__item">
-                    <HabitArchivedRow
-                      habit={habit}
-                      caption={archivedCaption(
-                        habit,
-                        habitBestStreak(
-                          habit,
-                          checksByHabit.get(habit.id) ?? EMPTY_CHECKS,
-                          skipSet,
-                          historyFrom,
-                          today,
-                        ),
-                        today,
-                      )}
-                      onRestore={() => void changeArchived(habit, false)}
-                    />
-                  </li>
-                ))}
-              </ul>
-              <p className="hab-note">
-                Los archivados no cuentan para la racha ni aparecen en Hoy. Su historial se
-                conserva.
-              </p>
-            </>
-          )}
+          <HabitsArchivedTab
+            archived={archived}
+            checksByHabit={checksByHabit}
+            skipSet={skipSet}
+            historyFrom={historyFrom}
+            today={today}
+            onRestore={(habit) => void changeArchived(habit, false)}
+          />
           {active.length === 0 && (
             <button type="button" className="hab-first__link" onClick={() => selectTab('hoy')}>
               Volver a las sugerencias
@@ -731,7 +814,7 @@ export function Habits() {
       )}
 
       {dayDone && (
-        <div className="hab-toast" role="status" ref={dayDoneRef}>
+        <output className="hab-toast" ref={dayDoneRef}>
           <span className="hab-toast__icon" aria-hidden="true">
             <IconFlame size={22} />
           </span>
@@ -745,7 +828,7 @@ export function Habits() {
           <Link className="hab-toast__action" to="/progreso">
             Ver
           </Link>
-        </div>
+        </output>
       )}
 
       {sheet && (

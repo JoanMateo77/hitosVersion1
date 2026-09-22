@@ -22,12 +22,12 @@ export function SheetStepConfirm({
   patch,
   goals,
   userId,
-}: {
+}: Readonly<{
   draft: HabitDraft
   patch: (over: Partial<HabitDraft>) => void
   goals: Goal[]
   userId: string
-}) {
+}>) {
   const [areasOpen, setAreasOpen] = useState(false)
   const [progress, setProgress] = useState<Progress>(new Map())
   const goalsRef = useRef<HTMLDivElement | null>(null)

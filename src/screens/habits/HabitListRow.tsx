@@ -39,13 +39,90 @@ function clockOf(iso: string): string | null {
 }
 
 /** "🔥 3" pegado al texto que lo precede, o la cola "· sin racha" en faint. */
-function StreakTail({ streak }: { streak: number }) {
+function StreakTail({ streak }: Readonly<{ streak: number }>) {
   if (streak <= 0) return <span className="hab-row__sub-faint"> · sin racha</span>
   return (
     <>
       <IconFlame size={12} className="hab-row__flame" />
       {streak}
     </>
+  )
+}
+
+/** "Racha de 3 días" o, sin racha vigente, el genérico "Hecho hoy". */
+function doneCaption(streak: number): string {
+  if (streak <= 0) return 'Hecho hoy'
+  return `Racha de ${streak} ${streak === 1 ? 'día' : 'días'}`
+}
+
+/** Variante del control de la derecha: qué pinta según el estado del hábito. */
+function controlVariant(complete: boolean, multi: boolean): 'done' | 'add' | 'ring' {
+  if (complete) return 'done'
+  if (multi) return 'add'
+  return 'ring'
+}
+
+/** Glifo del control de la derecha, a tono con `controlVariant`. */
+function ControlGlyph({ complete, multi }: Readonly<{ complete: boolean; multi: boolean }>) {
+  if (complete) return <IconCheck size={20} />
+  if (multi) return <IconPlus size={18} />
+  return null
+}
+
+/** Subtítulo de la fila de Hoy: barra de repeticiones, "hecho" o días/racha. */
+function HabitTodayRowSub({
+  habit,
+  progress,
+  asDone,
+  celebrating,
+  streak,
+  time,
+}: Readonly<{
+  habit: Habit
+  progress: HabitDayProgress
+  asDone: boolean
+  celebrating: boolean
+  streak: number
+  time: string | null
+}>) {
+  const { done, target, complete } = progress
+  const multi = target > 1
+
+  if (multi && !asDone) {
+    return (
+      <span className="hab-progress">
+        <span className="hab-progress__bar" aria-hidden="true">
+          {Array.from({ length: target }, (_, i) => (
+            <span
+              key={i}
+              className={`hab-progress__seg${i < done ? ' is-on' : ''}${
+                celebrating && i === target - 1 ? ' is-last' : ''
+              }`}
+            />
+          ))}
+        </span>
+        <span className={`hab-progress__label${complete ? ' is-complete' : ''}`}>
+          {complete ? `${done} de ${target} ✓` : progressLabel(habit, done)}
+        </span>
+      </span>
+    )
+  }
+
+  if (asDone) {
+    return (
+      <span className="hab-row__sub hab-row__sub--done">
+        <IconFlame size={12} />
+        <span>{doneCaption(streak)}</span>
+        {time && <span className="hab-row__sub-faint">· {time}</span>}
+      </span>
+    )
+  }
+
+  return (
+    <span className="hab-row__sub">
+      {daysLabel(habit.weekdays)}
+      <StreakTail streak={streak} />
+    </span>
   )
 }
 
@@ -79,8 +156,8 @@ export function HabitTodayRow({
   lastAt,
   celebrating,
   onToggle,
-}: HabitTodayRowProps) {
-  const { done, target, complete } = progress
+}: Readonly<HabitTodayRowProps>) {
+  const { target, complete } = progress
   const multi = target > 1
   // Mientras festeja, la fila sigue viéndose como la de "por hacer" recién
   // cumplida: barra llena, número teñido y check verde con halo.
@@ -96,50 +173,26 @@ export function HabitTodayRow({
         <HabitIcon habit={habit} />
         <span className={`hab-row__main${multi ? ' hab-row__main--wide' : ''}`}>
           <span className="hab-row__title">{habit.title}</span>
-          {multi && !asDone ? (
-            <span className="hab-progress">
-              <span className="hab-progress__bar" aria-hidden="true">
-                {Array.from({ length: target }, (_, i) => (
-                  <span
-                    key={i}
-                    className={`hab-progress__seg${i < done ? ' is-on' : ''}${
-                      celebrating && i === target - 1 ? ' is-last' : ''
-                    }`}
-                  />
-                ))}
-              </span>
-              <span className={`hab-progress__label${complete ? ' is-complete' : ''}`}>
-                {complete ? `${done} de ${target} ✓` : progressLabel(habit, done)}
-              </span>
-            </span>
-          ) : asDone ? (
-            <span className="hab-row__sub hab-row__sub--done">
-              <IconFlame size={12} />
-              <span>
-                {streak > 0
-                  ? `Racha de ${streak} ${streak === 1 ? 'día' : 'días'}`
-                  : 'Hecho hoy'}
-              </span>
-              {time && <span className="hab-row__sub-faint">· {time}</span>}
-            </span>
-          ) : (
-            <span className="hab-row__sub">
-              {daysLabel(habit.weekdays)}
-              <StreakTail streak={streak} />
-            </span>
-          )}
+          <HabitTodayRowSub
+            habit={habit}
+            progress={progress}
+            asDone={asDone}
+            celebrating={celebrating}
+            streak={streak}
+            time={time}
+          />
         </span>
       </Link>
       <button
         type="button"
-        className={`hab-control ${
-          complete ? 'hab-control--done' : multi ? 'hab-control--add' : 'hab-control--ring'
-        }${celebrating ? ' is-celebrating' : ''}`}
+        className={`hab-control hab-control--${controlVariant(complete, multi)}${
+          celebrating ? ' is-celebrating' : ''
+        }`}
         aria-pressed={complete}
         aria-label={`${complete ? 'Desmarcar' : 'Marcar'} hoy: ${habit.title}`}
         onClick={onToggle}
       >
-        {complete ? <IconCheck size={20} /> : multi ? <IconPlus size={18} /> : null}
+        <ControlGlyph complete={complete} multi={multi} />
       </button>
     </div>
   )
@@ -150,11 +203,11 @@ export function HabitSkippedRow({
   habit,
   to,
   onUndo,
-}: {
+}: Readonly<{
   habit: Habit
   to: string
   onUndo: () => void
-}) {
+}>) {
   return (
     <div className="hab-row hab-row--split hab-row--dim" data-color={habitColor(habit)}>
       <Link className="hab-row__body" to={to}>
@@ -184,12 +237,12 @@ export function HabitAllRow({
   to,
   streak,
   today,
-}: {
+}: Readonly<{
   habit: Habit
   to: string
   streak: number
   today: string
-}) {
+}>) {
   const paused = habit.pausedUntil !== null && today <= habit.pausedUntil
   const pieces: ReactNode[] = []
   if (habitTarget(habit) > 1) pieces.push(timesLabel(habit))
@@ -224,11 +277,11 @@ export function HabitArchivedRow({
   habit,
   caption,
   onRestore,
-}: {
+}: Readonly<{
   habit: Habit
   caption: string
   onRestore: () => void
-}) {
+}>) {
   return (
     <div className="hab-row hab-row--muted">
       <span className="hab-archived-icon">
@@ -256,10 +309,10 @@ export function HabitArchivedRow({
 export function HabitSuggestionRow({
   suggestion,
   onPick,
-}: {
+}: Readonly<{
   suggestion: HabitSuggestion
   onPick: () => void
-}) {
+}>) {
   const parts: string[] = []
   if (suggestion.timesPerDay > 1) {
     parts.push(`${suggestion.timesPerDay} ${suggestion.unit ?? 'veces'}`)

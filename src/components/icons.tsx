@@ -511,7 +511,7 @@ export function IconLeaf({ size = 18, className, style }: IconProps) {
 /* ===== Hábitos (rediseño 2026-09-22) ===================================== */
 
 /** Chevron a la izquierda — "desliza la fila hacia allá" y volver atrás. */
-export function IconChevronLeft({ size = 16, className, style }: IconProps) {
+export function IconChevronLeft({ size = 16, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M14 4l-8 8 8 8" />
@@ -520,7 +520,7 @@ export function IconChevronLeft({ size = 16, className, style }: IconProps) {
 }
 
 /** Saltar adelante — "saltar hoy": este día no cuenta y se sigue de largo. */
-export function IconSkipForward({ size = 20, className, style }: IconProps) {
+export function IconSkipForward({ size = 20, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M5 4l10 8-10 8zM19 5v14" />
@@ -529,7 +529,7 @@ export function IconSkipForward({ size = 20, className, style }: IconProps) {
 }
 
 /** Caja de archivo — guardar un hábito con su historial, sin borrarlo. */
-export function IconArchive({ size = 20, className, style }: IconProps) {
+export function IconArchive({ size = 20, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <rect x="3" y="4" width="18" height="4" rx="1" />
@@ -539,7 +539,7 @@ export function IconArchive({ size = 20, className, style }: IconProps) {
 }
 
 /** Signo menos — el lado que resta del stepper (paso 2 de la hoja de hábitos). */
-export function IconMinus({ size = 20, className, style }: IconProps) {
+export function IconMinus({ size = 20, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M5 12h14" />

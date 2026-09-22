@@ -27,6 +27,53 @@ export interface HabitSheetProps {
 
 type Step = 1 | 2 | 3
 
+/** Texto del CTA del pie: "Continuar" salvo en el último paso. */
+function ctaLabel(step: Step, editing: boolean): string {
+  if (step < 3) return 'Continuar'
+  return editing ? 'Guardar' : 'Crear hábito'
+}
+
+/** Paso al que vuelve "Atrás" (solo se usa cuando step > 1). */
+function prevStep(step: Step): Step {
+  return step === 3 ? 2 : 1
+}
+
+/** Horas "HH:MM" ordenadas cronológicamente (orden lexicográfico les basta). */
+function sortedTimes(times: string[]): string[] {
+  return [...times].sort((a, b) => a.localeCompare(b))
+}
+
+/**
+ * Payload que createHabit/updateHabit esperan, a partir del borrador y del
+ * interruptor de recordatorios (que es estado de la hoja, no del hábito).
+ */
+function buildPayload(draft: HabitDraft, reminders: boolean) {
+  const times = reminders ? sortedTimes(draft.times) : []
+  const unit = draft.unit && draft.unit.trim().length > 0 ? draft.unit.trim() : null
+  return {
+    title: draft.title.trim(),
+    area: draft.area,
+    weekdays: draft.weekdays,
+    goalId: draft.goalId,
+    times: times.length > 0 ? times : null,
+    icon: draft.icon,
+    color: draft.color,
+    unit,
+    timesPerDay: Math.max(1, Math.floor(draft.timesPerDay)),
+  }
+}
+
+/**
+ * Mensaje de un guardado fallido. Sin la migración 0016 el mensaje ya viene
+ * listo para el usuario (`code: 'missing-column'`); en el resto de casos se
+ * traduce el error a algo legible.
+ */
+function saveErrorMessage(err: unknown): string {
+  const code = err instanceof Error ? (err as Error & { code?: string }).code : undefined
+  if (code === 'missing-column' && err instanceof Error) return err.message
+  return friendlyError(err, 'No se pudo guardar el hábito.')
+}
+
 /**
  * Hoja "Nuevo hábito" en tres pasos: nombre e identidad, frecuencia y
  * confirmación. La misma hoja edita un hábito existente (`mode: 'edit'`), que
@@ -45,7 +92,7 @@ export function HabitSheet({
   userId,
   onSaved,
   onClose,
-}: HabitSheetProps) {
+}: Readonly<HabitSheetProps>) {
   const { toast } = useToast()
   const [step, setStep] = useState<Step>(initialStep)
   const [draft, setDraft] = useState<HabitDraft>(initial)
@@ -70,7 +117,7 @@ export function HabitSheet({
 
   const editing = mode === 'edit'
   const title = editing ? 'Editar hábito' : 'Nuevo hábito'
-  const cta = step < 3 ? 'Continuar' : editing ? 'Guardar' : 'Crear hábito'
+  const cta = ctaLabel(step, editing)
 
   function goNext() {
     if (step === 1 && draft.title.trim().length === 0) {
@@ -95,19 +142,7 @@ export function HabitSheet({
     }
     setSaving(true)
     setError(null)
-    const times = reminders ? [...draft.times].sort() : []
-    const unit = draft.unit && draft.unit.trim().length > 0 ? draft.unit.trim() : null
-    const payload = {
-      title: clean,
-      area: draft.area,
-      weekdays: draft.weekdays,
-      goalId: draft.goalId,
-      times: times.length > 0 ? times : null,
-      icon: draft.icon,
-      color: draft.color,
-      unit,
-      timesPerDay: Math.max(1, Math.floor(draft.timesPerDay)),
-    }
+    const payload = buildPayload(draft, reminders)
     try {
       const habit =
         editing && habitId
@@ -117,13 +152,7 @@ export function HabitSheet({
       onSaved(habit)
       close()
     } catch (err) {
-      // Sin la migración 0016 el mensaje ya viene listo para el usuario.
-      const code = err instanceof Error ? (err as Error & { code?: string }).code : undefined
-      setError(
-        code === 'missing-column' && err instanceof Error
-          ? err.message
-          : friendlyError(err, 'No se pudo guardar el hábito.'),
-      )
+      setError(saveErrorMessage(err))
       setSaving(false)
     }
   }
@@ -136,7 +165,7 @@ export function HabitSheet({
             <button
               type="button"
               className="hsheet-lead"
-              onClick={() => (step === 1 ? close() : setStep(step === 3 ? 2 : 1))}
+              onClick={() => (step === 1 ? close() : setStep(prevStep(step)))}
             >
               {step === 1 ? 'Cancelar' : 'Atrás'}
             </button>

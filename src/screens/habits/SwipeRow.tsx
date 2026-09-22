@@ -58,7 +58,13 @@ function prefersReducedMotion(): boolean {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-export function SwipeRow({ actions, onComplete, open, onOpenChange, children }: SwipeRowProps) {
+export function SwipeRow({
+  actions,
+  onComplete,
+  open,
+  onOpenChange,
+  children,
+}: Readonly<SwipeRowProps>) {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const startRef = useRef<{ x: number; y: number } | null>(null)
   const axisRef = useRef<'x' | 'y' | null>(null)

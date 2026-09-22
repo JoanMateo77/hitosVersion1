@@ -17,14 +17,14 @@ export function HabitIcon({
   icon,
   color,
   size = 'md',
-}: {
+}: Readonly<{
   habit?: Habit
   /** Emoji explícito (borrador de la hoja, sugerencias): gana al del hábito. */
   icon?: string
   /** Color explícito; si no, el del hábito o el de su área. */
   color?: HabitColor
   size?: 'sm' | 'md' | 'lg' | 'xl'
-}) {
+}>) {
   const emoji = icon ?? (habit ? habitIcon(habit) : '✨')
   const key = color ?? (habit ? habitColor(habit) : 'gray')
   return (
