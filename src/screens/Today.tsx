@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import type { CalendarEvent, Goal, Habit, HabitCheck, ScheduleBlock, Session, Task } from '@/lib/types'
+import type { CalendarEvent, Goal, Habit, HabitCheck, HabitSkip, ScheduleBlock, Session, Task } from '@/lib/types'
 import { listGoals, markGoalReviewed, setGoalStatus } from '@/services/goals'
 import { createUserTask, listTasksForDate, moveTaskToDate, setTaskStatus } from '@/services/tasks'
 import { listScheduleForUser } from '@/services/schedule'
@@ -23,6 +23,7 @@ import {
   listHabits,
   listHabitChecksInRange,
   listHabitOverridesInRange,
+  listHabitSkipsInRange,
   setHabitCheck,
 } from '@/services/habits'
 import {
@@ -31,6 +32,7 @@ import {
   habitTogglePlan,
   habitsDueOn,
   habitWithDayTimes,
+  skipSetOf,
 } from '@/domain/habits'
 import { compareEvents } from '@/domain/calendar'
 import { carryoverCandidates, findForgottenGoal, goalsDueForReview } from '@/domain/dailyPlan'
@@ -65,6 +67,7 @@ import { Disclosure } from '@/components/Disclosure'
 import { Hint } from '@/components/Hint'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
+import { HabitIcon } from '@/components/HabitIcon'
 import {
   IconBriefcase,
   IconCalendar,
@@ -90,6 +93,7 @@ import { safeGetItem, safeSetItem } from '@/lib/storage'
 import { sessionCache } from '@/lib/sessionCache'
 import { useCacheMirror } from '@/hooks/useCacheMirror'
 import '@/styles/today.css'
+import '@/styles/habits.css'
 
 /** Índice de cascada para la entrada escalonada de bloques (ver today.css). */
 function enter(i: number): CSSProperties {
@@ -110,6 +114,7 @@ type TodaySnapshot = {
   events: CalendarEvent[]
   habits: Habit[]
   habitChecks: HabitCheck[]
+  habitSkips: HabitSkip[]
   milestones: MilestoneProgress
 }
 
@@ -138,6 +143,7 @@ export function Today() {
   const [events, setEvents] = useState<CalendarEvent[]>(cached?.events ?? [])
   const [habits, setHabits] = useState<Habit[]>(cached?.habits ?? [])
   const [habitChecks, setHabitChecks] = useState<HabitCheck[]>(cached?.habitChecks ?? [])
+  const [habitSkips, setHabitSkips] = useState<HabitSkip[]>(cached?.habitSkips ?? [])
   const [milestones, setMilestones] = useState<MilestoneProgress>(
     cached?.milestones ?? new Map(),
   )
@@ -188,6 +194,7 @@ export function Today() {
           loadedChecks,
           loadedYesterday,
           loadedOverrides,
+          loadedSkips,
           loadedMilestones,
         ] = await Promise.all([
           listGoals(userId),
@@ -200,6 +207,7 @@ export function Today() {
           listHabitChecksInRange(userId, addDays(today, -119), today).catch(() => []),
           listTasksForDate(userId, addDays(today, -1)).catch(() => []),
           listHabitOverridesInRange(userId, today, today).catch(() => []),
+          listHabitSkipsInRange(userId, today, today).catch(() => []),
           milestoneProgressByGoal(userId).catch(() => new Map() as MilestoneProgress),
         ])
 
@@ -226,6 +234,7 @@ export function Today() {
           const overrideByHabit = new Map(loadedOverrides.map((o) => [o.habitId, o]))
           setHabits(loadedHabits.map((h) => habitWithDayTimes(h, overrideByHabit.get(h.id))))
           setHabitChecks(loadedChecks)
+          setHabitSkips(loadedSkips)
           setYesterdayPending(carryoverCandidates(loadedYesterday))
         }
       } catch (err) {
@@ -262,6 +271,7 @@ export function Today() {
     events,
     habits,
     habitChecks,
+    habitSkips,
     milestones,
   })
 
@@ -350,7 +360,11 @@ export function Today() {
   )
 
   // ----- Hábitos de hoy: rutinas de un toque -----
-  const todayHabits = useMemo(() => habitsDueOn(habits, today), [habits, today])
+  const habitSkipSet = useMemo(() => skipSetOf(habitSkips), [habitSkips])
+  const todayHabits = useMemo(
+    () => habitsDueOn(habits, today, habitSkipSet),
+    [habits, today, habitSkipSet],
+  )
   const habitChecksToday = useMemo(
     () => habitChecks.filter((c) => c.date === today),
     [habitChecks, today],
@@ -666,14 +680,21 @@ export function Today() {
   function renderLater(item: LaterItem) {
     const session = item.kind === 'session' ? sessions.find((x) => x.id === item.id) : undefined
     const partial = session?.status === 'partial'
+    // El hábito muestra su propio azulejo de identidad (icono + color); el resto
+    // sigue con el glifo genérico gris de la fila.
+    const habit = item.kind === 'habit' ? todayHabits.find((x) => x.id === item.id) : undefined
     return (
       <li key={`${item.kind}:${item.id}`} className={`today-item${item.done ? ' today-item--done' : ''}`}>
-        <span
-          className={`today-item__glyph${item.kind === 'session' ? ' today-item__glyph--session' : ''}`}
-          aria-hidden="true"
-        >
-          {laterGlyph(item.kind)}
-        </span>
+        {habit ? (
+          <HabitIcon habit={habit} size="sm" />
+        ) : (
+          <span
+            className={`today-item__glyph${item.kind === 'session' ? ' today-item__glyph--session' : ''}`}
+            aria-hidden="true"
+          >
+            {laterGlyph(item.kind)}
+          </span>
+        )}
         <span className="today-item__text">
           <span className="today-item__title">{item.title}</span>
           <span className="today-item__sub">{item.subtitle}</span>

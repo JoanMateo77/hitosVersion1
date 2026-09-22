@@ -18,6 +18,7 @@ function session(over: Partial<DayAgendaSession> = {}): DayAgendaSession {
 function habitRow(over: Partial<DayHabitRowItem> = {}): DayHabitRowItem {
   const habit: Habit = {
     id: 'h1', userId: 'u1', title: 'Tomar agua', area: 'salud', weekdays: [], times: null,
+    icon: null, color: null, unit: null, timesPerDay: 1, pausedUntil: null,
     goalId: null, createdAt: '2026-06-01T00:00:00Z', archivedAt: null,
   }
   return { key: 'h-h1', habit, doneCount: 0, target: 1, complete: false, time: null, ...over }

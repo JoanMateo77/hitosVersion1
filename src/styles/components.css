@@ -865,6 +865,7 @@
 
 /* ---- Alertas / banners -------------------------------------------------- */
 .alert {
+  display: block; /* también cuando el alert es un <output> (inline por defecto) */
   padding: var(--s3) var(--s4);
   border-radius: var(--radius);
   font-size: var(--fs-sm);

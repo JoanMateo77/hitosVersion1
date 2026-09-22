@@ -45,6 +45,12 @@ function habit(over: Partial<Habit> = {}): Habit {
     area: 'salud',
     weekdays: [],
     times: null,
+    icon: null,
+    color: null,
+    unit: null,
+    // Refleja el backfill de 0016: los hábitos con horas eran "N veces al día".
+    timesPerDay: Math.max(1, over.times?.length ?? 0),
+    pausedUntil: null,
     goalId: null,
     createdAt: '2026-06-01T00:00:00Z',
     archivedAt: null,

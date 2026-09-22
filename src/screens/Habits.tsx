@@ -1,159 +1,365 @@
-import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import { useToast } from '@/app/toast'
-import type { Goal, Habit, HabitCheck, NicheId } from '@/lib/types'
+import type { Goal, Habit, HabitCheck, HabitSkip, NicheId } from '@/lib/types'
 import { listGoals } from '@/services/goals'
 import {
-  createHabit,
   listHabitChecksInRange,
+  listHabitSkipsInRange,
   listHabits,
   setHabitArchived,
   setHabitCheck,
-  updateHabit,
+  setHabitSkipped,
 } from '@/services/habits'
 import {
+  archivedCaption,
+  groupHabitsByArea,
   habitAppliesOn,
-  habitCompleteDates,
+  habitBestStreak,
+  habitDayProgress,
   habitDoneCount,
-  habitStreak,
+  habitStreakOf,
   habitTarget,
-  habitWeek,
-  nextSlot,
+  habitTogglePlan,
+  habitsDayStreak,
+  habitsDueOn,
+  HABIT_SUGGESTIONS,
+  skipKey,
+  skipSetOf,
+  todayHeadline,
+  weekRings,
+  type HabitSuggestion,
+  type HabitWeekRing,
 } from '@/domain/habits'
 import { NICHES } from '@/domain/niches'
 import { WEEKDAY_LABELS } from '@/domain/commitment'
-import { addDays, startOfWeek, todayISO } from '@/lib/date'
-import { nicheAccent } from '@/lib/nicheAccent'
+import { addDays, dayOfMonth, endOfWeek, parseISO, startOfWeek, todayISO } from '@/lib/date'
 import { friendlyError } from '@/lib/errors'
+import { tapHaptic } from '@/lib/haptics'
 import { sessionCache } from '@/lib/sessionCache'
 import { useCacheMirror } from '@/hooks/useCacheMirror'
-import { Disclosure } from '@/components/Disclosure'
-import { NicheGlyph, NicheIcon } from '@/components/NicheGlyph'
+import { useFirstTimeHint } from '@/hooks/useFirstTimeHint'
+import { HabitIcon } from '@/components/HabitIcon'
 import { SkeletonList } from '@/components/Skeleton'
-import { IconCheck, IconDots, IconFlame, IconLightbulb, IconPlus, IconTrash } from '@/components/icons'
+import {
+  IconArchive,
+  IconChevronLeft,
+  IconFlame,
+  IconPlus,
+  IconSkipForward,
+} from '@/components/icons'
+import {
+  HabitAllRow,
+  HabitArchivedRow,
+  HabitSkippedRow,
+  HabitSuggestionRow,
+  HabitTodayRow,
+} from '@/screens/habits/HabitListRow'
+import { SwipeRow } from '@/screens/habits/SwipeRow'
+import { HabitSheet } from '@/screens/habits/HabitSheet'
+import { draftFromSuggestion, emptyDraft, type HabitDraft } from '@/screens/habits/habitDraft'
+import '@/styles/habits.css'
 
-/** Mapa de estado de día → modificador de weekstrip (due se dibuja como "future":
- *  todavía se puede cumplir, igual que una sesión pendiente). */
-const DOT_CLASS: Record<'done' | 'missed' | 'due' | 'free', string> = {
-  done: 'done',
-  missed: 'missed',
-  due: 'future',
-  free: 'free',
-}
+/**
+ * Pantalla Hábitos (/habitos): tres pestañas sobre los mismos datos.
+ *
+ * - **Hoy**: la semana en anillos y las filas que tocan hoy, con un control de
+ *   un toque a la derecha y el gesto de deslizar (saltar hoy / archivar).
+ * - **Todos**: el mapa completo por área; cada fila lleva al detalle.
+ * - **Archivados**: lo que se guardó con su historial, listo para reactivar.
+ *
+ * Sin hábitos activos la pantalla es el primer uso: hero + 4 sugerencias que
+ * abren la hoja precargada (nada se crea sin confirmar). Todo lo que muta es
+ * optimista y revierte con mensaje si el servidor falla.
+ */
 
-/** Hábitos listos para adoptar de un toque: precargan el formulario, no crean directo. */
-const HABIT_IDEAS: { title: string; area: NicheId }[] = [
-  { title: 'Beber 8 vasos de agua', area: 'salud' },
-  { title: 'Leer 10 minutos', area: 'aprendizaje' },
-  { title: 'Caminar 20 minutos', area: 'salud' },
-  { title: 'Escribir 3 gratitudes', area: 'bienestar' },
-  { title: 'Estirar al despertar', area: 'salud' },
-  { title: 'Revisar gastos del día', area: 'finanzas' },
-  { title: 'Llamar o escribir a alguien querido', area: 'relaciones' },
-  { title: 'Dormir antes de las 11', area: 'bienestar' },
-  { title: 'Practicar 15 minutos de un idioma', area: 'aprendizaje' },
-  { title: 'Avanzar un poco en tu proyecto creativo', area: 'creatividad' },
+type Tab = 'hoy' | 'todos' | 'archivados'
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'hoy', label: 'Hoy' },
+  { id: 'todos', label: 'Todos' },
+  { id: 'archivados', label: 'Archivados' },
 ]
 
-/** Cuántos días de checks pedimos hacia atrás: suficiente para rachas largas. */
-const CHECK_HISTORY_DAYS = 120
+/** Iniciales de la franja semanal, lunes primero (la X es el miércoles). */
+const WEEK_LETTERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+
+/** Días de checks que pedimos: alcanza para rachas largas y mejores rachas. */
+const CHECK_HISTORY_DAYS = 365
+
+/** Cuánto dura el festejo de "última repetición" (coincide con hab-halo). */
+const CELEBRATE_MS = 1200
+
+/** Cuánto se queda la tarjeta "Día completo" antes de irse sola. */
+const DAY_DONE_MS = 6000
+
+/** Sugerencias del primer uso (las 4 primeras del catálogo). */
+const FIRST_SUGGESTIONS = HABIT_SUGGESTIONS.slice(0, 4)
+
+/** Azulejos del hero de primer uso (los tres del mockup). */
+const HERO_TILES = [
+  { icon: '💧', color: 'cyan' },
+  { icon: '📖', color: 'blue' },
+  { icon: '🧘', color: 'yellow' },
+] as const
 
 /** Lista compartida para hábitos sin checks: evita crear una por render. */
 const EMPTY_CHECKS: HabitCheck[] = []
 
-/** "Todos los días" o "Lu · Mi · Vi" — resumen humano de los días del hábito. */
-function daysLabel(weekdays: number[]): string {
-  if (weekdays.length === 0 || weekdays.length === 7) return 'Todos los días'
-  return weekdays.map((d) => WEEKDAY_LABELS[d]).join(' · ')
+const WEEKDAY_LONG = new Intl.DateTimeFormat('es', { weekday: 'long' })
+
+/** "Lunes 21": el encabezado de la pestaña Hoy y del primer uso. */
+function dayLabel(dateISO: string): string {
+  const name = WEEKDAY_LONG.format(parseISO(dateISO))
+  return `${name.charAt(0).toUpperCase()}${name.slice(1)} ${dayOfMonth(dateISO)}`
 }
 
-/** "Todos los días", "Lu · Mi · Vi · 3 veces al día": días y repeticiones; las horas viven en el menú. */
-function pautaLabel(habit: Habit): string {
-  const base = daysLabel(habit.weekdays)
-  const n = habit.times?.length ?? 0
-  return n > 1 ? `${base} · ${n} veces al día` : base
-}
-
-/** Aclara en el chip por qué una meta vinculada ya no está entre las activas. */
-function goalStatusSuffix(status: Goal['status']): string {
-  if (status === 'paused') return ' · pausada'
-  if (status === 'done') return ' · lograda'
-  if (status === 'archived') return ' · archivada'
-  return ''
-}
-
-/** Horas listas para guardar: sin vacías y ordenadas ascendente; null si no hay. */
-function cleanTimes(times: string[]): string[] | null {
-  const clean = times.filter((t) => t.length > 0).sort((a, b) => a.localeCompare(b))
-  return clean.length > 0 ? clean : null
+/** La pestaña vive en ?tab= para sobrevivir a ir y volver del detalle. */
+function readTab(value: string | null): Tab {
+  return TABS.some((t) => t.id === value) ? (value as Tab) : 'hoy'
 }
 
 /**
- * Editor de momentos del día: lista de horas, quitar, y "+ agregar otro
- * momento". Vacío = una vez al día sin hora fija (el comportamiento clásico).
- * Se usa igual al crear (estado local) y al editar (persiste cada cambio).
+ * Mensaje de un fallo de acción. Si el servicio avisó que falta la migración
+ * (`code: 'missing-column'`) mostramos SU texto: es el único caso en que el
+ * mensaje crudo ya está escrito para el usuario.
  */
-function TimesEditor({ times, onChange }: { times: string[]; onChange: (t: string[]) => void }) {
+function actionMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error && (err as Error & { code?: string }).code === 'missing-column') {
+    return err.message
+  }
+  return friendlyError(err, fallback)
+}
+
+/** Instantánea de datos cacheada por sesión para pintar la pantalla al instante. */
+interface HabitsSnapshot {
+  habits: Habit[]
+  checks: HabitCheck[]
+  skips: HabitSkip[]
+  goals: Goal[]
+}
+
+/** Lo que la hoja necesita para abrirse (crear o editar). */
+interface SheetState {
+  mode: 'create' | 'edit'
+  initial: HabitDraft
+  step: 1 | 2 | 3
+}
+
+/** Subtítulo de la cabecera, uno por pestaña (y el del primer uso). */
+function habitsSubtitle(
+  firstRun: boolean,
+  tab: Tab,
+  today: string,
+  headline: { done: number; total: number },
+  activeCount: number,
+  areaCount: number,
+  archivedCount: number,
+): ReactNode {
+  if (firstRun) return dayLabel(today)
+  if (tab === 'hoy') {
+    return (
+      <>
+        {dayLabel(today)} ·{' '}
+        <span className="hab-head__count">
+          {headline.done} de {headline.total}
+        </span>{' '}
+        hechos
+      </>
+    )
+  }
+  if (tab === 'todos') {
+    const activeWord = activeCount === 1 ? 'activo' : 'activos'
+    const areaWord = areaCount === 1 ? 'área' : 'áreas'
+    return `${activeCount} ${activeWord} · ${areaCount} ${areaWord}`
+  }
+  if (archivedCount === 0) return 'Ningún archivado'
+  const archivedWord = archivedCount === 1 ? 'archivado' : 'archivados'
+  return `${archivedCount} ${archivedWord}`
+}
+
+/** Selector de pestaña: un grupo de controles, de ahí el fieldset con su legend oculta. */
+function HabitsTabControl({
+  tab,
+  onSelect,
+}: Readonly<{ tab: Tab; onSelect: (next: Tab) => void }>) {
   return (
-    <div className="stack stack--sm">
-      <span className="kicker">¿A qué horas?</span>
-      {times.map((t, i) => (
-        <div key={i} className="row" style={{ alignItems: 'center' }}>
-          <input
-            className="input"
-            type="time"
-            value={t}
-            aria-label={`Momento ${i + 1}`}
-            onChange={(e) => onChange(times.map((x, j) => (j === i ? e.target.value : x)))}
-          />
-          <button
-            type="button"
-            className="iconbtn iconbtn--sm"
-            style={{ flex: 'none' }}
-            aria-label={`Quitar el momento ${i + 1}`}
-            onClick={() => onChange(times.filter((_, j) => j !== i))}
+    <fieldset className="hab-seg">
+      <legend className="sr-only">Vista de hábitos</legend>
+      {TABS.map((option) => (
+        <button
+          key={option.id}
+          type="button"
+          aria-pressed={tab === option.id}
+          className={`hab-seg__opt${tab === option.id ? ' is-on' : ''}`}
+          onClick={() => onSelect(option.id)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </fieldset>
+  )
+}
+
+/** Texto accesible de un día de la franja semanal ("Lunes: 40 % de tus hábitos"). */
+function weekRingCaption(ring: HabitWeekRing, weekdayLabel: string): string {
+  if (ring.phase === 'future') return `${weekdayLabel}: todavía no llega`
+  return `${weekdayLabel}: ${Math.round(ring.ratio * 100)} % de tus hábitos`
+}
+
+/**
+ * Franja semanal de anillos de avance. Cada anillo es puramente decorativo
+ * (aria-hidden): su lectura para lector de pantalla vive en el span oculto
+ * que lo acompaña, así el gráfico no exige un rol que no le corresponde.
+ */
+function HabitsWeekStrip({ rings }: Readonly<{ rings: HabitWeekRing[] }>) {
+  return (
+    <div className="hab-week">
+      {rings.map((ring, i) => (
+        <div key={ring.date} className="hab-week__day">
+          <span
+            className={`hab-week__label${ring.phase === 'today' ? ' is-today' : ''}`}
+            aria-hidden="true"
           >
-            <IconTrash size={16} />
-          </button>
+            {WEEK_LETTERS[i]}
+          </span>
+          <span
+            className={`hab-ring${ring.phase === 'future' ? ' hab-ring--future' : ''}`}
+            style={{ '--hab-ratio': `${Math.round(ring.ratio * 100)}%` } as CSSProperties}
+            aria-hidden="true"
+          />
+          <span className="sr-only">{weekRingCaption(ring, WEEKDAY_LABELS[i])}</span>
         </div>
       ))}
-      <button
-        type="button"
-        className="btn--link"
-        style={{ alignSelf: 'flex-start' }}
-        onClick={() => onChange([...times, ''])}
-      >
-        {times.length === 0 ? '+ agregar una hora' : '+ agregar otro momento'}
-      </button>
     </div>
   )
 }
 
-/** Instantánea de datos cacheada por sesión para pintar la pantalla al instante. */
-type HabitsSnapshot = { habits: Habit[]; checksByHabit: Map<string, HabitCheck[]>; goals: Goal[] }
+/** Primer uso: hero + 4 sugerencias que abren la hoja ya precargada. */
+function HabitsFirstRun({
+  archivedCount,
+  onPick,
+  onSeeArchived,
+}: Readonly<{
+  archivedCount: number
+  onPick: (suggestion: HabitSuggestion) => void
+  onSeeArchived: () => void
+}>) {
+  return (
+    <>
+      <div className="hab-first">
+        <div className="hab-first__tiles" aria-hidden="true">
+          {HERO_TILES.map((tile) => (
+            <span key={tile.icon} className="hab-first__tile">
+              <HabitIcon icon={tile.icon} color={tile.color} size="lg" />
+            </span>
+          ))}
+        </div>
+        <p className="hab-first__title">Tu primer hábito</p>
+        <p className="hab-first__text">
+          Algo pequeño que puedas hacer todos los días. Elige uno para empezar o crea el tuyo
+          con el +.
+        </p>
+      </div>
+      <section className="hab-section" aria-label="Sugerencias">
+        <span className="hab-kicker">Sugerencias</span>
+        <ul className="hab-list">
+          {FIRST_SUGGESTIONS.map((suggestion: HabitSuggestion) => (
+            <li key={suggestion.title} className="hab-list__item">
+              <HabitSuggestionRow suggestion={suggestion} onPick={() => onPick(suggestion)} />
+            </li>
+          ))}
+        </ul>
+      </section>
+      {archivedCount > 0 && (
+        <button type="button" className="hab-first__link" onClick={onSeeArchived}>
+          Ver archivados ({archivedCount})
+        </button>
+      )}
+    </>
+  )
+}
 
-/**
- * Pantalla de hábitos: crear, ver la semana de cada uno, editar días y archivar.
- * Los que aplican HOY se pueden marcar aquí con el check redondo (misma gramática
- * de un toque que en Hoy), para que "Rutinas de un toque" cumpla su promesa.
- */
+/** Pestaña Archivados: vacío o la lista con su nota de cierre. */
+function HabitsArchivedTab({
+  archived,
+  checksByHabit,
+  skipSet,
+  historyFrom,
+  today,
+  onRestore,
+}: Readonly<{
+  archived: Habit[]
+  checksByHabit: Map<string, HabitCheck[]>
+  skipSet: Set<string>
+  historyFrom: string
+  today: string
+  onRestore: (habit: Habit) => void
+}>) {
+  if (archived.length === 0) {
+    return (
+      <div className="hab-empty">
+        <span className="hab-empty__icon" aria-hidden="true">
+          <IconArchive size={28} />
+        </span>
+        <p className="hab-empty__title">Nada archivado</p>
+        <p className="hab-empty__text">
+          Cuando un hábito ya no encaje, deslízalo a la izquierda y elige Archivar. Se guarda
+          aquí con su historial.
+        </p>
+      </div>
+    )
+  }
+  return (
+    <>
+      <ul className="hab-list">
+        {archived.map((habit) => (
+          <li key={habit.id} className="hab-list__item">
+            <HabitArchivedRow
+              habit={habit}
+              caption={archivedCaption(
+                habit,
+                habitBestStreak(
+                  habit,
+                  checksByHabit.get(habit.id) ?? EMPTY_CHECKS,
+                  skipSet,
+                  historyFrom,
+                  today,
+                ),
+                today,
+              )}
+              onRestore={() => onRestore(habit)}
+            />
+          </li>
+        ))}
+      </ul>
+      <p className="hab-note">
+        Los archivados no cuentan para la racha ni aparecen en Hoy. Su historial se conserva.
+      </p>
+    </>
+  )
+}
+
 export function Habits() {
   const { userId } = useSession()
-  const { toast } = useToast()
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
   const today = todayISO()
   const weekStart = startOfWeek(today)
+  const historyFrom = addDays(today, -CHECK_HISTORY_DAYS)
 
-  // --- Datos: hábitos + checks de los últimos 120 días (rachas y semana) ---
-  // Cache de sesión: al volver, se pinta al instante lo último y se revalida por detrás.
+  // --- Datos (cache de sesión: se pinta lo último y se revalida por detrás) ---
   const cacheKey = `habits:${userId}`
   const cached = sessionCache.get<HabitsSnapshot>(cacheKey)
   const [habits, setHabits] = useState<Habit[] | null>(cached?.habits ?? null)
-  const [checksByHabit, setChecksByHabit] = useState<Map<string, HabitCheck[]>>(
-    cached?.checksByHabit ?? new Map(),
-  )
-  // Metas activas: para vincular un hábito a una meta (opcional).
+  const [checks, setChecks] = useState<HabitCheck[]>(cached?.checks ?? [])
+  const [skips, setSkips] = useState<HabitSkip[]>(cached?.skips ?? [])
   const [goals, setGoals] = useState<Goal[]>(cached?.goals ?? [])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -164,20 +370,15 @@ export function Habits() {
     Promise.all([
       listHabits(userId),
       listHabitChecksInRange(userId, addDays(to, -CHECK_HISTORY_DAYS), to),
+      // Hasta el fin de la semana: los anillos miran también los días que faltan.
+      listHabitSkipsInRange(userId, addDays(to, -CHECK_HISTORY_DAYS), endOfWeek(to)),
       listGoals(userId).catch(() => [] as Goal[]),
     ])
-      .then(([loaded, checks, loadedGoals]) => {
+      .then(([loadedHabits, loadedChecks, loadedSkips, loadedGoals]) => {
         if (!active) return
-        // Indexamos los checks por hábito una sola vez: racha, semana y slots
-        // del día leen de aquí.
-        const byHabit = new Map<string, HabitCheck[]>()
-        for (const check of checks) {
-          const list = byHabit.get(check.habitId) ?? []
-          list.push(check)
-          byHabit.set(check.habitId, list)
-        }
-        setHabits(loaded)
-        setChecksByHabit(byHabit)
+        setHabits(loadedHabits)
+        setChecks(loadedChecks)
+        setSkips(loadedSkips)
         setGoals(loadedGoals)
       })
       .catch((err: unknown) => {
@@ -188,527 +389,458 @@ export function Habits() {
     }
   }, [userId])
 
-  // Mantiene el cache al día con lo que se muestra (incluidos los cambios optimistas).
-  useCacheMirror(cacheKey, habits !== null, { habits: habits ?? [], checksByHabit, goals })
+  useCacheMirror(cacheKey, habits !== null, {
+    habits: habits ?? [],
+    checks,
+    skips,
+    goals,
+  })
 
-  const activeGoals = goals.filter((g) => g.status === 'active')
-  // Mapa completo (no solo activas): el menú ⋯ necesita poder mostrar la
-  // meta vinculada aunque esté pausada/lograda/archivada.
-  const goalById = new Map(goals.map((g) => [g.id, g] as const))
+  // --- Derivados ------------------------------------------------------------
+  const skipSet = useMemo(() => skipSetOf(skips), [skips])
+  const checksByHabit = useMemo(() => {
+    const map = new Map<string, HabitCheck[]>()
+    for (const check of checks) {
+      const list = map.get(check.habitId)
+      if (list) list.push(check)
+      else map.set(check.habitId, [check])
+    }
+    return map
+  }, [checks])
 
-  // --- Formulario de creación ---
-  const [formOpen, setFormOpen] = useState(false)
-  const [title, setTitle] = useState('')
-  const [area, setArea] = useState<NicheId>('otra')
-  const [days, setDays] = useState<number[]>([])
-  const [formTimes, setFormTimes] = useState<string[]>([])
-  const [goalId, setGoalId] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [formError, setFormError] = useState<string | null>(null)
+  const active = useMemo(() => (habits ?? []).filter((h) => h.archivedAt === null), [habits])
+  const archived = useMemo(() => (habits ?? []).filter((h) => h.archivedAt !== null), [habits])
+  const rings = useMemo(
+    () => weekRings(active, checks, skipSet, weekStart, today),
+    [active, checks, skipSet, weekStart, today],
+  )
+  const headline = todayHeadline(active, checks, skipSet, today)
 
-  // Deep-link ?nuevo=TITULO&area=AREA (lo usan Aprender y las sugerencias):
-  // abre el formulario ya precargado para que adoptar sea un toque.
-  useEffect(() => {
-    if (!params.has('nuevo')) return
-    setTitle(params.get('nuevo') ?? '')
-    const linkedArea = params.get('area')
-    if (linkedArea && NICHES.some((n) => n.id === linkedArea)) setArea(linkedArea as NicheId)
-    setFormOpen(true)
-  }, [params])
+  // --- Pestaña y hoja -------------------------------------------------------
+  const tab = readTab(params.get('tab'))
+  const firstRun = habits !== null && active.length === 0 && tab !== 'archivados'
 
-  function openWith(idea: { title: string; area: NicheId }) {
-    setTitle(idea.title)
-    setArea(idea.area)
-    setDays([])
-    setFormTimes([])
-    setGoalId(null)
-    setFormError(null)
-    setFormOpen(true)
+  function selectTab(next: Tab) {
+    const nextParams = new URLSearchParams(params)
+    nextParams.set('tab', next)
+    setParams(nextParams, { replace: true })
   }
 
-  function toggleFormDay(weekday: number) {
-    setDays((prev) =>
-      prev.includes(weekday) ? prev.filter((d) => d !== weekday) : [...prev, weekday].sort((a, b) => a - b),
+  const [sheet, setSheet] = useState<SheetState | null>(null)
+
+  // Deep-link ?nuevo=TITULO&area=AREA (lo usan Aprender y las ideas): abre la
+  // hoja precargada y se consume, para que un cambio de pestaña no la reabra.
+  useEffect(() => {
+    const title = params.get('nuevo')
+    if (title === null) return
+    const areaParam = params.get('area')
+    const area: NicheId = NICHES.some((n) => n.id === areaParam)
+      ? (areaParam as NicheId)
+      : 'otra'
+    setSheet({ mode: 'create', initial: emptyDraft({ title, area }), step: 1 })
+    const nextParams = new URLSearchParams(params)
+    nextParams.delete('nuevo')
+    nextParams.delete('area')
+    setParams(nextParams, { replace: true })
+  }, [params, setParams])
+
+  function openSheet(initial: HabitDraft) {
+    setSheet({ mode: 'create', initial, step: 1 })
+  }
+
+  function handleSaved(habit: Habit) {
+    setHabits((prev) => {
+      const list = prev ?? []
+      return list.some((h) => h.id === habit.id)
+        ? list.map((h) => (h.id === habit.id ? habit : h))
+        : [...list, habit]
+    })
+    setSheet(null)
+  }
+
+  // --- Gesto: una sola fila abierta a la vez --------------------------------
+  const [openRow, setOpenRow] = useState<string | null>(null)
+
+  // --- Festejo de la última repetición --------------------------------------
+  const [celebrateId, setCelebrateId] = useState<string | null>(null)
+  const celebrateTimer = useRef<number | null>(null)
+  useEffect(() => () => window.clearTimeout(celebrateTimer.current ?? undefined), [])
+
+  function celebrate(habitId: string) {
+    setCelebrateId(habitId)
+    window.clearTimeout(celebrateTimer.current ?? undefined)
+    celebrateTimer.current = window.setTimeout(() => {
+      setCelebrateId(null)
+      celebrateTimer.current = null
+    }, CELEBRATE_MS)
+  }
+
+  // --- Micro-momento "Día completo" -----------------------------------------
+  const dayComplete = headline.total > 0 && headline.done === headline.total
+  const wasComplete = useRef<boolean | null>(null)
+  const [dayDone, setDayDone] = useState(false)
+
+  useEffect(() => {
+    if (habits === null) return
+    const previous = wasComplete.current
+    wasComplete.current = dayComplete
+    // Solo cuando el día PASA a completo en esta sesión (nunca al entrar).
+    if (previous === false && dayComplete) setDayDone(true)
+  }, [habits, dayComplete])
+
+  const dayDoneRef = useRef<HTMLOutputElement | null>(null)
+  useEffect(() => {
+    if (!dayDone) return
+    const timer = window.setTimeout(() => setDayDone(false), DAY_DONE_MS)
+    function close(event: PointerEvent) {
+      if (dayDoneRef.current?.contains(event.target as Node)) return
+      setDayDone(false)
+    }
+    document.addEventListener('pointerdown', close)
+    return () => {
+      window.clearTimeout(timer)
+      document.removeEventListener('pointerdown', close)
+    }
+  }, [dayDone])
+
+  // --- Acciones -------------------------------------------------------------
+  function patchCheck(check: HabitCheck, add: boolean) {
+    setChecks((prev) =>
+      add
+        ? [...prev, check]
+        : prev.filter(
+            (c) =>
+              !(c.habitId === check.habitId && c.date === check.date && c.slot === check.slot),
+          ),
     )
   }
 
-  async function handleCreate() {
-    const cleanTitle = title.trim()
-    if (!cleanTitle) {
-      setFormError('Escribe un nombre para el hábito.')
-      return
-    }
-    setSaving(true)
-    setFormError(null)
-    try {
-      const habit = await createHabit(userId, {
-        title: cleanTitle,
-        area,
-        weekdays: days,
-        goalId,
-        times: cleanTimes(formTimes),
-      })
-      setHabits((prev) => [...(prev ?? []), habit])
-      setTitle('')
-      setArea('otra')
-      setDays([])
-      setFormTimes([])
-      setGoalId(null)
-      setFormOpen(false)
-      toast(`Hábito creado: ${habit.title}`, 'success')
-    } catch (err) {
-      setFormError(friendlyError(err, 'No se pudo crear el hábito. Inténtalo de nuevo.'))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  // --- Acciones sobre hábitos existentes ---
-  const [menuId, setMenuId] = useState<string | null>(null)
-  // Borrador de horas del hábito con el menú abierto: se muestra tal cual se
-  // edita (sin reordenar los inputs bajo los dedos) y se persiste ordenado.
-  const [menuTimes, setMenuTimes] = useState<string[]>([])
-
-  function openMenu(habit: Habit) {
-    if (menuId === habit.id) {
-      setMenuId(null)
-      return
-    }
-    setMenuId(habit.id)
-    setMenuTimes(habit.times ?? [])
-  }
-
-  /** Suma o quita un check de un slot en el estado local (optimista/revert). */
-  function patchChecks(habitId: string, check: HabitCheck, add: boolean) {
-    setChecksByHabit((prev) => {
-      const next = new Map(prev)
-      const list = next.get(habitId) ?? []
-      next.set(
-        habitId,
-        add
-          ? [...list, check]
-          : list.filter((c) => !(c.date === check.date && c.slot === check.slot)),
-      )
-      return next
-    })
-  }
-
   /**
-   * Marca (o desmarca) el hábito para HOY, con la misma gramática de un toque
-   * que en Hoy: marca la SIGUIENTE repetición pendiente y, si el día ya está
-   * completo, desmarca la ÚLTIMA. Optimista; si el servidor falla, revierte.
+   * Marca la siguiente repetición de hoy y, si el día ya está completo,
+   * desmarca la última (la misma gramática de un toque que en Hoy).
    */
-  async function toggleToday(habit: Habit) {
-    const todayChecks = (checksByHabit.get(habit.id) ?? []).filter((c) => c.date === today)
-    const slotToAdd = nextSlot(habit, todayChecks, today)
-    const adding = slotToAdd !== null
-    const slot = adding ? slotToAdd : Math.max(...todayChecks.map((c) => c.slot))
-    const check: HabitCheck = { habitId: habit.id, date: today, slot }
+  async function toggleHabit(habit: Habit) {
+    const own = checksByHabit.get(habit.id) ?? EMPTY_CHECKS
+    const plan = habitTogglePlan(habit, own, today)
+    const check: HabitCheck = {
+      habitId: habit.id,
+      date: today,
+      slot: plan.slot,
+      at: new Date().toISOString(),
+    }
     setActionError(null)
-    patchChecks(habit.id, check, adding)
+    patchCheck(check, plan.add)
+    if (plan.add) {
+      tapHaptic()
+      const target = habitTarget(habit)
+      // El festejo es el de "completaste las repeticiones del día".
+      if (target > 1 && habitDoneCount(own, habit.id, today) + 1 >= target) celebrate(habit.id)
+    }
     try {
-      await setHabitCheck(userId, habit.id, today, adding, slot)
+      await setHabitCheck(userId, habit.id, today, plan.add, plan.slot)
     } catch (err) {
-      patchChecks(habit.id, check, !adding)
+      patchCheck(check, !plan.add)
       setActionError(friendlyError(err, 'No se pudo marcar el hábito.'))
     }
   }
 
-  async function toggleHabitDay(habit: Habit, weekday: number) {
-    const next = habit.weekdays.includes(weekday)
-      ? habit.weekdays.filter((d) => d !== weekday)
-      : [...habit.weekdays, weekday].sort((a, b) => a - b)
-    // Optimista: el chip responde al toque; si el servidor falla, revertimos.
+  async function changeSkip(habit: Habit, skipped: boolean) {
     setActionError(null)
-    setHabits((prev) => prev?.map((h) => (h.id === habit.id ? { ...h, weekdays: next } : h)) ?? prev)
+    setSkips((prev) =>
+      skipped
+        ? [...prev, { habitId: habit.id, date: today }]
+        : prev.filter((s) => !(s.habitId === habit.id && s.date === today)),
+    )
     try {
-      const updated = await updateHabit(habit.id, { weekdays: next })
+      await setHabitSkipped(userId, habit.id, today, skipped)
+    } catch (err) {
+      setSkips((prev) =>
+        skipped
+          ? prev.filter((s) => !(s.habitId === habit.id && s.date === today))
+          : [...prev, { habitId: habit.id, date: today }],
+      )
+      setActionError(
+        actionMessage(
+          err,
+          skipped ? 'No se pudo saltar el hábito por hoy.' : 'No se pudo deshacer el salto.',
+        ),
+      )
+    }
+  }
+
+  async function changeArchived(habit: Habit, archive: boolean) {
+    setActionError(null)
+    const archivedAt = archive ? new Date().toISOString() : null
+    setHabits((prev) => prev?.map((h) => (h.id === habit.id ? { ...h, archivedAt } : h)) ?? prev)
+    try {
+      const updated = await setHabitArchived(habit.id, archive)
       setHabits((prev) => prev?.map((h) => (h.id === habit.id ? updated : h)) ?? prev)
     } catch (err) {
       setHabits((prev) => prev?.map((h) => (h.id === habit.id ? habit : h)) ?? prev)
-      setActionError(friendlyError(err, 'No se pudieron guardar los días.'))
+      setActionError(
+        friendlyError(
+          err,
+          archive ? 'No se pudo archivar el hábito.' : 'No se pudo reactivar el hábito.',
+        ),
+      )
     }
   }
 
-  /**
-   * Cambia las horas del hábito desde el menú: el borrador se muestra tal cual
-   * y se persiste limpio (sin vacías, ordenado). Optimista con revert.
-   */
-  async function changeHabitTimes(habit: Habit, next: string[]) {
-    setMenuTimes(next)
-    const nextTimes = cleanTimes(next)
-    if ((habit.times ?? []).join(',') === (nextTimes ?? []).join(',')) return
-    setActionError(null)
-    setHabits((prev) => prev?.map((h) => (h.id === habit.id ? { ...h, times: nextTimes } : h)) ?? prev)
-    try {
-      const updated = await updateHabit(habit.id, { times: nextTimes })
-      setHabits((prev) => prev?.map((h) => (h.id === habit.id ? updated : h)) ?? prev)
-    } catch (err) {
-      setHabits((prev) => prev?.map((h) => (h.id === habit.id ? habit : h)) ?? prev)
-      setActionError(friendlyError(err, 'No se pudieron guardar las horas.'))
-    }
+  // --- Listas de la pestaña Hoy ---------------------------------------------
+  const dueToday = habitsDueOn(habits ?? [], today, skipSet)
+  const progressOf = (habit: Habit) =>
+    habitDayProgress(habit, checksByHabit.get(habit.id) ?? EMPTY_CHECKS, today)
+  // El hábito que festeja se queda en "Por hacer" mientras dura el halo.
+  const pending = dueToday.filter((h) => !progressOf(h).complete || h.id === celebrateId)
+  const doneToday = dueToday.filter((h) => progressOf(h).complete && h.id !== celebrateId)
+  const skippedToday = active.filter(
+    (h) => skipSet.has(skipKey(h.id, today)) && habitAppliesOn(h, today),
+  )
+
+  const groups = groupHabitsByArea(active)
+  const hint = useFirstTimeHint('habitos-deslizar')
+
+  /** Racha del hábito con sus propios checks (más barato que filtrar todo). */
+  function streakOf(habit: Habit): number {
+    return habitStreakOf(habit, checksByHabit.get(habit.id) ?? EMPTY_CHECKS, skipSet, today)
   }
 
-  /** Vincula (o desvincula) un hábito a una meta, con cambio optimista. */
-  async function changeHabitGoal(habit: Habit, nextGoalId: string | null) {
-    if (habit.goalId === nextGoalId) return
-    setActionError(null)
-    setHabits((prev) => prev?.map((h) => (h.id === habit.id ? { ...h, goalId: nextGoalId } : h)) ?? prev)
-    try {
-      const updated = await updateHabit(habit.id, { goalId: nextGoalId })
-      setHabits((prev) => prev?.map((h) => (h.id === habit.id ? updated : h)) ?? prev)
-    } catch (err) {
-      setHabits((prev) => prev?.map((h) => (h.id === habit.id ? habit : h)) ?? prev)
-      setActionError(friendlyError(err, 'No se pudo vincular la meta.'))
-    }
+  /** Enlace al detalle conservando la pestaña actual. */
+  function detailPath(habit: Habit): string {
+    return `/habitos/${habit.id}?tab=${tab}`
   }
 
-  async function setArchived(habit: Habit, archived: boolean) {
-    setActionError(null)
-    try {
-      const updated = await setHabitArchived(habit.id, archived)
-      setHabits((prev) => prev?.map((h) => (h.id === habit.id ? updated : h)) ?? prev)
-      setMenuId(null)
-    } catch (err) {
-      setActionError(friendlyError(err, 'No se pudo actualizar el hábito.'))
+  /** Hora del último check de hoy, para la línea verde de "Hechos". */
+  function lastCheckAt(habit: Habit): string | null {
+    let latest: string | null = null
+    for (const check of checksByHabit.get(habit.id) ?? EMPTY_CHECKS) {
+      if (check.date !== today || !check.at) continue
+      if (latest === null || check.at > latest) latest = check.at
     }
+    return latest
   }
 
-  const active = habits?.filter((h) => h.archivedAt === null) ?? []
-  const archived = habits?.filter((h) => h.archivedAt !== null) ?? []
-
-  // Chips de ideas: mismo contenido en el estado vacío y en el Disclosure.
-  const ideaChips = (
-    <div className="row wrap">
-      {HABIT_IDEAS.map((idea) => (
-        <button
-          key={idea.title}
-          type="button"
-          className="chip"
-          style={nicheAccent(idea.area)}
-          onClick={() => openWith(idea)}
-        >
-          {idea.title}
-        </button>
-      ))}
-    </div>
+  // --- Subtítulo de la cabecera ---------------------------------------------
+  const subtitle = habitsSubtitle(
+    firstRun,
+    tab,
+    today,
+    headline,
+    active.length,
+    groups.length,
+    archived.length,
   )
 
   return (
-    <div className="screen">
-      <header className="row row--between screen__header" style={{ alignItems: 'flex-end' }}>
-        <div>
-          <span className="kicker">Rutinas de un toque</span>
-          <h1 className="screen__title">Tus hábitos</h1>
+    <div className="screen hab-screen">
+      <header className="hab-head">
+        <div className="hab-head__text">
+          <h1 className="hab-head__title">Hábitos</h1>
+          <span className="hab-head__sub">{subtitle}</span>
         </div>
         <button
-          className="btn btn--primary btn--sm"
-          onClick={() => {
-            setFormError(null)
-            setFormOpen(true)
-          }}
+          type="button"
+          className="hab-head__add"
+          aria-label="Nuevo hábito"
+          onClick={() => openSheet(emptyDraft())}
         >
-          <IconPlus size={18} /> Nuevo
+          <IconPlus size={20} />
         </button>
       </header>
 
       {loadError && <div className="alert alert--warn">{loadError}</div>}
       {actionError && (
-        <div className="alert alert--warn" role="status" aria-live="polite">
+        <output className="alert alert--warn" aria-live="polite">
           {actionError}
-        </div>
+        </output>
       )}
 
-      {formOpen && (
-        <section className="card stack" aria-label="Nuevo hábito">
-          <input
-            className="input"
-            autoFocus
-            placeholder="¿Qué quieres hacer cada día? Ej.: leer 10 minutos"
-            maxLength={120}
-            aria-label="Nombre del hábito"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void handleCreate()
-            }}
-          />
+      {habits !== null && !firstRun && <HabitsTabControl tab={tab} onSelect={selectTab} />}
 
-          <div className="stack stack--sm">
-            <span className="kicker">Área</span>
-            <div className="row wrap" role="group" aria-label="Área del hábito">
-              {NICHES.map((niche) => (
-                <button
-                  key={niche.id}
-                  type="button"
-                  className={`chip${area === niche.id ? ' chip--selected' : ''}`}
-                  aria-pressed={area === niche.id}
-                  style={nicheAccent(niche.id)}
-                  onClick={() => setArea(niche.id)}
-                >
-                  {niche.label}
-                </button>
-              ))}
-            </div>
-          </div>
+      {habits === null && !loadError && <SkeletonList rows={4} />}
 
-          <div className="stack stack--sm">
-            <span className="kicker">¿Qué días?</span>
-            <div className="row wrap" role="group" aria-label="Días del hábito">
-              {WEEKDAY_LABELS.map((label, weekday) => (
-                <button
-                  key={label}
-                  type="button"
-                  className={`chip${days.includes(weekday) ? ' chip--selected' : ''}`}
-                  aria-pressed={days.includes(weekday)}
-                  onClick={() => toggleFormDay(weekday)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <TimesEditor times={formTimes} onChange={setFormTimes} />
-
-          {activeGoals.length > 0 && (
-            <div className="stack stack--sm">
-              <span className="kicker">¿Suma a una meta? (opcional)</span>
-              <div className="row wrap" role="group" aria-label="Meta vinculada">
-                <button
-                  type="button"
-                  className={`chip${goalId === null ? ' chip--selected' : ''}`}
-                  aria-pressed={goalId === null}
-                  onClick={() => setGoalId(null)}
-                >
-                  Ninguna
-                </button>
-                {activeGoals.map((g) => (
-                  <button
-                    key={g.id}
-                    type="button"
-                    className={`chip${goalId === g.id ? ' chip--selected' : ''}`}
-                    aria-pressed={goalId === g.id}
-                    onClick={() => setGoalId(g.id)}
-                  >
-                    <NicheIcon area={g.area} size={14} /> {g.title}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {formError && <div className="alert alert--warn" role="alert">{formError}</div>}
-
-          <p className="faint tiny" style={{ margin: 0 }}>
-            Sin días marcados, el hábito aplica todos los días; cada hora que agregues es una repetición.
-          </p>
-
-          <div className="row">
-            <button className="btn btn--primary" disabled={saving} onClick={() => void handleCreate()}>
-              {saving ? 'Creando…' : 'Crear hábito'}
-            </button>
-            <button className="btn btn--ghost" disabled={saving} onClick={() => setFormOpen(false)}>
-              Cancelar
-            </button>
-          </div>
-        </section>
+      {firstRun && (
+        <HabitsFirstRun
+          archivedCount={archived.length}
+          onPick={(suggestion) => openSheet(draftFromSuggestion(suggestion))}
+          onSeeArchived={() => selectTab('archivados')}
+        />
       )}
 
-      {habits === null && !loadError ? (
-        <SkeletonList rows={4} />
-      ) : (
+      {habits !== null && !firstRun && tab === 'hoy' && (
         <>
-          {active.length === 0 && !loadError ? (
-            <div className="empty">
-              <span className="empty__icon">
-                <IconFlame size={34} />
+          {hint.visible && pending.length > 0 && (
+            <output className="hab-hint">
+              <span className="hab-hint__icon" aria-hidden="true">
+                <IconChevronLeft size={16} />
               </span>
-              <p className="empty__title">Todavía no tienes hábitos</p>
-              <p className="muted">Crea el primero o toca una idea popular para empezar.</p>
-            </div>
-          ) : (
-            <ul className="stack stack--sm" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {active.map((habit) => {
-                const checks = checksByHabit.get(habit.id) ?? EMPTY_CHECKS
-                // Racha y semana cuentan solo los días con el hábito COMPLETO
-                // (todas sus repeticiones, si tiene horas).
-                const completeDates = habitCompleteDates(habit, checks)
-                const streak = habitStreak(completeDates, habit.weekdays, today)
-                const week = habitWeek(completeDates, habit, weekStart)
-                const dueToday = habitAppliesOn(habit, today)
-                const target = habitTarget(habit)
-                const doneCount = habitDoneCount(checks, habit.id, today)
-                const doneToday = doneCount >= target
-                // La meta vinculada siempre debe poder verse y elegirse en el
-                // menú, aunque ya no esté activa (pausada/lograda/archivada).
-                const linkedGoal = habit.goalId ? goalById.get(habit.goalId) : undefined
-                const goalChips =
-                  linkedGoal && !activeGoals.some((g) => g.id === linkedGoal.id)
-                    ? [...activeGoals, linkedGoal]
-                    : activeGoals
-                return (
-                  <li key={habit.id} className="card card--tight stack stack--sm" style={nicheAccent(habit.area)}>
-                    <div className="row" style={{ alignItems: 'center' }}>
-                      {dueToday && (
-                        <button
-                          type="button"
-                          className={`check${doneToday ? ' check--done' : ''}`}
-                          style={{ flex: 'none' }}
-                          aria-pressed={doneToday}
-                          aria-label={`${doneToday ? 'Desmarcar' : 'Marcar'} hoy el hábito: ${habit.title}`}
-                          onClick={() => void toggleToday(habit)}
-                        >
-                          <IconCheck size={16} />
-                        </button>
-                      )}
-                      <NicheGlyph area={habit.area} size="sm" />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ margin: 0, fontWeight: 600, wordBreak: 'break-word' }}>{habit.title}</p>
-                        <span className="row row--sm wrap" style={{ alignItems: 'center', rowGap: 2 }}>
-                          <span className="faint tiny">{pautaLabel(habit)}</span>
-                          {target > 1 && dueToday && (
-                            <span className="tag">{doneCount} de {target} hoy</span>
-                          )}
-                        </span>
-                      </div>
-                      {streak >= 2 && (
-                        <span className="streak-chip" title={`Racha de ${streak} días`}>
-                          <IconFlame size={13} /> {streak}
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        className="iconbtn iconbtn--sm"
-                        aria-expanded={menuId === habit.id}
-                        aria-label={`Opciones del hábito: ${habit.title}`}
-                        onClick={() => openMenu(habit)}
-                      >
-                        <IconDots size={17} />
-                      </button>
-                    </div>
-
-                    {/* Mini-cadena de la semana: lunes primero; "due" se pinta como futuro. */}
-                    <div className="row" style={{ gap: 4 }} aria-label="Tu semana">
-                      {week.map((state, i) => (
-                        <span
-                          key={i}
-                          className={`weekstrip__dot weekstrip__dot--${DOT_CLASS[state]}`}
-                          title={WEEKDAY_LABELS[i]}
-                        />
-                      ))}
-                    </div>
-
-                    {menuId === habit.id && (
-                      <div className="stack stack--sm">
-                        <span className="kicker">Días del hábito</span>
-                        <div className="row wrap" role="group" aria-label={`Días de: ${habit.title}`}>
-                          {WEEKDAY_LABELS.map((label, weekday) => (
-                            <button
-                              key={label}
-                              type="button"
-                              className={`chip${habit.weekdays.includes(weekday) ? ' chip--selected' : ''}`}
-                              aria-pressed={habit.weekdays.includes(weekday)}
-                              onClick={() => void toggleHabitDay(habit, weekday)}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                        {habit.weekdays.length === 0 && (
-                          <p className="faint tiny" style={{ margin: 0 }}>
-                            Sin días marcados, aplica todos los días.
-                          </p>
-                        )}
-                        <TimesEditor
-                          times={menuTimes}
-                          onChange={(next) => void changeHabitTimes(habit, next)}
-                        />
-                        {(activeGoals.length > 0 || habit.goalId) && (
-                          <>
-                            <span className="kicker">¿Suma a una meta?</span>
-                            <div className="row wrap" role="group" aria-label={`Meta de: ${habit.title}`}>
-                              <button
-                                type="button"
-                                className={`chip${habit.goalId === null ? ' chip--selected' : ''}`}
-                                aria-pressed={habit.goalId === null}
-                                onClick={() => void changeHabitGoal(habit, null)}
-                              >
-                                Ninguna
-                              </button>
-                              {goalChips.map((g) => (
-                                <button
-                                  key={g.id}
-                                  type="button"
-                                  className={`chip${habit.goalId === g.id ? ' chip--selected' : ''}`}
-                                  aria-pressed={habit.goalId === g.id}
-                                  onClick={() => void changeHabitGoal(habit, g.id)}
-                                >
-                                  <NicheIcon area={g.area} size={14} /> {g.title}
-                                  {g.status !== 'active' && goalStatusSuffix(g.status)}
-                                </button>
-                              ))}
-                            </div>
-                          </>
-                        )}
-                        <button
-                          className="btn btn--subtle btn--sm"
-                          style={{ alignSelf: 'flex-start' }}
-                          onClick={() => void setArchived(habit, true)}
-                        >
-                          Archivar
-                        </button>
-                      </div>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
+              <span className="hab-hint__text">
+                Desliza una fila a la izquierda para saltar hoy o archivar.
+              </span>
+              <button type="button" className="hab-hint__done" onClick={hint.dismiss}>
+                Entendido
+              </button>
+            </output>
           )}
 
-          {/* Ideas populares: un toque precarga el formulario; nada se crea sin confirmar. */}
-          {active.length === 0 ? (
-            <section className="stack stack--sm" style={{ marginTop: 'var(--s5)' }}>
-              <div className="section-head">
-                <span className="kicker row row--sm" style={{ alignItems: 'center' }}>
-                  <IconLightbulb size={14} /> Ideas populares
-                </span>
-              </div>
-              {ideaChips}
-            </section>
-          ) : (
-            <div style={{ marginTop: 'var(--s5)' }}>
-              <Disclosure summary="Ideas para sumar">{ideaChips}</Disclosure>
-            </div>
-          )}
+          <HabitsWeekStrip rings={rings} />
 
-          {archived.length > 0 && (
-            <details className="goals-finished">
-              <summary className="goals-finished__summary">
-                {archived.length === 1 ? '1 hábito archivado' : `${archived.length} hábitos archivados`}
-              </summary>
-              <ul className="stack stack--sm" style={{ listStyle: 'none', padding: 0, margin: 'var(--s3) 0 0' }}>
-                {archived.map((habit) => (
-                  <li
-                    key={habit.id}
-                    className="card card--tight row row--between"
-                    style={{ alignItems: 'center', ...nicheAccent(habit.area) }}
-                  >
-                    <div className="row row--sm" style={{ alignItems: 'center', minWidth: 0 }}>
-                      <NicheGlyph area={habit.area} size="sm" />
-                      <span className="muted" style={{ wordBreak: 'break-word' }}>
-                        {habit.title}
-                      </span>
-                    </div>
-                    <button className="btn btn--subtle btn--sm" onClick={() => void setArchived(habit, false)}>
-                      Reactivar
-                    </button>
+          {pending.length > 0 && (
+            <section className="hab-section" aria-label="Por hacer">
+              <span className="hab-kicker">Por hacer · {pending.length}</span>
+              <ul className="hab-list">
+                {pending.map((habit) => (
+                  <li key={habit.id} className="hab-list__item">
+                    <SwipeRow
+                      open={openRow === habit.id}
+                      onOpenChange={(next) => setOpenRow(next ? habit.id : null)}
+                      onComplete={() => void toggleHabit(habit)}
+                      actions={[
+                        {
+                          key: 'skip',
+                          label: 'Saltar hoy',
+                          icon: <IconSkipForward size={20} />,
+                          onAction: () => void changeSkip(habit, true),
+                        },
+                        {
+                          key: 'archive',
+                          label: 'Archivar',
+                          tone: 'danger',
+                          icon: <IconArchive size={20} />,
+                          onAction: () => void changeArchived(habit, true),
+                        },
+                      ]}
+                    >
+                      <HabitTodayRow
+                        habit={habit}
+                        to={detailPath(habit)}
+                        progress={progressOf(habit)}
+                        streak={streakOf(habit)}
+                        lastAt={lastCheckAt(habit)}
+                        celebrating={celebrateId === habit.id}
+                        onToggle={() => void toggleHabit(habit)}
+                      />
+                    </SwipeRow>
                   </li>
                 ))}
               </ul>
-            </details>
+            </section>
+          )}
+
+          {doneToday.length > 0 && (
+            <section className="hab-section" aria-label="Hechos">
+              <span className="hab-kicker">Hechos · {doneToday.length}</span>
+              <ul className="hab-list">
+                {doneToday.map((habit) => (
+                  <li key={habit.id} className="hab-list__item">
+                    <HabitTodayRow
+                      habit={habit}
+                      to={detailPath(habit)}
+                      progress={progressOf(habit)}
+                      streak={streakOf(habit)}
+                      lastAt={lastCheckAt(habit)}
+                      celebrating={false}
+                      onToggle={() => void toggleHabit(habit)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {skippedToday.length > 0 && (
+            <section className="hab-section" aria-label="Saltados hoy">
+              <span className="hab-kicker">Saltados hoy · {skippedToday.length}</span>
+              <ul className="hab-list">
+                {skippedToday.map((habit) => (
+                  <li key={habit.id} className="hab-list__item">
+                    <HabitSkippedRow
+                      habit={habit}
+                      to={detailPath(habit)}
+                      onUndo={() => void changeSkip(habit, false)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {pending.length === 0 && doneToday.length === 0 && skippedToday.length === 0 && (
+            <div className="hab-card">
+              <div className="hab-blank">
+                <p className="hab-blank__title">Hoy no toca ninguno</p>
+                <p className="hab-blank__text">Mira Todos para ver tu semana.</p>
+              </div>
+            </div>
           )}
         </>
+      )}
+
+      {habits !== null && !firstRun && tab === 'todos' &&
+        groups.map((group) => (
+          <section key={group.area} className="hab-section" aria-label={group.label}>
+            <span className="hab-kicker">{group.label}</span>
+            <ul className="hab-list">
+              {group.habits.map((habit) => (
+                <li key={habit.id} className="hab-list__item">
+                  <HabitAllRow
+                    habit={habit}
+                    to={detailPath(habit)}
+                    streak={streakOf(habit)}
+                    today={today}
+                  />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+
+      {habits !== null && tab === 'archivados' && (
+        <>
+          <HabitsArchivedTab
+            archived={archived}
+            checksByHabit={checksByHabit}
+            skipSet={skipSet}
+            historyFrom={historyFrom}
+            today={today}
+            onRestore={(habit) => void changeArchived(habit, false)}
+          />
+          {active.length === 0 && (
+            <button type="button" className="hab-first__link" onClick={() => selectTab('hoy')}>
+              Volver a las sugerencias
+            </button>
+          )}
+        </>
+      )}
+
+      {dayDone && (
+        <output className="hab-toast" ref={dayDoneRef}>
+          <span className="hab-toast__icon" aria-hidden="true">
+            <IconFlame size={22} />
+          </span>
+          <span className="hab-toast__text">
+            <span className="hab-toast__title">Día completo</span>
+            <span className="hab-toast__sub">
+              {headline.done} de {headline.total} hábitos · racha de{' '}
+              {habitsDayStreak(active, checks, skipSet, today)} días
+            </span>
+          </span>
+          <Link className="hab-toast__action" to="/progreso">
+            Ver
+          </Link>
+        </output>
+      )}
+
+      {sheet && (
+        <HabitSheet
+          mode={sheet.mode}
+          initial={sheet.initial}
+          initialStep={sheet.step}
+          goals={goals.filter((g) => g.status === 'active')}
+          userId={userId}
+          onSaved={handleSaved}
+          onClose={() => setSheet(null)}
+        />
       )}
     </div>
   )

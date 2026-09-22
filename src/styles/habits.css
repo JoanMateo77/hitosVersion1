@@ -1,0 +1,841 @@
+/* ==== Hábitos — base compartida (rediseño 2026-09-22) =====================
+   Lo que usan las TRES pantallas de hábitos (lista, hoja "Nuevo hábito" y
+   detalle): el acento por color de identidad, el azulejo y los primitivos de
+   tarjeta/fila. Lo propio de cada pantalla vive en su archivo.
+   Todo sale de tokens (tokens.css): aquí no hay colores sueltos. */
+
+/* ---- Acento por color de identidad -------------------------------------
+   La regla es por atributo, así que vale igual en el azulejo (.hab-icon), en
+   un contenedor neutro (.hab-color) y en una fila entera (.hab-row): quien
+   lleve data-color hereda --hab-a (sólido) y el par del degradado, y con eso
+   se tiñen anillos, barras, números y sombras sin JS. */
+[data-color='cyan'] {
+  --hab-a: var(--habit-cyan);
+  --hab-g1: var(--habit-cyan-g1);
+  --hab-g2: var(--habit-cyan-g2);
+}
+[data-color='green'] {
+  --hab-a: var(--habit-green);
+  --hab-g1: var(--habit-green-g1);
+  --hab-g2: var(--habit-green-g2);
+}
+[data-color='blue'] {
+  --hab-a: var(--habit-blue);
+  --hab-g1: var(--habit-blue-g1);
+  --hab-g2: var(--habit-blue-g2);
+}
+[data-color='purple'] {
+  --hab-a: var(--habit-purple);
+  --hab-g1: var(--habit-purple-g1);
+  --hab-g2: var(--habit-purple-g2);
+}
+[data-color='orange'] {
+  --hab-a: var(--habit-orange);
+  --hab-g1: var(--habit-orange-g1);
+  --hab-g2: var(--habit-orange-g2);
+}
+[data-color='yellow'] {
+  --hab-a: var(--habit-yellow);
+  --hab-g1: var(--habit-yellow-g1);
+  --hab-g2: var(--habit-yellow-g2);
+}
+[data-color='pink'] {
+  --hab-a: var(--habit-pink);
+  --hab-g1: var(--habit-pink-g1);
+  --hab-g2: var(--habit-pink-g2);
+}
+[data-color='gray'] {
+  --hab-a: var(--habit-gray);
+  --hab-g1: var(--habit-gray-g1);
+  --hab-g2: var(--habit-gray-g2);
+}
+
+/* ---- Solo lectores de pantalla -------------------------------------------
+   Texto que existe para el lector de pantalla (legend de un fieldset, la
+   descripción de un anillo decorativo) pero no debe ocupar espacio visual. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Azulejo del hábito -------------------------------------------------- */
+/* Respaldo por si llega un color desconocido (o ninguno): :where() lo deja con
+   especificidad cero, así cualquier [data-color] de arriba gana. */
+:where(.hab-icon) {
+  --hab-a: var(--habit-gray);
+  --hab-g1: var(--habit-gray-g1);
+  --hab-g2: var(--habit-gray-g2);
+}
+.hab-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, var(--hab-g1), var(--hab-g2));
+  line-height: 1;
+  /* Tamaño por defecto (md), por si falta el modificador. */
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  font-size: 22px;
+}
+.hab-icon--sm {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  font-size: 18px;
+}
+.hab-icon--md {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  font-size: 22px;
+}
+.hab-icon--lg {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  font-size: 34px;
+}
+/* Solo el grande (paso 1 de la hoja) proyecta sombra, y es de su propio color. */
+.hab-icon--xl {
+  width: 88px;
+  height: 88px;
+  border-radius: 26px;
+  font-size: 46px;
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--hab-a) 30%, transparent);
+}
+
+/* ---- Primitivos compartidos --------------------------------------------- */
+
+/* Rótulo de sección: "POR HACER · 4", "SUGERENCIAS", el área en Todos. */
+.hab-kicker {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+
+/* Tarjeta que agrupa filas (la lista de Hoy, un área en Todos, archivados). */
+.hab-card {
+  background: var(--surface);
+  border-radius: 20px;
+  overflow: hidden;
+}
+/* Variante compacta: tarjetas de resumen y bloques dentro de la hoja. */
+.hab-card--tight {
+  border-radius: 16px;
+}
+
+/* Fila de hábito. Sin borde ni fondo propios para poder ser <button> sin que
+   el navegador le ponga los suyos; position relative sostiene el separador. */
+.hab-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 12px 12px 14px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+}
+/* Separador entre filas con sangría hasta donde arranca el texto (68px). Va en
+   un pseudo-elemento y no en border-top porque el borde no admite ese margen
+   sin sumar alto ni romper el min-height de la fila. */
+.hab-row + .hab-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 68px;
+  right: 0;
+  height: 1px;
+  background: var(--border-soft);
+}
+.hab-row__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.hab-row__title {
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hab-row__sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Tarjeta de ajustes: filas de 48px con etiqueta, valor y chevron
+   ("Frecuencia — 5 veces al día ›"). La usan el detalle y el paso 3. */
+.hab-settings {
+  background: var(--surface);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.hab-settings__row {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: 16px;
+  text-align: left;
+}
+.hab-settings__row + .hab-settings__row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  height: 1px;
+  background: var(--border-soft);
+}
+.hab-settings__value {
+  min-width: 0;
+  color: var(--text-muted);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hab-settings__chevron {
+  flex: none;
+  display: inline-flex;
+  color: var(--text-faint);
+}
+
+/* ==== Pantalla Hábitos (/habitos) =========================================
+   Lo propio de la lista: cabecera, segmentado, anillos de la semana, filas de
+   Hoy con su control, deslizar, primer uso y el micro-momento "Día completo".
+   Valores tomados del mockup (docs/diseno/2026-09-22-habitos). */
+
+/* ---- Lienzo -------------------------------------------------------------- */
+.screen.hab-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+/* Hábitos trae su propia cabecera (sin TopBar): el área segura la paga ella. */
+.shell .screen.hab-screen {
+  padding-top: calc(var(--safe-top) + 14px);
+}
+
+/* ---- Cabecera: H1 + subtítulo por pestaña + botón "+" -------------------- */
+.hab-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.hab-head__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.hab-head__title {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.hab-head__sub {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+/* La fracción de hechos es lo único verde de la cabecera. */
+.hab-head__count {
+  color: var(--success);
+  font-weight: 700;
+}
+.hab-head__add {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+/* ---- Control segmentado (Hoy · Todos · Archivados) ----------------------- */
+.hab-seg {
+  display: flex;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--surface);
+  /* Es un <fieldset> (agrupa botones-control): sin el marco/margen que trae
+     el navegador por defecto, para que se vea igual que el <div> anterior. */
+  border: 0;
+  margin: 0;
+  min-width: 0;
+}
+.hab-seg__opt {
+  flex: 1;
+  padding: 7px 0;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+}
+.hab-seg__opt.is-on {
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 600;
+}
+
+/* ---- Aviso de primera vez ("desliza una fila…") -------------------------- */
+.hab-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+.hab-hint__icon {
+  flex: none;
+  display: inline-flex;
+}
+.hab-hint__text {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.hab-hint__done {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---- Anillos de la semana ------------------------------------------------ */
+.hab-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  padding: 0 4px;
+}
+.hab-week__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.hab-week__label {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.hab-week__label.is-today {
+  color: var(--text-muted);
+}
+/* Anillo lleno: el sector verde es el avance del día y el disco interior lo
+   vacía por dentro. El porcentaje llega en --hab-ratio (única var dinámica). */
+.hab-ring {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--success-fill) 0 var(--hab-ratio, 0%),
+    var(--surface-2) var(--hab-ratio, 0%) 100%
+  );
+}
+.hab-ring::after {
+  content: '';
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--bg);
+}
+/* Días que aún no llegan: solo el aro apagado. */
+.hab-ring--future {
+  background: none;
+  border: 2px solid var(--surface-2);
+}
+.hab-ring--future::after {
+  display: none;
+}
+
+/* ---- Secciones y listas -------------------------------------------------- */
+.hab-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hab-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  border-radius: 20px;
+  overflow: hidden;
+}
+.hab-list__item {
+  position: relative;
+}
+/* Separador con sangría hasta donde arranca el texto. Vive en el elemento que
+   se desliza, no en el <li>, para que acompañe a la fila en vez de quedarse
+   flotando sobre las acciones reveladas. */
+.hab-list__item + .hab-list__item > .hab-row::before,
+.hab-list__item + .hab-list__item > .hab-swipe > .hab-swipe__front::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 68px;
+  right: 0;
+  height: 1px;
+  background: var(--border-soft);
+}
+
+/* Fila partida: el cuerpo navega al detalle y el control de la derecha marca,
+   así que el relleno lo pone el cuerpo (el control necesita su propia área). */
+.hab-row--split {
+  padding: 0 12px 0 0;
+  gap: 0;
+}
+.hab-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 12px 12px 12px 14px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
+}
+.hab-row--muted .hab-row__title {
+  color: var(--text-muted);
+}
+.hab-row--dim {
+  opacity: 0.55;
+}
+.hab-row__chevron {
+  flex: none;
+  display: inline-flex;
+  color: var(--text-faint);
+}
+/* La llama de la racha va dentro del sub, separada del texto que la precede. */
+.hab-row__flame {
+  margin: 0 3px 0 6px;
+  vertical-align: -1px;
+}
+.hab-row__sub--done {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--success);
+}
+.hab-row__sub-faint {
+  color: var(--text-faint);
+}
+
+/* ---- Barra segmentada de las filas de varias veces ----------------------- */
+.hab-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hab-progress__bar {
+  flex: 1;
+  display: flex;
+  gap: 3px;
+}
+.hab-progress__seg {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-2);
+}
+.hab-progress__seg.is-on {
+  background: var(--hab-a, var(--primary));
+}
+/* Último tramo del día cumplido: un brillo corto del propio color. */
+.hab-progress__seg.is-last {
+  box-shadow: 0 0 10px var(--hab-a, var(--primary));
+}
+.hab-progress__label {
+  flex: none;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.hab-progress__label.is-complete {
+  color: var(--hab-a, var(--primary));
+  font-weight: 600;
+}
+
+/* ---- Control de la derecha (marcar / desmarcar) -------------------------- */
+.hab-control {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+}
+/* Pendiente de una vez: solo el aro del color del hábito. */
+.hab-control--ring {
+  border: 2px solid var(--hab-a, var(--primary));
+  opacity: 0.7;
+}
+/* Pendiente de varias veces: "+" teñido sobre su color al 18 %. */
+.hab-control--add {
+  background: color-mix(in srgb, var(--hab-a, var(--primary)) 18%, transparent);
+  color: var(--hab-a, var(--primary));
+}
+.hab-control--done {
+  background: var(--success-fill);
+  color: var(--success-ink);
+}
+/* Halo de "día cumplido": ~1,2 s y se va sola. */
+.hab-control.is-celebrating {
+  animation: hab-halo 1.2s var(--ease-out, ease-out) both;
+}
+@keyframes hab-halo {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success-fill) 25%, transparent);
+    transform: scale(1);
+  }
+  35% {
+    box-shadow:
+      0 0 0 6px color-mix(in srgb, var(--success-fill) 25%, transparent),
+      0 0 24px color-mix(in srgb, var(--success-fill) 50%, transparent);
+    transform: scale(1.08);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success-fill) 0%, transparent);
+    transform: scale(1);
+  }
+}
+
+/* Acción de texto al final de una fila ("Deshacer"). */
+.hab-textaction {
+  flex: none;
+  padding: 8px 4px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 13px;
+}
+/* Píldora "Reactivar" de los archivados. */
+.hab-pill {
+  flex: none;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ---- Deslizar ------------------------------------------------------------ */
+.hab-swipe {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+}
+/* Capa de fondo del gesto a la derecha: "✓ Hecho" sobre el verde pleno. */
+.hab-swipe__done {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 22px;
+  background: var(--success-fill);
+  color: var(--success-ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+/* Acciones reveladas al deslizar a la izquierda, ancladas a la derecha. */
+.hab-swipe__actions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+.hab-swipe__action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 88px;
+  padding: 0;
+  border: 0;
+  background: var(--surface-3);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+.hab-swipe__action--danger {
+  background: var(--danger);
+  color: var(--on-primary);
+}
+/* La fila en sí: se mueve con --hab-dx y descansa sobre el fondo de tarjeta. */
+.hab-swipe__front {
+  position: relative;
+  background: var(--surface);
+  touch-action: pan-y;
+  transform: translateX(var(--hab-dx, 0px));
+}
+.hab-swipe__front.is-settling {
+  transition: transform var(--dur-state, 180ms) var(--ease-out, ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hab-swipe__front.is-settling {
+    transition: none;
+  }
+}
+
+/* ---- Estados vacíos ------------------------------------------------------ */
+/* Vacío corto dentro de una tarjeta ("Hoy no toca ninguno"). */
+.hab-blank {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px 16px;
+}
+.hab-blank__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.hab-blank__text {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+/* Vacío de pantalla completa (Archivados sin nada). */
+.hab-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 0 32px 120px;
+  text-align: center;
+}
+.hab-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--text-faint);
+}
+.hab-empty__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+.hab-empty__text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+/* Nota al pie de Archivados. */
+.hab-note {
+  padding: 0 4px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+/* Azulejo apagado de un hábito archivado. */
+.hab-archived-icon {
+  flex: none;
+  display: inline-flex;
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+
+/* ---- Primer uso ---------------------------------------------------------- */
+.hab-first {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 26px 24px 10px;
+  text-align: center;
+}
+/* Tres azulejos solapados con una leve rotación: el del centro va encima. */
+.hab-first__tiles {
+  display: flex;
+}
+.hab-first__tile {
+  transform: rotate(-8deg) translateX(6px);
+}
+.hab-first__tile:nth-child(2) {
+  position: relative;
+  z-index: 1;
+  transform: none;
+}
+.hab-first__tile:nth-child(3) {
+  transform: rotate(8deg) translateX(-6px);
+}
+.hab-first__title {
+  margin: 6px 0 0;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.hab-first__text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+.hab-first__link {
+  align-self: center;
+  padding: 4px;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+/* Glifo "+" de las sugerencias: decorativo, la fila entera es el botón. */
+.hab-add-glyph {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+/* ---- Micro-momento "Día completo" ---------------------------------------- */
+.hab-toast {
+  position: fixed;
+  left: 20px;
+  right: 20px;
+  bottom: calc(98px + var(--safe-bottom));
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 12px 14px;
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow:
+    0 12px 40px color-mix(in srgb, var(--text) 22%, transparent),
+    0 0 0 1px var(--border-soft);
+}
+.hab-toast__icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--success-fill);
+  color: var(--success-ink);
+}
+.hab-toast__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hab-toast__title {
+  font-size: 16px;
+  font-weight: 700;
+}
+.hab-toast__sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.hab-toast__action {
+  flex: none;
+  color: var(--primary);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* ---- Ajustes de las filas de esta pantalla ------------------------------- */
+/* Un Link o un <button> con .hab-row hereda el color del texto, no el de enlace. */
+.hab-row,
+.hab-row__body {
+  text-decoration: none;
+}
+/* La barra segmentada respira un poco más que un subtítulo de una línea. */
+.hab-row__main--wide {
+  gap: 5px;
+}
+/* El pie de un archivado puede ocupar dos líneas ("Archivado en julio · …"). */
+.hab-row__sub--wrap {
+  white-space: normal;
+  overflow: visible;
+  line-height: 1.35;
+}

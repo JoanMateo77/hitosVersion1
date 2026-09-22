@@ -1,4 +1,5 @@
-import type { Habit, HabitCheck, NicheId } from '@/lib/types'
+import type { Habit, HabitCheck, HabitColor, HabitSkip, NicheId } from '@/lib/types'
+import { HABIT_COLORS } from '@/domain/habits'
 import { supabase } from '@/lib/supabase'
 
 interface HabitRow {
@@ -11,6 +12,12 @@ interface HabitRow {
   goal_id?: string | null
   /** Opcional hasta correr la migración 0013: el mapeo tolera su ausencia. */
   times?: string[] | null
+  /** Opcionales hasta correr la migración 0016 (identidad del hábito). */
+  icon?: string | null
+  color?: string | null
+  unit?: string | null
+  times_per_day?: number | null
+  paused_until?: string | null
   created_at: string
   archived_at: string | null
 }
@@ -20,16 +27,31 @@ interface HabitCheckRow {
   date: string
   /** Opcional hasta correr la migración 0013: el mapeo tolera su ausencia. */
   slot?: number | null
+  /** Momento de la marca: se muestra como "· 7:12 am" en Hoy. */
+  created_at?: string | null
+}
+
+/** Solo aceptamos claves conocidas de la paleta: lo demás cae al color del área. */
+function mapColor(value: string | null | undefined): HabitColor | null {
+  if (!value) return null
+  return HABIT_COLORS.includes(value as HabitColor) ? (value as HabitColor) : null
 }
 
 function mapHabit(row: HabitRow): Habit {
+  const times = row.times && row.times.length > 0 ? row.times : null
   return {
     id: row.id,
     userId: row.user_id,
     title: row.title,
     area: row.area as NicheId,
     weekdays: row.weekdays ?? [],
-    times: row.times && row.times.length > 0 ? row.times : null,
+    times,
+    icon: row.icon ?? null,
+    color: mapColor(row.color),
+    unit: row.unit ?? null,
+    // Sin la columna (0016 sin aplicar) el objetivo sigue siendo "una por hora".
+    timesPerDay: row.times_per_day ?? Math.max(1, times?.length ?? 0),
+    pausedUntil: row.paused_until ?? null,
     goalId: row.goal_id ?? null,
     createdAt: row.created_at,
     archivedAt: row.archived_at,
@@ -37,11 +59,13 @@ function mapHabit(row: HabitRow): Habit {
 }
 
 function mapHabitCheck(row: HabitCheckRow): HabitCheck {
-  return {
+  const check: HabitCheck = {
     habitId: row.habit_id,
     date: row.date,
     slot: row.slot ?? 0,
   }
+  if (row.created_at) check.at = row.created_at
+  return check
 }
 
 /** ¿El error de PostgREST es "esa columna no existe"? (migración sin aplicar) */
@@ -61,6 +85,33 @@ export async function listHabits(userId: string): Promise<Habit[]> {
   return (data as HabitRow[]).map(mapHabit)
 }
 
+/** Campos de identidad (migración 0016): viajan aparte para poder reintentar. */
+interface HabitIdentityInput {
+  icon?: string | null
+  color?: HabitColor | null
+  unit?: string | null
+  timesPerDay?: number
+  pausedUntil?: string | null
+}
+
+/** Error listo para la UI cuando falta la migración 0016. */
+function missingColumnError(): Error {
+  const err = new Error('Para usar esta función falta actualizar la base de datos.')
+  ;(err as Error & { code?: string }).code = 'missing-column'
+  return err
+}
+
+/** Traduce los campos nuevos a columnas; solo van los que se enviaron. */
+function identityRow(input: HabitIdentityInput): Record<string, unknown> {
+  const row: Record<string, unknown> = {}
+  if (input.icon !== undefined) row.icon = input.icon
+  if (input.color !== undefined) row.color = input.color
+  if (input.unit !== undefined) row.unit = input.unit
+  if (input.timesPerDay !== undefined) row.times_per_day = input.timesPerDay
+  if (input.pausedUntil !== undefined) row.paused_until = input.pausedUntil
+  return row
+}
+
 export async function createHabit(
   userId: string,
   input: {
@@ -69,7 +120,7 @@ export async function createHabit(
     weekdays: number[]
     goalId?: string | null
     times?: string[] | null
-  },
+  } & HabitIdentityInput,
 ): Promise<Habit> {
   const row: Record<string, unknown> = {
     user_id: userId,
@@ -82,23 +133,33 @@ export async function createHabit(
   if (input.goalId) row.goal_id = input.goalId
   // Igual con las horas (migración 0013): solo viajan si se eligieron.
   if (input.times && input.times.length > 0) row.times = input.times
-  const { data, error } = await supabase.from('habits').insert(row).select('*').single()
-  if (error) throw new Error(error.message)
-  return mapHabit(data as HabitRow)
+  const identity = identityRow(input)
+  const { data, error } = await supabase
+    .from('habits')
+    .insert({ ...row, ...identity })
+    .select('*')
+    .single()
+  if (!error) return mapHabit(data as HabitRow)
+  // Sin la migración 0016 el hábito se crea igual, solo sin icono ni color.
+  if (isMissingColumn(error) && Object.keys(identity).length > 0) {
+    const retry = await supabase.from('habits').insert(row).select('*').single()
+    if (retry.error) throw new Error(retry.error.message)
+    return mapHabit(retry.data as HabitRow)
+  }
+  throw new Error(error.message)
+}
+
+function runPatch(habitId: string, patch: Record<string, unknown>) {
+  return supabase.from('habits').update(patch).eq('id', habitId).select('*').single()
 }
 
 async function patchHabit(habitId: string, patch: Record<string, unknown>): Promise<Habit> {
-  const { data, error } = await supabase
-    .from('habits')
-    .update(patch)
-    .eq('id', habitId)
-    .select('*')
-    .single()
+  const { data, error } = await runPatch(habitId, patch)
   if (error) throw new Error(error.message)
   return mapHabit(data as HabitRow)
 }
 
-export function updateHabit(
+export async function updateHabit(
   habitId: string,
   patch: Partial<{
     title: string
@@ -106,7 +167,8 @@ export function updateHabit(
     weekdays: number[]
     goalId: string | null
     times: string[] | null
-  }>,
+  }> &
+    HabitIdentityInput,
 ): Promise<Habit> {
   // Solo se envían las columnas presentes para no pisar valores con undefined.
   const row: Record<string, unknown> = {}
@@ -115,7 +177,24 @@ export function updateHabit(
   if (patch.weekdays !== undefined) row.weekdays = patch.weekdays
   if (patch.goalId !== undefined) row.goal_id = patch.goalId
   if (patch.times !== undefined) row.times = patch.times
+  const identity = identityRow(patch)
+  if (Object.keys(identity).length === 0) return patchHabit(habitId, row)
+
+  const { data, error } = await runPatch(habitId, { ...row, ...identity })
+  if (!error) return mapHabit(data as HabitRow)
+  if (!isMissingColumn(error)) throw new Error(error.message)
+  // Sin migración: si el parche era SOLO de columnas nuevas no hay nada que
+  // guardar; si además traía campos viejos, esos sí se guardan.
+  if (Object.keys(row).length === 0) throw missingColumnError()
   return patchHabit(habitId, row)
+}
+
+/** Pausa el hábito hasta esa fecha inclusive (null lo reanuda). */
+export async function setHabitPausedUntil(habitId: string, dateISO: string | null): Promise<Habit> {
+  const { data, error } = await runPatch(habitId, { paused_until: dateISO })
+  if (!error) return mapHabit(data as HabitRow)
+  if (isMissingColumn(error)) throw missingColumnError()
+  throw new Error(error.message)
 }
 
 /** Archiva o reactiva un hábito (archivar conserva el historial de checks). */
@@ -263,4 +342,54 @@ export async function clearHabitDayOverride(habitId: string, dateISO: string): P
     .eq('habit_id', habitId)
     .eq('date', dateISO)
   if (error && !isMissingTable(error)) throw new Error(error.message)
+}
+
+// ---- "Saltar hoy" (0016): días que no cuentan para el hábito ---------------
+
+/**
+ * Saltos del usuario dentro de [fromISO, toISO]. Sin la migración 0016 no hay
+ * tabla y devolvemos vacío: la app funciona igual, solo sin saltos.
+ */
+export async function listHabitSkipsInRange(
+  userId: string,
+  fromISO: string,
+  toISO: string,
+): Promise<HabitSkip[]> {
+  const { data, error } = await supabase
+    .from('habit_skips')
+    .select('habit_id, date')
+    .eq('user_id', userId)
+    .gte('date', fromISO)
+    .lte('date', toISO)
+  if (error) {
+    if (isMissingTable(error)) return []
+    throw new Error(error.message)
+  }
+  return (data as { habit_id: string; date: string }[]).map((r) => ({
+    habitId: r.habit_id,
+    date: r.date,
+  }))
+}
+
+/**
+ * Salta (o deshace el salto de) un día para un hábito. El insert es
+ * idempotente: el único (habit_id, date) hace que un duplicado (23505)
+ * signifique "ya estaba saltado". Sin migración lanza un Error con
+ * `code: 'missing-column'` listo para la UI.
+ */
+export async function setHabitSkipped(
+  userId: string,
+  habitId: string,
+  dateISO: string,
+  skipped: boolean,
+): Promise<void> {
+  const { error } = skipped
+    ? await supabase
+        .from('habit_skips')
+        .insert({ user_id: userId, habit_id: habitId, date: dateISO })
+    : await supabase.from('habit_skips').delete().eq('habit_id', habitId).eq('date', dateISO)
+  if (!error) return
+  if (isMissingTable(error)) throw missingColumnError()
+  if (skipped && error.code === '23505') return
+  throw new Error(error.message)
 }

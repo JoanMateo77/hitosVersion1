@@ -32,6 +32,9 @@ const Calendar = lazy(() => import('@/screens/Calendar').then((m) => ({ default:
 const Progress = lazy(() => import('@/screens/Progress').then((m) => ({ default: m.Progress })))
 const ProfileScreen = lazy(() => import('@/screens/Profile').then((m) => ({ default: m.ProfileScreen })))
 const Habits = lazy(() => import('@/screens/Habits').then((m) => ({ default: m.Habits })))
+const HabitDetail = lazy(() =>
+  import('@/screens/HabitDetail').then((m) => ({ default: m.HabitDetail })),
+)
 const Learn = lazy(() => import('@/screens/Learn').then((m) => ({ default: m.Learn })))
 
 /**
@@ -162,6 +165,7 @@ function ProfiledApp({
                 <Route path="/progreso" element={<Progress />} />
                 <Route path="/aprender" element={<Learn />} />
                 <Route path="/habitos" element={<Habits />} />
+                <Route path="/habitos/:habitId" element={<HabitDetail />} />
                 <Route path="/perfil" element={<ProfileScreen />} />
               </Route>
             </Route>
