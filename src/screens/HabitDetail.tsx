@@ -137,71 +137,40 @@ async function runAction(
   }
 }
 
-/** Los saltos con el de hoy puesto o quitado, según toque. */
-function withSkipToggle(
-  skips: HabitSkip[],
-  habitId: string,
-  date: string,
-  on: boolean,
-): HabitSkip[] {
-  return on ? [...skips, { habitId, date }] : skips.filter((s) => s.date !== date)
-}
-
-/** "Hoy no cuenta para este hábito." / "Salto deshecho.". */
-function skipToggleMessage(on: boolean): string {
-  return on ? 'Hoy no cuenta para este hábito.' : 'Salto deshecho.'
-}
-
 /** "Pausado hasta el 30 sept." / "Hábito reanudado.". */
 function pauseMessage(dateISO: string | null): string {
   return dateISO ? `Pausado hasta el ${shortDate(dateISO)}.` : 'Hábito reanudado.'
 }
 
-/** `archivedAt` que corresponde al nuevo estado (archivar vs. reactivar). */
-function archivedAtFor(archive: boolean): string | null {
-  return archive ? new Date().toISOString() : null
+/** Estado de datos del detalle: el hábito, su historial y las metas. */
+interface DetailData {
+  habit: Habit | null
+  setHabit: (h: Habit) => void
+  checks: HabitCheck[]
+  skips: HabitSkip[]
+  setSkips: (s: HabitSkip[]) => void
+  goals: Goal[]
+  loading: boolean
+  error: string | null
 }
 
-/** "Hábito archivado." / "Hábito reactivado.". */
-function archiveMessage(archive: boolean): string {
-  return archive ? 'Hábito archivado.' : 'Hábito reactivado.'
-}
-
-/** Mensaje de error de archivar/reactivar. */
-function archiveErrorMessage(archive: boolean): string {
-  return archive ? 'No se pudo archivar el hábito.' : 'No se pudo reactivar el hábito.'
-}
-
-export function HabitDetail() {
-  const { habitId } = useParams<{ habitId: string }>()
-  const { userId } = useSession()
-  const { toast } = useToast()
-  const location = useLocation()
-  const [params] = useSearchParams()
-
-  const today = todayISO()
-
+/**
+ * Carga el hábito con checks y saltos de ~13 meses (para que la cuadrícula del
+ * mes más antiguo navegable esté completa) y las metas para "Meta vinculada".
+ * Los checks y saltos llegan por usuario y se filtran aquí al hábito.
+ */
+function useHabitDetailData(habitId: string | undefined, userId: string, today: string): DetailData {
   const [habit, setHabit] = useState<Habit | null>(null)
   const [checks, setChecks] = useState<HabitCheck[]>([])
   const [skips, setSkips] = useState<HabitSkip[]>([])
   const [goals, setGoals] = useState<Goal[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [month, setMonth] = useState(() => startOfMonth(today))
-  const [sheetStep, setSheetStep] = useState<1 | 2 | 3 | null>(null)
-  const [pauseOpen, setPauseOpen] = useState(false)
-
-  // Volver a la lista conservando la pestaña de origen (state o ?tab).
-  const rawTab = (location.state as { tab?: string } | null)?.tab ?? params.get('tab')
-  const tab = rawTab && TABS.has(rawTab) ? rawTab : null
-  const backTo = tab ? `/habitos?tab=${tab}` : '/habitos'
 
   useEffect(() => {
     if (!habitId) return
     let active = true
     setLoading(true)
-    // El historial arranca en el primer día del mes más antiguo navegable, para
-    // que esa cuadrícula esté completa; la racha mira solo los últimos 365 días.
     const from = startOfMonth(addMonths(today, -MONTHS_BACK))
     Promise.all([
       listHabits(userId),
@@ -228,12 +197,166 @@ export function HabitDetail() {
     }
   }, [habitId, userId, today])
 
+  return { habit, setHabit, checks, skips, setSkips, goals, loading, error }
+}
+
+/** Acciones del detalle (saltar hoy, pausar, archivar), optimistas con revert. */
+function useHabitActions(
+  habit: Habit,
+  data: Pick<DetailData, 'skips' | 'setSkips' | 'setHabit'>,
+  userId: string,
+  today: string,
+  toast: ToastFn,
+) {
+  const { skips, setSkips, setHabit } = data
+
+  function toggleSkipToday() {
+    const before = skips
+    const skipped = before.some((s) => s.date === today)
+    const after = skipped
+      ? before.filter((s) => s.date !== today)
+      : [...before, { habitId: habit.id, date: today }]
+    void runAction(
+      toast,
+      () => setSkips(after),
+      () => setSkips(before),
+      () => setHabitSkipped(userId, habit.id, today, !skipped),
+      skipped ? 'Salto deshecho.' : 'Hoy no cuenta para este hábito.',
+      'No se pudo guardar el salto.',
+    )
+  }
+
+  function pauseUntil(dateISO: string | null) {
+    const before = habit
+    void runAction(
+      toast,
+      () => setHabit({ ...before, pausedUntil: dateISO }),
+      () => setHabit(before),
+      async () => {
+        setHabit(await setHabitPausedUntil(before.id, dateISO))
+      },
+      pauseMessage(dateISO),
+      'No se pudo pausar el hábito.',
+    )
+  }
+
+  function toggleArchive() {
+    const before = habit
+    const archive = before.archivedAt === null
+    void runAction(
+      toast,
+      () => setHabit({ ...before, archivedAt: archive ? new Date().toISOString() : null }),
+      () => setHabit(before),
+      async () => {
+        setHabit(await setHabitArchived(before.id, archive))
+      },
+      archive ? 'Hábito archivado.' : 'Hábito reactivado.',
+      archive ? 'No se pudo archivar el hábito.' : 'No se pudo reactivar el hábito.',
+    )
+  }
+
+  return { toggleSkipToday, pauseUntil, toggleArchive }
+}
+
+/** Tarjeta de acciones: saltar hoy, pausar hasta… y archivar / reactivar. */
+function HabitActions({
+  active,
+  paused,
+  skippedToday,
+  canSkipToday,
+  today,
+  onSkipToday,
+  onPauseUntil,
+  onArchive,
+}: Readonly<{
+  active: boolean
+  paused: boolean
+  skippedToday: boolean
+  canSkipToday: boolean
+  today: string
+  onSkipToday: () => void
+  onPauseUntil: (dateISO: string | null) => void
+  onArchive: () => void
+}>) {
+  const [pauseOpen, setPauseOpen] = useState(false)
+  function pick(dateISO: string | null) {
+    setPauseOpen(false)
+    onPauseUntil(dateISO)
+  }
+  return (
+    <div className="hdet-actions">
+      {active && (canSkipToday || skippedToday) && (
+        <button type="button" className="hdet-action" onClick={onSkipToday}>
+          {skippedToday ? 'Deshacer salto de hoy' : 'Saltar hoy'}
+        </button>
+      )}
+      {active && paused && (
+        <button type="button" className="hdet-action" onClick={() => pick(null)}>
+          Reanudar ahora
+        </button>
+      )}
+      {active && !paused && (
+        <button
+          type="button"
+          className="hdet-action"
+          onClick={() => setPauseOpen(!pauseOpen)}
+          aria-expanded={pauseOpen}
+        >
+          Pausar hasta…
+        </button>
+      )}
+      {active && !paused && pauseOpen && (
+        <div className="hdet-pause">
+          <button type="button" className="hdet-pause__opt" onClick={() => pick(today)}>
+            Mañana
+          </button>
+          <button type="button" className="hdet-pause__opt" onClick={() => pick(addDays(today, 2))}>
+            3 días
+          </button>
+          <button type="button" className="hdet-pause__opt" onClick={() => pick(addDays(today, 6))}>
+            1 semana
+          </button>
+          <label className="hdet-pause__pick">
+            <span>Elegir fecha</span>
+            <input
+              type="date"
+              min={today}
+              onChange={(e) => {
+                if (e.target.value) pick(e.target.value)
+              }}
+            />
+          </label>
+        </div>
+      )}
+      <button type="button" className="hdet-action hdet-action--danger" onClick={onArchive}>
+        {active ? 'Archivar hábito' : 'Reactivar hábito'}
+      </button>
+    </div>
+  )
+}
+
+export function HabitDetail() {
+  const { habitId } = useParams<{ habitId: string }>()
+  const { userId } = useSession()
+  const { toast } = useToast()
+  const location = useLocation()
+  const [params] = useSearchParams()
+
+  const today = todayISO()
+
+  const { habit, setHabit, checks, skips, setSkips, goals, loading, error } =
+    useHabitDetailData(habitId, userId, today)
+  const [month, setMonth] = useState(() => startOfMonth(today))
+  const [sheetStep, setSheetStep] = useState<1 | 2 | 3 | null>(null)
+
+  // Volver a la lista conservando la pestaña de origen (state o ?tab).
+  const rawTab = (location.state as { tab?: string } | null)?.tab ?? params.get('tab')
+  const tab = rawTab && TABS.has(rawTab) ? rawTab : null
+  const backTo = tab ? `/habitos?tab=${tab}` : '/habitos'
+
   const skipSet = useMemo(() => skipSetOf(skips), [skips])
 
-  const openSheet = useCallback((step: 1 | 2 | 3) => {
-    setPauseOpen(false)
-    setSheetStep(step)
-  }, [])
+  const openSheet = useCallback((step: 1 | 2 | 3) => setSheetStep(step), [])
 
   if (loading) return <LoadingScreen />
   if (error && !habit) return <LoadingScreen error={error} />
@@ -250,10 +373,6 @@ export function HabitDetail() {
       </div>
     )
   }
-
-  // Alias ya sin null: los handlers de abajo son cierres y TS no arrastra ahí
-  // el estrechamiento del `if (!habit)`.
-  const current: Habit = habit
 
   const active = habit.archivedAt === null
   const paused = habit.pausedUntil !== null && today <= habit.pausedUntil
@@ -279,49 +398,13 @@ export function HabitDetail() {
   const frequency = frequencyWithUnit(habit)
   const subtitle = [frequency, days, getNiche(habit.area).label].filter(Boolean).join(' · ')
 
-  function toggleSkipToday() {
-    const id = current.id
-    const next = !skippedToday
-    const before = skips
-    void runAction(
-      toast,
-      () => setSkips(withSkipToggle(before, id, today, next)),
-      () => setSkips(before),
-      () => setHabitSkipped(userId, id, today, next),
-      skipToggleMessage(next),
-      'No se pudo guardar el salto.',
-    )
-  }
-
-  function pauseUntil(dateISO: string | null) {
-    const before = current
-    setPauseOpen(false)
-    void runAction(
-      toast,
-      () => setHabit({ ...before, pausedUntil: dateISO }),
-      () => setHabit(before),
-      async () => {
-        setHabit(await setHabitPausedUntil(before.id, dateISO))
-      },
-      pauseMessage(dateISO),
-      'No se pudo pausar el hábito.',
-    )
-  }
-
-  function toggleArchive() {
-    const before = current
-    const archive = before.archivedAt === null
-    void runAction(
-      toast,
-      () => setHabit({ ...before, archivedAt: archivedAtFor(archive) }),
-      () => setHabit(before),
-      async () => {
-        setHabit(await setHabitArchived(before.id, archive))
-      },
-      archiveMessage(archive),
-      archiveErrorMessage(archive),
-    )
-  }
+  const { toggleSkipToday, pauseUntil, toggleArchive } = useHabitActions(
+    habit,
+    { skips, setSkips, setHabit },
+    userId,
+    today,
+    toast,
+  )
 
   return (
     <div className="screen hdet" data-color={habitColor(habit)}>
@@ -451,57 +534,16 @@ export function HabitDetail() {
         </button>
       </div>
 
-      <div className="hdet-actions">
-        {active && (canSkipToday || skippedToday) && (
-          <button type="button" className="hdet-action" onClick={toggleSkipToday}>
-            {skippedToday ? 'Deshacer salto de hoy' : 'Saltar hoy'}
-          </button>
-        )}
-        {active && (
-          <button
-            type="button"
-            className="hdet-action"
-            onClick={() => (paused ? pauseUntil(null) : setPauseOpen(!pauseOpen))}
-            aria-expanded={paused ? undefined : pauseOpen}
-          >
-            {paused ? 'Reanudar ahora' : 'Pausar hasta…'}
-          </button>
-        )}
-        {active && !paused && pauseOpen && (
-          <div className="hdet-pause">
-            <button type="button" className="hdet-pause__opt" onClick={() => pauseUntil(today)}>
-              Mañana
-            </button>
-            <button
-              type="button"
-              className="hdet-pause__opt"
-              onClick={() => pauseUntil(addDays(today, 2))}
-            >
-              3 días
-            </button>
-            <button
-              type="button"
-              className="hdet-pause__opt"
-              onClick={() => pauseUntil(addDays(today, 6))}
-            >
-              1 semana
-            </button>
-            <label className="hdet-pause__pick">
-              <span>Elegir fecha</span>
-              <input
-                type="date"
-                min={today}
-                onChange={(e) => {
-                  if (e.target.value) pauseUntil(e.target.value)
-                }}
-              />
-            </label>
-          </div>
-        )}
-        <button type="button" className="hdet-action hdet-action--danger" onClick={toggleArchive}>
-          {active ? 'Archivar hábito' : 'Reactivar hábito'}
-        </button>
-      </div>
+      <HabitActions
+        active={active}
+        paused={paused}
+        skippedToday={skippedToday}
+        canSkipToday={canSkipToday}
+        today={today}
+        onSkipToday={toggleSkipToday}
+        onPauseUntil={pauseUntil}
+        onArchive={toggleArchive}
+      />
 
       {/* La hoja cierra sola tras guardar (llama a onClose): onSaved solo
           reemplaza el hábito para que el detalle refleje el cambio. */}
