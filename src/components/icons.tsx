@@ -121,9 +121,10 @@ export function IconPencil({ size = 18, className, style }: IconProps) {
 }
 
 /** Logo de marca de Lógralo. Es el PNG ORIGINAL aprobado por el dueño
- *  (src/assets/logo.png, recortado de su referencia), el mismo archivo del
- *  que salen favicon.png y los íconos instalados: cero réplicas, cero
- *  divergencias entre la app, la pestaña y el teléfono. */
+ *  (src/assets/logo.png, recortado de su referencia) recoloreado al azul de la
+ *  gama 2026-09 (mismo degradado y sombras, solo cambió el tono), el mismo
+ *  archivo del que salen favicon.png y los íconos instalados: cero réplicas,
+ *  cero divergencias entre la app, la pestaña y el teléfono. */
 export function IconHito({
   size = 22,
   className,
