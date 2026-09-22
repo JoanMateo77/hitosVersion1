@@ -183,7 +183,7 @@ export function Auth() {
           >
             Lógralo
           </span>
-          <p className="muted" style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--fs-lg)' }}>
+          <p className="muted" style={{ fontWeight: 600, fontSize: 'var(--fs-lg)' }}>
             Tu meta, con un compromiso real.
           </p>
         </header>

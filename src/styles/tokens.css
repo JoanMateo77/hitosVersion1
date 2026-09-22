@@ -1,14 +1,14 @@
 /* Design tokens — única fuente de verdad de color, espaciado y tipografía.
-   UNA identidad (Lógralo), dos variantes vía [data-theme]: claro cálido (default)
-   y oscuro cálido. Paleta FUNCIONAL: naranja = acción (empezar, CTA, racha),
-   verde = logrado (checks, barras, hitos), ámbar = atención sin culpa.
+   UNA identidad (Lógralo), dos variantes vía [data-theme]: claro (default, gris
+   iOS) y oscuro (negro puro). Paleta FUNCIONAL: azul = acción (empezar, CTA,
+   racha), verde = logrado (checks, barras, hitos), ámbar = atención sin culpa.
    Lo que NO depende del tema (espaciado, radios, tipografía) vive en :root. */
 :root {
   /* Radios */
-  --radius-sm: 9px;
+  --radius-sm: 10px;
   --radius: 14px;
-  --radius-lg: 22px;
-  --radius-xl: 28px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
   --radius-pill: 999px;
 
   /* Espaciado (escala de 4) */
@@ -22,13 +22,14 @@
   --s10: 40px;
   --s12: 56px;
 
-  /* Tipografía — display = Fraunces (humanista, opsz variable), body = Manrope
-     (grotesque moderno, distintivo). Las dos pesadas via Google Fonts en index.html.
-     Stack de respaldo: prioridad a serifas warm para display, sans neutrales para body. */
-  --font-display: 'Fraunces', 'New York', 'Charter', Iowan, Cambria, Georgia, serif;
-  --font: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI Variable', 'SF Pro Text',
+  /* Tipografía — UNA sola familia: Archivo (grotesque de rejilla apretada, pesos
+     400 a 800), cargada vía Google Fonts en index.html. El peso hace la jerarquía:
+     800 en títulos, 600 en kickers, 400/500 en cuerpo. Stack de respaldo: las
+     sans del sistema, para que el fallback no cambie el ritmo de la página. */
+  --font-display: 'Archivo', -apple-system, BlinkMacSystemFont, 'SF Pro Text',
     'Helvetica Neue', system-ui, sans-serif;
-  /* Compatibilidad: algunas reglas viejas referencian sólo --font; lo dejamos correcto. */
+  --font: 'Archivo', -apple-system, BlinkMacSystemFont, 'SF Pro Text',
+    'Helvetica Neue', system-ui, sans-serif;
 
   /* Type ramp — saltos musicales, no aritméticos. Body queda en 16 (iOS no zoomea). */
   --fs-xs: 12px;
@@ -49,7 +50,7 @@
 
   /* Tracking (la display usa negativo; el cuerpo y los kickers su propio valor) */
   --tracking-display: -0.025em;
-  --tracking-kicker: 0.14em;
+  --tracking-kicker: 0.04em;
 
   /* Layout: la app vive en una columna angosta, centrada en pantallas grandes */
   --app-width: 560px;
@@ -77,8 +78,9 @@
   /* Glow: solo el tema neón lo enciende; en los demás no aporta sombra. */
   --glow: 0 0 0 transparent;
 
-  /* Acento de marca: usa los colores del tema activo (se resuelve al usarse). */
-  --gradient-brand: linear-gradient(135deg, var(--primary), var(--primary-strong));
+  /* Acento de marca: el degradado azul del botón primario (fijo en los dos temas,
+     así el CTA se lee igual de sólido sobre crema o sobre negro). */
+  --gradient-brand: linear-gradient(180deg, #8f9cff 0%, #6a7bff 100%);
 
   /* Color por NICHO (área): le da significado al color — cada meta/tarea se
      reconoce por su tono, y el verde deja de hacer TODOS los trabajos. salud usa
@@ -95,91 +97,94 @@
 }
 
 /* ===== Variante CLARA (default) ==========================================
-   Base crema cálida: cómoda para leer y planificar. El naranja vive SOLO en la
-   acción; el verde, SOLO en lo cumplido. */
+   Base gris iOS: el fondo se retira y las tarjetas blancas flotan por contraste,
+   sin sombra. El azul vive SOLO en la acción; el verde, SOLO en lo cumplido. */
 :root,
 [data-theme='claro'] {
   color-scheme: light;
 
-  --bg: #faf5ec;
-  --bg-elev: #fffdf8;
-  --surface: #fffdf8;
-  --surface-2: #f3ead9;
-  --surface-3: #e9dcc4;
-  --border: #d9cbae;
-  --border-soft: #e8ddc8;
+  --bg: #f2f2f7;
+  --bg-elev: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #e5e5ea;
+  --surface-3: #d1d1d6;
+  --border: #d1d1d6;
+  --border-soft: #e5e5ea;
 
-  --text: #261d12;
-  --text-muted: #5f5340;
-  --text-faint: #75664e;
+  --text: #1c1c1e;
+  --text-muted: #6e6e73;
+  --text-faint: #aeaeb2;
 
-  /* ACCIÓN: naranja amanecer (Headspace-style, dosificado). */
-  --primary: #ea580c;
-  --primary-strong: #c2410c;
-  --primary-soft: rgba(234, 88, 12, 0.12);
+  /* ACCIÓN: azul índigo (CTA, racha, foco). */
+  --primary: #5b6cff;
+  --primary-strong: #4f5fe0;
+  --primary-soft: rgba(91, 108, 255, 0.12);
+  /* Tinte plano del azul: arranque del degradado del héroe. */
+  --primary-tint: #e6e9ff;
   --on-primary: #ffffff;
 
-  --accent: #936b3f;
-  --accent-soft: rgba(147, 107, 63, 0.12);
+  /* El acento ya no es un color aparte: la app habla en un solo azul. */
+  --accent: #5b6cff;
+  --accent-soft: rgba(91, 108, 255, 0.1);
 
-  /* LOGRADO: verde vivo (familia WhatsApp #25d366, un paso más profundo en claro
-     para que también funcione como color de texto sobre crema). */
-  --success: #1cb85c;
-  --success-soft: rgba(28, 184, 92, 0.14);
-  --danger: #b73a4b;
-  --danger-soft: rgba(183, 58, 75, 0.1);
-  --warning: #a06013;
-  --warning-soft: rgba(160, 96, 19, 0.1);
+  /* LOGRADO: verde de texto (--success) y verde de relleno para barras y checks
+     (--success-fill), que necesita más luz para leerse como color plano. */
+  --success: #1f9d55;
+  --success-fill: #34c77b;
+  --success-soft: rgba(52, 199, 123, 0.14);
+  --danger: #d63b4f;
+  --danger-soft: rgba(214, 59, 79, 0.1);
+  --warning: #b8730f;
+  --warning-soft: rgba(184, 115, 15, 0.1);
 
-  --shadow-sm: 0 1px 2px rgba(80, 55, 25, 0.06),
-    0 6px 18px -10px rgba(194, 120, 50, 0.18);
-  --shadow: 0 2px 4px rgba(80, 55, 25, 0.08),
-    0 14px 36px -12px rgba(194, 120, 50, 0.2);
-  --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(234, 88, 12, 0.1), transparent 60%),
-    radial-gradient(120% 80% at 100% 100%, rgba(147, 107, 63, 0.1), transparent 60%);
+  /* Superficie plana: la separación la da el contraste, no la sombra. La única
+     sombra que queda es la de color bajo el botón primario. */
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-primary: 0 8px 24px rgba(106, 123, 255, 0.35);
+  --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(91, 108, 255, 0.1), transparent 60%);
 }
 
-/* ===== Variante OSCURA (piedra cálida) ====================================
-   Casi neutro con un grado de calidez — NO marrón chocolate: las superficies
-   saturadas de madera se veían sucias en OLED. Aquí el fondo es piedra oscura,
-   cada nivel de elevación sube un paso de luz, y el naranja de marca es el
-   único que grita. Los colores de nicho suben brillo para leerse sobre oscuro. */
+/* ===== Variante OSCURA (negro puro) =======================================
+   Fondo negro OLED; cada nivel de elevación sube un paso de gris (los mismos
+   de iOS) y el azul de marca es el único que grita. Los colores de nicho suben
+   brillo para leerse sobre oscuro. */
 [data-theme='oscuro'] {
   color-scheme: dark;
 
-  --bg: #121110;
-  --bg-elev: #171513;
-  --surface: #1c1a18;
-  --surface-2: #252220;
-  --surface-3: #302c28;
-  --border: #3b3631;
-  --border-soft: #282522;
+  --bg: #000000;
+  --bg-elev: #1c1c1e;
+  --surface: #1c1c1e;
+  --surface-2: #2c2c2e;
+  --surface-3: #3a3a3c;
+  --border: #3a3a3c;
+  --border-soft: #2c2c2e;
 
-  --text: #f3f0ec;
-  --text-muted: #b5ada2;
-  --text-faint: #847c70;
+  --text: #ffffff;
+  --text-muted: #8e8e93;
+  --text-faint: #5a5a5f;
 
-  --primary: #f97316;
-  --primary-strong: #fb923c;
-  --primary-soft: rgba(249, 115, 22, 0.14);
+  --primary: #7d8cff;
+  --primary-strong: #aeb7ff;
+  --primary-soft: rgba(125, 140, 255, 0.16);
+  --primary-tint: #1a1f3a;
   --on-primary: #ffffff;
 
-  --accent: #d4b486;
-  --accent-soft: rgba(212, 180, 134, 0.1);
+  --accent: #7d8cff;
+  --accent-soft: rgba(125, 140, 255, 0.12);
 
-  /* Verde WhatsApp: los checks de cumplido deben celebrarse, no susurrar. */
-  --success: #25d366;
-  --success-soft: rgba(37, 211, 102, 0.15);
+  --success: #4cd383;
+  --success-fill: #34c77b;
+  --success-soft: rgba(52, 199, 123, 0.16);
   --danger: #f4708a;
   --danger-soft: rgba(244, 112, 138, 0.12);
   --warning: #e6b84c;
   --warning-soft: rgba(230, 184, 76, 0.12);
 
-  /* En oscuro la profundidad la da la elevación de superficie; la sombra solo
-     asienta el borde, sin charcos negros. */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow: 0 14px 36px -18px rgba(0, 0, 0, 0.65);
-  --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(249, 115, 22, 0.08), transparent 60%);
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-primary: 0 8px 24px rgba(106, 123, 255, 0.35);
+  --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(125, 140, 255, 0.1), transparent 60%);
 
   /* Nichos recalibrados para fondo oscuro (un paso más de luz y menos carga). */
   --niche-salud: #2dc78b;

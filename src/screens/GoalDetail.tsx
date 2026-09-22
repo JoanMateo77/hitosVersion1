@@ -471,7 +471,7 @@ export function GoalDetail() {
               <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
                 <IconQuote size={12} /> Tu porqué
               </span>
-              <p style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--fs-lg)', lineHeight: 1.35 }}>
+              <p style={{ fontWeight: 500, fontSize: 'var(--fs-lg)', lineHeight: 1.35 }}>
                 {goal.why}
               </p>
             </div>

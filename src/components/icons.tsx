@@ -21,8 +21,10 @@ interface IconProps {
 
 function base(size: number) {
   // Trazo renderizado ≈ 1,75 px entre 16 y 24 px; más fino en miniatura y
-  // acotado en tamaños héroe (antes iba de 0,73 px a 4,7 px).
-  const strokeWidth = Math.min(2.75, Math.max(1.6, 42 / size))
+  // acotado en tamaños héroe (antes iba de 0,73 px a 4,7 px). De 26 px en
+  // adelante la fórmula bajaría de 1,6 y el ícono se vería anémico: ahí el
+  // trazo se fija en 2, que es el del diseño de la barra inferior.
+  const strokeWidth = size >= 26 ? 2 : Math.min(2.75, Math.max(1.6, 42 / size))
   return {
     width: size,
     height: size,
@@ -254,6 +256,15 @@ export function IconPlay({ size = 14, className, style }: IconProps) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M7 5L18 12L7 19V5Z" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+/** Cuadrado relleno — detener la sesión en curso (▪ del héroe de Hoy). */
+export function IconStop({ size = 18, className, style }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} style={style} aria-hidden="true">
+      <rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor" stroke="none" />
     </svg>
   )
 }

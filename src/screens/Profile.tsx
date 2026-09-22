@@ -145,8 +145,9 @@ export function ProfileScreen() {
             fontSize: 18,
             flex: 'none',
             overflow: 'hidden',
-            // El marco ganado con la racha se pinta como anillo alrededor.
-            boxShadow: frame ? `0 0 0 3px ${frame.color}` : undefined,
+            // El marco ganado con la racha se pinta como anillo alrededor, o
+            // --primary por defecto si aún no hay marco (igual que en Hoy).
+            boxShadow: `0 0 0 3px ${frame?.color ?? 'var(--primary)'}`,
           }}
         >
           {profile.avatarUrl ? (

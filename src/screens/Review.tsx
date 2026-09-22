@@ -141,7 +141,7 @@ export function Review() {
           {reviewedAny ? (
             <IconCelebrate size={56} style={{ color: 'var(--primary)' }} />
           ) : (
-            <IconSprout size={56} style={{ color: 'var(--muted)' }} />
+            <IconSprout size={56} style={{ color: 'var(--text-muted)' }} />
           )}
           <h1 className="screen__title" style={{ marginTop: 'var(--s4)' }}>
             {reviewedAny ? 'Revisión lista' : 'Lo dejaste para después'}

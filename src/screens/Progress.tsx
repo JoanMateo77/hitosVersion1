@@ -179,7 +179,7 @@ export function Progress() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: `conic-gradient(var(--success) ${
+              background: `conic-gradient(var(--success-fill) ${
                 week.committed > 0 ? (week.done / week.committed) * 360 : 0
               }deg, var(--surface-2) 0deg)`,
             }}
@@ -212,7 +212,7 @@ export function Progress() {
                 const st = dayState(d)
                 const bg =
                   st === 'done'
-                    ? 'var(--success)'
+                    ? 'var(--success-fill)'
                     : st === 'partial'
                       ? 'var(--warning)'
                       : st === 'missed'
@@ -292,7 +292,7 @@ export function Progress() {
                       className="progress__bar"
                       style={{
                         width: `${prog.total > 0 ? (prog.done / prog.total) * 100 : 0}%`,
-                        background: 'var(--niche, var(--success))',
+                        background: 'var(--niche, var(--success-fill))',
                       }}
                     />
                   </div>
@@ -327,7 +327,7 @@ export function Progress() {
                   style={{
                     flex: 1,
                     borderRadius: '4px 4px 0 0',
-                    background: i === 7 ? 'var(--success)' : 'var(--success-soft)',
+                    background: i === 7 ? 'var(--success-fill)' : 'var(--success-soft)',
                     height: `${Math.max(6, w.ratio * 100)}%`,
                     border: w.total === 0 ? '1px dashed var(--border-soft)' : 'none',
                   }}

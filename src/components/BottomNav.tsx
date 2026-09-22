@@ -1,4 +1,4 @@
-import type { CSSProperties, MouseEvent } from 'react'
+import type { MouseEvent } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   IconCalendar,
@@ -33,11 +33,7 @@ export function BottomNav() {
   })
   return (
     <nav className="bottomnav" aria-label="Navegación principal">
-      <div
-        className="bottomnav__inner"
-        style={activeIndex >= 0 ? ({ '--tab': activeIndex } as CSSProperties) : undefined}
-        data-active={activeIndex >= 0 ? '' : undefined}
-      >
+      <div className="bottomnav__inner">
         {TABS.map((tab, index) => {
           const alsoMatch = 'alsoMatch' in tab ? tab.alsoMatch : undefined
           const { to, label, Icon } = tab
@@ -61,7 +57,7 @@ export function BottomNav() {
                 withViewTransition(() => navigate(to))
               }}
             >
-              <Icon size={23} filled={active} />
+              <Icon size={26} filled={active} />
               <span>{label}</span>
             </NavLink>
           )
