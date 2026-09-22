@@ -94,6 +94,36 @@
   --niche-creatividad: #c75ad6;
   --niche-bienestar: #19b3c4;
   --niche-otra: #98a0ab;
+
+  /* Color de IDENTIDAD de un hábito: el azulejo (emoji sobre degradado 145°)
+     con el que se reconoce cada hábito de un vistazo. Es el mismo en claro y
+     oscuro a propósito: la identidad no cambia con el tema. `--habit-<clave>`
+     es el sólido (anillos, barras, números) y `-g1`/`-g2` el degradado.
+     Se aplican con [data-color] (ver habits.css), que además setea --hab-a. */
+  --habit-cyan: #40c8dc;
+  --habit-cyan-g1: #4fd6ea;
+  --habit-cyan-g2: #22a9c2;
+  --habit-green: #34c77b;
+  --habit-green-g1: #8ad49a;
+  --habit-green-g2: #4fb56a;
+  --habit-blue: #7d8cff;
+  --habit-blue-g1: #93a0ff;
+  --habit-blue-g2: #5b6cff;
+  --habit-purple: #b98cff;
+  --habit-purple-g1: #c9a4ff;
+  --habit-purple-g2: #9b6dff;
+  --habit-orange: #ff8a5e;
+  --habit-orange-g1: #ff9d78;
+  --habit-orange-g2: #ff6a3d;
+  --habit-yellow: #f5b731;
+  --habit-yellow-g1: #ffc94d;
+  --habit-yellow-g2: #f0a11c;
+  --habit-pink: #ff6b8a;
+  --habit-pink-g1: #ff8fa8;
+  --habit-pink-g2: #ff5c7f;
+  --habit-gray: #8e8e93;
+  --habit-gray-g1: #a1a1a6;
+  --habit-gray-g2: #6e6e73;
 }
 
 /* ===== Variante CLARA (default) ==========================================
@@ -132,6 +162,9 @@
   --success: #1f9d55;
   --success-fill: #34c77b;
   --success-soft: rgba(52, 199, 123, 0.14);
+  /* Tinta sobre el verde pleno (check, píldora "Hecho"): negro en los dos
+     temas, porque --success-fill es el mismo color en ambos. */
+  --success-ink: #000000;
   --danger: #d63b4f;
   --danger-soft: rgba(214, 59, 79, 0.1);
   --warning: #b8730f;
@@ -176,6 +209,7 @@
   --success: #4cd383;
   --success-fill: #34c77b;
   --success-soft: rgba(52, 199, 123, 0.16);
+  --success-ink: #000000;
   --danger: #f4708a;
   --danger-soft: rgba(244, 112, 138, 0.12);
   --warning: #e6b84c;

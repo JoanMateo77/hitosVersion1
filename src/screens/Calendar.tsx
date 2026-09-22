@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import type { CalendarEvent, Goal, Habit, HabitCheck, ScheduleBlock, Session } from '@/lib/types'
+import type { CalendarEvent, Goal, Habit, HabitCheck, HabitSkip, ScheduleBlock, Session } from '@/lib/types'
 import { listGoals } from '@/services/goals'
 import {
   clearHabitDayOverride,
   listHabitChecksInRange,
   listHabitOverridesInRange,
   listHabits,
+  listHabitSkipsInRange,
   setHabitCheck,
   setHabitDayTimes,
   type HabitDayOverride,
 } from '@/services/habits'
-import { habitDayRow, habitTogglePlan, habitWithDayTimes, habitsDueOn } from '@/domain/habits'
+import { habitDayRow, habitTogglePlan, habitWithDayTimes, habitsDueOn, skipSetOf } from '@/domain/habits'
 import {
   createEvent,
   deleteEvent,
@@ -87,6 +88,7 @@ type CalSnapshot = {
   habits: Habit[]
   habitChecks: HabitCheck[]
   habitOverrides: HabitDayOverride[]
+  habitSkips: HabitSkip[]
 }
 
 /**
@@ -149,6 +151,8 @@ export function Calendar() {
   const [habitOverrides, setHabitOverrides] = useState<HabitDayOverride[]>(
     cached?.habitOverrides ?? [],
   )
+  // Saltos ("saltar hoy") del rango visible (0016): día no aplicable para el hábito.
+  const [habitSkips, setHabitSkips] = useState<HabitSkip[]>(cached?.habitSkips ?? [])
   // block null = sesión espontánea (una sola fecha, sin recurrencia): se le pone
   // hora a esa sesión y se puede quitar. block presente = compromiso recurrente.
   const [timeSheet, setTimeSheet] = useState<{ goal: Goal; block: ScheduleBlock | null; session: Session | null } | null>(null)
@@ -184,7 +188,7 @@ export function Calendar() {
     async function load() {
       try {
         setError(null)
-        const [evs, gs, blks, sess, habs, checks, ovr] = await Promise.all([
+        const [evs, gs, blks, sess, habs, checks, ovr, skips] = await Promise.all([
           listEventsInRange(userId, from, to),
           listGoals(userId),
           listScheduleForUser(userId),
@@ -193,6 +197,7 @@ export function Calendar() {
           listHabits(userId).catch(() => [] as Habit[]),
           listHabitChecksInRange(userId, from, to).catch(() => [] as HabitCheck[]),
           listHabitOverridesInRange(userId, from, to).catch(() => [] as HabitDayOverride[]),
+          listHabitSkipsInRange(userId, from, to).catch(() => [] as HabitSkip[]),
         ])
         if (!active) return
         setEvents(evs)
@@ -202,6 +207,7 @@ export function Calendar() {
         setHabits(habs)
         setHabitChecks(checks)
         setHabitOverrides(ovr)
+        setHabitSkips(skips)
         loadedKeyRef.current = cacheKey
       } catch (err) {
         if (active) setError(friendlyError(err, 'No se pudo cargar tu agenda.'))
@@ -225,9 +231,12 @@ export function Calendar() {
     habits,
     habitChecks,
     habitOverrides,
+    habitSkips,
   })
 
   const eventsByDate = useMemo(() => groupByDate(events), [events])
+  // Set de saltos listo para habitsDueOn: un salto hace que ese día no aplique.
+  const habitSkipSet = useMemo(() => skipSetOf(habitSkips), [habitSkips])
   const goalById = useMemo(() => new Map(goals.map((g) => [g.id, g] as const)), [goals])
   const activeGoals = useMemo(() => goals.filter((g) => g.status === 'active'), [goals])
 
@@ -292,7 +301,7 @@ export function Calendar() {
   /** Hábitos que tocan en un día: UNA fila por hábito, con las horas efectivas de esa fecha. */
   function dayHabitRows(day: string): DayHabitRowItem[] {
     const effective = habits.map((h) => habitWithDayTimes(h, overrideFor(h.id, day)))
-    return habitsDueOn(effective, day).map((h) => ({
+    return habitsDueOn(effective, day, habitSkipSet).map((h) => ({
       key: `h-${h.id}-${day}`,
       habit: h,
       ...habitDayRow(h, habitChecks, day),
@@ -670,7 +679,9 @@ export function Calendar() {
                     <span>{dayOfMonth(day)}</span>
                     <span className="cal-cell__dots">
                       {daySessions(day).length > 0 && <span className="cal-dot cal-dot--session" />}
-                      {habitsDueOn(habits, day).length > 0 && <span className="cal-dot cal-dot--habit" />}
+                      {habitsDueOn(habits, day, habitSkipSet).length > 0 && (
+                        <span className="cal-dot cal-dot--habit" />
+                      )}
                       {evs.slice(0, 3).map((e) => (
                         <span key={e.id} className="cal-dot" />
                       ))}
@@ -788,7 +799,7 @@ export function Calendar() {
               key={day}
               day={day}
               sessions={daySessions(day).filter((s) => !CLOSED_STATES.includes(s.state))}
-              habitRows={habitsDueOn(habits, day).map((h) => ({
+              habitRows={habitsDueOn(habits, day, habitSkipSet).map((h) => ({
                 habit: h,
                 effective: habitWithDayTimes(h, overrideFor(h.id, day)),
                 hasOverride: overrideFor(h.id, day) !== null,

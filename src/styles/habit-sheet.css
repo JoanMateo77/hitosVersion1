@@ -1,0 +1,728 @@
+/* ==== Hoja "Nuevo hábito" (3 pasos) =======================================
+   Calca docs/diseno/2026-09-22-habitos (02/03/04): panel casi a pantalla
+   completa sobre --surface, cabecera de tres columnas, barra de progreso de
+   tres tramos, contenido con scroll propio y un CTA anclado abajo.
+   El tema oscuro sale del mockup; el claro, de los mismos tokens.
+   Prefijo `hsheet-`. Los primitivos .hab-icon / .hab-kicker son de habits.css. */
+
+/* ---- Panel --------------------------------------------------------------
+   Pisa al .sheet__panel genérico: aquí el scroll es del cuerpo, no del panel,
+   para que cabecera y CTA queden fijos. */
+.sheet__panel.hsheet-panel {
+  display: flex;
+  flex-direction: column;
+  height: 92dvh;
+  max-height: 92dvh;
+  padding: 0;
+  overflow: hidden;
+  background: var(--surface);
+  border: 0;
+  border-radius: 28px 28px 0 0;
+}
+
+/* ---- Cabecera: Cancelar/Atrás · título · "1 de 3" ------------------------
+   Va por encima del grabber (que es una banda absoluta de 40px) para que sus
+   botones reciban el toque; el resto de la cabecera deja pasar el puntero, así
+   la hoja se sigue arrastrando desde el título. */
+.hsheet-head {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 16px 0;
+  pointer-events: none;
+}
+.hsheet-lead {
+  justify-self: start;
+  pointer-events: auto;
+  padding: 2px 4px;
+  margin-left: -4px;
+  background: none;
+  border: 0;
+  font-size: 17px;
+  color: var(--primary);
+}
+.hsheet-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  text-align: center;
+}
+.hsheet-count {
+  justify-self: end;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ---- Progreso: tres tramos ---------------------------------------------- */
+.hsheet-bars {
+  display: flex;
+  gap: 4px;
+  padding: 10px 16px 0;
+}
+.hsheet-bar {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--surface-2);
+  transition: background var(--dur-state) var(--ease-out);
+}
+.hsheet-bar[data-on='true'] {
+  background: var(--primary);
+}
+
+/* ---- Cuerpo y pie -------------------------------------------------------- */
+.hsheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px 16px;
+}
+.hsheet-foot {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px calc(12px + var(--safe-bottom));
+}
+.hsheet-cta {
+  width: 100%;
+  height: 52px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 17px;
+  font-weight: 700;
+  transition: transform var(--dur-tap) var(--ease-out), opacity var(--dur-tap) var(--ease-out);
+}
+.hsheet-cta:active {
+  transform: scale(0.99);
+}
+.hsheet-cta:disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+.hsheet-error {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+/* ---- Bloque de sección (kicker + control) -------------------------------- */
+.hsheet-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* El segundo kicker de un mismo bloque ("Color") respira un poco más. */
+.hsheet-kicker--gap {
+  padding-top: 8px;
+}
+.hsheet-note {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+/* ==== Paso 1 · Nombre e identidad ========================================= */
+.hsheet-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.hsheet-name {
+  width: 100%;
+  padding: 13px 16px;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  border-radius: 14px;
+  color: var(--text);
+  font-size: 17px;
+  transition: border-color var(--dur-tap) var(--ease-out);
+}
+.hsheet-name::placeholder {
+  color: var(--text-faint);
+}
+.hsheet-name:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.hsheet-name[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+/* El aviso de nombre vacío se alinea con el campo, no con el azulejo. */
+.hsheet-identity .hsheet-error {
+  align-self: flex-start;
+  margin-top: -6px;
+}
+
+/* Parrilla de 8 columnas: iconos y colores comparten rejilla. */
+.hsheet-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 8px;
+}
+.hsheet-tile {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: var(--surface-2);
+  border: 0;
+  border-radius: 12px;
+  font-size: 20px;
+  line-height: 1;
+  transition: box-shadow var(--dur-tap) var(--ease-out), transform var(--dur-tap) var(--ease-out);
+}
+.hsheet-tile:active {
+  transform: scale(0.94);
+}
+.hsheet-tile[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary);
+}
+.hsheet-tile--more {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.hsheet-dot {
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--hab-a, var(--habit-gray));
+  transition: box-shadow var(--dur-tap) var(--ease-out), transform var(--dur-tap) var(--ease-out);
+}
+.hsheet-dot:active {
+  transform: scale(0.94);
+}
+.hsheet-dot[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text);
+}
+
+.hsheet-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.hsheet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: inherit;
+  font-size: 14px;
+  text-align: left;
+}
+.hsheet-chip:active {
+  background: var(--surface-3);
+}
+
+/* ==== Paso 2 · Frecuencia ================================================= */
+.hsheet-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border-radius: 16px;
+}
+.hsheet-summary__main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hsheet-summary__title {
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hsheet-summary__sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Segmentado propio: el .seg de components.css es píldora y más chico. */
+.hsheet-seg {
+  display: flex;
+  padding: 3px;
+  background: var(--surface-2);
+  border-radius: 12px;
+}
+.hsheet-seg__btn {
+  flex: 1;
+  padding: 9px 0;
+  background: none;
+  border: 0;
+  border-radius: 9px;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  transition: background var(--dur-tap) var(--ease-out), color var(--dur-tap) var(--ease-out);
+}
+.hsheet-seg__btn[aria-pressed='true'] {
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 600;
+}
+
+.hsheet-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 60px;
+  padding: 0 16px;
+  background: var(--surface-2);
+  border-radius: 16px;
+}
+.hsheet-stepper__label {
+  font-size: 16px;
+}
+.hsheet-stepper__controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.hsheet-stepper__value {
+  min-width: 60px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+}
+.hsheet-stepper__unit {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.hsheet-step-btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  background: var(--surface-3);
+  border: 0;
+  border-radius: 50%;
+  color: var(--text);
+  transition: transform var(--dur-tap) var(--ease-out);
+}
+.hsheet-step-btn:active {
+  transform: scale(0.92);
+}
+.hsheet-step-btn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* Campo compacto de unidad: misma caja que las filas, valor a la derecha. */
+.hsheet-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 16px;
+  background: var(--surface-2);
+  border-radius: 16px;
+}
+.hsheet-field__label {
+  flex: none;
+  font-size: 16px;
+}
+.hsheet-field__input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font-size: 16px;
+  text-align: right;
+}
+.hsheet-field__input::placeholder {
+  color: var(--text-faint);
+}
+.hsheet-field__input:focus {
+  outline: none;
+}
+
+.hsheet-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.hsheet-day {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: var(--surface-2);
+  border: 0;
+  border-radius: 50%;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  transition: background var(--dur-tap) var(--ease-out), color var(--dur-tap) var(--ease-out);
+}
+.hsheet-day[aria-pressed='true'] {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.hsheet-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 2px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.hsheet-link {
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.hsheet-link--block {
+  align-self: flex-start;
+  padding: 6px 0;
+}
+
+/* ---- Tarjeta de filas (recordatorios, área, meta) ------------------------ */
+.hsheet-card {
+  background: var(--surface-2);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.hsheet-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font-size: 16px;
+  text-align: left;
+}
+/* Separador con sangría: --border (y no --border-soft) porque sobre
+   --surface-2 el suave es del mismo color y no se vería. */
+.hsheet-row + .hsheet-row::before,
+.hsheet-row + .hsheet-options::before,
+.hsheet-options + .hsheet-row::before,
+.hsheet-row + .hsheet-hours::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  height: 1px;
+  background: var(--border);
+}
+.hsheet-options,
+.hsheet-hours {
+  position: relative;
+}
+.hsheet-row__label {
+  font-size: 16px;
+}
+.hsheet-row__value {
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 16px;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hsheet-row__chevron {
+  flex: none;
+  display: inline-flex;
+  color: var(--text-faint);
+}
+.hsheet-row--tap:active {
+  background: var(--surface-3);
+}
+
+/* Interruptor iOS: 50 × 30 con disco de 26. */
+.hsheet-switch {
+  position: relative;
+  justify-self: end;
+  width: 50px;
+  height: 30px;
+  padding: 0;
+  background: var(--surface-3);
+  border: 0;
+  border-radius: 15px;
+  transition: background var(--dur-state) var(--ease-out);
+}
+.hsheet-switch[aria-checked='true'] {
+  background: var(--success-fill);
+}
+.hsheet-switch__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--on-primary);
+  transition: transform var(--dur-state) var(--ease-ios);
+}
+.hsheet-switch[aria-checked='true'] .hsheet-switch__knob {
+  transform: translateX(20px);
+}
+
+/* ---- Editor de horas ----------------------------------------------------- */
+.hsheet-hours {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 16px 12px;
+}
+.hsheet-hour {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hsheet-hour__input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 16px;
+}
+.hsheet-hour__input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.hsheet-hour__remove {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  background: var(--surface-3);
+  border: 0;
+  border-radius: 50%;
+  color: var(--text-muted);
+}
+
+/* ==== Paso 3 · Confirmar ================================================== */
+/* Vista previa: la fila de Hoy sobre el fondo de la app, no sobre la hoja. */
+.hsheet-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 14px;
+  background: var(--bg);
+  border-radius: 20px;
+}
+.hsheet-preview__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.hsheet-preview__title {
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hsheet-preview__meter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hsheet-slots {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 3px;
+}
+.hsheet-slot {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-2);
+}
+.hsheet-preview__sub {
+  flex: none;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.hsheet-preview__add {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--hab-a, var(--habit-gray)) 18%, transparent);
+  color: var(--hab-a, var(--habit-gray));
+}
+.hsheet-preview__ring {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--hab-a, var(--habit-gray));
+  border-radius: 50%;
+  opacity: 0.7;
+}
+
+/* Opciones de área desplegadas dentro de la tarjeta. */
+.hsheet-options {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 4px;
+}
+.hsheet-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font-size: 16px;
+  text-align: left;
+}
+.hsheet-option__label {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-muted);
+}
+.hsheet-option[aria-pressed='true'] .hsheet-option__label {
+  color: var(--text);
+}
+
+/* Radio de 24px: aro apagado, aro + punto cuando está elegido. */
+.hsheet-radio {
+  position: relative;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--text-faint);
+  border-radius: 50%;
+  transition: border-color var(--dur-tap) var(--ease-out);
+}
+.hsheet-option[aria-pressed='true'] .hsheet-radio,
+.hsheet-goal[aria-pressed='true'] .hsheet-radio {
+  border-color: var(--primary);
+}
+.hsheet-option[aria-pressed='true'] .hsheet-radio::after,
+.hsheet-goal[aria-pressed='true'] .hsheet-radio::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.hsheet-goals {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hsheet-goal {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 0;
+  border-radius: 16px;
+  color: inherit;
+  text-align: left;
+}
+.hsheet-goal__glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.hsheet-goal__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hsheet-goal__title {
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hsheet-goal__sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- Escritorio: la hoja deja de ser "pantalla completa" ------------------ */
+@media (min-width: 1024px) {
+  .sheet__panel.hsheet-panel {
+    height: min(760px, 86dvh);
+    margin-bottom: 40px;
+    border-radius: 28px;
+  }
+}
+
+/* Quien pidió menos movimiento no ve transiciones en la hoja. */
+@media (prefers-reduced-motion: reduce) {
+  .hsheet-bar,
+  .hsheet-cta,
+  .hsheet-tile,
+  .hsheet-dot,
+  .hsheet-day,
+  .hsheet-seg__btn,
+  .hsheet-step-btn,
+  .hsheet-switch,
+  .hsheet-switch__knob,
+  .hsheet-radio {
+    transition: none;
+  }
+}

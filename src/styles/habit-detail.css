@@ -1,0 +1,320 @@
+/* ==== Hábito · Detalle (rediseño 2026-09-22) ==============================
+   Calco del mockup `docs/diseno/2026-09-22-habitos/08-detalle.png`: cabecera
+   propia, héroe con el azulejo grande, tres tarjetas de estadística, el mes en
+   cuadrícula y dos tarjetas de filas (ajustes y acciones).
+
+   El acento de la pantalla es el color de identidad del hábito: el contenedor
+   `.hdet` lleva `data-color`, así que `--hab-a` (habits.css) está disponible
+   para la racha y las celdas del mes. Todo lo demás sale de tokens. */
+
+.screen.hdet {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+/* El detalle trae su propia cabecera: sin TopBar, el área segura la paga la
+   pantalla (misma convención que Hoy y Hábitos). */
+.shell .screen.hdet {
+  padding-top: calc(var(--safe-top) + 14px);
+}
+
+/* ---- Cabecera "‹ Hábitos / Editar" -------------------------------------- */
+.hdet-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+}
+.hdet-nav__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  /* El chevron pega al borde del texto: el tirón óptico lo compensa el gap. */
+  margin-left: -2px;
+  font-size: 17px;
+  color: var(--primary);
+  text-decoration: none;
+}
+.hdet-nav__edit {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: 17px;
+  color: var(--primary);
+  cursor: pointer;
+}
+
+/* ---- Héroe: azulejo 64 + nombre + subtítulo ------------------------------ */
+.hdet-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 2px 0 2px;
+}
+.hdet-hero__text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.hdet-hero__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.hdet-hero__sub {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* Chips de estado ("Pausado hasta 30 sept", "Archivado"). */
+.hdet-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 3px 0 0;
+}
+.hdet-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* ---- Tres tarjetas de estadística --------------------------------------- */
+.hdet-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.hdet-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.hdet-stat__label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.hdet-stat__value {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+/* La racha se tiñe del color del hábito (llama incluida: hereda currentColor). */
+.hdet-stat__value--accent {
+  color: var(--hab-a, var(--primary));
+}
+.hdet-stat__unit {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* ---- Tarjeta del mes ----------------------------------------------------- */
+.hdet-month {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 20px;
+  background: var(--surface);
+}
+.hdet-month__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.hdet-month__title {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.hdet-month__name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Flechas ‹ ›: área táctil de 28px sin engordar la fila. */
+.hdet-month__arrow {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: -6px 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.hdet-month__arrow:disabled {
+  color: var(--text-faint);
+  opacity: 0.4;
+  cursor: default;
+}
+.hdet-month__count {
+  flex: none;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.hdet-month__dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+  text-align: center;
+}
+.hdet-month__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+}
+
+/* Celda de un día. El estado lo pinta data-state; el hueco previo al día 1 se
+   queda vacío (ocupa sitio para que la semana empiece en lunes). */
+.hdet-cell {
+  height: 26px;
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+.hdet-cell[data-state='done'] {
+  background: var(--hab-a, var(--primary));
+}
+.hdet-cell[data-state='partial'] {
+  background: color-mix(in srgb, var(--hab-a, var(--primary)) 40%, transparent);
+}
+.hdet-cell[data-state='skipped'] {
+  background: none;
+  border: 1.5px dashed var(--surface-3);
+}
+.hdet-cell[data-state='future'] {
+  background: none;
+  border: 1.5px solid var(--surface-2);
+}
+.hdet-cell[data-state='blank'] {
+  background: none;
+}
+
+/* ---- Tarjeta de acciones ------------------------------------------------- */
+.hdet-actions {
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+/* El separador va en un pseudo-elemento (con sangría de 16px) para no sumar
+   alto a la fila, igual que en .hab-settings. */
+.hdet-actions > * {
+  position: relative;
+}
+.hdet-actions > * + *::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  height: 1px;
+  background: var(--border-soft);
+}
+.hdet-action {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: 16px;
+  color: var(--primary);
+  text-align: left;
+  cursor: pointer;
+}
+.hdet-action--danger {
+  color: var(--danger);
+}
+
+/* Opciones de "Pausar hasta…": se despliegan dentro de la misma tarjeta. */
+.hdet-pause {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+}
+.hdet-pause__opt {
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border: 0;
+  border-radius: var(--radius-pill);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+.hdet-pause__pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+.hdet-pause__pick input {
+  min-width: 0;
+  padding: 7px 10px;
+  background: var(--surface-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text);
+}
+
+/* ---- Hábito inexistente -------------------------------------------------- */
+.screen.hdet--empty {
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
+.hdet-missing__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+}
+.hdet-missing__text {
+  margin: 0 0 8px;
+  font-size: 15px;
+  color: var(--text-muted);
+}

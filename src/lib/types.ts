@@ -194,6 +194,17 @@ export interface Session {
 /* ===== Hábitos diarios (zona nueva 2026-06) ================================ */
 
 /** Rutina de un toque: sin etapas ni cronómetro. Marcar = cumplido hoy. */
+/** Claves de la paleta de identidad de un hábito (tokens --habit-<clave>). */
+export type HabitColor =
+  | 'cyan'
+  | 'green'
+  | 'blue'
+  | 'purple'
+  | 'orange'
+  | 'yellow'
+  | 'pink'
+  | 'gray'
+
 export interface Habit {
   id: string
   userId: string
@@ -201,9 +212,19 @@ export interface Habit {
   area: NicheId
   /** Días en que aplica (lunes=0 … domingo=6). Vacío = todos los días. */
   weekdays: number[]
-  /** Horas del día en que se repite ("HH:MM" ordenadas; cada hora es una
-   *  repetición). null o vacío = una vez al día, sin hora fija. */
+  /** Horas de recordatorio ("HH:MM" ordenadas). La repetición i tiene hora
+   *  solo si existe times[i]; null o vacío = sin hora fija. */
   times: string[] | null
+  /** Emoji del azulejo. null = usa el icono de su área. */
+  icon: string | null
+  /** Color del azulejo. null = usa el color de su área. */
+  color: HabitColor | null
+  /** Unidad de la repetición ("vasos", "páginas"). null = sin unidad. */
+  unit: string | null
+  /** Repeticiones del día (el objetivo). Siempre >= 1. */
+  timesPerDay: number
+  /** Pausado hasta esa fecha inclusive (ISO yyyy-mm-dd); null = activo. */
+  pausedUntil: string | null
   /** Meta a la que suma este hábito (opcional). */
   goalId: string | null
   createdAt: string
@@ -216,6 +237,14 @@ export interface HabitCheck {
   date: string
   /** Repetición marcada: el slot i corresponde a times[i]; sin times es 0. */
   slot: number
+  /** Momento exacto de la marca (ISO completo), si la fila lo trae. */
+  at?: string
+}
+
+/** Día que el usuario decidió saltar para un hábito: ese día no aplica. */
+export interface HabitSkip {
+  habitId: string
+  date: string
 }
 
 /* ===== Aprender (micro-lecciones de crecimiento) =========================== */
