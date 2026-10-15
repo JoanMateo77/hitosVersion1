@@ -148,9 +148,15 @@ export function formatTime12(hhmm: string): string {
 }
 
 /**
- * "20:30" → "8:30": la hora en 12 h SIN sufijo, para columnas donde la
- * franja (Mañana/Tarde/Noche) ya deja claro el am/pm.
+ * "20:30" → "8:30": la hora en 12 h SIN sufijo. Si va en una columna, el
+ * sufijo se pinta aparte con `meridiem` (la franja no basta: el fin de un
+ * ítem puede caer en otra).
  */
 export function formatTimeShort(hhmm: string): string {
   return formatTime12(hhmm).replace(/ [ap]m$/, '')
+}
+
+/** "09:00" → "am", "12:00" → "pm", "20:30" → "pm". */
+export function meridiem(hhmm: string): 'am' | 'pm' {
+  return Number(hhmm.split(':')[0]) >= 12 ? 'pm' : 'am'
 }

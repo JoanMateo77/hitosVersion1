@@ -6,6 +6,7 @@ import {
   daysUntil,
   formatDuration,
   formatTimeShort,
+  meridiem,
   isToday,
   startOfMonth,
   startOfWeek,
@@ -57,5 +58,14 @@ describe('formatTimeShort', () => {
     expect(formatTimeShort('12:05')).toBe('12:05')
     expect(formatTimeShort('20:30')).toBe('8:30')
     expect(formatTimeShort('00:15')).toBe('12:15')
+  })
+})
+
+describe('meridiem', () => {
+  it('am antes del mediodía, pm desde las 12:00', () => {
+    expect(meridiem('00:15')).toBe('am')
+    expect(meridiem('11:59')).toBe('am')
+    expect(meridiem('12:00')).toBe('pm')
+    expect(meridiem('22:30')).toBe('pm')
   })
 })

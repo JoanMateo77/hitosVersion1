@@ -1,5 +1,5 @@
 import type { CalendarEvent } from '@/lib/types'
-import { formatTime12, formatTimeShort } from '@/lib/date'
+import { formatTime12, formatTimeShort, meridiem } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { tapHaptic } from '@/lib/haptics'
 import { IconArrowReturn, IconCheck, IconChevronRight, IconPlay } from '@/components/icons'
@@ -22,12 +22,26 @@ export interface AgendaRowHandlers {
   onToggleEvent: (e: CalendarEvent) => void
 }
 
+/** "8:30" + sufijo "pm" en pequeño: la hora manda, el am/pm desambigua. */
+function ClockTime({ hhmm }: { hhmm: string }) {
+  return (
+    <>
+      {formatTimeShort(hhmm)}
+      <span className="ag-row__ampm">{meridiem(hhmm)}</span>
+    </>
+  )
+}
+
 /** Columna de hora: inicio en negrita y, si hay, fin tenue debajo. "—" sin hora. */
 export function TimeColumn({ start, end }: { start: string | null; end: string | null }) {
   return (
     <span className="ag-row__time">
-      <span className={`ag-row__start${start ? '' : ' faint'}`}>{start ? formatTimeShort(start) : '—'}</span>
-      {start && end && <span className="ag-row__end">{formatTimeShort(end)}</span>}
+      <span className={`ag-row__start${start ? '' : ' faint'}`}>{start ? <ClockTime hhmm={start} /> : '—'}</span>
+      {start && end && (
+        <span className="ag-row__end">
+          <ClockTime hhmm={end} />
+        </span>
+      )}
     </span>
   )
 }
