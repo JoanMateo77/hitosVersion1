@@ -1,0 +1,22 @@
+# Hooks de git (se instalan solos con `npm install`).
+pre-commit:
+  parallel: true
+  jobs:
+    - name: lint
+      run: npx eslint {staged_files}
+      glob: "*.{ts,tsx,js,mjs}"
+    - name: rls
+      run: node scripts/check-rls.mjs
+      glob: "supabase/**/*.sql"
+
+pre-push:
+  jobs:
+    - name: typecheck
+      run: npm run typecheck
+    - name: test
+      run: npm test
+
+commit-msg:
+  jobs:
+    - name: conventional-commits
+      run: npx commitlint --edit {1}
