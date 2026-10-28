@@ -126,6 +126,17 @@ npm run dev   # también sirve en la LAN: http://192.168.x.x:5173
 | `npm run build`     | Typecheck estricto + build de producción |
 | `npm run preview`   | Sirve el build de producción             |
 | `npm run typecheck` | Solo chequeo de tipos                    |
+| `npm run lint`      | ESLint, con reglas de arquitectura (`domain/` puro) y de secretos en el cliente |
+| `npm test`          | Tests (Vitest)                           |
+| `npm run check:rls` | Falla si una tabla de `supabase/` no activa RLS en su mismo archivo |
+
+### Validaciones automáticas
+
+- **Hooks de git** (`lefthook.yml`, se instalan con `npm install`): lint de lo que entra al commit y RLS si cambia
+  SQL (pre-commit), Conventional Commits (`commitlint.config.js`), tipos y tests antes de cada push.
+- **CI** (`.github/workflows/ci.yml`): tipos, lint, RLS, tests y build en cada PR y en `master`.
+- **Claude Code** (`.claude/settings.json`): tras cada edición en `src/` corre `eslint --fix` y le devuelve los
+  errores que queden.
 
 ## Roadmap (fuera de alcance por ahora)
 
