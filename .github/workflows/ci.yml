@@ -19,9 +19,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-        env:
-          LEFTHOOK: 0
+      # Sin scripts de instalación: ninguna dependencia ejecuta código al instalarse.
+      - run: npm ci --ignore-scripts
       - name: Tipos
         run: npm run typecheck
       - name: Lint (incluye reglas de arquitectura y secretos)

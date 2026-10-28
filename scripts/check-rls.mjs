@@ -10,16 +10,19 @@ const files = [
     .map((f) => join('supabase/migrations', f)),
 ]
 
+// El SQL se normaliza a espacios simples, así los patrones no necesitan \s+.
 const name = String.raw`(?:public\.)?"?(\w+)"?`
-const createRe = new RegExp(String.raw`create\s+table\s+(?:if\s+not\s+exists\s+)?${name}`, 'gi')
+const createRe = new RegExp(String.raw`create table (?:if not exists )?${name}`, 'gi')
 const rlsRe = new RegExp(
-  String.raw`alter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?${name}\s+enable\s+row\s+level\s+security`,
+  String.raw`alter table (?:if exists )?(?:only )?${name} enable row level security`,
   'gi',
 )
 
 const missing = []
 for (const file of files) {
-  const sql = readFileSync(file, 'utf8').replace(/--.*$/gm, '')
+  const sql = readFileSync(file, 'utf8')
+    .replace(/--.*$/gm, '')
+    .replace(/\s+/g, ' ')
   const withRls = new Set([...sql.matchAll(rlsRe)].map((m) => m[1].toLowerCase()))
   for (const m of sql.matchAll(createRe)) {
     if (!withRls.has(m[1].toLowerCase())) missing.push(`${file}: ${m[1]}`)
