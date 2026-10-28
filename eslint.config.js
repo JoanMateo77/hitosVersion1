@@ -38,7 +38,60 @@ export default tseslint.config(
     rules: { 'react-refresh/only-export-components': 'off' },
   },
   {
+    // Nada secreto en el cliente: las claves de servicio, IA o pagos van en
+    // una edge function. Lo que lleve VITE_ termina publicado en el bundle.
+    files: ['src/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "MemberExpression[object.property.name='env'][property.name=/SECRET|SERVICE_ROLE|PRIVATE|OPENAI|ANTHROPIC|STRIPE|WOMPI/]",
+          message: 'Variable secreta en el cliente: muévela a una edge function.',
+        },
+        {
+          selector: 'Literal[value=/service_role/i]',
+          message: 'La service_role key nunca va en el cliente.',
+        },
+      ],
+    },
+  },
+  {
+    // Arquitectura limpia: domain/ es lógica pura, sin UI, React ni base de datos.
+    files: ['src/domain/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['react', 'react-dom', 'react/*', '@supabase/*'],
+              message: 'domain/ no depende de React ni de Supabase.',
+            },
+            {
+              group: [
+                '@/app/*',
+                '@/components/*',
+                '@/hooks/*',
+                '@/screens/*',
+                '@/services/*',
+                '@/lib/supabase',
+                '@/lib/storage',
+                '@/lib/push',
+              ],
+              message: 'domain/ no importa capas externas: recibe los datos por parámetro.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['**/*.test.{ts,tsx}'],
+    languageOptions: { globals: { ...globals.node } },
+  },
+  {
+    files: ['scripts/**/*.mjs', 'commitlint.config.js'],
     languageOptions: { globals: { ...globals.node } },
   },
   {
