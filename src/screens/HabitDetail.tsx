@@ -201,7 +201,7 @@ function useHabitDetailData(habitId: string | undefined, userId: string, today: 
 }
 
 /** Acciones del detalle (saltar hoy, pausar, archivar), optimistas con revert. */
-function useHabitActions(
+function habitActions(
   habit: Habit,
   data: Pick<DetailData, 'skips' | 'setSkips' | 'setHabit'>,
   userId: string,
@@ -398,7 +398,7 @@ export function HabitDetail() {
   const frequency = frequencyWithUnit(habit)
   const subtitle = [frequency, days, getNiche(habit.area).label].filter(Boolean).join(' · ')
 
-  const { toggleSkipToday, pauseUntil, toggleArchive } = useHabitActions(
+  const { toggleSkipToday, pauseUntil, toggleArchive } = habitActions(
     habit,
     { skips, setSkips, setHabit },
     userId,
