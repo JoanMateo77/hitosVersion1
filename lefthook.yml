@@ -3,7 +3,7 @@ pre-commit:
   parallel: true
   jobs:
     - name: lint
-      run: npx eslint {staged_files}
+      run: npx eslint --no-warn-ignored {staged_files}
       glob: "*.{ts,tsx,js,mjs}"
     - name: rls
       run: node scripts/check-rls.mjs
