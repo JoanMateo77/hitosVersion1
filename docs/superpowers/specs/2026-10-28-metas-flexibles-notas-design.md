@@ -1,16 +1,16 @@
 # Metas flexibles, agenda editable y Notas · Diseño
 
 **Fecha:** 2026-10-28
-**Estado:** borrador para aprobación del usuario
+**Estado:** aprobado e implementado
 **Fase:** funcionalidad. El pulido visual llega en una fase posterior: aquí se usan los
 componentes y tokens existentes (Sheet, card, btn, OptionRow…) sin diseño nuevo.
 
 ## 1. Intención (el porqué)
 
-El usuario siente la app **muy agresiva**: toda meta *debe* tener días, duración y hora en la
-agenda. A veces solo quiere **tener la meta presente y recordarla**, sin estipular tiempo. Además
-hoy no puede borrar de verdad una meta que no usa, en la Agenda solo puede cambiar la hora de un
-bloque, y no tiene dónde guardar notas.
+El modelo actual es demasiado rígido: toda meta *debe* tener días, duración y hora en la
+agenda. Muchas metas solo necesitan **estar presentes y recordarse** a diario, sin un tiempo
+estipulado. Además no existe forma de eliminar de verdad una meta que no se usa, en la Agenda solo
+se puede cambiar la hora de un bloque y la app no tiene dónde guardar notas.
 
 Éxito = el usuario puede crear una meta sin agenda y verla cada día; ve todas sus metas activas
 al abrir Hoy y le llega un recordatorio diario; borra lo que no usa; edita la agenda desde la
@@ -37,7 +37,7 @@ FKs a `goals`: `goal_schedule`, `sessions`, `milestones`, `tasks` → `on delete
 
 ## 3. Alcance
 
-### 3.1 Metas sin agenda (decidido por el usuario)
+### 3.1 Metas sin agenda
 
 - El paso de compromiso del wizard pasa a ser **opcional**. Opción clara "Sin horario por ahora —
   solo quiero tenerla presente" que deja `blocks = []` y deja avanzar.
@@ -55,7 +55,7 @@ FKs a `goals`: `goal_schedule`, `sessions`, `milestones`, `tasks` → `on delete
 - Arriba de Hoy, antes de la agenda del día, una franja **"Tus metas"** con **todas las metas
   activas** (con y sin agenda): título y, si existe, el porqué (`why`) en una línea.
 - Tocar una meta abre su detalle.
-- Mi decisión: si hay muchas, se muestran en una fila con scroll horizontal (o colapsable tras
+- Si hay muchas, se muestran en una fila con scroll horizontal (o colapsable tras
   3); la forma exacta queda para la fase de pulido.
 - Las metas pausadas, logradas o archivadas no aparecen.
 
@@ -84,11 +84,11 @@ además de la hora:
 4. **Sacar la meta de la agenda** — borra todos sus bloques; la meta queda sin horario (sigue
    fijada en Hoy). Con confirmación.
 
-**Alcance de un cambio (decidido por el usuario):** al guardar duración/cantidad u hora desde un
+**Alcance de un cambio:** al guardar duración/cantidad u hora desde un
 bloque, se pregunta **"¿Solo los <día> o todos los días de esta meta?"**. Al agregar un día nuevo,
 hereda la hora y el valor del bloque que se tocó.
 
-**Edición por diferencias, no reemplazo (mi decisión, tras verificarlo en el código):** hoy
+**Edición por diferencias, no reemplazo:** hoy
 `replaceSchedule` borra y recrea los bloques. Eso deja las sesiones con `schedule_id = null`, y
 entonces (a) `Progress.tsx:125` deja de contarlas en "últimas 8 semanas" y (b) las sesiones
 pendientes de hoy/futuras siguen visibles en la Agenda (`Calendar.tsx:262-288`) junto a los
@@ -107,7 +107,7 @@ running, done, partial, missed, unconfirmed) en la migración. La sesión ya exi
 upsert idempotente) o se crea al saltar si el día aún no se generó. Saltar = cambiar su estado;
 borrarla no sirve porque el upsert la recrearía. Se puede deshacer (vuelve a `pending`).
 
-**Racha (decidido por el usuario): un día saltado es neutro.** No suma ni rompe, igual que
+**Racha: un día saltado es neutro.** No suma ni rompe, igual que
 "Saltar hoy" en Hábitos. Si en un día comprometido todas las sesiones de la meta quedaron
 saltadas, ese día se trata como no comprometido en `currentStreakCommitted`, en la mejor racha y
 en `dayState` (devuelve `'free'` o un estado neutro equivalente) en `src/domain/sessions.ts`. Las
@@ -125,13 +125,12 @@ lugares que hagan cosas distintas.
   agenda, sesiones y tareas. Los eventos, hábitos y notas vinculados **no se borran**: quedan
   desvinculados (ya es así para eventos y hábitos por `set null`; igual para notas, §3.6).
 - Usa `deleteGoal(userId, goalId)` existente; tras borrar, vuelve a la lista de Metas con toast.
-- Mi decisión: sin "deshacer" (sería restaurar en cascada); la confirmación es la protección.
+- Sin "deshacer" (sería restaurar en cascada); la confirmación es la protección.
 
-### 3.6 Notas (decidido; inspirado en Keep + método PARA)
+### 3.6 Notas (inspirado en Google Keep y el método PARA)
 
-Pestaña propia **Notas** en la barra inferior, **en el lugar de Crecer** (decidido por el
-usuario): la barra queda Hoy · Hábitos · Metas · Agenda · Notas. Crecer (`/progreso`,
-`/aprender`) sigue existiendo y se abre desde el avatar de Hoy / Perfil. Mi decisión: en la
+Pestaña propia **Notas** en la barra inferior, **en el lugar de Crecer**: la barra queda Hoy · Hábitos · Metas · Agenda · Notas. Crecer (`/progreso`,
+`/aprender`) sigue existiendo y se abre desde el avatar de Hoy / Perfil. En la
 navegación lateral de escritorio (`SideNav.tsx`) caben las seis, así que Crecer se mantiene ahí.
 
 Piezas:
@@ -142,13 +141,13 @@ Piezas:
 3. **Fijar:** las fijadas salen arriba de la pestaña.
 4. **Convertir en acción:** desde una nota → **nueva meta** (abre el wizard con el título
    prellenado y el cuerpo como `why`), **nueva etapa** de una meta elegida, o **tarea de hoy**.
-   Mi decisión: tras convertir, la nota se archiva sola (toast con "Deshacer").
+   Tras convertir, la nota se archiva sola (toast con "Deshacer").
 5. **En el detalle de cada meta** se listan sus notas, con "+ Nota" ya vinculada.
 - Sin recordatorios en notas, sin etiquetas libres, sin enlaces entre notas.
 - Archivar nota (sale de las vistas, filtro "Archivadas") y eliminar nota (con confirmación).
 
 Vista de la pestaña: fijadas arriba; luego filtro por **Bandeja · Metas · Áreas · Ideas ·
-Archivadas**; búsqueda por texto simple (cliente) — mi decisión, es barata y útil.
+Archivadas**; búsqueda por texto simple en el cliente.
 
 Datos (migración nueva, RLS en la misma migración):
 
@@ -170,30 +169,29 @@ create table public.notes (
 -- RLS: el dueño hace todo sobre sus filas (mismo patrón que push_subscriptions).
 ```
 
-Si una meta se borra, sus notas quedan con `goal_id = null`: el builder debe devolverlas a
-`place = 'inbox'` (trigger o lógica de lectura que trate `place='goal' and goal_id is null` como
-bandeja). Mi decisión: lógica de lectura, sin trigger.
+Si una meta se borra, sus notas quedan con `goal_id = null` y deben volver a la bandeja. Se
+resuelve en la lógica de lectura (`place = 'goal'` con `goal_id` nulo se trata como bandeja), sin
+trigger.
 
 ## 4. Restricciones
 
 - Reglas del repo: español neutro con tuteo; TypeScript estricto; estilos solo con tokens; sin
   `eslint-disable`; dominio en funciones puras con tests (Vitest); sin dependencias nuevas.
-- Migraciones: el usuario las corre por su cuenta. Los servicios toleran que aún no estén
+- Migraciones: se aplican manualmente desde el SQL Editor. Los servicios toleran que aún no estén
   aplicadas (mismo patrón que la migración 0016: códigos `42703`, `PGRST204`, `42P01`,
   `PGRST205` → reintentar sin las columnas nuevas o devolver vacío).
-- La Edge Function la despliega el usuario; documentar en `docs/notificaciones.md`.
-- Sin atribución a IA en commits/PR. Planes en `docs/superpowers/plans/` quedan sin commitear.
+- La Edge Function se despliega por separado; documentar en `docs/notificaciones.md`.
 
-## 5. Lo que queda a criterio del builder
+## 5. Abierto a la implementación
 
 - Orden de las fases de implementación (sugerencia: 3.1 → 3.5 → 3.2 → 3.4 → 3.6 → 3.3, de menor
   a mayor riesgo, cada una entregable sola).
 - Textos exactos de la UI y de las confirmaciones (dentro del tono de la app).
 - Estructura de componentes y nombres de archivos.
 
-## 6. Decisiones tomadas por Claude (revisar)
+## 6. Decisiones de diseño
 
-Marcadas como "mi decisión" en el texto: franja de metas con scroll horizontal; sin deshacer al
-borrar una meta; nota archivada tras convertirla; búsqueda simple de notas; notas huérfanas
-vuelven a la bandeja por lógica de lectura; edición de agenda por diferencias con ids estables;
-resumen diario calculado desde bloques; Crecer se mantiene en la navegación lateral de escritorio.
+Franja de metas con scroll horizontal; sin deshacer al borrar una meta (la confirmación es la
+protección); nota archivada tras convertirla; búsqueda simple de notas; notas huérfanas vuelven a
+la bandeja por lógica de lectura; edición de agenda por diferencias con ids estables; resumen
+diario calculado desde bloques; Crecer se mantiene en la navegación lateral de escritorio.
