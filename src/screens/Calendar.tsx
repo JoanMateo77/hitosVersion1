@@ -103,6 +103,21 @@ type CalSnapshot = {
   habitSkips: HabitSkip[]
 }
 
+/** Mensaje al guardar la hora de una sesión (o de su bloque recurrente). */
+function timeSavedMessage(time: string | null, block: ScheduleBlock | null, allDays: boolean): string {
+  if (!time) return 'Hora quitada.'
+  if (!block) return `Hora fijada: ${formatTime12(time)}.`
+  if (allDays) return `Listo: ${formatTime12(time)} en todos los días de esta meta.`
+  return `Listo: todos los ${WEEKDAY_PLURALS[block.weekday]} a las ${formatTime12(time)}.`
+}
+
+/** Sin la migración 0017 o si la sesión cambió, el servicio avisa con un mensaje propio: se muestra tal cual. */
+function skipError(err: unknown, fallback: string): string {
+  return err instanceof Error && (err.message.includes('0017') || err.message === SESSION_CHANGED_MESSAGE)
+    ? err.message
+    : friendlyError(err, fallback)
+}
+
 /**
  * Agenda / calendario propio del usuario (Sección 4): vistas día / semana / mes,
  * eventos con horario opcional y vínculo opcional a una meta. La semana arranca
@@ -405,16 +420,7 @@ export function Calendar() {
         const updatedSession = await setSessionPlannedTime(ts.session.id, time)
         setSessions((prev) => prev.map((sx) => (sx.id === updatedSession.id ? updatedSession : sx)))
       }
-      toast(
-        !time
-          ? 'Hora quitada.'
-          : ts.block
-            ? multi && scope === 'all'
-              ? `Listo: ${formatTime12(time)} en todos los días de esta meta.`
-              : `Listo: todos los ${WEEKDAY_PLURALS[ts.block.weekday]} a las ${formatTime12(time)}.`
-            : `Hora fijada: ${formatTime12(time)}.`,
-        'success',
-      )
+      toast(timeSavedMessage(time, ts.block, multi && scope === 'all'), 'success')
     } catch {
       toast('No se pudo guardar la hora.')
     }
@@ -444,13 +450,6 @@ export function Calendar() {
     } catch {
       toast(isTime ? 'No se pudo guardar la duración.' : 'No se pudo guardar la cantidad.')
     }
-  }
-
-  /** Sin la migración 0017 o si la sesión cambió, el servicio avisa con un mensaje propio: se muestra tal cual. */
-  function skipError(err: unknown, fallback: string): string {
-    return err instanceof Error && (err.message.includes('0017') || err.message === SESSION_CHANGED_MESSAGE)
-      ? err.message
-      : friendlyError(err, fallback)
   }
 
   /** Si la sesión cambió en otro lado, relee las del rango para mostrar su estado real. */
