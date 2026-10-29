@@ -17,7 +17,7 @@ export interface DayAgendaSession {
   time: string | null
   /** Rango horario del bloque (fin derivado solo para compromisos de tiempo). */
   span: AgendaSpan
-  state: 'pending' | 'running' | 'done' | 'partial' | 'missed' | 'unconfirmed' | 'projected'
+  state: 'pending' | 'running' | 'done' | 'partial' | 'missed' | 'unconfirmed' | 'skipped' | 'projected'
   targetLabel: string
   session: Session | null
   block: ScheduleBlock | null
@@ -45,7 +45,7 @@ export type AgendaRowItem =
   | { kind: 'event'; key: string; start: string | null; end: string | null; event: CalendarEvent; goal: Goal | null }
 
 /** Estados que ya no admiten cronómetro (la sesión quedó cerrada). */
-export const CLOSED_STATES: readonly SessionState[] = ['done', 'partial', 'missed']
+export const CLOSED_STATES: readonly SessionState[] = ['done', 'partial', 'missed', 'skipped']
 /** Estados de una sesión real de HOY que llevan directo al cronómetro. */
 export const OPEN_STATUSES: readonly Session['status'][] = ['pending', 'running', 'unconfirmed']
 
@@ -67,6 +67,8 @@ export function sessionStateLabel(state: SessionState): string {
       return 'en curso'
     case 'unconfirmed':
       return 'sin confirmar'
+    case 'skipped':
+      return 'saltada'
     case 'projected':
       return 'comprometida'
     default:

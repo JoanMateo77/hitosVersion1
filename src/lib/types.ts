@@ -48,6 +48,8 @@ export interface Profile {
   priorityGoalId: string | null
   /** URL pública de la foto de perfil; null = sin foto (se muestra la inicial). */
   avatarUrl: string | null
+  /** Hora "HH:MM" del resumen diario por push; null = desactivado. */
+  dailyDigestTime: string | null
   createdAt: string
 }
 
@@ -164,7 +166,14 @@ export interface ScheduleBlock {
   createdAt: string
 }
 
-export type SessionStatus = 'pending' | 'running' | 'done' | 'partial' | 'missed' | 'unconfirmed'
+export type SessionStatus =
+  | 'pending'
+  | 'running'
+  | 'done'
+  | 'partial'
+  | 'missed'
+  | 'unconfirmed'
+  | 'skipped'
 
 /** Una sesión de trabajo real sobre una meta, generada desde el compromiso. */
 export interface Session {
@@ -271,4 +280,29 @@ export interface LearnCollection {
   blurb: string
   area: NicheId
   lessons: LearnLesson[]
+}
+
+/** Dónde vive una nota: bandeja (sin clasificar), una meta, un área o Ideas. */
+export type NotePlace = 'inbox' | 'goal' | 'area' | 'ideas'
+
+/** Un renglón de una nota tipo checklist. */
+export interface NoteItem {
+  text: string
+  done: boolean
+}
+
+export interface Note {
+  id: string
+  userId: string
+  title: string | null
+  body: string
+  /** Checklist; null = nota de texto. */
+  items: NoteItem[] | null
+  place: NotePlace
+  goalId: string | null
+  area: NicheId | null
+  pinned: boolean
+  archivedAt: string | null
+  createdAt: string
+  updatedAt: string
 }

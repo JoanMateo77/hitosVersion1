@@ -16,6 +16,8 @@ interface ProfileRow {
   priority_goal_id: string | null
   /** Opcional: si la migración 0012 no se aplicó aún, `select *` no la trae. */
   avatar_url?: string | null
+  /** Opcional: si la migración 0017 no se aplicó aún, `select *` no la trae. */
+  daily_digest_time?: string | null
   created_at: string
 }
 
@@ -29,6 +31,7 @@ function mapProfile(row: ProfileRow): Profile {
     defaultSessionMinutes: row.default_session_minutes ?? null,
     priorityGoalId: row.priority_goal_id ?? null,
     avatarUrl: row.avatar_url ?? null,
+    dailyDigestTime: row.daily_digest_time ? row.daily_digest_time.slice(0, 5) : null,
     createdAt: row.created_at,
   }
 }
