@@ -45,6 +45,8 @@ import {
   globalStreak,
   isTimeReached,
 } from '@/domain/sessions'
+import { PinnedGoals } from '@/screens/today/PinnedGoals'
+import { goalsInView } from '@/domain/goals'
 import { rangeLabel, sessionSpan } from '@/domain/agenda'
 import { frameForStreak } from '@/domain/frames'
 import {
@@ -292,6 +294,7 @@ export function Today() {
     const id = setInterval(() => setNowTick(new Date()), 1000)
     return () => clearInterval(id)
   }, [runningSession])
+  const pinnedGoals = useMemo(() => goalsInView(goals, profile.priorityGoalId), [goals, profile.priorityGoalId])
   const activeGoals = useMemo(() => goals.filter((g) => g.status === 'active'), [goals])
 
   // Sesiones de hoy de metas activas, con su meta resuelta.
@@ -865,6 +868,8 @@ export function Today() {
           <span className="today-stat__caption">{frameCaption(streak)}</span>
         </div>
       </div>
+
+      <PinnedGoals goals={pinnedGoals} onOpen={(id) => navigate(`/metas/${id}`)} />
 
       <div className="today-week today-enter" role="group" aria-label="Tu semana" style={enter(2)}>
         {Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(today), i)).map((d, i) => {
