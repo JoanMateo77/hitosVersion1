@@ -278,7 +278,8 @@ export function SessionRun() {
   // Cierre pendiente de confirmación: quedó sin confirmar, o corriendo de otro día.
   const needsResolution =
     session.status === 'unconfirmed' || (session.status === 'running' && session.date < today)
-  const closed = ['done', 'partial', 'missed'].includes(session.status)
+  // Saltada cuenta como cerrada: no se puede empezar (el salto se deshace desde la Agenda).
+  const closed = ['done', 'partial', 'missed', 'skipped'].includes(session.status)
 
   async function doStart() {
     setSaving(true)
@@ -664,7 +665,11 @@ export function SessionRun() {
         {/* --- Ya cerrada (llegó por URL) --- */}
         {closed && (
           <div className="stack stack--sm center" style={{ alignItems: 'center' }}>
-            <p className="muted">Esta sesión ya está cerrada.</p>
+            <p className="muted">
+              {session.status === 'skipped'
+                ? 'Saltaste esta sesión; tu racha no se rompe. Si quieres hacerla, deshaz el salto desde la Agenda.'
+                : 'Esta sesión ya está cerrada.'}
+            </p>
             <button className="btn btn--ghost btn--sm" onClick={() => navigate('/')}>
               Volver a tu día
             </button>

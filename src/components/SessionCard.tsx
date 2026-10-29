@@ -43,15 +43,23 @@ function sessionHint(s: Session): string {
 }
 
 export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onResume }: SessionCardProps) {
-  const closed = session.status === 'done' || session.status === 'partial' || session.status === 'missed'
+  const closed =
+    session.status === 'done' ||
+    session.status === 'partial' ||
+    session.status === 'missed' ||
+    session.status === 'skipped'
+  // Hecha o saltada: se deshace (vuelve a pendiente). Parcial o sin cumplir: se retoma.
+  const undoable = session.status === 'done' || session.status === 'skipped'
 
   if (closed) {
     const label =
       session.status === 'done'
         ? `Hecha${session.endedAt ? ` ${clock(session.endedAt)}` : ''}`
-        : session.status === 'partial'
-          ? `Parcial · ${session.actualValue ?? 0} de ${targetLabel(session)}`
-          : 'Sin cumplir'
+        : session.status === 'skipped'
+          ? 'Saltada'
+          : session.status === 'partial'
+            ? `Parcial · ${session.actualValue ?? 0} de ${targetLabel(session)}`
+            : 'Sin cumplir'
     return (
       <div className={`session session--${session.status}`} style={nicheAccent(goal.area)}>
         <div className="session__body">
@@ -63,12 +71,16 @@ export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onRe
             {label}
           </span>
         </div>
-        {session.status === 'done' ? (
+        {undoable ? (
           <button
             type="button"
             className="btn--link session__undo"
             onClick={onReopen}
-            aria-label={`Deshacer el cierre de la sesión de ${goal.title}`}
+            aria-label={
+              session.status === 'skipped'
+                ? `Deshacer el salto de la sesión de ${goal.title}`
+                : `Deshacer el cierre de la sesión de ${goal.title}`
+            }
           >
             Deshacer
           </button>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import type { CalendarEvent, Goal, Habit, HabitCheck, HabitSkip, ScheduleBlock, Session } from '@/lib/types'
@@ -23,7 +23,14 @@ import {
   type EventInput,
 } from '@/services/events'
 import { WEEKDAY_LABELS, groupByDate, inSameMonth, monthGrid, weekDays } from '@/domain/calendar'
-import { WEEKDAY_PLURALS, minutesToTime, preferredStartTime, timeToMinutes } from '@/domain/commitment'
+import {
+  WEEKDAY_PLURALS,
+  minutesToTime,
+  preferredStartTime,
+  timeToMinutes,
+  type CommitmentBlockDraft,
+} from '@/domain/commitment'
+import { editBlockDays, editBlockValue, type EditScope } from '@/domain/scheduleEdit'
 import { assignEventsToSessions, rangeLabel, sessionSpan } from '@/domain/agenda'
 import {
   CLOSED_STATES,
@@ -37,15 +44,18 @@ import { EventCheck } from '@/screens/calendar/EventCheck'
 import { DayAgenda } from '@/screens/calendar/DayAgenda'
 import { WeekDay } from '@/screens/calendar/WeekDay'
 import { AddSheet } from '@/screens/calendar/AddSheet'
+import { BlockEditSection, ScopeSave } from '@/screens/calendar/BlockEditSection'
 import type { DayHabitRowItem } from '@/screens/calendar/agendaItems'
 import { dueBlocksForDate } from '@/domain/sessions'
-import { listScheduleForUser, updateBlockStartTime } from '@/services/schedule'
+import { applyScheduleChange, listScheduleForGoal, listScheduleForUser } from '@/services/schedule'
 import {
   createSpontaneousSession,
   deleteSession,
   generateSessionsForDate,
   listSessionsInRange,
   setSessionPlannedTime,
+  skipSession,
+  unskipSession,
 } from '@/services/sessions'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { friendlyError } from '@/lib/errors'
@@ -351,15 +361,43 @@ export function Calendar() {
     setBlockSheet({ sessionKey: it.key, day })
   }
 
-  async function saveSessionTime(time: string | null) {
+  /** Bloques de una meta (puede tener varios el mismo día). */
+  function goalBlocksOf(goalId: string): ScheduleBlock[] {
+    return blocks.filter((b) => b.goalId === goalId)
+  }
+
+  /**
+   * Guarda la agenda deseada de UNA meta por diferencias (conserva ids e
+   * historial) y relee las sesiones del rango: la sincronización pudo borrar o
+   * mover pendientes. Si falla a medias, se reflejan los bloques que quedaron.
+   */
+  async function applyGoalSchedule(goalId: string, desired: CommitmentBlockDraft[]) {
+    const replaceGoalBlocks = (next: ScheduleBlock[]) =>
+      setBlocks((prev) => [...prev.filter((b) => b.goalId !== goalId), ...next])
+    try {
+      replaceGoalBlocks(await applyScheduleChange(userId, goalId, desired, today))
+    } catch (err) {
+      const reloaded = await listScheduleForGoal(goalId).catch(() => null)
+      if (reloaded) replaceGoalBlocks(reloaded)
+      throw err
+    } finally {
+      const fresh = await listSessionsInRange(userId, from, to).catch(() => null)
+      if (fresh) setSessions(fresh)
+    }
+  }
+
+  async function saveSessionTime(time: string | null, scope: EditScope) {
     const ts = timeSheet
     setTimeSheet(null)
     if (!ts) return
+    const multi = ts.block !== null && goalBlocksOf(ts.goal.id).length > 1
     try {
       if (ts.block) {
-        // Compromiso recurrente: la hora se fija para todos los días del bloque.
-        const updatedBlock = await updateBlockStartTime(ts.block.id, time)
-        setBlocks((prev) => prev.map((b) => (b.id === updatedBlock.id ? updatedBlock : b)))
+        // Compromiso recurrente: la hora va al bloque (o a los del mismo momento).
+        await applyGoalSchedule(
+          ts.goal.id,
+          editBlockValue(goalBlocksOf(ts.goal.id), ts.block.id, { startTime: time }, scope),
+        )
       }
       if (ts.session) {
         const updatedSession = await setSessionPlannedTime(ts.session.id, time)
@@ -369,12 +407,82 @@ export function Calendar() {
         !time
           ? 'Hora quitada.'
           : ts.block
-            ? `Listo: todos los ${WEEKDAY_PLURALS[ts.block.weekday]} a las ${formatTime12(time)}.`
+            ? multi && scope === 'all'
+              ? `Listo: ${formatTime12(time)} en todos los días de esta meta.`
+              : `Listo: todos los ${WEEKDAY_PLURALS[ts.block.weekday]} a las ${formatTime12(time)}.`
             : `Hora fijada: ${formatTime12(time)}.`,
         'success',
       )
     } catch {
       toast('No se pudo guardar la hora.')
+    }
+  }
+
+  /** Días de la meta desde un bloque: los quitados pierden sus bloques, los nuevos copian este. */
+  async function saveBlockDays(it: DayAgendaSession, weekdays: number[]) {
+    if (!it.block) return
+    try {
+      await applyGoalSchedule(it.goal.id, editBlockDays(goalBlocksOf(it.goal.id), it.block.id, weekdays))
+      if (!weekdays.includes(it.block.weekday)) setBlockSheet(null)
+      toast('Días actualizados.', 'success')
+    } catch {
+      toast('No se pudieron guardar los días.')
+    }
+  }
+
+  async function saveBlockValue(it: DayAgendaSession, value: number, scope: EditScope) {
+    if (!it.block) return
+    const isTime = it.block.targetKind === 'time'
+    try {
+      await applyGoalSchedule(
+        it.goal.id,
+        editBlockValue(goalBlocksOf(it.goal.id), it.block.id, { targetValue: value }, scope),
+      )
+      toast(isTime ? 'Duración actualizada.' : 'Cantidad actualizada.', 'success')
+    } catch {
+      toast(isTime ? 'No se pudo guardar la duración.' : 'No se pudo guardar la cantidad.')
+    }
+  }
+
+  /** Sin la migración 0017 el servicio avisa con un mensaje propio: se muestra tal cual. */
+  function skipError(err: unknown, fallback: string): string {
+    return err instanceof Error && err.message.includes('0017') ? err.message : friendlyError(err, fallback)
+  }
+
+  /** Salta SOLO este día (neutro para la racha). Una proyectada se materializa primero. */
+  async function skipDay(it: DayAgendaSession, day: string) {
+    try {
+      const session = await materializeSession(it, day)
+      if (!session) return
+      const updated = await skipSession(session.id)
+      setSessions((prev) => prev.map((sx) => (sx.id === updated.id ? updated : sx)))
+      // La hoja sigue abierta sobre la sesión real: ahí está "Deshacer salto".
+      setBlockSheet({ sessionKey: updated.id, day })
+      toast('Saltado. Tu racha no se rompe.', 'success')
+    } catch (err) {
+      toast(skipError(err, 'No se pudo saltar el día.'))
+    }
+  }
+
+  async function unskipDay(it: DayAgendaSession) {
+    if (!it.session) return
+    try {
+      const updated = await unskipSession(it.session.id)
+      setSessions((prev) => prev.map((sx) => (sx.id === updated.id ? updated : sx)))
+      toast('Salto deshecho.', 'success')
+    } catch (err) {
+      toast(skipError(err, 'No se pudo deshacer el salto.'))
+    }
+  }
+
+  /** Saca la meta de la agenda: sin bloques, sigue activa (arriba en Hoy) y conserva su historial. */
+  async function removeFromAgenda(it: DayAgendaSession) {
+    try {
+      await applyGoalSchedule(it.goal.id, [])
+      setBlockSheet(null)
+      toast('La meta quedó sin agenda.', 'success')
+    } catch {
+      toast('No se pudo sacar la meta de la agenda.')
     }
   }
 
@@ -463,20 +571,23 @@ export function Calendar() {
   }
 
   /**
-   * Fija la hora de UNA sesión solo ese día (hoja "Reorganizar"). Una
-   * proyectada se materializa primero con generateSessionsForDate (misma
-   * materialización que usa Hoy), así el bloque recurrente no se toca.
+   * La sesión real de un ítem de la agenda. Una proyectada se materializa con
+   * generateSessionsForDate (misma materialización que usa Hoy), así el bloque
+   * recurrente no se toca.
    */
+  async function materializeSession(it: DayAgendaSession, day: string): Promise<Session | null> {
+    if (it.session || !it.block) return it.session
+    const generated = await generateSessionsForDate(userId, day, [it.block])
+    setSessions((prev) => {
+      const known = new Set(prev.map((s) => s.id))
+      return [...prev, ...generated.filter((s) => !known.has(s.id))]
+    })
+    return generated.find((s) => s.scheduleId === it.block?.id && s.date === day) ?? null
+  }
+
+  /** Fija la hora de UNA sesión solo ese día (hoja "Reorganizar"). */
   async function setDaySessionTime(it: DayAgendaSession, day: string, time: string | null) {
-    let session = it.session
-    if (!session && it.block) {
-      const generated = await generateSessionsForDate(userId, day, [it.block])
-      setSessions((prev) => {
-        const known = new Set(prev.map((s) => s.id))
-        return [...prev, ...generated.filter((s) => !known.has(s.id))]
-      })
-      session = generated.find((s) => s.scheduleId === it.block?.id && s.date === day) ?? null
-    }
+    const session = await materializeSession(it, day)
     if (!session) return
     const updated = await setSessionPlannedTime(session.id, time)
     setSessions((prev) => prev.map((sx) => (sx.id === updated.id ? updated : sx)))
@@ -738,9 +849,10 @@ export function Calendar() {
           goal={timeSheet.goal}
           block={timeSheet.block}
           session={timeSheet.session}
+          multi={timeSheet.block !== null && goalBlocksOf(timeSheet.goal.id).length > 1}
           suggested={suggestedTime}
           onClose={() => setTimeSheet(null)}
-          onSave={(t) => void saveSessionTime(t)}
+          onSave={(t, scope) => void saveSessionTime(t, scope)}
           onDelete={timeSheet.session && !timeSheet.block ? () => void removeSession() : undefined}
         />
       )}
@@ -787,6 +899,20 @@ export function Calendar() {
                 setBlockSheet(null)
                 setTimeSheet({ goal: it.goal, block: it.block, session: it.session })
               }}
+              editSection={
+                it.block && (
+                  <BlockEditSection
+                    block={it.block}
+                    goalBlocks={goalBlocksOf(it.goal.id)}
+                    state={it.state}
+                    onSaveDays={(weekdays) => saveBlockDays(it, weekdays)}
+                    onSaveValue={(value, scope) => saveBlockValue(it, value, scope)}
+                    onSkip={() => skipDay(it, blockSheet.day)}
+                    onUnskip={() => unskipDay(it)}
+                    onRemoveFromAgenda={() => removeFromAgenda(it)}
+                  />
+                )
+              }
             />
           )
         })()}
@@ -905,6 +1031,7 @@ function BlockSheet({
   onQuickAdd,
   onOpenSession,
   onSetTime,
+  editSection,
 }: {
   it: DayAgendaSession
   sub: CalendarEvent[]
@@ -914,6 +1041,8 @@ function BlockSheet({
   onQuickAdd: (title: string, time: string | null) => Promise<void>
   onOpenSession: (s: Session) => void
   onSetTime: () => void
+  /** Días, duración, saltar y sacar de la agenda (solo bloques recurrentes). */
+  editSection?: ReactNode
 }) {
   const [title, setTitle] = useState('')
   const [time, setTime] = useState('')
@@ -1015,6 +1144,7 @@ function BlockSheet({
               Cambiar la hora
             </button>
           )}
+          {editSection}
         </>
       )}
     </Sheet>
@@ -1318,6 +1448,7 @@ function TimeSheet({
   goal,
   block,
   session,
+  multi,
   suggested,
   onClose,
   onSave,
@@ -1327,15 +1458,19 @@ function TimeSheet({
   /** null = sesión espontánea de una sola fecha; presente = compromiso recurrente. */
   block: ScheduleBlock | null
   session: Session | null
+  /** La meta tiene más de un bloque: al guardar se pregunta el alcance. */
+  multi: boolean
   /** Hora sugerida según el momento preferido del perfil (editable). */
   suggested: string | null
   onClose: () => void
-  onSave: (time: string | null) => void
+  onSave: (time: string | null, scope: EditScope) => void
   /** Solo para sesiones espontáneas: permite quitarlas. */
   onDelete?: () => void
 }) {
   const initialTime = block?.startTime ?? session?.plannedTime ?? suggested ?? ''
   const [time, setTime] = useState(initialTime)
+  // "Quitar hora" con varios bloques pasa por la misma pregunta de alcance.
+  const [clearing, setClearing] = useState(false)
   const target = block ?? session
   const hadTime = block ? block.startTime : session?.plannedTime
   return (
@@ -1367,11 +1502,24 @@ function TimeSheet({
               . La duración se ajusta desde el detalle de la meta.
             </p>
           )}
-          <button className="btn btn--primary btn--block" disabled={!time} onClick={() => onSave(time)}>
-            {block ? `Guardar para todos los ${WEEKDAY_PLURALS[block.weekday]}` : 'Guardar la hora'}
-          </button>
-          {hadTime && (
-            <button className="btn btn--ghost btn--block" onClick={() => onSave(null)}>
+          {block ? (
+            <ScopeSave
+              weekday={block.weekday}
+              multi={multi}
+              disabled={!clearing && !time}
+              label={clearing ? 'Quitar hora' : `Guardar para todos los ${WEEKDAY_PLURALS[block.weekday]}`}
+              onSave={(scope) => onSave(clearing ? null : time, scope)}
+            />
+          ) : (
+            <button className="btn btn--primary btn--block" disabled={!time} onClick={() => onSave(time, 'this')}>
+              Guardar la hora
+            </button>
+          )}
+          {hadTime && !clearing && (
+            <button
+              className="btn btn--ghost btn--block"
+              onClick={() => (block && multi ? setClearing(true) : onSave(null, 'this'))}
+            >
               Quitar hora
             </button>
           )}

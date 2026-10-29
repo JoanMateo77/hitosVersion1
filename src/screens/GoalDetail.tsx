@@ -113,6 +113,8 @@ export function GoalDetail() {
   // Editor de compromiso inline: null = cerrado.
   const [commitDraft, setCommitDraft] = useState<CommitmentBlockDraft[] | null>(null)
   const [otherBlocks, setOtherBlocks] = useState<ScheduleBlock[]>([])
+  // Confirmación antes de sacar la meta de la agenda (queda sin bloques).
+  const [confirmUnschedule, setConfirmUnschedule] = useState(false)
   // Camino completo recién: ofrecemos cerrar la meta (nunca se cierra sola).
   const [offerAchieve, setOfferAchieve] = useState(false)
   // Confirmación al lograr con etapas pendientes.
@@ -365,6 +367,23 @@ export function GoalDetail() {
     }
   }
 
+  /** Saca la meta de la agenda: sin bloques, sigue activa y conserva su historial. */
+  async function removeFromAgenda() {
+    if (!goal) return
+    setUpdating(true)
+    try {
+      setBlocks(await applyScheduleChange(userId, goal.id, [], todayISO()))
+      setConfirmUnschedule(false)
+      toast('La meta quedó sin agenda.', 'success')
+    } catch {
+      const reloaded = await listScheduleForGoal(goal.id).catch(() => null)
+      if (reloaded) setBlocks(reloaded)
+      toast('No se pudo sacar la meta de la agenda.', 'warning')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
   async function saveEdit(edit: GoalEdit) {
     if (!goal) return
     const updated = await updateGoal(goal.id, edit)
@@ -519,7 +538,7 @@ export function GoalDetail() {
           <div className="card stack stack--sm">
             <div className="row row--between">
               <span className="kicker">Tu compromiso</span>
-              {isActive && commitDraft === null && (
+              {isActive && commitDraft === null && blocks.length > 0 && (
                 <button className="btn--link" style={{ fontSize: 'var(--fs-xs)' }} onClick={() => void openCommitmentEditor()}>
                   Editar
                 </button>
@@ -527,17 +546,62 @@ export function GoalDetail() {
             </div>
             {commitDraft === null ? (
               blocks.length > 0 ? (
-                <div className="row wrap">
-                  {blocks.map((b) => (
-                    <span key={b.id} className="tag">
-                      {WEEKDAY_LABELS[b.weekday]} · {blockTimeLabel(b)}
-                    </span>
-                  ))}
-                </div>
+                <>
+                  <div className="row wrap">
+                    {blocks.map((b) => (
+                      <span key={b.id} className="tag">
+                        {WEEKDAY_LABELS[b.weekday]} · {blockTimeLabel(b)}
+                      </span>
+                    ))}
+                  </div>
+                  {isActive &&
+                    (!confirmUnschedule ? (
+                      <button
+                        className="btn--link"
+                        style={{ fontSize: 'var(--fs-xs)', alignSelf: 'flex-start' }}
+                        onClick={() => setConfirmUnschedule(true)}
+                      >
+                        Sacar de la agenda
+                      </button>
+                    ) : (
+                      <div className="card card--tight stack stack--sm" style={{ borderColor: 'var(--danger)' }}>
+                        <p className="small" style={{ margin: 0 }}>
+                          La meta queda sin horario; la seguirás viendo arriba en Hoy. Tu historial se conserva.
+                        </p>
+                        <div className="row wrap">
+                          <button
+                            className="btn btn--danger btn--sm"
+                            disabled={updating}
+                            onClick={() => void removeFromAgenda()}
+                          >
+                            Sacar de la agenda
+                          </button>
+                          <button
+                            className="btn btn--ghost btn--sm"
+                            disabled={updating}
+                            onClick={() => setConfirmUnschedule(false)}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </>
               ) : (
-                <p className="small muted" style={{ margin: 0 }}>
-                  Sin agenda por ahora. {isActive ? 'Edítala para agregarle días y que tus sesiones aparezcan en Hoy.' : ''}
-                </p>
+                <>
+                  <p className="small muted" style={{ margin: 0 }}>
+                    Sin agenda
+                  </p>
+                  {isActive && (
+                    <button
+                      className="btn btn--ghost btn--sm"
+                      style={{ alignSelf: 'flex-start' }}
+                      onClick={() => void openCommitmentEditor()}
+                    >
+                      Agregar agenda
+                    </button>
+                  )}
+                </>
               )
             ) : (
               <>

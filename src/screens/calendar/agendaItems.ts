@@ -49,6 +49,16 @@ export const CLOSED_STATES: readonly SessionState[] = ['done', 'partial', 'misse
 /** Estados de una sesión real de HOY que llevan directo al cronómetro. */
 export const OPEN_STATUSES: readonly Session['status'][] = ['pending', 'running', 'unconfirmed']
 
+/** Solo se salta un día que sigue abierto sin empezar: pendiente o proyectado. */
+export function canSkip(state: SessionState): boolean {
+  return state === 'pending' || state === 'projected'
+}
+
+/** Los días (lunes=0) en que la meta tiene agenda, sin repetir y en orden. */
+export function goalWeekdays(blocks: ScheduleBlock[]): number[] {
+  return [...new Set(blocks.map((b) => b.weekday))].sort((a, b) => a - b)
+}
+
 /** "4 h", "25 min" o la cantidad con su unidad. */
 export function agendaTargetLabel(kind: TargetKind, value: number, unit: string | null): string {
   if (kind !== 'time') return `${value} ${unit ?? ''}`.trim()

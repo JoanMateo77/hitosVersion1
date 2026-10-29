@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { weekDaySummary, type DayAgendaSession, type DayHabitRowItem } from '@/screens/calendar/agendaItems'
-import type { CalendarEvent, Goal, Habit } from '@/lib/types'
+import {
+  canSkip,
+  goalWeekdays,
+  weekDaySummary,
+  type DayAgendaSession,
+  type DayHabitRowItem,
+} from '@/screens/calendar/agendaItems'
+import type { CalendarEvent, Goal, Habit, ScheduleBlock } from '@/lib/types'
 
 function goal(over: Partial<Goal> = {}): Goal {
   return {
@@ -88,5 +94,30 @@ describe('weekDaySummary', () => {
   it('varias metas con fecha se cuentan', () => {
     const s = weekDaySummary({ ...base, deadlines: [goal({ id: 'a' }), goal({ id: 'b' })] })
     expect(s.main).toBe('2 metas con fecha')
+  })
+})
+
+describe('canSkip', () => {
+  it('solo se salta lo pendiente o proyectado', () => {
+    expect(canSkip('pending')).toBe(true)
+    expect(canSkip('projected')).toBe(true)
+    for (const st of ['running', 'done', 'partial', 'missed', 'unconfirmed', 'skipped'] as const) {
+      expect(canSkip(st)).toBe(false)
+    }
+  })
+})
+
+describe('goalWeekdays', () => {
+  function block(id: string, weekday: number): ScheduleBlock {
+    return {
+      id, goalId: 'g1', userId: 'u1', weekday, targetKind: 'time', targetValue: 30, unit: null,
+      startTime: null, createdAt: '2026-06-01T00:00:00Z',
+    }
+  }
+  it('días únicos y ordenados aunque haya varios momentos el mismo día', () => {
+    expect(goalWeekdays([block('a', 4), block('b', 0), block('c', 0), block('d', 2)])).toEqual([0, 2, 4])
+  })
+  it('sin bloques, sin días', () => {
+    expect(goalWeekdays([])).toEqual([])
   })
 })
