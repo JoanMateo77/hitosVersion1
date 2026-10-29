@@ -48,6 +48,8 @@ export function CommitmentStep({
     () => blocks.length > 0 && uniformMoments(blocks) === null,
   )
   const [rangeError, setRangeError] = useState<string | null>(null)
+  // Elección explícita de "sin agenda" (blocks=[] solo no distingue de "aún no elegí").
+  const [noSchedule, setNoSchedule] = useState(false)
 
   // Memoria por tipo de medida: si vuelves de Cantidad a Tiempo (mismos días),
   // recuperas lo que habías escrito en vez de los defaults. No convertimos entre
@@ -72,6 +74,7 @@ export function CommitmentStep({
 
   function toggleDay(weekday: number) {
     setRangeError(null)
+    setNoSchedule(false)
     if (selectedDays.includes(weekday)) {
       onChange(blocks.filter((b) => b.weekday !== weekday))
       return
@@ -82,12 +85,20 @@ export function CommitmentStep({
 
   function applyPreset(days: number[]) {
     setRangeError(null)
+    setNoSchedule(false)
     const template = templateMoments()
     const kept = blocks.filter((b) => days.includes(b.weekday))
     const added = days
       .filter((d) => !selectedDays.includes(d))
       .flatMap((weekday) => template.map((m) => ({ ...m, weekday })))
     onChange([...kept, ...added])
+  }
+
+  function chooseNoSchedule() {
+    setRangeError(null)
+    setPerDay(false)
+    setNoSchedule(true)
+    onChange([])
   }
 
   function setKind(next: TargetKind) {
@@ -285,6 +296,22 @@ export function CommitmentStep({
           </button>
         ))}
       </div>
+
+      <div className="row wrap">
+        <button
+          type="button"
+          className={`chip${noSchedule && blocks.length === 0 ? ' chip--selected' : ''}`}
+          aria-pressed={noSchedule && blocks.length === 0}
+          onClick={chooseNoSchedule}
+        >
+          Sin horario por ahora — solo quiero tenerla presente
+        </button>
+      </div>
+      {noSchedule && blocks.length === 0 && (
+        <div className="alert" role="status">
+          Esta meta no tendrá agenda. La verás arriba en Hoy y podrás agregarle días cuando quieras.
+        </div>
+      )}
 
       <div className="row" role="group" aria-label="Cómo se mide cada sesión">
         <button

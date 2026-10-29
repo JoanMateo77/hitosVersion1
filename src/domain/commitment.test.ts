@@ -69,8 +69,8 @@ describe('formatCommitmentSummary', () => {
 })
 
 describe('validateCommitment', () => {
-  it('exige al menos un bloque', () => {
-    expect(validateCommitment([])).toBe('Elige al menos un día para tu compromiso.')
+  it('acepta una meta sin agenda (sin bloques)', () => {
+    expect(validateCommitment([])).toBeNull()
   })
   it('acepta un compromiso válido', () => {
     expect(validateCommitment([time(0, 25)])).toBeNull()

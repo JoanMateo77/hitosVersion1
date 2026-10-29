@@ -516,7 +516,7 @@ export function GoalDetail() {
                 </div>
               ) : (
                 <p className="small muted" style={{ margin: 0 }}>
-                  Sin compromiso definido. {isActive ? 'Edítalo para que tus sesiones aparezcan en Hoy.' : ''}
+                  Sin agenda por ahora. {isActive ? 'Edítala para agregarle días y que tus sesiones aparezcan en Hoy.' : ''}
                 </p>
               )
             ) : (

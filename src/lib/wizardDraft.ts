@@ -15,15 +15,17 @@ export function seedWizardDraft(seed: {
   templateKey: string
   area: NicheId
   milestones: MilestoneDraft[]
+  why?: string
+  step?: number
 }): void {
   try {
     sessionStorage.setItem(
       WIZARD_DRAFT_KEY,
       JSON.stringify({
-        step: 2,
+        step: seed.step ?? 2,
         title: seed.title,
         templateKey: seed.templateKey,
-        why: '',
+        why: seed.why ?? '',
         targetDate: '',
         area: seed.area,
         criteria: '',

@@ -411,8 +411,9 @@ export function Today() {
       if (!prev || s.date > prev) lastDone.set(s.goalId, s.date)
     }
     const withSessionToday = new Set(sessions.map((s) => s.goalId))
-    return findForgottenGoal(goals, lastDone, withSessionToday)
-  }, [goals, history, sessions])
+    const scheduledGoalIds = new Set(blocks.map((b) => b.goalId))
+    return findForgottenGoal(goals, lastDone, withSessionToday, scheduledGoalIds)
+  }, [goals, history, sessions, blocks])
 
   function patchSession(id: string, changes: Partial<Session>) {
     setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, ...changes } : s)))

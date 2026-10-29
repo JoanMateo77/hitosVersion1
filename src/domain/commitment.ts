@@ -181,9 +181,11 @@ export function formatCommitmentSummary(blocks: CommitmentBlockDraft[]): string 
   return `Tu compromiso: ${sessionsLabel} · ${formatDuration(minutes)} por semana`
 }
 
-/** null = válido; string = mensaje de error para mostrar inline. */
+/**
+ * null = válido; string = mensaje de error para mostrar inline. Sin bloques es
+ * válido: una meta puede vivir sin agenda (queda presente en Hoy).
+ */
 export function validateCommitment(blocks: CommitmentBlockDraft[]): string | null {
-  if (blocks.length === 0) return 'Elige al menos un día para tu compromiso.'
   if (blocks.some((b) => b.targetValue <= 0)) {
     return 'Cada momento necesita una duración o cantidad mayor a cero.'
   }

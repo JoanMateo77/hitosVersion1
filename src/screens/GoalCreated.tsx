@@ -110,6 +110,13 @@ export function GoalCreated() {
           </div>
         )}
 
+        {schedule.length === 0 && (
+          <div className="card card--tight stack stack--sm">
+            <span className="kicker">Tu compromiso</span>
+            <p className="small">Sin agenda: la tendrás presente en Hoy</p>
+          </div>
+        )}
+
         {firstSession && (
           <div className="focus-card stack stack--sm">
             <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>

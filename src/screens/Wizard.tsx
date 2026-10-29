@@ -231,10 +231,10 @@ export function Wizard() {
   }
 
   async function submit() {
-    // Defensa del invariante central: ninguna meta se crea sin contrato, ni
-    // siquiera desde un borrador manipulado o un estado inesperado.
+    // Defensa del invariante: la agenda es opcional, pero un compromiso mal
+    // formado o una meta sin etapas no se crean, ni desde un borrador manipulado.
     if (validateCommitment(blocks) !== null || milestones.length === 0) {
-      setError('Tu meta necesita un compromiso y al menos una etapa.')
+      setError('Tu meta necesita al menos una etapa y un compromiso válido.')
       return
     }
     setSaving(true)
@@ -452,7 +452,11 @@ export function Wizard() {
               why={why}
               criteria={criteria}
             />
-            {blocks.length > 0 && <div className="alert">{formatCommitmentSummary(blocks)}</div>}
+            {blocks.length > 0 ? (
+              <div className="alert">{formatCommitmentSummary(blocks)}</div>
+            ) : (
+              <div className="alert">Sin agenda: la verás arriba en Hoy y podrás agregarle días cuando quieras.</div>
+            )}
           </Question>
         )}
       </div>
