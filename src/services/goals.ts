@@ -138,8 +138,10 @@ export async function updateGoal(goalId: string, edit: GoalEdit): Promise<Goal> 
 
 /**
  * Borra una meta del usuario. Las tablas hijas (milestones, goal_schedule,
- * sessions, tasks) caen por ON DELETE CASCADE. Se usa para deshacer una
- * creación a medias; el doble filtro por user_id acota el radio de daño.
+ * sessions, tasks) caen por ON DELETE CASCADE; notas, eventos y hábitos
+ * vinculados se conservan sin vínculo (set null). Se usa al eliminar una meta
+ * desde su detalle y para deshacer una creación a medias; el doble filtro por
+ * user_id acota el radio de daño.
  */
 export async function deleteGoal(userId: string, goalId: string): Promise<void> {
   const { error } = await supabase

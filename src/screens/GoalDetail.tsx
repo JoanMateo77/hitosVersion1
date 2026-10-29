@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import { getGoal, setGoalStatus, updateGoal, type GoalEdit } from '@/services/goals'
+import { deleteGoal, getGoal, setGoalStatus, updateGoal, type GoalEdit } from '@/services/goals'
 import {
   addMilestone,
   deleteMilestone,
@@ -118,6 +118,8 @@ export function GoalDetail() {
   // Confirmación al lograr con etapas pendientes.
   const [confirmAchieve, setConfirmAchieve] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   // Momento focal: la meta quedó lograda. El velo se va solo (won-out).
   const [won, setWon] = useState<string | null>(null)
   // Etapa recién cumplida: se enciende 700 ms y se apaga.
@@ -188,6 +190,19 @@ export function GoalDetail() {
     habits,
     habitChecks,
   })
+
+  async function handleDelete() {
+    if (!goal || deleting) return
+    setDeleting(true)
+    try {
+      await deleteGoal(userId, goal.id)
+      toast('Meta eliminada.', 'success')
+      navigate('/metas', { replace: true })
+    } catch {
+      toast('No se pudo eliminar la meta.', 'warning')
+      setDeleting(false)
+    }
+  }
 
   async function changeStatus(status: GoalStatus) {
     if (!goal) return
@@ -735,6 +750,31 @@ export function GoalDetail() {
               <button className="btn btn--ghost btn--block" disabled={updating} onClick={() => changeStatus('active')}>
                 Reactivar
               </button>
+            )}
+            {!confirmDelete ? (
+              <button
+                className="btn--link"
+                style={{ color: 'var(--danger)', alignSelf: 'center' }}
+                onClick={() => setConfirmDelete(true)}
+              >
+                Eliminar meta
+              </button>
+            ) : (
+              <div className="card card--tight stack stack--sm" style={{ borderColor: 'var(--danger)' }}>
+                <strong className="small">¿Eliminar esta meta para siempre?</strong>
+                <p className="small muted" style={{ margin: 0 }}>
+                  Se borran sus etapas, su agenda, sus sesiones y sus tareas. Las notas, eventos y hábitos vinculados se
+                  conservan, sin vínculo. Si solo quieres sacarla de la vista, mejor archívala.
+                </p>
+                <div className="row wrap">
+                  <button className="btn btn--danger btn--sm" onClick={() => void handleDelete()} disabled={deleting}>
+                    {deleting ? 'Eliminando…' : 'Sí, eliminar'}
+                  </button>
+                  <button className="btn btn--ghost btn--sm" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>
