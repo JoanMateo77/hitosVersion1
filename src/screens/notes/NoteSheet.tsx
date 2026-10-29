@@ -29,6 +29,22 @@ import { IconCheck, IconClose, IconPlus } from '@/components/icons'
 import { NoteConvertPicker, NoteMovePicker } from '@/screens/notes/NotePickers'
 import { noteErrorMessage, notePlaceLabel } from '@/screens/notes/noteUi'
 
+/**
+ * Llave estable de cada renglón de la lista (solo para la UI; no se guarda).
+ * Se liga al objeto, así sobrevive a editar o quitar otros renglones sin
+ * agregar un id al modelo NoteItem.
+ */
+const itemKeys = new WeakMap<NoteItem, string>()
+let itemKeyCounter = 0
+function itemKey(item: NoteItem): string {
+  let key = itemKeys.get(item)
+  if (!key) {
+    key = `item-${itemKeyCounter++}`
+    itemKeys.set(item, key)
+  }
+  return key
+}
+
 type Panel = 'edit' | 'move' | 'convert' | 'confirm-delete'
 
 const CONVERTED_MESSAGE = 'Listo. Archivamos la nota.'
@@ -222,7 +238,7 @@ export function NoteSheet({
   }
 
   /** Convierte: crea la meta/etapa/tarea y archiva la nota. */
-  async function convert(n: Note, create: () => Promise<void>, after: () => void) {
+  async function convert(n: Note, create: () => void | Promise<void>, after: () => void) {
     await create()
     await archiveConverted(n, after)
   }
@@ -254,7 +270,19 @@ export function NoteSheet({
   }
 
   function patchItem(index: number, patch: Partial<NoteItem>) {
-    setItems((prev) => prev?.map((it, i) => (i === index ? { ...it, ...patch } : it)) ?? prev)
+    setItems(
+      (prev) =>
+        prev?.map((it, i) => {
+          if (i !== index) return it
+          const next = { ...it, ...patch }
+          itemKeys.set(next, itemKey(it)) // el renglón editado conserva su llave
+          return next
+        }) ?? prev,
+    )
+  }
+
+  function removeItem(index: number) {
+    setItems((prev) => prev?.filter((_, j) => j !== index) ?? prev)
   }
 
   function addItem() {
@@ -303,8 +331,7 @@ export function NoteSheet({
                 {items ? (
                   <ul className="note-items">
                     {items.map((it, i) => (
-                      // El índice es la identidad del renglón: la lista no se reordena.
-                      <li key={i} className="note-items__row">
+                      <li key={itemKey(it)} className="note-items__row">
                         <button
                           type="button"
                           className={`check${it.done ? ' check--done' : ''}`}
@@ -324,7 +351,7 @@ export function NoteSheet({
                           type="button"
                           className="iconbtn iconbtn--sm"
                           aria-label={`Quitar: ${it.text}`}
-                          onClick={() => setItems((prev) => prev?.filter((_, j) => j !== i) ?? prev)}
+                          onClick={() => removeItem(i)}
                         >
                           <IconClose size={16} />
                         </button>
@@ -468,7 +495,7 @@ export function NoteSheet({
                     void act((n) =>
                       convert(
                         n,
-                        async () =>
+                        () =>
                           seedWizardDraft({
                             title: noteHeading(n),
                             templateKey: 'personalizada',

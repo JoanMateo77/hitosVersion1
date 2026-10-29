@@ -23,7 +23,7 @@ export function GoalNotes({ goalId }: Readonly<{ goalId: string }>) {
 
   useEffect(() => {
     let active = true
-    Promise.all([
+    void Promise.all([
       listNotes(userId).catch(() => [] as Note[]),
       listGoals(userId).catch(() => [] as Goal[]),
     ]).then(([loadedNotes, loadedGoals]) => {
