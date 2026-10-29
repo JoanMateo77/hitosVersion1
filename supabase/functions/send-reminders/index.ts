@@ -10,6 +10,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import webpush from 'npm:web-push@3'
+import { digestBody, digestDue } from './digest.ts'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -43,6 +44,80 @@ function localNow(tz: string): { date: string; hhmm: string } {
 function minutesOf(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number)
   return h * 60 + m
+}
+
+interface PushSub {
+  endpoint: string
+  p256dh: string
+  auth: string
+}
+
+/** Envía el payload a cada suscripción y limpia las muertas. Devuelve cuántos push salieron. */
+async function sendToSubs(subs: PushSub[], payload: string): Promise<number> {
+  let delivered = 0
+  for (const sub of subs) {
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        payload,
+      )
+      delivered++
+    } catch (err) {
+      const code = (err as { statusCode?: number }).statusCode
+      // 404/410 = suscripción muerta: se limpia sola.
+      if (code === 404 || code === 410) {
+        await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)
+      }
+    }
+  }
+  return delivered
+}
+
+/** Lunes=0 … domingo=6 para una fecha local "YYYY-MM-DD". */
+function weekdayOf(date: string): number {
+  return (new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7
+}
+
+/** Resumen diario de metas. Tolera que la migración 0017 no esté aplicada. */
+async function sendDigest(userId: string, subs: PushSub[], date: string, nowMin: number): Promise<number> {
+  const { data: prof, error } = await supabase
+    .from('profiles')
+    .select('daily_digest_time, daily_digest_sent_on')
+    .eq('id', userId)
+    .maybeSingle()
+  if (error || !prof) return 0 // columna inexistente (sin migración 0017): se omite el digest
+  const digestTime = prof.daily_digest_time as string | null
+  const sentOn = prof.daily_digest_sent_on as string | null
+  if (!digestDue(nowMin, digestTime, sentOn, date)) return 0
+
+  const { data: goals } = await supabase
+    .from('goals')
+    .select('id, title')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+  if (!goals || goals.length === 0) return 0
+  const goalIds = goals.map((g) => g.id as string)
+
+  const { data: blocks } = await supabase
+    .from('goal_schedule')
+    .select('id')
+    .eq('user_id', userId)
+    .in('goal_id', goalIds)
+    .eq('weekday', weekdayOf(date))
+  const { count: skipped } = await supabase
+    .from('sessions')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('session_date', date)
+    .eq('status', 'skipped')
+    .in('goal_id', goalIds)
+  const sessionsToday = Math.max(0, (blocks?.length ?? 0) - (skipped ?? 0))
+
+  const { title, body } = digestBody(goals.map((g) => g.title as string), sessionsToday)
+  const delivered = await sendToSubs(subs, JSON.stringify({ title, body, url: '/', tag: 'daily-digest' }))
+  await supabase.from('profiles').update({ daily_digest_sent_on: date }).eq('id', userId)
+  return delivered
 }
 
 Deno.serve(async (req) => {
@@ -101,26 +176,14 @@ Deno.serve(async (req) => {
         tag: `session-${sess.id}`,
       })
 
-      for (const sub of userSubs) {
-        try {
-          await webpush.sendNotification(
-            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-            payload,
-          )
-          sent++
-        } catch (err) {
-          const code = (err as { statusCode?: number }).statusCode
-          // 404/410 = suscripción muerta: se limpia sola.
-          if (code === 404 || code === 410) {
-            await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)
-          }
-        }
-      }
+      sent += await sendToSubs(userSubs, payload)
       await supabase
         .from('sessions')
         .update({ reminded_at: new Date().toISOString() })
         .eq('id', sess.id)
     }
+
+    sent += await sendDigest(userId, userSubs, date, nowMin)
   }
 
   return new Response(JSON.stringify({ sent }), {

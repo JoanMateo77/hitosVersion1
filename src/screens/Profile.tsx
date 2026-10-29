@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { useToast } from '@/app/toast'
 import { deleteAccount, signOut } from '@/services/auth'
-import { fetchCurrentStreak, updateRhythm, uploadAvatar } from '@/services/profile'
+import { fetchCurrentStreak, setDailyDigestTime, updateRhythm, uploadAvatar } from '@/services/profile'
 import { disablePush, enablePush, getPushState } from '@/lib/push'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 import { IconMoon, IconProgress, IconSun, IconSunrise } from '@/components/icons'
@@ -101,6 +101,15 @@ export function ProfileScreen() {
       setProfile(updated)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar. Inténtalo de nuevo.')
+    }
+  }
+
+  async function saveDigest(time: string | null) {
+    setError(null)
+    try {
+      setProfile(await setDailyDigestTime(userId, time))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo guardar el recordatorio diario.')
     }
   }
 
@@ -355,6 +364,36 @@ export function ProfileScreen() {
             >
               {push === 'loading' ? '…' : push === 'on' ? 'Activado' : 'Activar'}
             </button>
+          </div>
+        )}
+        {push === 'on' && (
+          <div className="row row--between" style={{ alignItems: 'center' }}>
+            <span className="small">
+              Recordatorio diario de tus metas
+              <span className="field__hint" style={{ display: 'block' }}>
+                Un aviso al día con tus metas activas y las sesiones de hoy.
+              </span>
+            </span>
+            <div className="row" style={{ alignItems: 'center', gap: 'var(--space-2, 8px)' }}>
+              {profile.dailyDigestTime && (
+                <input
+                  type="time"
+                  className="input"
+                  aria-label="Hora del recordatorio diario"
+                  value={profile.dailyDigestTime}
+                  onChange={(e) => e.target.value && void saveDigest(e.target.value)}
+                />
+              )}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={profile.dailyDigestTime !== null}
+                className={`btn btn--sm ${profile.dailyDigestTime ? 'btn--primary' : 'btn--ghost'}`}
+                onClick={() => void saveDigest(profile.dailyDigestTime ? null : '07:30')}
+              >
+                {profile.dailyDigestTime ? 'Activado' : 'Activar'}
+              </button>
+            </div>
           </div>
         )}
       </section>

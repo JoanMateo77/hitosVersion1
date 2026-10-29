@@ -55,6 +55,21 @@ select cron.schedule(
 3. Cierra la app. En ≤5 minutos llega: *"Tu sesión de {meta} — 25 min, es tu
    momento"*. Tocarla abre el cronómetro directo.
 
+## Resumen diario de metas
+
+Además del aviso por sesión, la misma función envía **un push al día** a la hora
+que cada usuario elija (Perfil → Recordatorios → *Recordatorio diario de tus
+metas*, visible con las notificaciones activadas; al activarlo queda a las 07:30).
+Lista hasta 3 metas activas y cuántas sesiones tiene hoy (cada bloque del horario
+cuenta una; las saltadas se restan). Sin metas activas no se envía. Usa la misma
+ventana de 10 min y el mismo cron de 5 min, y registra el día en
+`profiles.daily_digest_sent_on` para no repetir.
+
+Requisitos: aplicar la migración `0017` (columnas `daily_digest_time` y
+`daily_digest_sent_on`) y volver a desplegar la función, que ahora incluye
+`digest.ts`: `supabase functions deploy send-reminders`. Sin la migración, el
+resumen se omite y los recordatorios de sesión siguen funcionando.
+
 ## Limitaciones conocidas
 
 - **iPhone**: solo con la PWA instalada en pantalla de inicio (iOS 16.4+).
