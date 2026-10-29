@@ -284,7 +284,19 @@ describe('sessionsToSync', () => {
   it('pending de hoy de un bloque actualizado → update de valor y hora', () => {
     expect(sessionsToSync(change, [session('s1', 'mon', today, 'pending')], today)).toEqual({
       deleteIds: [],
-      update: [{ id: 's1', targetValue: 45, plannedTime: '07:00' }],
+      update: [{ id: 's1', targetKind: 'time', targetValue: 45, unit: null, plannedTime: '07:00' }],
+    })
+  })
+
+  it('cambio de medida (30 min → 3 km) → la sesión pendiente cambia tipo, valor y unidad', () => {
+    const km: ScheduleChange = {
+      update: [{ id: 'mon', targetKind: 'count', targetValue: 3, unit: 'km', startTime: '07:00' }],
+      insert: [],
+      remove: [],
+    }
+    expect(sessionsToSync(km, [session('s1', 'mon', today, 'pending')], today)).toEqual({
+      deleteIds: [],
+      update: [{ id: 's1', targetKind: 'count', targetValue: 3, unit: 'km', plannedTime: '07:00' }],
     })
   })
 

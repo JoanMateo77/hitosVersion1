@@ -163,20 +163,27 @@ export function editBlockDays(
   return [...kept, ...added].sort((a, b) => a.weekday - b.weekday)
 }
 
+/** Sincronización de sesiones: qué borrar y qué actualizar (tipo, valor, unidad y hora). */
+export interface SessionSync {
+  deleteIds: string[]
+  update: { id: string; targetKind: TargetKind; targetValue: number; unit: string | null; plannedTime: string | null }[]
+}
+
 /**
  * Qué sesiones tocar al aplicar el cambio (solo fecha >= hoy):
  * - de bloques en `remove` con status pending|skipped → borrar;
- * - pending de bloques en `update` → actualizar valor y hora.
+ * - pending de bloques en `update` → actualizar tipo, valor, unidad y hora
+ *   (si cambió la medida, la sesión no puede quedar mezclada: "3 min").
  * Nunca toca running/done/partial/missed/unconfirmed ni fechas pasadas.
  */
 export function sessionsToSync(
   change: ScheduleChange,
   sessions: Session[],
   todayISO: string,
-): { deleteIds: string[]; update: { id: string; targetValue: number; plannedTime: string | null }[] } {
+): SessionSync {
   const removed = new Set(change.remove)
   const updated = new Map(change.update.map((u) => [u.id, u]))
-  const result: ReturnType<typeof sessionsToSync> = { deleteIds: [], update: [] }
+  const result: SessionSync = { deleteIds: [], update: [] }
   for (const s of sessions) {
     if (!s.scheduleId || s.date < todayISO) continue
     if (removed.has(s.scheduleId) && (s.status === 'pending' || s.status === 'skipped')) {
@@ -185,7 +192,13 @@ export function sessionsToSync(
     }
     const u = updated.get(s.scheduleId)
     if (u && s.status === 'pending') {
-      result.update.push({ id: s.id, targetValue: u.targetValue, plannedTime: u.startTime })
+      result.update.push({
+        id: s.id,
+        targetKind: u.targetKind,
+        targetValue: u.targetValue,
+        unit: u.unit,
+        plannedTime: u.startTime,
+      })
     }
   }
   return result

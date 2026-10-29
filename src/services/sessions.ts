@@ -1,5 +1,6 @@
 import type { ScheduleBlock, Session, SessionStatus, TargetKind } from '@/lib/types'
 import { weekdayMon0 } from '@/domain/commitment'
+import type { SessionSync } from '@/domain/scheduleEdit'
 import { supabase } from '@/lib/supabase'
 
 interface SessionRow {
@@ -350,7 +351,7 @@ export async function listGoalSessionsFrom(
  */
 export async function syncScheduledSessions(
   userId: string,
-  sync: { deleteIds: string[]; update: { id: string; targetValue: number; plannedTime: string | null }[] },
+  sync: SessionSync,
 ): Promise<void> {
   if (sync.deleteIds.length > 0) {
     const { error } = await supabase
@@ -365,7 +366,12 @@ export async function syncScheduledSessions(
     sync.update.map((u) =>
       supabase
         .from('sessions')
-        .update({ target_value: u.targetValue, planned_time: u.plannedTime })
+        .update({
+          target_kind: u.targetKind,
+          target_value: u.targetValue,
+          unit: u.unit,
+          planned_time: u.plannedTime,
+        })
         .eq('user_id', userId)
         .eq('id', u.id)
         .eq('status', 'pending'),

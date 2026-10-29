@@ -350,12 +350,15 @@ export function GoalDetail() {
     setUpdating(true)
     try {
       const today = todayISO()
-      const next = await applyScheduleChange(userId, goal.id, blocks, commitDraft, today)
+      const next = await applyScheduleChange(userId, goal.id, commitDraft, today)
       setBlocks(next)
       setCommitDraft(null)
       await generateSessionsForDate(userId, today, next).catch(() => {})
       toast('Compromiso actualizado.', 'success')
     } catch {
+      // Un guardado a medias pudo dejar cambios: la pantalla refleja lo que quedó.
+      const reloaded = await listScheduleForGoal(goal.id).catch(() => null)
+      if (reloaded) setBlocks(reloaded)
       toast('No se pudo guardar el compromiso.', 'warning')
     } finally {
       setUpdating(false)

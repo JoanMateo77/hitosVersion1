@@ -114,10 +114,12 @@ export async function updateBlockStartTime(
 export async function applyScheduleChange(
   userId: string,
   goalId: string,
-  current: ScheduleBlock[],
   desired: CommitmentBlockDraft[],
   todayISO: string,
 ): Promise<ScheduleBlock[]> {
+  // Se lee el estado real (no el de la pantalla): si un guardado anterior quedó
+  // a medias, reintentar no vuelve a insertar bloques que ya existen.
+  const current = await listScheduleForGoal(goalId)
   const change = diffSchedule(current, desired)
   const sessions = await listGoalSessionsFrom(userId, goalId, todayISO)
   await syncScheduledSessions(userId, sessionsToSync(change, sessions, todayISO))
