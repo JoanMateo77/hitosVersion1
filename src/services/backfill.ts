@@ -1,8 +1,7 @@
 import type { Goal } from '@/lib/types'
-import { buildMilestonesFromTemplate, weekdaysForCadence } from '@/domain/commitment'
+import { buildMilestonesFromTemplate, goalsMissingMilestones } from '@/domain/commitment'
 import { getTemplate } from '@/domain/templates'
 import { createMilestones, goalIdsWithMilestones } from '@/services/milestones'
-import { createScheduleBlocks, listScheduleForUser } from '@/services/schedule'
 
 const FLAG = 'logralo.backfill-v1'
 
@@ -10,10 +9,10 @@ let inflight: Promise<void> | null = null
 
 /**
  * Migración perezosa (Fase 1): a las metas creadas ANTES del modelo nuevo les
- * copia los hitos de su plantilla (marcando los primeros current_milestone como
- * cumplidos) y les crea un compromiso desde la cadencia legacy (25 min/sesión).
+ * copia los hitos de su plantilla. Ya NO crea agenda: una meta sin horario es
+ * válida (se crea "sin horario" o se saca de la agenda) y no se le inventa uno.
  * Corre una vez por sesión de navegador; es idempotente porque consulta qué
- * metas ya tienen datos.
+ * metas ya tienen hitos.
  * Single-flight: StrictMode monta el efecto dos veces en dev; sin esta guarda,
  * dos corridas concurrentes duplicarían filas (no hay unique en la BD).
  */
@@ -32,34 +31,14 @@ async function run(userId: string, goals: Goal[]): Promise<void> {
     /* sin sessionStorage igual seguimos: el chequeo de abajo es la verdad */
   }
 
-  const candidates = goals.filter((g) => g.status === 'active' || g.status === 'paused')
-  if (candidates.length > 0) {
+  if (goals.some((g) => g.status === 'active' || g.status === 'paused')) {
     const withMilestones = await goalIdsWithMilestones(userId)
-    const allBlocks = await listScheduleForUser(userId)
-    const withSchedule = new Set(allBlocks.map((b) => b.goalId))
-
-    for (const goal of candidates) {
-      const template = getTemplate(goal.templateKey)
-      if (!withMilestones.has(goal.id)) {
-        await createMilestones(
-          userId,
-          goal.id,
-          buildMilestonesFromTemplate(template, 0),
-        )
-      }
-      if (!withSchedule.has(goal.id)) {
-        await createScheduleBlocks(
-          userId,
-          goal.id,
-          weekdaysForCadence(template.cadence).map((weekday) => ({
-            weekday,
-            targetKind: 'time' as const,
-            targetValue: 25,
-            unit: null,
-            startTime: null,
-          })),
-        )
-      }
+    for (const goal of goalsMissingMilestones(goals, withMilestones)) {
+      await createMilestones(
+        userId,
+        goal.id,
+        buildMilestonesFromTemplate(getTemplate(goal.templateKey), 0),
+      )
     }
   }
 

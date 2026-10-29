@@ -1,4 +1,4 @@
-import type { Cadence, GoalTemplate, PreferredMoment, ScheduleBlock, TargetKind } from '@/lib/types'
+import type { Cadence, Goal, GoalTemplate, PreferredMoment, ScheduleBlock, TargetKind } from '@/lib/types'
 import { formatDuration, formatTime12, parseISO } from '@/lib/date'
 
 /**
@@ -162,6 +162,20 @@ export function expandMomentsToDays(moments: CommitmentMoment[], days: number[])
   return [...days]
     .sort((a, b) => a - b)
     .flatMap((weekday) => moments.map((moment) => ({ ...moment, weekday })))
+}
+
+/**
+ * Metas que el backfill debe completar con los hitos de su plantilla: activas
+ * o pausadas que todavía no tienen ninguno. No mira la agenda: una meta sin
+ * horario es válida y no se le inventa uno.
+ */
+export function goalsMissingMilestones<G extends Pick<Goal, 'id' | 'status'>>(
+  goals: G[],
+  withMilestones: Set<string>,
+): G[] {
+  return goals.filter(
+    (g) => (g.status === 'active' || g.status === 'paused') && !withMilestones.has(g.id),
+  )
 }
 
 /** Un hito todavía sin persistir (lo arma el wizard o el backfill). */
