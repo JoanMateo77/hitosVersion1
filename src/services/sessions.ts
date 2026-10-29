@@ -240,18 +240,27 @@ export function reopenSession(sessionId: string): Promise<Session> {
  * rechaza 'skipped' (23514, check_violation): se avisa con un mensaje claro.
  */
 async function setSkipStatus(sessionId: string, status: 'skipped' | 'pending'): Promise<Session> {
+  // Guarda de estado: solo se salta una pendiente y solo se deshace una
+  // saltada. Si la sesión cambió en otro lado (Hoy, otro dispositivo), no se
+  // pisa: no hay fila que coincida y se avisa.
+  const from = status === 'skipped' ? 'pending' : 'skipped'
   const { data, error } = await supabase
     .from('sessions')
     .update({ status })
     .eq('id', sessionId)
+    .eq('status', from)
     .select('*')
-    .single()
+    .maybeSingle()
   if (error) {
     if (error.code === '23514') throw new Error('Falta aplicar la migración 0017 para saltar días.')
     throw new Error(error.message)
   }
+  if (!data) throw new Error(SESSION_CHANGED_MESSAGE)
   return mapSession(data as SessionRow)
 }
+
+/** Mensaje cuando la sesión ya no está en el estado esperado (cambió en otro lado). */
+export const SESSION_CHANGED_MESSAGE = 'Esta sesión ya cambió. Actualizamos la agenda.'
 
 /** Salta la sesión de un día: queda neutra para la racha (ni suma ni rompe). */
 export function skipSession(sessionId: string): Promise<Session> {

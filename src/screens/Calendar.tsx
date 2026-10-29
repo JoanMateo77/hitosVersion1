@@ -56,6 +56,7 @@ import {
   setSessionPlannedTime,
   skipSession,
   unskipSession,
+  SESSION_CHANGED_MESSAGE,
 } from '@/services/sessions'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { friendlyError } from '@/lib/errors'
@@ -444,9 +445,18 @@ export function Calendar() {
     }
   }
 
-  /** Sin la migración 0017 el servicio avisa con un mensaje propio: se muestra tal cual. */
+  /** Sin la migración 0017 o si la sesión cambió, el servicio avisa con un mensaje propio: se muestra tal cual. */
   function skipError(err: unknown, fallback: string): string {
-    return err instanceof Error && err.message.includes('0017') ? err.message : friendlyError(err, fallback)
+    return err instanceof Error && (err.message.includes('0017') || err.message === SESSION_CHANGED_MESSAGE)
+      ? err.message
+      : friendlyError(err, fallback)
+  }
+
+  /** Si la sesión cambió en otro lado, relee las del rango para mostrar su estado real. */
+  async function refreshIfChanged(err: unknown) {
+    if (!(err instanceof Error) || err.message !== SESSION_CHANGED_MESSAGE) return
+    const fresh = await listSessionsInRange(userId, from, to).catch(() => null)
+    if (fresh) setSessions(fresh)
   }
 
   /** Salta SOLO este día (neutro para la racha). Una proyectada se materializa primero. */
@@ -454,12 +464,20 @@ export function Calendar() {
     try {
       const session = await materializeSession(it, day)
       if (!session) return
+      // La hoja sigue abierta sobre la sesión real (ahí está "Deshacer salto"),
+      // también si el salto falla: el ítem proyectado ya no existe.
+      setBlockSheet({ sessionKey: session.id, day })
+      if (session.status !== 'pending') {
+        // La agenda estaba vieja: la sesión ya se hizo o empezó en otro lado.
+        // materializeSession ya la sumó al estado; no se pisa.
+        toast('Esta sesión ya cambió.')
+        return
+      }
       const updated = await skipSession(session.id)
       setSessions((prev) => prev.map((sx) => (sx.id === updated.id ? updated : sx)))
-      // La hoja sigue abierta sobre la sesión real: ahí está "Deshacer salto".
-      setBlockSheet({ sessionKey: updated.id, day })
       toast('Saltado. Tu racha no se rompe.', 'success')
     } catch (err) {
+      await refreshIfChanged(err)
       toast(skipError(err, 'No se pudo saltar el día.'))
     }
   }
@@ -471,6 +489,7 @@ export function Calendar() {
       setSessions((prev) => prev.map((sx) => (sx.id === updated.id ? updated : sx)))
       toast('Salto deshecho.', 'success')
     } catch (err) {
+      await refreshIfChanged(err)
       toast(skipError(err, 'No se pudo deshacer el salto.'))
     }
   }
@@ -578,9 +597,10 @@ export function Calendar() {
   async function materializeSession(it: DayAgendaSession, day: string): Promise<Session | null> {
     if (it.session || !it.block) return it.session
     const generated = await generateSessionsForDate(userId, day, [it.block])
+    // Lo leído es lo real: reemplaza las conocidas (pudieron cambiar en otro lado) y suma las nuevas.
     setSessions((prev) => {
-      const known = new Set(prev.map((s) => s.id))
-      return [...prev, ...generated.filter((s) => !known.has(s.id))]
+      const fresh = new Map(generated.map((s) => [s.id, s] as const))
+      return [...prev.filter((s) => !fresh.has(s.id)), ...generated]
     })
     return generated.find((s) => s.scheduleId === it.block?.id && s.date === day) ?? null
   }
