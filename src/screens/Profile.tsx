@@ -380,8 +380,11 @@ export function ProfileScreen() {
                   type="time"
                   className="input"
                   aria-label="Hora del recordatorio diario"
-                  value={profile.dailyDigestTime}
-                  onChange={(e) => e.target.value && void saveDigest(e.target.value)}
+                  defaultValue={profile.dailyDigestTime}
+                  onBlur={(e) => {
+                    const v = e.target.value
+                    if (/^\d{2}:\d{2}$/.test(v) && v !== profile.dailyDigestTime) void saveDigest(v)
+                  }}
                 />
               )}
               <button

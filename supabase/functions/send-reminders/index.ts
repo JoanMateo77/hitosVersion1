@@ -85,39 +85,68 @@ async function sendDigest(userId: string, subs: PushSub[], date: string, nowMin:
     .select('daily_digest_time, daily_digest_sent_on')
     .eq('id', userId)
     .maybeSingle()
-  if (error || !prof) return 0 // columna inexistente (sin migración 0017): se omite el digest
+  if (error) {
+    // 42703 / PGRST204 = columna inexistente (sin migración 0017): se omite en silencio.
+    if (error.code !== '42703' && error.code !== 'PGRST204') {
+      console.error('digest: no se pudo leer el perfil', userId, error.message)
+    }
+    return 0
+  }
+  if (!prof) return 0
   const digestTime = prof.daily_digest_time as string | null
   const sentOn = prof.daily_digest_sent_on as string | null
   if (!digestDue(nowMin, digestTime, sentOn, date)) return 0
 
-  const { data: goals } = await supabase
+  const { data: goals, error: goalsErr } = await supabase
     .from('goals')
     .select('id, title')
     .eq('user_id', userId)
     .eq('status', 'active')
     .order('created_at', { ascending: false })
+  if (goalsErr) {
+    console.error('digest: error leyendo metas', userId, goalsErr.message)
+    return 0
+  }
   if (!goals || goals.length === 0) return 0
   const goalIds = goals.map((g) => g.id as string)
 
-  const { data: blocks } = await supabase
+  const { data: blocks, error: blocksErr } = await supabase
     .from('goal_schedule')
     .select('id')
     .eq('user_id', userId)
     .in('goal_id', goalIds)
     .eq('weekday', weekdayOf(date))
-  const { count: skipped } = await supabase
+  if (blocksErr) {
+    console.error('digest: error leyendo horario', userId, blocksErr.message)
+    return 0
+  }
+  const { count: skipped, error: skippedErr } = await supabase
     .from('sessions')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
     .eq('session_date', date)
     .eq('status', 'skipped')
     .in('goal_id', goalIds)
+  if (skippedErr) {
+    console.error('digest: error leyendo sesiones', userId, skippedErr.message)
+    return 0
+  }
   const sessionsToday = Math.max(0, (blocks?.length ?? 0) - (skipped ?? 0))
 
+  // Se marca como enviado ANTES de enviar: el cron corre cada 5 min y la ventana es de
+  // 10, así que si el update fallara tras enviar, el usuario recibiría el push repetido.
+  // Trade-off: si el envío falla, no se reintenta hoy (mejor perder un aviso que duplicarlo).
+  const { error: markErr } = await supabase
+    .from('profiles')
+    .update({ daily_digest_sent_on: date })
+    .eq('id', userId)
+  if (markErr) {
+    console.error('digest: no se pudo marcar como enviado', userId, markErr.message)
+    return 0
+  }
+
   const { title, body } = digestBody(goals.map((g) => g.title as string), sessionsToday)
-  const delivered = await sendToSubs(subs, JSON.stringify({ title, body, url: '/', tag: 'daily-digest' }))
-  await supabase.from('profiles').update({ daily_digest_sent_on: date }).eq('id', userId)
-  return delivered
+  return sendToSubs(subs, JSON.stringify({ title, body, url: '/', tag: 'daily-digest' }))
 }
 
 Deno.serve(async (req) => {

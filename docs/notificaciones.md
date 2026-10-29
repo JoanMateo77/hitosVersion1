@@ -10,10 +10,14 @@ SQL Editor → pegar `supabase/migrations/0008_push.sql` → Run.
 
 ## 2. Desplegar la Edge Function
 
-Dashboard → **Edge Functions** → *Deploy a new function* → nombre: `send-reminders`
-→ pegar el contenido de `supabase/functions/send-reminders/index.ts` → Deploy.
+Con la CLI de Supabase, desde la raíz del repo (la función tiene dos archivos,
+`index.ts` y `digest.ts`, así que ya no sirve pegarla en el dashboard):
 
-> En *Details* de la función, desactiva **Verify JWT** (la protege el CRON_SECRET).
+```sh
+supabase functions deploy send-reminders --no-verify-jwt
+```
+
+> `--no-verify-jwt` desactiva **Verify JWT** (la protege el CRON_SECRET).
 
 ## 3. Secrets de la función
 
