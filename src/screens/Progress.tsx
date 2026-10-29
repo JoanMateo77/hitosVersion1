@@ -13,12 +13,13 @@ import {
   activeCommittedWeekdays,
   bestStreakCommitted,
   dayState as domainDayState,
+  dueBlocksForDate,
   doneDatesOf,
   globalStreak,
   neutralDatesOf,
   weekConsistency,
 } from '@/domain/sessions'
-import { weekdayMon0, WEEKDAY_LABELS } from '@/domain/commitment'
+import { WEEKDAY_LABELS } from '@/domain/commitment'
 import { addDays, formatLongDate, startOfWeek, todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { useCachedData } from '@/hooks/useCachedData'
@@ -110,7 +111,7 @@ export function Progress() {
       committedWeekdays,
       addDays(today, -(HISTORY_DAYS - 1)),
       today,
-      neutralDatesOf(sessions),
+      neutralDatesOf(sessions, activeBlocks),
     ),
   )
 
@@ -120,7 +121,7 @@ export function Progress() {
       date,
       today,
       sessions.filter((s) => s.date === date),
-      committedWeekdays.has(weekdayMon0(date)),
+      dueBlocksForDate(activeBlocks, date),
     )
   }
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))

@@ -135,14 +135,22 @@ export function currentStreakCommitted(
   return streak
 }
 
+/** Bloques de las metas ACTIVAS: las pausadas no comprometen ningún día. */
+export function activeBlocksOf<B extends Pick<ScheduleBlock, 'goalId'>>(
+  goals: Pick<Goal, 'id' | 'status'>[],
+  blocks: B[],
+): B[] {
+  const active = new Set(goals.filter((g) => g.status === 'active').map((g) => g.id))
+  return blocks.filter((b) => active.has(b.goalId))
+}
+
 /** Días de la semana (lunes=0) con bloque de alguna meta ACTIVA. Es la única
  *  vara para la racha global: Hoy, Progreso y Perfil la comparten. */
 export function activeCommittedWeekdays(
   goals: Pick<Goal, 'id' | 'status'>[],
   blocks: Pick<ScheduleBlock, 'goalId' | 'weekday'>[],
 ): Set<number> {
-  const active = new Set(goals.filter((g) => g.status === 'active').map((g) => g.id))
-  return new Set(blocks.filter((b) => active.has(b.goalId)).map((b) => b.weekday))
+  return new Set(activeBlocksOf(goals, blocks).map((b) => b.weekday))
 }
 
 /** Fechas con al menos una sesión hecha o parcial. */
@@ -152,46 +160,76 @@ export function doneDatesOf(sessions: Pick<Session, 'date' | 'status'>[]): Set<s
   return out
 }
 
-/** Fechas con al menos una sesión y TODAS saltadas: días neutros para la racha.
- *  Si el día también tiene otra sesión (aunque sea "no pude"), no es neutro. */
-export function neutralDatesOf(sessions: Pick<Session, 'date' | 'status'>[]): Set<string> {
-  const allSkipped = new Map<string, boolean>()
+/**
+ * ¿Día neutro (saltado a propósito)? Solo si CADA bloque comprometido ese día
+ * tiene su sesión saltada y no hay ninguna otra sesión (aunque sea "no pude").
+ * Las sesiones se generan al abrir la app ese día: saltar por adelantado solo
+ * crea la fila de esa meta, así que las metas sin fila no cuentan como saltadas.
+ */
+export function isNeutralDay(
+  daySessions: Pick<Session, 'status' | 'scheduleId'>[],
+  dayBlocks: Pick<ScheduleBlock, 'id'>[],
+): boolean {
+  if (dayBlocks.length === 0) return false
+  if (daySessions.some((s) => s.status !== 'skipped')) return false
+  const skipped = new Set(daySessions.map((s) => s.scheduleId))
+  return dayBlocks.every((b) => skipped.has(b.id))
+}
+
+/** Fechas neutras para la racha (ver isNeutralDay). `activeBlocks`: bloques de
+ *  metas activas (activeBlocksOf). */
+export function neutralDatesOf(
+  sessions: Pick<Session, 'date' | 'status' | 'scheduleId'>[],
+  activeBlocks: Pick<ScheduleBlock, 'id' | 'weekday'>[],
+): Set<string> {
+  const byDate = new Map<string, Pick<Session, 'status' | 'scheduleId'>[]>()
   for (const s of sessions) {
-    allSkipped.set(s.date, (allSkipped.get(s.date) ?? true) && s.status === 'skipped')
+    const list = byDate.get(s.date)
+    if (list) list.push(s)
+    else byDate.set(s.date, [s])
   }
   const out = new Set<string>()
-  for (const [date, skipped] of allSkipped) if (skipped) out.add(date)
+  for (const [date, daySessions] of byDate) {
+    if (isNeutralDay(daySessions, dueBlocksForDate(activeBlocks, date))) out.add(date)
+  }
   return out
 }
 
 /** Racha global actual con la misma métrica en toda la app. */
 export function globalStreak(
   goals: Pick<Goal, 'id' | 'status'>[],
-  blocks: Pick<ScheduleBlock, 'goalId' | 'weekday'>[],
-  sessions: Pick<Session, 'date' | 'status'>[],
+  blocks: Pick<ScheduleBlock, 'id' | 'goalId' | 'weekday'>[],
+  sessions: Pick<Session, 'date' | 'status' | 'scheduleId'>[],
   todayISO: string,
 ): number {
+  const active = activeBlocksOf(goals, blocks)
   return currentStreakCommitted(
     doneDatesOf(sessions),
-    activeCommittedWeekdays(goals, blocks),
+    new Set(active.map((b) => b.weekday)),
     todayISO,
-    neutralDatesOf(sessions),
+    neutralDatesOf(sessions, active),
   )
 }
 
 export type DayState = 'done' | 'partial' | 'missed' | 'future' | 'free'
 
-/** Estado de un día para las tiras de 7 días (Hoy y Progreso comparten reglas). */
+/**
+ * Estado de un día para las tiras de 7 días (Hoy y Progreso comparten reglas).
+ * `dayBlocks`: bloques de metas activas que tocan ese día (dueBlocksForDate); sin
+ * bloques el día no está comprometido.
+ */
 export function dayState(
   dateISO: string,
   todayISO: string,
-  daySessions: Pick<Session, 'status'>[],
-  committed: boolean,
+  daySessions: Pick<Session, 'status' | 'scheduleId'>[],
+  dayBlocks: Pick<ScheduleBlock, 'id'>[],
 ): DayState {
   // Día saltado a propósito: neutro, como un día sin compromiso.
-  if (daySessions.length > 0 && daySessions.every((s) => s.status === 'skipped')) return 'free'
+  if (isNeutralDay(daySessions, dayBlocks)) return 'free'
+  const committed = dayBlocks.length > 0
   if (dateISO > todayISO) return committed ? 'future' : 'free'
-  if (!committed && daySessions.length === 0) return 'free'
+  // Sin compromiso, una sesión saltada (espontánea) tampoco lo vuelve deuda.
+  if (!committed && daySessions.every((s) => s.status === 'skipped')) return 'free'
   if (daySessions.some((s) => s.status === 'done')) return 'done'
   if (daySessions.some((s) => s.status === 'partial')) return 'partial'
   if (dateISO === todayISO) return 'future'
@@ -229,7 +267,7 @@ export function bestStreakCommitted(
 }
 
 /** Bloques del compromiso que tocan en una fecha (proyección a futuro). */
-export function dueBlocksForDate(blocks: ScheduleBlock[], dateISO: string): ScheduleBlock[] {
+export function dueBlocksForDate<B extends Pick<ScheduleBlock, 'weekday'>>(blocks: B[], dateISO: string): B[] {
   return blocks.filter((b) => b.weekday === weekdayMon0Local(dateISO))
 }
 

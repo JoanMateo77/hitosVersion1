@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  activeBlocksOf,
   activeCommittedWeekdays,
   bestStreakCommitted,
   currentStreakCommitted,
@@ -232,12 +233,13 @@ describe('globalStreak', () => {
     { id: 'g2', status: 'paused' as const },
   ]
   const blocks = [
-    { goalId: 'g1', weekday: 0 }, // lunes
-    { goalId: 'g2', weekday: 2 }, // miércoles, de una meta pausada
-  ] as Pick<ScheduleBlock, 'goalId' | 'weekday'>[]
+    { id: 'b-mon', goalId: 'g1', weekday: 0 }, // lunes
+    { id: 'b-wed', goalId: 'g2', weekday: 2 }, // miércoles, de una meta pausada
+  ] as Pick<ScheduleBlock, 'id' | 'goalId' | 'weekday'>[]
 
   it('ignora los bloques de metas no activas', () => {
     expect([...activeCommittedWeekdays(goals, blocks)]).toEqual([0])
+    expect(activeBlocksOf(goals, blocks).map((b) => b.id)).toEqual(['b-mon'])
   })
 
   it('solo cuenta sesiones done o partial', () => {
@@ -261,23 +263,24 @@ describe('globalStreak', () => {
 
 describe('dayState', () => {
   const today = '2026-09-14'
+  const due = [{ id: 'b1' }]
   it('futuro comprometido es future, futuro libre es free', () => {
-    expect(dayState('2026-09-15', today, [], true)).toBe('future')
-    expect(dayState('2026-09-15', today, [], false)).toBe('free')
+    expect(dayState('2026-09-15', today, [], due)).toBe('future')
+    expect(dayState('2026-09-15', today, [], [])).toBe('free')
   })
   it('pasado sin compromiso ni sesiones es free', () => {
-    expect(dayState('2026-09-10', today, [], false)).toBe('free')
+    expect(dayState('2026-09-10', today, [], [])).toBe('free')
   })
   it('done gana a partial', () => {
-    expect(dayState('2026-09-10', today, [{ status: 'partial' }, { status: 'done' }] as Session[], true)).toBe('done')
-    expect(dayState('2026-09-10', today, [{ status: 'partial' }] as Session[], true)).toBe('partial')
+    expect(dayState('2026-09-10', today, [{ status: 'partial' }, { status: 'done' }] as Session[], due)).toBe('done')
+    expect(dayState('2026-09-10', today, [{ status: 'partial' }] as Session[], due)).toBe('partial')
   })
   it('hoy comprometido y sin cumplir sigue en juego', () => {
-    expect(dayState(today, today, [{ status: 'pending' }] as Session[], true)).toBe('future')
+    expect(dayState(today, today, [{ status: 'pending' }] as Session[], due)).toBe('future')
   })
   it('pasado comprometido sin cumplir es missed', () => {
-    expect(dayState('2026-09-10', today, [], true)).toBe('missed')
-    expect(dayState('2026-09-10', today, [{ status: 'missed' }] as Session[], false)).toBe('missed')
+    expect(dayState('2026-09-10', today, [], due)).toBe('missed')
+    expect(dayState('2026-09-10', today, [{ status: 'missed' }] as Session[], [])).toBe('missed')
   })
 })
 
@@ -285,36 +288,82 @@ describe('sesiones saltadas (días neutros)', () => {
   // Lunes 26 y martes 27 de octubre comprometidos; hoy miércoles 28 (comprometido).
   const goals = [{ id: 'g1', status: 'active' as const }]
   const blocks = [
-    { goalId: 'g1', weekday: 0 },
-    { goalId: 'g1', weekday: 1 },
-    { goalId: 'g1', weekday: 2 },
-  ] as Pick<ScheduleBlock, 'goalId' | 'weekday'>[]
+    { id: 'b-mon', goalId: 'g1', weekday: 0 },
+    { id: 'b-tue', goalId: 'g1', weekday: 1 },
+    { id: 'b-wed', goalId: 'g1', weekday: 2 },
+  ] as Pick<ScheduleBlock, 'id' | 'goalId' | 'weekday'>[]
 
   it('neutralDatesOf: solo fechas con todas sus sesiones saltadas', () => {
-    const dates = neutralDatesOf([
-      { date: '2026-10-26', status: 'skipped' },
-      { date: '2026-10-27', status: 'skipped' },
-      { date: '2026-10-27', status: 'missed' },
-      { date: '2026-10-28', status: 'done' },
-    ] as Session[])
+    const dates = neutralDatesOf(
+      [
+        { date: '2026-10-26', status: 'skipped', scheduleId: 'b-mon' },
+        { date: '2026-10-27', status: 'skipped', scheduleId: 'b-tue' },
+        { date: '2026-10-27', status: 'missed', scheduleId: null },
+        { date: '2026-10-28', status: 'done', scheduleId: 'b-wed' },
+      ] as Session[],
+      blocks,
+    )
     expect([...dates]).toEqual(['2026-10-26'])
+  })
+
+  describe('con dos metas el mismo día', () => {
+    // Martes 27: A y B comprometidas. Solo A se saltó por adelantado desde la
+    // Agenda; la sesión de B nunca se generó (no se abrió la app ese día).
+    const twoGoals = [
+      { id: 'gA', status: 'active' as const },
+      { id: 'gB', status: 'active' as const },
+    ]
+    const twoBlocks = [
+      { id: 'a-tue', goalId: 'gA', weekday: 1 },
+      { id: 'b-tue', goalId: 'gB', weekday: 1 },
+    ] as Pick<ScheduleBlock, 'id' | 'goalId' | 'weekday'>[]
+    const aSkipped = { date: '2026-10-27', status: 'skipped', scheduleId: 'a-tue' }
+    const bSkipped = { date: '2026-10-27', status: 'skipped', scheduleId: 'b-tue' }
+
+    it('(a) A saltada y B sin fila → el día NO es neutro', () => {
+      const sessions = [aSkipped] as Session[]
+      expect(neutralDatesOf(sessions, twoBlocks).has('2026-10-27')).toBe(false)
+      expect(dayState('2026-10-27', '2026-10-28', sessions, twoBlocks)).toBe('missed')
+    })
+
+    it('(b) A y B saltadas → el día es neutro', () => {
+      const sessions = [aSkipped, bSkipped] as Session[]
+      expect(neutralDatesOf(sessions, twoBlocks).has('2026-10-27')).toBe(true)
+      expect(dayState('2026-10-27', '2026-10-28', sessions, twoBlocks)).toBe('free')
+    })
+
+    it('la racha se rompe si solo se saltó una de las dos', () => {
+      // Martes 20 cumplido por ambas; martes 27 solo A saltada; hoy martes 3 nov sin cumplir aún.
+      const done20 = [
+        { date: '2026-10-20', status: 'done', scheduleId: 'a-tue' },
+        { date: '2026-10-20', status: 'done', scheduleId: 'b-tue' },
+      ]
+      expect(globalStreak(twoGoals, twoBlocks, [...done20, aSkipped] as Session[], '2026-11-03')).toBe(0)
+      expect(globalStreak(twoGoals, twoBlocks, [...done20, aSkipped, bSkipped] as Session[], '2026-11-03')).toBe(1)
+    })
+
+    it('un bloque de una meta pausada no hace falta saltarlo', () => {
+      const withPaused = [twoGoals[0], { id: 'gB', status: 'paused' as const }]
+      const active = activeBlocksOf(withPaused, twoBlocks)
+      expect(neutralDatesOf([aSkipped] as Session[], active).has('2026-10-27')).toBe(true)
+    })
   })
 
   it('un día saltado no rompe la racha (ni suma)', () => {
     const sessions = [
-      { date: '2026-10-26', status: 'done' },
-      { date: '2026-10-27', status: 'skipped' },
-      { date: '2026-10-28', status: 'pending' },
+      { date: '2026-10-26', status: 'done', scheduleId: 'b-mon' },
+      { date: '2026-10-27', status: 'skipped', scheduleId: 'b-tue' },
+      { date: '2026-10-28', status: 'pending', scheduleId: 'b-wed' },
     ] as Session[]
     expect(globalStreak(goals, blocks, sessions, '2026-10-28')).toBe(1)
   })
 
   it('si el día saltado también tiene una sesión no cumplida, sí rompe', () => {
     const sessions = [
-      { date: '2026-10-26', status: 'done' },
-      { date: '2026-10-27', status: 'skipped' },
-      { date: '2026-10-27', status: 'missed' },
-      { date: '2026-10-28', status: 'pending' },
+      { date: '2026-10-26', status: 'done', scheduleId: 'b-mon' },
+      { date: '2026-10-27', status: 'skipped', scheduleId: 'b-tue' },
+      { date: '2026-10-27', status: 'missed', scheduleId: null },
+      { date: '2026-10-28', status: 'pending', scheduleId: 'b-wed' },
     ] as Session[]
     expect(globalStreak(goals, blocks, sessions, '2026-10-28')).toBe(0)
   })
@@ -335,7 +384,17 @@ describe('sesiones saltadas (días neutros)', () => {
   })
 
   it('dayState: un día con todas sus sesiones saltadas es free', () => {
-    expect(dayState('2026-10-27', '2026-10-28', [{ status: 'skipped' }] as Session[], true)).toBe('free')
+    expect(
+      dayState('2026-10-27', '2026-10-28', [{ status: 'skipped', scheduleId: 'b-tue' }] as Session[], [
+        { id: 'b-tue' },
+      ]),
+    ).toBe('free')
+  })
+
+  it('dayState: una espontánea saltada en un día sin compromiso es free', () => {
+    expect(
+      dayState('2026-10-25', '2026-10-28', [{ status: 'skipped', scheduleId: null }] as Session[], []),
+    ).toBe('free')
   })
 
   it('weekConsistency: las saltadas salen del comprometido', () => {
@@ -345,5 +404,14 @@ describe('sesiones saltadas (días neutros)', () => {
       session({ date: '2026-06-10', status: 'skipped' }),
     ]
     expect(weekConsistency(weekBlocks, sessions, '2026-06-08')).toEqual({ done: 1, committed: 2 })
+  })
+
+  it('(c) weekConsistency: una espontánea saltada no resta del comprometido', () => {
+    const weekBlocks = [block(0), block(2), block(4)]
+    const sessions = [
+      session({ date: '2026-06-08', status: 'done' }),
+      session({ date: '2026-06-10', status: 'skipped', scheduleId: null }),
+    ]
+    expect(weekConsistency(weekBlocks, sessions, '2026-06-08')).toEqual({ done: 1, committed: 3 })
   })
 })

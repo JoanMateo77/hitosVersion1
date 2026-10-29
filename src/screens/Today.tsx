@@ -37,9 +37,11 @@ import {
 import { compareEvents } from '@/domain/calendar'
 import { carryoverCandidates, findForgottenGoal, goalsDueForReview } from '@/domain/dailyPlan'
 import {
+  activeBlocksOf,
   activeCommittedWeekdays,
   bestStreakCommitted,
   dayState,
+  dueBlocksForDate,
   doneDatesOf,
   elapsedSeconds,
   globalStreak,
@@ -63,7 +65,7 @@ import {
   SHORT_NICHE_LABELS,
   type LaterItem,
 } from '@/domain/today'
-import { WEEKDAY_LABELS, weekdayMon0 } from '@/domain/commitment'
+import { WEEKDAY_LABELS } from '@/domain/commitment'
 import { addDays, dayOfMonth, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
 import { friendlyError } from '@/lib/errors'
 import { Disclosure } from '@/components/Disclosure'
@@ -327,6 +329,7 @@ export function Today() {
   // Días de la semana con compromiso de alguna meta activa (misma vara para
   // la racha y para el estado de cada día de la tira semanal).
   const committedWeekdays = useMemo(() => activeCommittedWeekdays(goals, blocks), [goals, blocks])
+  const activeBlocks = useMemo(() => activeBlocksOf(goals, blocks), [goals, blocks])
 
   // Racha sobre días comprometidos (los días sin compromiso no la rompen).
   const streak = useMemo(
@@ -348,11 +351,11 @@ export function Today() {
       committedWeekdays,
       addDays(today, -119),
       today,
-      neutralDatesOf(all),
+      neutralDatesOf(all, activeBlocks),
     )
     if (best < 2) return null
     return { best, lastDone }
-  }, [streak, history, sessions, blocks, committedWeekdays, today])
+  }, [streak, history, sessions, blocks, committedWeekdays, activeBlocks, today])
 
   const [streakNoticeDismissed, setStreakNoticeDismissed] = useState(false)
   const showStreakNotice =
@@ -528,9 +531,8 @@ export function Today() {
 
   /** Estado agregado de un día para la tira semanal. */
   function stripState(date: string) {
-    const committed = committedWeekdays.has(weekdayMon0(date))
     const day = (date === today ? sessions : history).filter((x) => x.date === date)
-    return dayState(date, today, day, committed)
+    return dayState(date, today, day, dueBlocksForDate(activeBlocks, date))
   }
 
   function addSpontaneous(goal: Goal) {
