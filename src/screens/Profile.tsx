@@ -387,6 +387,11 @@ export function ProfileScreen() {
           </div>
         )}
       </section>
+
+      {/* ----- Acerca de ----- */}
+      <p className="faint tiny" style={{ margin: 0, textAlign: 'center' }}>
+        Lógralo · Desarrollado por Seki Software
+      </p>
       </div>
 
       {error && (
