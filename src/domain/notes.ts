@@ -93,3 +93,23 @@ export function itemsToLines(items: NoteItem[]): string {
 export function isBlankNote(n: NoteContent): boolean {
   return noteHeading(n) === '' && noteExcerpt(n) === ''
 }
+
+/**
+ * El "por qué" de una meta nacida de la nota: el contenido sin repetir lo que
+ * ya pasó a ser el título (sin título propio, la primera línea o elemento).
+ */
+export function noteWhy(n: NoteContent): string {
+  const hasTitle = (n.title?.trim() ?? '') !== ''
+  if (n.items) {
+    const texts = itemTexts(n.items)
+    return (hasTitle ? texts : texts.slice(1)).join('\n')
+  }
+  if (hasTitle) return n.body
+  const lines = n.body.split('\n')
+  const first = lines.findIndex((line) => line.trim() !== '')
+  if (first === -1) return ''
+  return lines
+    .slice(first + 1)
+    .join('\n')
+    .trim()
+}

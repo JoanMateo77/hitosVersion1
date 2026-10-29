@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { useToast } from '@/app/toast'
@@ -13,7 +13,15 @@ import {
 } from '@/services/notes'
 import { addMilestone, listMilestones } from '@/services/milestones'
 import { createUserTask } from '@/services/tasks'
-import { isBlankNote, itemsToLines, linesToItems, noteHeading, notePlace } from '@/domain/notes'
+import {
+  isBlankNote,
+  itemsToLines,
+  linesToItems,
+  noteHeading,
+  notePlace,
+  noteWhy,
+} from '@/domain/notes'
+import { clearNoteDraft, loadNoteDraft, saveNoteDraft } from '@/lib/noteDraft'
 import { seedWizardDraft } from '@/lib/wizardDraft'
 import { todayISO } from '@/lib/date'
 import { Sheet } from '@/components/Sheet'
@@ -71,18 +79,30 @@ export function NoteSheet({
   const { toast } = useToast()
   const navigate = useNavigate()
 
-  const [title, setTitle] = useState(note?.title ?? '')
-  const [body, setBody] = useState(note?.body ?? '')
-  const [items, setItems] = useState<NoteItem[] | null>(note?.items ?? null)
+  // Si un guardado anterior de ESTA nota falló, se retoma lo que quedó escrito.
+  const [recovered] = useState(() => {
+    const draft = loadNoteDraft()
+    return draft && draft.noteId === (note?.id ?? null) ? draft : null
+  })
+  const [title, setTitle] = useState(recovered?.title ?? note?.title ?? '')
+  const [body, setBody] = useState(recovered?.body ?? note?.body ?? '')
+  const [items, setItems] = useState<NoteItem[] | null>(
+    recovered ? recovered.items : (note?.items ?? null),
+  )
   const [newItem, setNewItem] = useState('')
   const [saved, setSaved] = useState<Note | null>(note)
   const [panel, setPanel] = useState<Panel>('edit')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const goalIdForNew = recovered ? recovered.goalId : newGoalId
 
-  // Refs para el guardado al cerrar: corre después de que la hoja se desmonta.
+  // Refs para el guardado al salir: corre cuando la hoja ya se desmontó.
   const savedRef = useRef<Note | null>(note)
   const skipSaveRef = useRef(false)
+  /** true cuando ya se guardó al salir (cierre animado o desmontaje). */
+  const leftRef = useRef(false)
+  /** La conversión ya creó su meta/etapa/tarea: un reintento solo archiva. */
+  const convertedRef = useRef(false)
   /** Guardados en fila: dos acciones seguidas nunca crean la nota dos veces. */
   const queue = useRef<Promise<unknown>>(Promise.resolve())
 
@@ -101,32 +121,72 @@ export function NoteSheet({
     return newItem.trim() === '' ? items : [...items, { text: newItem.trim(), done: false }]
   }
 
+  /** Lo escrito ahora mismo, sin limpiar (es lo que se rescata si falla). */
+  const written = { title, body, items: currentItems() }
+
   /** Guarda lo escrito (crea o actualiza) y devuelve la nota; null si está vacía. */
-  function ensureSaved(): Promise<Note | null> {
-    const content = cleanContent(title, body, currentItems())
+  function ensureSaved(text: typeof written = written): Promise<Note | null> {
+    const content = cleanContent(text.title, text.body, text.items)
     const run = queue.current.then(async () => {
       const current = savedRef.current
+      let result: Note | null
       if (current === null) {
         if (isBlankNote(content)) return null
-        const created = await createNote(userId, { ...content, goalId: newGoalId })
-        remember(created)
-        return created
+        result = await createNote(userId, { ...content, goalId: goalIdForNew })
+        remember(result)
+      } else if (sameContent(current, content)) {
+        result = current
+      } else {
+        result = await updateNote(current.id, content)
+        remember(result)
       }
-      if (sameContent(current, content)) return current
-      const updated = await updateNote(current.id, content)
-      remember(updated)
-      return updated
+      if (recovered) clearNoteDraft()
+      return result
     })
     queue.current = run.catch(() => undefined)
     return run
   }
 
+  /**
+   * Guardado al salir de la hoja, por cualquier camino (cierre animado, atrás
+   * del sistema, cambio de ruta). Idempotente: nota nueva vacía → nada; sin
+   * cambios → nada. Si falla, lo escrito queda en sessionStorage para retomarlo.
+   */
+  function saveOnLeave() {
+    if (skipSaveRef.current || leftRef.current) return
+    leftRef.current = true
+    const text = written
+    ensureSaved(text).catch(() => {
+      saveNoteDraft({
+        noteId: savedRef.current?.id ?? null,
+        goalId: goalIdForNew,
+        title: text.title,
+        body: text.body,
+        items: text.items,
+      })
+      toast('No pudimos guardar la nota. La recuperamos al abrirla de nuevo.', 'warning')
+    })
+  }
+
+  // El desmontaje necesita la versión de saveOnLeave del último render (con lo
+  // último escrito), no la del primero.
+  const saveOnLeaveRef = useRef(saveOnLeave)
+  useEffect(() => {
+    saveOnLeaveRef.current = saveOnLeave
+  })
+
+  // Desmontaje sin animación de cierre (atrás de Android/PWA, cambio de ruta).
+  useEffect(
+    () => () => {
+      saveOnLeaveRef.current()
+      // StrictMode monta dos veces: el segundo montaje vuelve a habilitar la salida.
+      leftRef.current = false
+    },
+    [],
+  )
+
   function handleClosed() {
-    if (!skipSaveRef.current) {
-      ensureSaved().catch((err: unknown) =>
-        toast(noteErrorMessage(err, 'No se pudo guardar la nota.'), 'warning'),
-      )
-    }
+    saveOnLeave()
     onClose()
   }
 
@@ -154,9 +214,23 @@ export function NoteSheet({
     close()
   }
 
-  async function archiveConverted(n: Note) {
-    remember(await setNoteArchived(n.id, true))
+  /**
+   * Convierte: crea la meta/etapa/tarea UNA vez y archiva la nota. Si archivar
+   * falla, un reintento solo vuelve a archivar (nunca duplica lo creado).
+   */
+  async function convert(n: Note, create: () => Promise<void>, after: () => void) {
+    if (!convertedRef.current) {
+      await create()
+      convertedRef.current = true
+    }
+    try {
+      remember(await setNoteArchived(n.id, true))
+    } catch {
+      setError('Se creó, pero no pudimos archivar la nota.')
+      return
+    }
     toast(CONVERTED_MESSAGE, 'success')
+    after()
   }
 
   // --- Lista ----------------------------------------------------------------
@@ -373,37 +447,50 @@ export function NoteSheet({
                 goals={activeGoals}
                 busy={busy}
                 onGoal={() =>
-                  void act(async (n) => {
-                    seedWizardDraft({
-                      title: noteHeading(n),
-                      templateKey: 'personalizada',
-                      area:
-                        notePlace(n) === 'area' && n.area
-                          ? n.area
-                          : (profile.primaryNiche ?? 'otra'),
-                      milestones: [],
-                      why: n.items ? itemsToLines(n.items) : n.body,
-                      step: 0,
-                    })
-                    await archiveConverted(n)
-                    finish(close)
-                    navigate('/meta/nueva')
-                  })
+                  void act((n) =>
+                    convert(
+                      n,
+                      async () =>
+                        seedWizardDraft({
+                          title: noteHeading(n),
+                          templateKey: 'personalizada',
+                          area:
+                            notePlace(n) === 'area' && n.area
+                              ? n.area
+                              : (profile.primaryNiche ?? 'otra'),
+                          milestones: [],
+                          why: noteWhy(n),
+                          step: 0,
+                        }),
+                      () => {
+                        finish(close)
+                        navigate('/meta/nueva')
+                      },
+                    ),
+                  )
                 }
                 onMilestone={(goalId) =>
-                  void act(async (n) => {
-                    const count = (await listMilestones(goalId)).length
-                    await addMilestone(userId, goalId, noteHeading(n), count)
-                    await archiveConverted(n)
-                    finish(close)
-                  })
+                  void act((n) =>
+                    convert(
+                      n,
+                      async () => {
+                        const count = (await listMilestones(goalId)).length
+                        await addMilestone(userId, goalId, noteHeading(n), count)
+                      },
+                      () => finish(close),
+                    ),
+                  )
                 }
                 onTask={() =>
-                  void act(async (n) => {
-                    await createUserTask(userId, noteHeading(n), todayISO())
-                    await archiveConverted(n)
-                    finish(close)
-                  })
+                  void act((n) =>
+                    convert(
+                      n,
+                      async () => {
+                        await createUserTask(userId, noteHeading(n), todayISO())
+                      },
+                      () => finish(close),
+                    ),
+                  )
                 }
               />
               <button type="button" className="btn--link" onClick={() => setPanel('edit')}>
@@ -431,6 +518,7 @@ export function NoteSheet({
                     setBusy(true)
                     deleteNote(current.id)
                       .then(() => {
+                        if (recovered) clearNoteDraft()
                         onRemove(current.id)
                         toast('Nota eliminada')
                         finish(close)

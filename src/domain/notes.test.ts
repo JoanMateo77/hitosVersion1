@@ -6,6 +6,7 @@ import {
   linesToItems,
   noteExcerpt,
   noteHeading,
+  noteWhy,
   notePlace,
   notesForGoal,
   visibleNotes,
@@ -158,5 +159,25 @@ describe('isBlankNote', () => {
     expect(isBlankNote({ title: 'x', body: '', items: null })).toBe(false)
     expect(isBlankNote({ title: null, body: 'x', items: null })).toBe(false)
     expect(isBlankNote({ title: null, body: '', items: [{ text: 'x', done: false }] })).toBe(false)
+  })
+})
+
+describe('noteWhy', () => {
+  it('con título usa el cuerpo completo', () => {
+    expect(noteWhy(note({ title: 'Correr', body: 'Por salud\ny energía' }))).toBe('Por salud\ny energía')
+  })
+
+  it('sin título no repite la primera línea (ya es el título de la meta)', () => {
+    expect(noteWhy(note({ body: 'Correr un 10K\n\nPor salud\ny energía' }))).toBe('Por salud\ny energía')
+    expect(noteWhy(note({ body: 'Solo una línea' }))).toBe('')
+  })
+
+  it('en una lista usa los elementos, sin el que hizo de título', () => {
+    const items = [
+      { text: 'Viaje', done: false },
+      { text: 'Ahorrar', done: true },
+    ]
+    expect(noteWhy(note({ items }))).toBe('Ahorrar')
+    expect(noteWhy(note({ title: 'Plan', items }))).toBe('Viaje\nAhorrar')
   })
 })
