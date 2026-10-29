@@ -83,7 +83,8 @@ export function nextMilestoneTitle(
 
 /**
  * Consistencia semanal: sesiones cumplidas (done|partial, incluidas las
- * espontáneas) sobre las comprometidas (una por bloque por semana).
+ * espontáneas) sobre las comprometidas (una por bloque por semana, menos las
+ * sesiones agendadas que se saltaron: un día saltado no cuenta como deuda).
  */
 export function weekConsistency(
   blocks: ScheduleBlock[],
@@ -97,7 +98,10 @@ export function weekConsistency(
       s.date <= weekEnd &&
       (s.status === 'done' || s.status === 'partial'),
   ).length
-  return { done, committed: blocks.length }
+  const skipped = sessions.filter(
+    (s) => s.date >= weekStartISO && s.date <= weekEnd && s.status === 'skipped' && s.scheduleId !== null,
+  ).length
+  return { done, committed: Math.max(0, blocks.length - skipped) }
 }
 
 /** Día de la semana lunes=0 (espejo local de commitment.weekdayMon0 sin ciclo). */
@@ -108,19 +112,21 @@ function weekdayMon0Local(dateISO: string): number {
 /**
  * Racha sobre días comprometidos: los días sin compromiso no la rompen ni la
  * suman; hoy sin cumplir todavía no rompe (queda "en juego" hasta fin del día).
- * `doneDates` = fechas con >=1 sesión done|partial.
+ * `doneDates` = fechas con >=1 sesión done|partial. `neutralDates` = días
+ * saltados a propósito: se tratan como no comprometidos (ni suman ni rompen).
  */
 export function currentStreakCommitted(
   doneDates: Set<string>,
   committedWeekdays: Set<number>,
   todayISO: string,
+  neutralDates: Set<string> = new Set(),
 ): number {
   if (committedWeekdays.size === 0) return 0
   let cursor = todayISO
   if (!doneDates.has(cursor)) cursor = addDays(cursor, -1)
   let streak = 0
   for (let i = 0; i < 365; i++) {
-    if (committedWeekdays.has(weekdayMon0Local(cursor))) {
+    if (committedWeekdays.has(weekdayMon0Local(cursor)) && !neutralDates.has(cursor)) {
       if (doneDates.has(cursor)) streak++
       else break
     }
@@ -146,6 +152,18 @@ export function doneDatesOf(sessions: Pick<Session, 'date' | 'status'>[]): Set<s
   return out
 }
 
+/** Fechas con al menos una sesión y TODAS saltadas: días neutros para la racha.
+ *  Si el día también tiene otra sesión (aunque sea "no pude"), no es neutro. */
+export function neutralDatesOf(sessions: Pick<Session, 'date' | 'status'>[]): Set<string> {
+  const allSkipped = new Map<string, boolean>()
+  for (const s of sessions) {
+    allSkipped.set(s.date, (allSkipped.get(s.date) ?? true) && s.status === 'skipped')
+  }
+  const out = new Set<string>()
+  for (const [date, skipped] of allSkipped) if (skipped) out.add(date)
+  return out
+}
+
 /** Racha global actual con la misma métrica en toda la app. */
 export function globalStreak(
   goals: Pick<Goal, 'id' | 'status'>[],
@@ -153,7 +171,12 @@ export function globalStreak(
   sessions: Pick<Session, 'date' | 'status'>[],
   todayISO: string,
 ): number {
-  return currentStreakCommitted(doneDatesOf(sessions), activeCommittedWeekdays(goals, blocks), todayISO)
+  return currentStreakCommitted(
+    doneDatesOf(sessions),
+    activeCommittedWeekdays(goals, blocks),
+    todayISO,
+    neutralDatesOf(sessions),
+  )
 }
 
 export type DayState = 'done' | 'partial' | 'missed' | 'future' | 'free'
@@ -165,6 +188,8 @@ export function dayState(
   daySessions: Pick<Session, 'status'>[],
   committed: boolean,
 ): DayState {
+  // Día saltado a propósito: neutro, como un día sin compromiso.
+  if (daySessions.length > 0 && daySessions.every((s) => s.status === 'skipped')) return 'free'
   if (dateISO > todayISO) return committed ? 'future' : 'free'
   if (!committed && daySessions.length === 0) return 'free'
   if (daySessions.some((s) => s.status === 'done')) return 'done'
@@ -175,20 +200,22 @@ export function dayState(
 
 /**
  * La mejor racha histórica sobre días comprometidos dentro de una ventana.
- * Recorre de fromISO a toISO contando rachas como currentStreakCommitted.
+ * Recorre de fromISO a toISO contando rachas como currentStreakCommitted
+ * (las fechas neutras, días saltados, ni suman ni cortan).
  */
 export function bestStreakCommitted(
   doneDates: Set<string>,
   committedWeekdays: Set<number>,
   fromISO: string,
   toISO: string,
+  neutralDates: Set<string> = new Set(),
 ): number {
   if (committedWeekdays.size === 0) return 0
   let best = 0
   let run = 0
   let cursor = fromISO
   while (cursor <= toISO) {
-    if (committedWeekdays.has(weekdayMon0Local(cursor))) {
+    if (committedWeekdays.has(weekdayMon0Local(cursor)) && !neutralDates.has(cursor)) {
       if (doneDates.has(cursor)) {
         run++
         if (run > best) best = run

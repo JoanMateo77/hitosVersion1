@@ -10,6 +10,7 @@ import {
   isStaleRunning,
   isTimeReached,
   milestoneProgress,
+  neutralDatesOf,
   nextMilestoneTitle,
   pickSuggestion,
   remainingSeconds,
@@ -277,5 +278,72 @@ describe('dayState', () => {
   it('pasado comprometido sin cumplir es missed', () => {
     expect(dayState('2026-09-10', today, [], true)).toBe('missed')
     expect(dayState('2026-09-10', today, [{ status: 'missed' }] as Session[], false)).toBe('missed')
+  })
+})
+
+describe('sesiones saltadas (días neutros)', () => {
+  // Lunes 26 y martes 27 de octubre comprometidos; hoy miércoles 28 (comprometido).
+  const goals = [{ id: 'g1', status: 'active' as const }]
+  const blocks = [
+    { goalId: 'g1', weekday: 0 },
+    { goalId: 'g1', weekday: 1 },
+    { goalId: 'g1', weekday: 2 },
+  ] as Pick<ScheduleBlock, 'goalId' | 'weekday'>[]
+
+  it('neutralDatesOf: solo fechas con todas sus sesiones saltadas', () => {
+    const dates = neutralDatesOf([
+      { date: '2026-10-26', status: 'skipped' },
+      { date: '2026-10-27', status: 'skipped' },
+      { date: '2026-10-27', status: 'missed' },
+      { date: '2026-10-28', status: 'done' },
+    ] as Session[])
+    expect([...dates]).toEqual(['2026-10-26'])
+  })
+
+  it('un día saltado no rompe la racha (ni suma)', () => {
+    const sessions = [
+      { date: '2026-10-26', status: 'done' },
+      { date: '2026-10-27', status: 'skipped' },
+      { date: '2026-10-28', status: 'pending' },
+    ] as Session[]
+    expect(globalStreak(goals, blocks, sessions, '2026-10-28')).toBe(1)
+  })
+
+  it('si el día saltado también tiene una sesión no cumplida, sí rompe', () => {
+    const sessions = [
+      { date: '2026-10-26', status: 'done' },
+      { date: '2026-10-27', status: 'skipped' },
+      { date: '2026-10-27', status: 'missed' },
+      { date: '2026-10-28', status: 'pending' },
+    ] as Session[]
+    expect(globalStreak(goals, blocks, sessions, '2026-10-28')).toBe(0)
+  })
+
+  it('currentStreakCommitted acepta las fechas neutras', () => {
+    const done = new Set(['2026-10-26'])
+    const committed = new Set([0, 1, 2])
+    expect(currentStreakCommitted(done, committed, '2026-10-28')).toBe(0)
+    expect(currentStreakCommitted(done, committed, '2026-10-28', new Set(['2026-10-27']))).toBe(1)
+  })
+
+  it('bestStreakCommitted: un neutro en medio de 3 hechos no corta', () => {
+    // Lu 26, Ma 27, Mi 28, Ju 29 comprometidos; Ma 27 neutro, el resto hechos.
+    const done = new Set(['2026-10-26', '2026-10-28', '2026-10-29'])
+    const committed = new Set([0, 1, 2, 3])
+    expect(bestStreakCommitted(done, committed, '2026-10-26', '2026-10-29', new Set(['2026-10-27']))).toBe(3)
+    expect(bestStreakCommitted(done, committed, '2026-10-26', '2026-10-29')).toBe(2)
+  })
+
+  it('dayState: un día con todas sus sesiones saltadas es free', () => {
+    expect(dayState('2026-10-27', '2026-10-28', [{ status: 'skipped' }] as Session[], true)).toBe('free')
+  })
+
+  it('weekConsistency: las saltadas salen del comprometido', () => {
+    const weekBlocks = [block(0), block(2), block(4)]
+    const sessions = [
+      session({ date: '2026-06-08', status: 'done' }),
+      session({ date: '2026-06-10', status: 'skipped' }),
+    ]
+    expect(weekConsistency(weekBlocks, sessions, '2026-06-08')).toEqual({ done: 1, committed: 2 })
   })
 })

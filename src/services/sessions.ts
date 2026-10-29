@@ -235,6 +235,34 @@ export function reopenSession(sessionId: string): Promise<Session> {
 }
 
 /**
+ * Cambia el estado de "saltada". Sin la migración 0017 el check de estado
+ * rechaza 'skipped' (23514, check_violation): se avisa con un mensaje claro.
+ */
+async function setSkipStatus(sessionId: string, status: 'skipped' | 'pending'): Promise<Session> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .update({ status })
+    .eq('id', sessionId)
+    .select('*')
+    .single()
+  if (error) {
+    if (error.code === '23514') throw new Error('Falta aplicar la migración 0017 para saltar días.')
+    throw new Error(error.message)
+  }
+  return mapSession(data as SessionRow)
+}
+
+/** Salta la sesión de un día: queda neutra para la racha (ni suma ni rompe). */
+export function skipSession(sessionId: string): Promise<Session> {
+  return setSkipStatus(sessionId, 'skipped')
+}
+
+/** Deshace el salto: la sesión vuelve a pendiente. */
+export function unskipSession(sessionId: string): Promise<Session> {
+  return setSkipStatus(sessionId, 'pending')
+}
+
+/**
  * Sesiones que quedaron corriendo de días anteriores: se cierran solas como
  * "sin confirmar" para no bloquear el día nuevo (spec 4.2).
  */

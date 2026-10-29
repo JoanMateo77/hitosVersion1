@@ -44,6 +44,7 @@ import {
   elapsedSeconds,
   globalStreak,
   isTimeReached,
+  neutralDatesOf,
 } from '@/domain/sessions'
 import { PinnedGoals } from '@/screens/today/PinnedGoals'
 import { goalsInView } from '@/domain/goals'
@@ -297,10 +298,13 @@ export function Today() {
   const pinnedGoals = useMemo(() => goalsInView(goals, profile.priorityGoalId), [goals, profile.priorityGoalId])
   const activeGoals = useMemo(() => goals.filter((g) => g.status === 'active'), [goals])
 
-  // Sesiones de hoy de metas activas, con su meta resuelta.
+  // Sesiones de hoy de metas activas, con su meta resuelta. Las saltadas no
+  // aparecen: no son pendientes ni cuentan en "Sesiones x / y" (se deshacen
+  // desde la Agenda, igual que allí se saltan).
   const todaySessions = useMemo(
     () =>
       sessions
+        .filter((s) => s.status !== 'skipped')
         .map((s) => ({ session: s, goal: goalById.get(s.goalId) }))
         .filter((x): x is { session: Session; goal: Goal } => x.goal !== undefined)
         // La meta prioritaria ⭐ va primero; no oculta nada, solo ordena.
@@ -334,11 +338,18 @@ export function Today() {
   // sin cumplir. El chip desaparecía sin explicación — el silencio es peor.
   const streakBroken = useMemo(() => {
     if (streak !== 0 || blocks.length === 0) return null
-    const doneDates = doneDatesOf([...history, ...sessions])
+    const all = [...history, ...sessions]
+    const doneDates = doneDatesOf(all)
     if (doneDates.size === 0) return null
     const lastDone = [...doneDates].sort().pop()!
     if (lastDone < addDays(today, -14)) return null
-    const best = bestStreakCommitted(doneDates, committedWeekdays, addDays(today, -119), today)
+    const best = bestStreakCommitted(
+      doneDates,
+      committedWeekdays,
+      addDays(today, -119),
+      today,
+      neutralDatesOf(all),
+    )
     if (best < 2) return null
     return { best, lastDone }
   }, [streak, history, sessions, blocks, committedWeekdays, today])
