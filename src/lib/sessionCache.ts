@@ -18,6 +18,9 @@ export const sessionCache = {
   has(key: string): boolean {
     return store.has(key)
   },
+  delete(key: string): void {
+    store.delete(key)
+  },
   clear(): void {
     store.clear()
   },

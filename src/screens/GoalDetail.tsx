@@ -67,6 +67,18 @@ import { GoalNotes } from '@/screens/notes/GoalNotes'
 import { sessionCache } from '@/lib/sessionCache'
 import { useCacheMirror } from '@/hooks/useCacheMirror'
 
+/**
+ * Saca una meta borrada del cache de sesión: sin esto, /metas y Hoy la pintan
+ * desde el cache hasta revalidar (y la conservan si la revalidación falla).
+ */
+function forgetGoalInCache(userId: string, goalId: string) {
+  sessionCache.delete(`goal:${goalId}`)
+  sessionCache.delete(`today:${userId}:${todayISO()}`)
+  const goalsKey = `goals:${userId}`
+  const list = sessionCache.get<{ goals: Goal[] }>(goalsKey)
+  if (list) sessionCache.set(goalsKey, { ...list, goals: list.goals.filter((g) => g.id !== goalId) })
+}
+
 /** Instantánea de datos cacheada por sesión para pintar el detalle al instante. */
 type GoalSnapshot = {
   goal: Goal | null
@@ -82,7 +94,7 @@ type GoalSnapshot = {
 
 export function GoalDetail() {
   const { goalId } = useParams<{ goalId: string }>()
-  const { userId, profile } = useSession()
+  const { userId, profile, setProfile } = useSession()
   const navigate = useNavigate()
   const location = useLocation()
   const { toast } = useToast()
@@ -182,7 +194,7 @@ export function GoalDetail() {
 
   // Mantiene el cache al día con lo mostrado (incluidos cambios optimistas). El guard
   // `goal.id === goalId` evita escribir datos de otra meta bajo esta clave.
-  useCacheMirror(cacheKey, !loading && !error && goal?.id === goalId, {
+  useCacheMirror(cacheKey, !loading && !error && !deleting && goal?.id === goalId, {
     goal,
     milestones,
     blocks,
@@ -199,6 +211,9 @@ export function GoalDetail() {
     setDeleting(true)
     try {
       await deleteGoal(userId, goal.id)
+      forgetGoalInCache(userId, goal.id)
+      // La BD ya dejó la prioritaria en null (on delete set null); el perfil en memoria también.
+      if (profile.priorityGoalId === goal.id) setProfile({ ...profile, priorityGoalId: null })
       toast('Meta eliminada.', 'success')
       navigate('/metas', { replace: true })
     } catch {

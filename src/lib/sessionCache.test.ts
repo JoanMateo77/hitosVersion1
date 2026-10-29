@@ -32,6 +32,14 @@ describe('sessionCache', () => {
     expect(sessionCache.get('k')).toBe(2)
   })
 
+  it('delete quita solo esa clave', () => {
+    sessionCache.set('a', 1)
+    sessionCache.set('b', 2)
+    sessionCache.delete('a')
+    expect(sessionCache.has('a')).toBe(false)
+    expect(sessionCache.get('b')).toBe(2)
+  })
+
   it('clear vacía todo', () => {
     sessionCache.set('a', 1)
     sessionCache.set('b', 2)
