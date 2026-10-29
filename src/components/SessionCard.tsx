@@ -13,7 +13,7 @@ interface SessionCardProps {
   onOpen: () => void
   /** Check rápido sin cronómetro: la doy por hecha completa. */
   onQuickDone: () => void
-  /** Deshacer un cierre (volver a pendiente). */
+  /** Deshacer un cierre de una hecha (volver a pendiente). */
   onReopen: () => void
   /** Retomar una sesión parcial/no completada: el reloj sigue donde quedó. */
   onResume: () => void
@@ -48,8 +48,9 @@ export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onRe
     session.status === 'partial' ||
     session.status === 'missed' ||
     session.status === 'skipped'
-  // Hecha o saltada: se deshace (vuelve a pendiente). Parcial o sin cumplir: se retoma.
-  const undoable = session.status === 'done' || session.status === 'skipped'
+  // Hecha: se deshace (vuelve a pendiente). Parcial o sin cumplir: se retoma.
+  // Saltada: solo se lee; el salto se deshace desde la Agenda (unskipSession).
+  const undoable = session.status === 'done'
 
   if (closed) {
     const label =
@@ -71,16 +72,12 @@ export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onRe
             {label}
           </span>
         </div>
-        {undoable ? (
+        {session.status === 'skipped' ? null : undoable ? (
           <button
             type="button"
             className="btn--link session__undo"
             onClick={onReopen}
-            aria-label={
-              session.status === 'skipped'
-                ? `Deshacer el salto de la sesión de ${goal.title}`
-                : `Deshacer el cierre de la sesión de ${goal.title}`
-            }
+            aria-label={`Deshacer el cierre de la sesión de ${goal.title}`}
           >
             Deshacer
           </button>
