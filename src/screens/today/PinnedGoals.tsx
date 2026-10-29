@@ -7,7 +7,7 @@ interface PinnedGoalsProps {
 }
 
 /** "Tus metas": las metas activas fijadas arriba de Hoy como recordatorio diario. */
-export function PinnedGoals({ goals, onOpen }: PinnedGoalsProps) {
+export function PinnedGoals({ goals, onOpen }: Readonly<PinnedGoalsProps>) {
   if (goals.length === 0) return null
   return (
     <section className="today-pinned" aria-label="Tus metas">

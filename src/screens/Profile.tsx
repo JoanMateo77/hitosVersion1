@@ -369,7 +369,7 @@ export function ProfileScreen() {
         {push === 'on' && (
           <div className="row row--between" style={{ alignItems: 'center' }}>
             <span className="small">
-              Recordatorio diario de tus metas
+              Recordatorio diario de tus metas{' '}
               <span className="field__hint" style={{ display: 'block' }}>
                 Un aviso al día con tus metas activas y las sesiones de hoy.
               </span>

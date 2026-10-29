@@ -16,7 +16,7 @@ export function ScopeSave({
   disabled,
   label,
   onSave,
-}: {
+}: Readonly<{
   weekday: number
   /** La meta tiene más de un bloque. */
   multi: boolean
@@ -24,7 +24,7 @@ export function ScopeSave({
   /** Texto del botón cuando no hay pregunta. */
   label: string
   onSave: (scope: EditScope) => void
-}) {
+}>) {
   if (!multi) {
     return (
       <button className="btn btn--primary btn--block" disabled={disabled} onClick={() => onSave('this')}>
@@ -76,7 +76,7 @@ export function BlockEditSection({
   onSkip,
   onUnskip,
   onRemoveFromAgenda,
-}: {
+}: Readonly<{
   /** El bloque tocado. */
   block: ScheduleBlock
   /** Todos los bloques de la meta (puede haber varios el mismo día). */
@@ -90,7 +90,7 @@ export function BlockEditSection({
   onSkip: () => Promise<void>
   onUnskip: () => Promise<void>
   onRemoveFromAgenda: () => Promise<void>
-}) {
+}>) {
   const currentDays = goalWeekdays(goalBlocks)
   const [days, setDays] = useState<number[]>(currentDays)
   const [value, setValue] = useState(block.targetValue)
@@ -121,7 +121,7 @@ export function BlockEditSection({
     <div className="stack stack--sm">
       <span className="kicker">Editar</span>
 
-      <div className="row wrap" role="group" aria-label="Días de esta meta">
+      <fieldset className="row wrap" aria-label="Días de esta meta">
         {WEEKDAY_LABELS.map((label, weekday) => (
           <button
             key={label}
@@ -133,11 +133,11 @@ export function BlockEditSection({
             {label}
           </button>
         ))}
-      </div>
+      </fieldset>
       {days.length === 0 && (
-        <p className="faint tiny" style={{ margin: 0 }} role="status">
+        <output className="faint tiny" style={{ display: 'block', margin: 0 }}>
           Deja al menos un día. Para quitarle todos, usa “Sacar la meta de la agenda”.
-        </p>
+        </output>
       )}
       {daysChanged && (
         <button

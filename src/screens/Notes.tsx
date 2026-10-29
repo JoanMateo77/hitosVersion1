@@ -114,7 +114,7 @@ export function Notes() {
       {loadError && <div className="alert alert--warn">{loadError}</div>}
 
       <div className="notes-bar">
-        <div className="seg notes-seg" role="group" aria-label="Vista de notas">
+        <fieldset className="seg notes-seg" aria-label="Vista de notas">
           {VIEWS.map((v) => (
             <button
               key={v.id}
@@ -129,7 +129,7 @@ export function Notes() {
               )}
             </button>
           ))}
-        </div>
+        </fieldset>
         <input
           type="search"
           className="input"

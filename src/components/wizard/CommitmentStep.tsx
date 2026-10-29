@@ -308,9 +308,9 @@ export function CommitmentStep({
         </button>
       </div>
       {noSchedule && blocks.length === 0 && (
-        <div className="alert" role="status">
+        <output className="alert">
           Esta meta no tendrá agenda. La verás arriba en Hoy y podrás agregarle días cuando quieras.
-        </div>
+        </output>
       )}
 
       <div className="row" role="group" aria-label="Cómo se mide cada sesión">

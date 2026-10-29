@@ -70,6 +70,16 @@
   align-items: center;
   gap: var(--gap, var(--s2));
 }
+/* <fieldset> usado como contenedor de controles: sin el marco/margen del navegador. */
+fieldset.row,
+fieldset.seg {
+  border: 0;
+  margin: 0;
+  min-width: 0;
+}
+fieldset.row {
+  padding: 0;
+}
 .row--sm {
   --gap: var(--s1);
 }
