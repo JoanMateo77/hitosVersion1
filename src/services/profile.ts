@@ -16,6 +16,8 @@ interface ProfileRow {
   priority_goal_id: string | null
   /** Opcional: si la migración 0012 no se aplicó aún, `select *` no la trae. */
   avatar_url?: string | null
+  /** Opcional: si la migración 0017 no se aplicó aún, `select *` no la trae. */
+  daily_digest_time?: string | null
   created_at: string
 }
 
@@ -29,6 +31,7 @@ function mapProfile(row: ProfileRow): Profile {
     defaultSessionMinutes: row.default_session_minutes ?? null,
     priorityGoalId: row.priority_goal_id ?? null,
     avatarUrl: row.avatar_url ?? null,
+    dailyDigestTime: row.daily_digest_time ? row.daily_digest_time.slice(0, 5) : null,
     createdAt: row.created_at,
   }
 }
@@ -192,5 +195,22 @@ export async function updatePriorityGoal(userId: string, goalId: string | null):
     .select('*')
     .single()
   if (error) throw new Error(error.message)
+  return mapProfile(data as ProfileRow)
+}
+
+/** Fija (HH:MM) o apaga (null) el recordatorio diario de metas. */
+export async function setDailyDigestTime(userId: string, time: string | null): Promise<Profile> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ daily_digest_time: time })
+    .eq('id', userId)
+    .select('*')
+    .single()
+  if (error) {
+    if (['42703', 'PGRST204'].includes(error.code)) {
+      throw new Error('Falta aplicar la migración 0017 para el recordatorio diario.')
+    }
+    throw new Error(error.message)
+  }
   return mapProfile(data as ProfileRow)
 }

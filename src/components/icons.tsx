@@ -546,3 +546,17 @@ export function IconMinus({ size = 20, className, style }: Readonly<IconProps>) 
     </svg>
   )
 }
+
+/** Nota con esquina doblada — pestaña Notas (relleno suave cuando está activa). */
+export function IconNote({ size = 24, className, style, filled = false }: Readonly<IconProps>) {
+  return (
+    <svg {...base(size)} className={className} style={style} aria-hidden="true">
+      <path
+        d="M7 4h10a3 3 0 0 1 3 3v7l-6 6H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3z"
+        fill={filled ? 'currentColor' : 'none'}
+        fillOpacity={filled ? 0.2 : undefined}
+      />
+      <path d="M14 20v-3a3 3 0 0 1 3-3h3M8.5 9h7M8.5 12.5h4" />
+    </svg>
+  )
+}

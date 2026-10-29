@@ -1,4 +1,4 @@
-import type { Cadence, GoalTemplate, PreferredMoment, ScheduleBlock, TargetKind } from '@/lib/types'
+import type { Cadence, Goal, GoalTemplate, PreferredMoment, ScheduleBlock, TargetKind } from '@/lib/types'
 import { formatDuration, formatTime12, parseISO } from '@/lib/date'
 
 /**
@@ -21,8 +21,13 @@ export function weekdayMon0(dateISO: string): number {
   return (parseISO(dateISO).getDay() + 6) % 7
 }
 
-/** Un bloque de compromiso todavía sin persistir (lo arma el wizard). */
+/**
+ * Un bloque de compromiso todavía sin persistir (lo arma el wizard). Al editar
+ * una meta existente lleva el `id` del bloque que representa, para que la
+ * edición por diferencias (domain/scheduleEdit) conserve ese bloque.
+ */
 export interface CommitmentBlockDraft {
+  id?: string
   weekday: number
   targetKind: TargetKind
   targetValue: number
@@ -159,6 +164,20 @@ export function expandMomentsToDays(moments: CommitmentMoment[], days: number[])
     .flatMap((weekday) => moments.map((moment) => ({ ...moment, weekday })))
 }
 
+/**
+ * Metas que el backfill debe completar con los hitos de su plantilla: activas
+ * o pausadas que todavía no tienen ninguno. No mira la agenda: una meta sin
+ * horario es válida y no se le inventa uno.
+ */
+export function goalsMissingMilestones<G extends Pick<Goal, 'id' | 'status'>>(
+  goals: G[],
+  withMilestones: Set<string>,
+): G[] {
+  return goals.filter(
+    (g) => (g.status === 'active' || g.status === 'paused') && !withMilestones.has(g.id),
+  )
+}
+
 /** Un hito todavía sin persistir (lo arma el wizard o el backfill). */
 export interface MilestoneDraft {
   title: string
@@ -181,9 +200,11 @@ export function formatCommitmentSummary(blocks: CommitmentBlockDraft[]): string 
   return `Tu compromiso: ${sessionsLabel} · ${formatDuration(minutes)} por semana`
 }
 
-/** null = válido; string = mensaje de error para mostrar inline. */
+/**
+ * null = válido; string = mensaje de error para mostrar inline. Sin bloques es
+ * válido: una meta puede vivir sin agenda (queda presente en Hoy).
+ */
 export function validateCommitment(blocks: CommitmentBlockDraft[]): string | null {
-  if (blocks.length === 0) return 'Elige al menos un día para tu compromiso.'
   if (blocks.some((b) => b.targetValue <= 0)) {
     return 'Cada momento necesita una duración o cantidad mayor a cero.'
   }

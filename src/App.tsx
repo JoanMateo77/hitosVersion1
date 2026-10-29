@@ -36,6 +36,7 @@ const HabitDetail = lazy(() =>
   import('@/screens/HabitDetail').then((m) => ({ default: m.HabitDetail })),
 )
 const Learn = lazy(() => import('@/screens/Learn').then((m) => ({ default: m.Learn })))
+const Notes = lazy(() => import('@/screens/Notes').then((m) => ({ default: m.Notes })))
 
 /**
  * Punto de entrada de la app. Resuelve las capas en orden:
@@ -164,6 +165,7 @@ function ProfiledApp({
                 <Route path="/calendario" element={<Calendar />} />
                 <Route path="/progreso" element={<Progress />} />
                 <Route path="/aprender" element={<Learn />} />
+                <Route path="/notas" element={<Notes />} />
                 <Route path="/habitos" element={<Habits />} />
                 <Route path="/habitos/:habitId" element={<HabitDetail />} />
                 <Route path="/perfil" element={<ProfileScreen />} />

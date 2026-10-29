@@ -17,7 +17,7 @@ export interface DayAgendaSession {
   time: string | null
   /** Rango horario del bloque (fin derivado solo para compromisos de tiempo). */
   span: AgendaSpan
-  state: 'pending' | 'running' | 'done' | 'partial' | 'missed' | 'unconfirmed' | 'projected'
+  state: 'pending' | 'running' | 'done' | 'partial' | 'missed' | 'unconfirmed' | 'skipped' | 'projected'
   targetLabel: string
   session: Session | null
   block: ScheduleBlock | null
@@ -45,9 +45,22 @@ export type AgendaRowItem =
   | { kind: 'event'; key: string; start: string | null; end: string | null; event: CalendarEvent; goal: Goal | null }
 
 /** Estados que ya no admiten cronómetro (la sesión quedó cerrada). */
-export const CLOSED_STATES: readonly SessionState[] = ['done', 'partial', 'missed']
+export const CLOSED_STATES: readonly SessionState[] = ['done', 'partial', 'missed', 'skipped']
 /** Estados de una sesión real de HOY que llevan directo al cronómetro. */
 export const OPEN_STATUSES: readonly Session['status'][] = ['pending', 'running', 'unconfirmed']
+
+/**
+ * Solo se salta un día que sigue abierto sin empezar (pendiente o proyectado)
+ * y que no pasó: saltar un día viejo serviría para reparar una racha rota.
+ */
+export function canSkip(state: SessionState, day: string, today: string): boolean {
+  return day >= today && (state === 'pending' || state === 'projected')
+}
+
+/** Los días (lunes=0) en que la meta tiene agenda, sin repetir y en orden. */
+export function goalWeekdays(blocks: ScheduleBlock[]): number[] {
+  return [...new Set(blocks.map((b) => b.weekday))].sort((a, b) => a - b)
+}
 
 /** "4 h", "25 min" o la cantidad con su unidad. */
 export function agendaTargetLabel(kind: TargetKind, value: number, unit: string | null): string {
@@ -67,6 +80,8 @@ export function sessionStateLabel(state: SessionState): string {
       return 'en curso'
     case 'unconfirmed':
       return 'sin confirmar'
+    case 'skipped':
+      return 'saltada'
     case 'projected':
       return 'comprometida'
     default:

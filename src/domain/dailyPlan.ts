@@ -25,13 +25,14 @@ export interface ForgottenGoal {
  * Recomendación continua (5.2): detecta la meta activa más "olvidada" para
  * preguntarle al usuario, amablemente, si sigue vigente. Una meta está olvidada
  * si no tuvo una acción hecha en >=5 días (o nunca y se creó hace >=3 días).
- * Excluye metas que ya tienen una acción hoy (no molestar con lo que ya está en
+ * Solo considera metas con agenda (`scheduledGoalIds`). Excluye metas que ya tienen una acción hoy (no molestar con lo que ya está en
  * el plan). Devuelve la más estancada, o null.
  */
 export function findForgottenGoal(
   goals: Goal[],
   lastDoneByGoalId: Map<string, string>,
   excludeGoalIds: Set<string>,
+  scheduledGoalIds: Set<string>,
   now: Date = new Date(),
 ): ForgottenGoal | null {
   const hasTaskToday = excludeGoalIds
@@ -42,6 +43,8 @@ export function findForgottenGoal(
   for (const goal of goals) {
     if (goal.status !== 'active') continue
     if (hasTaskToday.has(goal.id)) continue
+    // Sin agenda no hay sesiones que se "olviden": la meta ya vive fijada en Hoy.
+    if (!scheduledGoalIds.has(goal.id)) continue
     const last = lastDoneByGoalId.get(goal.id)
     const days = last ? daysSince(last) : daysSince(goal.createdAt)
     const stale = last ? days >= 5 : days >= 3

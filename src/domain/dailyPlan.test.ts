@@ -24,12 +24,21 @@ function goal(p: Partial<Goal> = {}): Goal {
 describe('findForgottenGoal', () => {
   it('marca olvidada una meta nunca avanzada y creada hace tiempo', () => {
     const now = new Date('2026-05-25T12:00:00')
-    const res = findForgottenGoal([goal({ id: 'g1' })], new Map(), new Set(), now)
+    const res = findForgottenGoal([goal({ id: 'g1' })], new Map(), new Set(), new Set(['g1']), now)
     expect(res?.goal.id).toBe('g1')
+  })
+  it('nunca marca olvidada una meta sin agenda', () => {
+    const now = new Date('2026-05-11T12:00:00Z')
+    const sinAgenda = goal({ id: 'g1', createdAt: '2026-05-01T12:00:00Z' })
+    expect(findForgottenGoal([sinAgenda], new Map(), new Set(), new Set(), now)).toBeNull()
+    expect(findForgottenGoal([sinAgenda], new Map(), new Set(), new Set(['g1']), now)).toEqual({
+      goal: sinAgenda,
+      days: 10,
+    })
   })
   it('no molesta si la meta ya tiene sesión hoy', () => {
     const now = new Date('2026-05-25T12:00:00')
-    expect(findForgottenGoal([goal({ id: 'g1' })], new Map(), new Set(['g1']), now)).toBeNull()
+    expect(findForgottenGoal([goal({ id: 'g1' })], new Map(), new Set(['g1']), new Set(['g1']), now)).toBeNull()
   })
 })
 

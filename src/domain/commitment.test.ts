@@ -7,6 +7,7 @@ import {
   durationStep,
   expandMomentsToDays,
   formatCommitmentSummary,
+  goalsMissingMilestones,
   minutesToTime,
   momentsOfDay,
   overcommitWarning,
@@ -69,8 +70,8 @@ describe('formatCommitmentSummary', () => {
 })
 
 describe('validateCommitment', () => {
-  it('exige al menos un bloque', () => {
-    expect(validateCommitment([])).toBe('Elige al menos un día para tu compromiso.')
+  it('acepta una meta sin agenda (sin bloques)', () => {
+    expect(validateCommitment([])).toBeNull()
   })
   it('acepta un compromiso válido', () => {
     expect(validateCommitment([time(0, 25)])).toBeNull()
@@ -240,5 +241,18 @@ describe('horario compartido entre días', () => {
       { targetKind: 'time', targetValue: 240, unit: null, startTime: '08:00' },
     ])
     expect(momentsOfDay(blocks, 5)).toEqual([])
+  })
+})
+
+describe('goalsMissingMilestones (backfill)', () => {
+  it('solo metas activas o pausadas que todavía no tienen hitos', () => {
+    const goals = [
+      { id: 'a', status: 'active' as const },
+      { id: 'b', status: 'paused' as const },
+      { id: 'c', status: 'active' as const },
+      { id: 'd', status: 'done' as const },
+      { id: 'e', status: 'archived' as const },
+    ]
+    expect(goalsMissingMilestones(goals, new Set(['c'])).map((g) => g.id)).toEqual(['a', 'b'])
   })
 })

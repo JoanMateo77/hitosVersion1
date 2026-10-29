@@ -37,14 +37,19 @@ import {
 import { compareEvents } from '@/domain/calendar'
 import { carryoverCandidates, findForgottenGoal, goalsDueForReview } from '@/domain/dailyPlan'
 import {
+  activeBlocksOf,
   activeCommittedWeekdays,
   bestStreakCommitted,
   dayState,
+  dueBlocksForDate,
   doneDatesOf,
   elapsedSeconds,
   globalStreak,
   isTimeReached,
+  neutralDatesOf,
 } from '@/domain/sessions'
+import { PinnedGoals } from '@/screens/today/PinnedGoals'
+import { goalsInView } from '@/domain/goals'
 import { rangeLabel, sessionSpan } from '@/domain/agenda'
 import { frameForStreak } from '@/domain/frames'
 import {
@@ -60,7 +65,7 @@ import {
   SHORT_NICHE_LABELS,
   type LaterItem,
 } from '@/domain/today'
-import { WEEKDAY_LABELS, weekdayMon0 } from '@/domain/commitment'
+import { WEEKDAY_LABELS } from '@/domain/commitment'
 import { addDays, dayOfMonth, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
 import { friendlyError } from '@/lib/errors'
 import { Disclosure } from '@/components/Disclosure'
@@ -292,12 +297,16 @@ export function Today() {
     const id = setInterval(() => setNowTick(new Date()), 1000)
     return () => clearInterval(id)
   }, [runningSession])
+  const pinnedGoals = useMemo(() => goalsInView(goals, profile.priorityGoalId), [goals, profile.priorityGoalId])
   const activeGoals = useMemo(() => goals.filter((g) => g.status === 'active'), [goals])
 
-  // Sesiones de hoy de metas activas, con su meta resuelta.
+  // Sesiones de hoy de metas activas, con su meta resuelta. Las saltadas no
+  // aparecen: no son pendientes ni cuentan en "Sesiones x / y" (se deshacen
+  // desde la Agenda, igual que allí se saltan).
   const todaySessions = useMemo(
     () =>
       sessions
+        .filter((s) => s.status !== 'skipped')
         .map((s) => ({ session: s, goal: goalById.get(s.goalId) }))
         .filter((x): x is { session: Session; goal: Goal } => x.goal !== undefined)
         // La meta prioritaria ⭐ va primero; no oculta nada, solo ordena.
@@ -320,6 +329,7 @@ export function Today() {
   // Días de la semana con compromiso de alguna meta activa (misma vara para
   // la racha y para el estado de cada día de la tira semanal).
   const committedWeekdays = useMemo(() => activeCommittedWeekdays(goals, blocks), [goals, blocks])
+  const activeBlocks = useMemo(() => activeBlocksOf(goals, blocks), [goals, blocks])
 
   // Racha sobre días comprometidos (los días sin compromiso no la rompen).
   const streak = useMemo(
@@ -331,14 +341,21 @@ export function Today() {
   // sin cumplir. El chip desaparecía sin explicación — el silencio es peor.
   const streakBroken = useMemo(() => {
     if (streak !== 0 || blocks.length === 0) return null
-    const doneDates = doneDatesOf([...history, ...sessions])
+    const all = [...history, ...sessions]
+    const doneDates = doneDatesOf(all)
     if (doneDates.size === 0) return null
     const lastDone = [...doneDates].sort().pop()!
     if (lastDone < addDays(today, -14)) return null
-    const best = bestStreakCommitted(doneDates, committedWeekdays, addDays(today, -119), today)
+    const best = bestStreakCommitted(
+      doneDates,
+      committedWeekdays,
+      addDays(today, -119),
+      today,
+      neutralDatesOf(all, activeBlocks),
+    )
     if (best < 2) return null
     return { best, lastDone }
-  }, [streak, history, sessions, blocks, committedWeekdays, today])
+  }, [streak, history, sessions, blocks, committedWeekdays, activeBlocks, today])
 
   const [streakNoticeDismissed, setStreakNoticeDismissed] = useState(false)
   const showStreakNotice =
@@ -411,8 +428,9 @@ export function Today() {
       if (!prev || s.date > prev) lastDone.set(s.goalId, s.date)
     }
     const withSessionToday = new Set(sessions.map((s) => s.goalId))
-    return findForgottenGoal(goals, lastDone, withSessionToday)
-  }, [goals, history, sessions])
+    const scheduledGoalIds = new Set(blocks.map((b) => b.goalId))
+    return findForgottenGoal(goals, lastDone, withSessionToday, scheduledGoalIds)
+  }, [goals, history, sessions, blocks])
 
   function patchSession(id: string, changes: Partial<Session>) {
     setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, ...changes } : s)))
@@ -513,9 +531,8 @@ export function Today() {
 
   /** Estado agregado de un día para la tira semanal. */
   function stripState(date: string) {
-    const committed = committedWeekdays.has(weekdayMon0(date))
     const day = (date === today ? sessions : history).filter((x) => x.date === date)
-    return dayState(date, today, day, committed)
+    return dayState(date, today, day, dueBlocksForDate(activeBlocks, date))
   }
 
   function addSpontaneous(goal: Goal) {
@@ -864,6 +881,8 @@ export function Today() {
           <span className="today-stat__caption">{frameCaption(streak)}</span>
         </div>
       </div>
+
+      <PinnedGoals goals={pinnedGoals} onOpen={(id) => navigate(`/metas/${id}`)} />
 
       <div className="today-week today-enter" role="group" aria-label="Tu semana" style={enter(2)}>
         {Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(today), i)).map((d, i) => {

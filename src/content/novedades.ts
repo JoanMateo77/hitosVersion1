@@ -8,6 +8,16 @@ import type { Novedad } from '@/domain/novedades'
  */
 export const NOVEDADES: Novedad[] = [
   {
+    id: '2026-10-28',
+    titulo: 'Metas más flexibles y una pestaña de Notas',
+    items: [
+      'Puedes tener metas sin agenda, solo para tenerlas presentes, y verlas arriba en Hoy.',
+      'Desde la Agenda editas los días y la duración, saltas un día sin romper la racha o sacas una meta de la agenda. También puedes eliminar una meta.',
+      'Nueva pestaña Notas: bandeja, fijadas y convertir una nota en meta, etapa o tarea. Crecer sigue en Perfil.',
+      'Activa en Perfil un recordatorio diario con tus metas.',
+    ],
+  },
+  {
     id: '2026-09-15',
     titulo: 'Agenda por bloques y una app más limpia',
     items: [

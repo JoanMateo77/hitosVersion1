@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { Goal, Session } from '@/lib/types'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { tapHaptic } from '@/lib/haptics'
@@ -13,7 +14,7 @@ interface SessionCardProps {
   onOpen: () => void
   /** Check rápido sin cronómetro: la doy por hecha completa. */
   onQuickDone: () => void
-  /** Deshacer un cierre (volver a pendiente). */
+  /** Deshacer un cierre de una hecha (volver a pendiente). */
   onReopen: () => void
   /** Retomar una sesión parcial/no completada: el reloj sigue donde quedó. */
   onResume: () => void
@@ -42,16 +43,65 @@ function sessionHint(s: Session): string {
   return parts.join(' · ')
 }
 
+/** Texto de una sesión en curso, en pausa o sin confirmar. */
+function runningLabel(session: Session): string {
+  if (session.status === 'unconfirmed') return 'Quedó sin confirmar — cuéntame cómo te fue'
+  return session.pausedAt ? 'En pausa' : 'En curso'
+}
+
+/** Texto de estado de una sesión ya cerrada. */
+function closedLabel(session: Session): string {
+  switch (session.status) {
+    case 'done': {
+      const at = session.endedAt ? ` ${clock(session.endedAt)}` : ''
+      return `Hecha${at}`
+    }
+    case 'skipped':
+      return 'Saltada'
+    case 'partial':
+      return `Parcial · ${session.actualValue ?? 0} de ${targetLabel(session)}`
+    default:
+      return 'Sin cumplir'
+  }
+}
+
 export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onResume }: SessionCardProps) {
-  const closed = session.status === 'done' || session.status === 'partial' || session.status === 'missed'
+  const closed =
+    session.status === 'done' ||
+    session.status === 'partial' ||
+    session.status === 'missed' ||
+    session.status === 'skipped'
+  // Hecha: se deshace (vuelve a pendiente). Parcial o sin cumplir: se retoma.
+  // Saltada: solo se lee; el salto se deshace desde la Agenda (unskipSession).
+  const undoable = session.status === 'done'
 
   if (closed) {
-    const label =
-      session.status === 'done'
-        ? `Hecha${session.endedAt ? ` ${clock(session.endedAt)}` : ''}`
-        : session.status === 'partial'
-          ? `Parcial · ${session.actualValue ?? 0} de ${targetLabel(session)}`
-          : 'Sin cumplir'
+    const label = closedLabel(session)
+    let action: ReactNode = null
+    if (undoable) {
+      action = (
+        <button
+          type="button"
+          className="btn--link session__undo"
+          onClick={onReopen}
+          aria-label={`Deshacer el cierre de la sesión de ${goal.title}`}
+        >
+          Deshacer
+        </button>
+      )
+    } else if (session.status !== 'skipped') {
+      action = (
+        <button
+          type="button"
+          className="btn btn--sm btn--ghost"
+          style={{ flex: 'none' }}
+          onClick={onResume}
+          aria-label={`Retomar la sesión de ${goal.title} donde quedó`}
+        >
+          <IconPlay size={13} /> Retomar
+        </button>
+      )
+    }
     return (
       <div className={`session session--${session.status}`} style={nicheAccent(goal.area)}>
         <div className="session__body">
@@ -63,26 +113,7 @@ export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onRe
             {label}
           </span>
         </div>
-        {session.status === 'done' ? (
-          <button
-            type="button"
-            className="btn--link session__undo"
-            onClick={onReopen}
-            aria-label={`Deshacer el cierre de la sesión de ${goal.title}`}
-          >
-            Deshacer
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="btn btn--sm btn--ghost"
-            style={{ flex: 'none' }}
-            onClick={onResume}
-            aria-label={`Retomar la sesión de ${goal.title} donde quedó`}
-          >
-            <IconPlay size={13} /> Retomar
-          </button>
-        )}
+        {action}
       </div>
     )
   }
@@ -96,13 +127,7 @@ export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onRe
           <span className="nowrap-ellipsis">{goal.title}</span>
         </span>
         <span className="session__meta">
-          {running
-            ? session.status === 'unconfirmed'
-              ? 'Quedó sin confirmar — cuéntame cómo te fue'
-              : session.pausedAt
-                ? 'En pausa'
-                : 'En curso'
-            : sessionHint(session)}
+          {running ? runningLabel(session) : sessionHint(session)}
         </span>
       </div>
       <div className="session__actions">

@@ -13,11 +13,13 @@ import {
   activeCommittedWeekdays,
   bestStreakCommitted,
   dayState as domainDayState,
+  dueBlocksForDate,
   doneDatesOf,
   globalStreak,
+  neutralDatesOf,
   weekConsistency,
 } from '@/domain/sessions'
-import { weekdayMon0, WEEKDAY_LABELS } from '@/domain/commitment'
+import { WEEKDAY_LABELS } from '@/domain/commitment'
 import { addDays, formatLongDate, startOfWeek, todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { useCachedData } from '@/hooks/useCachedData'
@@ -104,7 +106,13 @@ export function Progress() {
   const doneDates = doneDatesOf(sessions)
   const best = Math.max(
     streak,
-    bestStreakCommitted(doneDates, committedWeekdays, addDays(today, -(HISTORY_DAYS - 1)), today),
+    bestStreakCommitted(
+      doneDates,
+      committedWeekdays,
+      addDays(today, -(HISTORY_DAYS - 1)),
+      today,
+      neutralDatesOf(sessions, activeBlocks),
+    ),
   )
 
   /** Estado visual de cada día de la semana en curso. */
@@ -113,7 +121,7 @@ export function Progress() {
       date,
       today,
       sessions.filter((s) => s.date === date),
-      committedWeekdays.has(weekdayMon0(date)),
+      dueBlocksForDate(activeBlocks, date),
     )
   }
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
@@ -122,7 +130,10 @@ export function Progress() {
   const weeks = Array.from({ length: 8 }, (_, i) => {
     const start = addDays(weekStart, -7 * (7 - i))
     const end = addDays(start, 6)
-    const rows = sessions.filter((s) => s.date >= start && s.date <= end && s.scheduleId !== null)
+    // Las saltadas no cuentan: un día saltado no es deuda (ni suma ni resta).
+    const rows = sessions.filter(
+      (s) => s.date >= start && s.date <= end && s.scheduleId !== null && s.status !== 'skipped',
+    )
     const done = rows.filter(doneish).length
     return { start, ratio: rows.length > 0 ? done / rows.length : 0, total: rows.length }
   })

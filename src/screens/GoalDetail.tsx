@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import { getGoal, setGoalStatus, updateGoal, type GoalEdit } from '@/services/goals'
+import { deleteGoal, getGoal, setGoalStatus, updateGoal, type GoalEdit } from '@/services/goals'
 import {
   addMilestone,
   deleteMilestone,
@@ -10,7 +10,7 @@ import {
   setMilestoneDone,
   updateMilestoneFields,
 } from '@/services/milestones'
-import { listActiveGoalSchedule, listScheduleForGoal, replaceSchedule } from '@/services/schedule'
+import { listActiveGoalSchedule, listScheduleForGoal, applyScheduleChange } from '@/services/schedule'
 import {
   generateSessionsForDate,
   listAccomplishments,
@@ -63,8 +63,21 @@ import {
 } from '@/components/icons'
 import { NicheGlyph } from '@/components/NicheGlyph'
 import { Disclosure } from '@/components/Disclosure'
+import { GoalNotes } from '@/screens/notes/GoalNotes'
 import { sessionCache } from '@/lib/sessionCache'
 import { useCacheMirror } from '@/hooks/useCacheMirror'
+
+/**
+ * Saca una meta borrada del cache de sesión: sin esto, /metas y Hoy la pintan
+ * desde el cache hasta revalidar (y la conservan si la revalidación falla).
+ */
+function forgetGoalInCache(userId: string, goalId: string) {
+  sessionCache.delete(`goal:${goalId}`)
+  sessionCache.delete(`today:${userId}:${todayISO()}`)
+  const goalsKey = `goals:${userId}`
+  const list = sessionCache.get<{ goals: Goal[] }>(goalsKey)
+  if (list) sessionCache.set(goalsKey, { ...list, goals: list.goals.filter((g) => g.id !== goalId) })
+}
 
 /** Instantánea de datos cacheada por sesión para pintar el detalle al instante. */
 type GoalSnapshot = {
@@ -81,7 +94,7 @@ type GoalSnapshot = {
 
 export function GoalDetail() {
   const { goalId } = useParams<{ goalId: string }>()
-  const { userId, profile } = useSession()
+  const { userId, profile, setProfile } = useSession()
   const navigate = useNavigate()
   const location = useLocation()
   const { toast } = useToast()
@@ -113,11 +126,15 @@ export function GoalDetail() {
   // Editor de compromiso inline: null = cerrado.
   const [commitDraft, setCommitDraft] = useState<CommitmentBlockDraft[] | null>(null)
   const [otherBlocks, setOtherBlocks] = useState<ScheduleBlock[]>([])
+  // Confirmación antes de sacar la meta de la agenda (queda sin bloques).
+  const [confirmUnschedule, setConfirmUnschedule] = useState(false)
   // Camino completo recién: ofrecemos cerrar la meta (nunca se cierra sola).
   const [offerAchieve, setOfferAchieve] = useState(false)
   // Confirmación al lograr con etapas pendientes.
   const [confirmAchieve, setConfirmAchieve] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   // Momento focal: la meta quedó lograda. El velo se va solo (won-out).
   const [won, setWon] = useState<string | null>(null)
   // Etapa recién cumplida: se enciende 700 ms y se apaga.
@@ -177,7 +194,7 @@ export function GoalDetail() {
 
   // Mantiene el cache al día con lo mostrado (incluidos cambios optimistas). El guard
   // `goal.id === goalId` evita escribir datos de otra meta bajo esta clave.
-  useCacheMirror(cacheKey, !loading && !error && goal?.id === goalId, {
+  useCacheMirror(cacheKey, !loading && !error && !deleting && goal?.id === goalId, {
     goal,
     milestones,
     blocks,
@@ -188,6 +205,22 @@ export function GoalDetail() {
     habits,
     habitChecks,
   })
+
+  async function handleDelete() {
+    if (!goal || deleting) return
+    setDeleting(true)
+    try {
+      await deleteGoal(userId, goal.id)
+      forgetGoalInCache(userId, goal.id)
+      // La BD ya dejó la prioritaria en null (on delete set null); el perfil en memoria también.
+      if (profile.priorityGoalId === goal.id) setProfile({ ...profile, priorityGoalId: null })
+      toast('Meta eliminada.', 'success')
+      navigate('/metas', { replace: true })
+    } catch {
+      toast('No se pudo eliminar la meta.', 'warning')
+      setDeleting(false)
+    }
+  }
 
   async function changeStatus(status: GoalStatus) {
     if (!goal) return
@@ -317,6 +350,7 @@ export function GoalDetail() {
   async function openCommitmentEditor() {
     setCommitDraft(
       blocks.map((b) => ({
+        id: b.id,
         weekday: b.weekday,
         targetKind: b.targetKind,
         targetValue: b.targetValue,
@@ -333,13 +367,34 @@ export function GoalDetail() {
     if (validateCommitment(commitDraft) !== null) return
     setUpdating(true)
     try {
-      const next = await replaceSchedule(userId, goal.id, commitDraft)
+      const today = todayISO()
+      const next = await applyScheduleChange(userId, goal.id, commitDraft, today)
       setBlocks(next)
       setCommitDraft(null)
-      await generateSessionsForDate(userId, todayISO(), next).catch(() => {})
+      await generateSessionsForDate(userId, today, next).catch(() => {})
       toast('Compromiso actualizado.', 'success')
     } catch {
+      // Un guardado a medias pudo dejar cambios: la pantalla refleja lo que quedó.
+      const reloaded = await listScheduleForGoal(goal.id).catch(() => null)
+      if (reloaded) setBlocks(reloaded)
       toast('No se pudo guardar el compromiso.', 'warning')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  /** Saca la meta de la agenda: sin bloques, sigue activa y conserva su historial. */
+  async function removeFromAgenda() {
+    if (!goal) return
+    setUpdating(true)
+    try {
+      setBlocks(await applyScheduleChange(userId, goal.id, [], todayISO()))
+      setConfirmUnschedule(false)
+      toast('La meta quedó sin agenda.', 'success')
+    } catch {
+      const reloaded = await listScheduleForGoal(goal.id).catch(() => null)
+      if (reloaded) setBlocks(reloaded)
+      toast('No se pudo sacar la meta de la agenda.', 'warning')
     } finally {
       setUpdating(false)
     }
@@ -499,7 +554,7 @@ export function GoalDetail() {
           <div className="card stack stack--sm">
             <div className="row row--between">
               <span className="kicker">Tu compromiso</span>
-              {isActive && commitDraft === null && (
+              {isActive && commitDraft === null && blocks.length > 0 && (
                 <button className="btn--link" style={{ fontSize: 'var(--fs-xs)' }} onClick={() => void openCommitmentEditor()}>
                   Editar
                 </button>
@@ -507,17 +562,62 @@ export function GoalDetail() {
             </div>
             {commitDraft === null ? (
               blocks.length > 0 ? (
-                <div className="row wrap">
-                  {blocks.map((b) => (
-                    <span key={b.id} className="tag">
-                      {WEEKDAY_LABELS[b.weekday]} · {blockTimeLabel(b)}
-                    </span>
-                  ))}
-                </div>
+                <>
+                  <div className="row wrap">
+                    {blocks.map((b) => (
+                      <span key={b.id} className="tag">
+                        {WEEKDAY_LABELS[b.weekday]} · {blockTimeLabel(b)}
+                      </span>
+                    ))}
+                  </div>
+                  {isActive &&
+                    (!confirmUnschedule ? (
+                      <button
+                        className="btn--link"
+                        style={{ fontSize: 'var(--fs-xs)', alignSelf: 'flex-start' }}
+                        onClick={() => setConfirmUnschedule(true)}
+                      >
+                        Sacar de la agenda
+                      </button>
+                    ) : (
+                      <div className="card card--tight stack stack--sm" style={{ borderColor: 'var(--danger)' }}>
+                        <p className="small" style={{ margin: 0 }}>
+                          La meta queda sin horario; la seguirás viendo arriba en Hoy. Tu historial se conserva.
+                        </p>
+                        <div className="row wrap">
+                          <button
+                            className="btn btn--danger btn--sm"
+                            disabled={updating}
+                            onClick={() => void removeFromAgenda()}
+                          >
+                            Sacar de la agenda
+                          </button>
+                          <button
+                            className="btn btn--ghost btn--sm"
+                            disabled={updating}
+                            onClick={() => setConfirmUnschedule(false)}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </>
               ) : (
-                <p className="small muted" style={{ margin: 0 }}>
-                  Sin compromiso definido. {isActive ? 'Edítalo para que tus sesiones aparezcan en Hoy.' : ''}
-                </p>
+                <>
+                  <p className="small muted" style={{ margin: 0 }}>
+                    Sin agenda
+                  </p>
+                  {isActive && (
+                    <button
+                      className="btn btn--ghost btn--sm"
+                      style={{ alignSelf: 'flex-start' }}
+                      onClick={() => void openCommitmentEditor()}
+                    >
+                      Agregar agenda
+                    </button>
+                  )}
+                </>
               )
             ) : (
               <>
@@ -595,6 +695,9 @@ export function GoalDetail() {
               )}
             </div>
           )}
+
+          {/* ----- Notas de esta meta ----- */}
+          <GoalNotes goalId={goal.id} />
         </div>
 
         <div className="detail-grid__side stack stack--lg">
@@ -735,6 +838,31 @@ export function GoalDetail() {
               <button className="btn btn--ghost btn--block" disabled={updating} onClick={() => changeStatus('active')}>
                 Reactivar
               </button>
+            )}
+            {!confirmDelete ? (
+              <button
+                className="btn--link"
+                style={{ color: 'var(--danger)', alignSelf: 'center' }}
+                onClick={() => setConfirmDelete(true)}
+              >
+                Eliminar meta
+              </button>
+            ) : (
+              <div className="card card--tight stack stack--sm" style={{ borderColor: 'var(--danger)' }}>
+                <strong className="small">¿Eliminar esta meta para siempre?</strong>
+                <p className="small muted" style={{ margin: 0 }}>
+                  Se borran sus etapas, su agenda, sus sesiones y sus tareas. Las notas, eventos y hábitos vinculados se
+                  conservan, sin vínculo. Si solo quieres sacarla de la vista, mejor archívala.
+                </p>
+                <div className="row wrap">
+                  <button className="btn btn--danger btn--sm" onClick={() => void handleDelete()} disabled={deleting}>
+                    {deleting ? 'Eliminando…' : 'Sí, eliminar'}
+                  </button>
+                  <button className="btn btn--ghost btn--sm" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>

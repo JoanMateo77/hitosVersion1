@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type ComponentType } from 'react'
+import { Link } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { useToast } from '@/app/toast'
 import { deleteAccount, signOut } from '@/services/auth'
-import { fetchCurrentStreak, updateRhythm, uploadAvatar } from '@/services/profile'
+import { fetchCurrentStreak, setDailyDigestTime, updateRhythm, uploadAvatar } from '@/services/profile'
 import { disablePush, enablePush, getPushState } from '@/lib/push'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
-import { IconMoon, IconSun, IconSunrise } from '@/components/icons'
+import { IconMoon, IconProgress, IconSun, IconSunrise } from '@/components/icons'
 import { FRAMES, frameForStreak } from '@/domain/frames'
 import { useCachedData } from '@/hooks/useCachedData'
 import { Disclosure } from '@/components/Disclosure'
@@ -103,6 +104,15 @@ export function ProfileScreen() {
     }
   }
 
+  async function saveDigest(time: string | null) {
+    setError(null)
+    try {
+      setProfile(await setDailyDigestTime(userId, time))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo guardar el recordatorio diario.')
+    }
+  }
+
   async function handleSignOut() {
     setSigningOut(true)
     setError(null)
@@ -187,6 +197,14 @@ export function ProfileScreen() {
       </header>
 
       <div className="settings-grid">
+      {/* ----- Crecer: Progreso y Aprender salieron de la barra inferior (ahora Notas) ----- */}
+      <section className="card stack stack--sm" aria-label="Crecer">
+        <span className="kicker">Crecer</span>
+        <Link className="btn btn--ghost btn--block" to="/progreso">
+          <IconProgress size={18} /> Tu progreso y aprendizaje
+        </Link>
+      </section>
+
       {/* ----- Tu ritmo: defaults que alimentan el wizard y los horarios ----- */}
       <section className="card stack stack--sm" aria-label="Tu ritmo">
         <span className="kicker">Tu ritmo</span>
@@ -348,6 +366,39 @@ export function ProfileScreen() {
             </button>
           </div>
         )}
+        {push === 'on' && (
+          <div className="row row--between" style={{ alignItems: 'center' }}>
+            <span className="small">
+              Recordatorio diario de tus metas{' '}
+              <span className="field__hint" style={{ display: 'block' }}>
+                Un aviso al día con tus metas activas y las sesiones de hoy.
+              </span>
+            </span>
+            <div className="row" style={{ alignItems: 'center', gap: 'var(--space-2, 8px)' }}>
+              {profile.dailyDigestTime && (
+                <input
+                  type="time"
+                  className="input"
+                  aria-label="Hora del recordatorio diario"
+                  defaultValue={profile.dailyDigestTime}
+                  onBlur={(e) => {
+                    const v = e.target.value
+                    if (/^\d{2}:\d{2}$/.test(v) && v !== profile.dailyDigestTime) void saveDigest(v)
+                  }}
+                />
+              )}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={profile.dailyDigestTime !== null}
+                className={`btn btn--sm ${profile.dailyDigestTime ? 'btn--primary' : 'btn--ghost'}`}
+                onClick={() => void saveDigest(profile.dailyDigestTime ? null : '07:30')}
+              >
+                {profile.dailyDigestTime ? 'Activado' : 'Activar'}
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* ----- Apariencia (solo móvil: en escritorio el tema vive en la barra lateral) ----- */}
@@ -387,6 +438,11 @@ export function ProfileScreen() {
           </div>
         )}
       </section>
+
+      {/* ----- Acerca de ----- */}
+      <p className="faint tiny" style={{ margin: 0, textAlign: 'center' }}>
+        Lógralo · Desarrollado por Seki Software
+      </p>
       </div>
 
       {error && (

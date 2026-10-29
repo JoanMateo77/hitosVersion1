@@ -1,5 +1,6 @@
 import type { ScheduleBlock, Session, SessionStatus, TargetKind } from '@/lib/types'
 import { weekdayMon0 } from '@/domain/commitment'
+import type { SessionSync } from '@/domain/scheduleEdit'
 import { supabase } from '@/lib/supabase'
 
 interface SessionRow {
@@ -235,6 +236,43 @@ export function reopenSession(sessionId: string): Promise<Session> {
 }
 
 /**
+ * Cambia el estado de "saltada". Sin la migración 0017 el check de estado
+ * rechaza 'skipped' (23514, check_violation): se avisa con un mensaje claro.
+ */
+async function setSkipStatus(sessionId: string, status: 'skipped' | 'pending'): Promise<Session> {
+  // Guarda de estado: solo se salta una pendiente y solo se deshace una
+  // saltada. Si la sesión cambió en otro lado (Hoy, otro dispositivo), no se
+  // pisa: no hay fila que coincida y se avisa.
+  const from = status === 'skipped' ? 'pending' : 'skipped'
+  const { data, error } = await supabase
+    .from('sessions')
+    .update({ status })
+    .eq('id', sessionId)
+    .eq('status', from)
+    .select('*')
+    .maybeSingle()
+  if (error) {
+    if (error.code === '23514') throw new Error('Falta aplicar la migración 0017 para saltar días.')
+    throw new Error(error.message)
+  }
+  if (!data) throw new Error(SESSION_CHANGED_MESSAGE)
+  return mapSession(data as SessionRow)
+}
+
+/** Mensaje cuando la sesión ya no está en el estado esperado (cambió en otro lado). */
+export const SESSION_CHANGED_MESSAGE = 'Esta sesión ya cambió. Actualizamos la agenda.'
+
+/** Salta la sesión de un día: queda neutra para la racha (ni suma ni rompe). */
+export function skipSession(sessionId: string): Promise<Session> {
+  return setSkipStatus(sessionId, 'skipped')
+}
+
+/** Deshace el salto: la sesión vuelve a pendiente. */
+export function unskipSession(sessionId: string): Promise<Session> {
+  return setSkipStatus(sessionId, 'pending')
+}
+
+/**
  * Sesiones que quedaron corriendo de días anteriores: se cierran solas como
  * "sin confirmar" para no bloquear el día nuevo (spec 4.2).
  */
@@ -297,4 +335,58 @@ export async function sessionStatsForGoal(
   let minutes = 0
   for (const r of rows) if (r.target_kind === 'time') minutes += r.actual_value ?? 0
   return { done: rows.length, minutes }
+}
+
+/** Sesiones de una meta desde una fecha (incluida): para sincronizarlas al editar la agenda. */
+export async function listGoalSessionsFrom(
+  userId: string,
+  goalId: string,
+  fromISO: string,
+): Promise<Session[]> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('goal_id', goalId)
+    .gte('session_date', fromISO)
+  if (error) throw new Error(error.message)
+  return (data as SessionRow[]).map(mapSession)
+}
+
+/**
+ * Aplica la sincronización calculada por domain/scheduleEdit.sessionsToSync.
+ * Los filtros de estado se repiten en el servidor: si la sesión arrancó entre
+ * la lectura y el guardado, no se borra ni se pisa.
+ */
+export async function syncScheduledSessions(
+  userId: string,
+  sync: SessionSync,
+): Promise<void> {
+  if (sync.deleteIds.length > 0) {
+    const { error } = await supabase
+      .from('sessions')
+      .delete()
+      .eq('user_id', userId)
+      .in('id', sync.deleteIds)
+      .in('status', ['pending', 'skipped'])
+    if (error) throw new Error(error.message)
+  }
+  const results = await Promise.all(
+    sync.update.map((u) =>
+      supabase
+        .from('sessions')
+        .update({
+          target_kind: u.targetKind,
+          target_value: u.targetValue,
+          unit: u.unit,
+          // Sin cambio de hora del bloque se respeta la hora propia del día.
+          ...(u.plannedTime !== undefined ? { planned_time: u.plannedTime } : {}),
+        })
+        .eq('user_id', userId)
+        .eq('id', u.id)
+        .eq('status', 'pending'),
+    ),
+  )
+  const failed = results.find((r) => r.error)
+  if (failed?.error) throw new Error(failed.error.message)
 }

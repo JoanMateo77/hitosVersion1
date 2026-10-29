@@ -620,3 +620,47 @@
     margin: 0 auto;
   }
 }
+
+/* ---- Tus metas fijadas --------------------------------------------------- */
+.today-pinned {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+.today-pinned__row {
+  display: flex;
+  gap: var(--s2);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.today-pinned__row::-webkit-scrollbar {
+  display: none;
+}
+.today-pinned__card {
+  flex: 0 0 min(240px, 78%);
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px;
+  text-align: left;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border-left: 3px solid var(--niche, var(--primary));
+}
+.today-pinned__title {
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.today-pinned__why {
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
