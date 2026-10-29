@@ -442,7 +442,11 @@ export function Wizard() {
         {step === 5 && (
           <Question
             title="Revisa tu meta"
-            hint="Confirma los detalles. Al crearla, tus sesiones aparecerán en Hoy y en tu agenda según el horario que elegiste."
+            hint={
+              blocks.length > 0
+                ? 'Confirma los detalles. Al crearla, tus sesiones aparecerán en Hoy y en tu agenda según el horario que elegiste.'
+                : 'Confirma los detalles.'
+            }
           >
             <ReviewCard
               title={title}
