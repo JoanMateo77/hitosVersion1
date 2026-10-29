@@ -149,8 +149,17 @@ async function sendDigest(userId: string, subs: PushSub[], date: string, nowMin:
   return sendToSubs(subs, JSON.stringify({ title, body, url: '/', tag: 'daily-digest' }))
 }
 
+interface SessionRow {
+  id: string
+  goal_id: string
+  planned_time: string
+  target_kind: string
+  target_value: number
+  unit: string | null
+}
+
 async function remindSession(
-  sess: Record<string, unknown>,
+  sess: SessionRow,
   userSubs: PushSub[],
 ): Promise<number> {
   const { data: goal } = await supabase
@@ -158,7 +167,7 @@ async function remindSession(
     .select('title, status')
     .eq('id', sess.goal_id)
     .single()
-  if (!goal || goal.status !== 'active') return 0
+  if (goal?.status !== 'active') return 0
 
   const target =
     sess.target_kind === 'time'

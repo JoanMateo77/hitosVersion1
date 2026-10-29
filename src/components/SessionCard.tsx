@@ -52,8 +52,10 @@ function runningLabel(session: Session): string {
 /** Texto de estado de una sesión ya cerrada. */
 function closedLabel(session: Session): string {
   switch (session.status) {
-    case 'done':
-      return `Hecha${session.endedAt ? ` ${clock(session.endedAt)}` : ''}`
+    case 'done': {
+      const at = session.endedAt ? ` ${clock(session.endedAt)}` : ''
+      return `Hecha${at}`
+    }
     case 'skipped':
       return 'Saltada'
     case 'partial':
