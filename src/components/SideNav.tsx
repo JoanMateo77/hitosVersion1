@@ -9,6 +9,7 @@ import {
   IconFlame,
   IconGoals,
   IconHito,
+  IconNote,
   IconProfile,
   IconProgress,
   IconToday,
@@ -21,6 +22,7 @@ const NAV = [
   { to: '/habitos', label: 'Hábitos', Icon: IconFlame },
   { to: '/metas', label: 'Metas', Icon: IconGoals },
   { to: '/calendario', label: 'Agenda', Icon: IconCalendar },
+  { to: '/notas', label: 'Notas', Icon: IconNote },
   { to: '/progreso', label: 'Crecer', Icon: IconProgress, alsoMatch: '/aprender' },
   { to: '/perfil', label: 'Perfil', Icon: IconProfile },
 ] as const

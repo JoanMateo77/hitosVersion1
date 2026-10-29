@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import type { Note } from '@/lib/types'
-import { notePlace, notesForGoal, visibleNotes } from './notes'
+import {
+  isBlankNote,
+  itemsToLines,
+  linesToItems,
+  noteExcerpt,
+  noteHeading,
+  notePlace,
+  notesForGoal,
+  visibleNotes,
+} from './notes'
 
 function note(over: Partial<Note> = {}): Note {
   return {
@@ -76,5 +85,78 @@ describe('notesForGoal', () => {
     const arch = note({ id: 'x', place: 'goal', goalId: 'g1', archivedAt: '2026-10-04T00:00:00.000Z' })
     const otra = note({ id: 'y', place: 'goal', goalId: 'g2' })
     expect(notesForGoal([a, b, arch, otra], 'g1').map((n) => n.id)).toEqual(['b', 'a'])
+  })
+})
+
+describe('noteHeading', () => {
+  it('usa el título si existe', () => {
+    expect(noteHeading(note({ title: '  Viaje  ', body: 'algo' }))).toBe('Viaje')
+  })
+
+  it('sin título usa la primera línea con texto del cuerpo', () => {
+    expect(noteHeading(note({ body: '\n  Comprar pan \nleche' }))).toBe('Comprar pan')
+  })
+
+  it('en una lista sin título usa el primer elemento', () => {
+    const items = [
+      { text: ' ', done: false },
+      { text: 'Huevos', done: true },
+    ]
+    expect(noteHeading(note({ items }))).toBe('Huevos')
+  })
+
+  it('una nota vacía devuelve cadena vacía', () => {
+    expect(noteHeading(note())).toBe('')
+  })
+})
+
+describe('noteExcerpt', () => {
+  it('con título muestra el cuerpo', () => {
+    expect(noteExcerpt(note({ title: 'T', body: 'uno\ndos' }))).toBe('uno dos')
+  })
+
+  it('sin título omite la línea que ya es encabezado', () => {
+    expect(noteExcerpt(note({ body: 'Primera\n\nsegunda\ntercera' }))).toBe('segunda tercera')
+  })
+
+  it('en una lista resume los elementos', () => {
+    const items = [
+      { text: 'Huevos', done: true },
+      { text: 'Pan', done: false },
+    ]
+    expect(noteExcerpt(note({ title: 'Súper', items }))).toBe('Huevos · Pan')
+    expect(noteExcerpt(note({ items }))).toBe('Pan')
+  })
+})
+
+describe('linesToItems / itemsToLines', () => {
+  it('convierte cada línea con texto en un elemento sin marcar', () => {
+    expect(linesToItems('pan\n\n  leche  \n')).toEqual([
+      { text: 'pan', done: false },
+      { text: 'leche', done: false },
+    ])
+  })
+
+  it('vuelve a texto una línea por elemento, sin los vacíos', () => {
+    expect(
+      itemsToLines([
+        { text: 'pan', done: true },
+        { text: ' ', done: false },
+        { text: 'leche', done: false },
+      ]),
+    ).toBe('pan\nleche')
+  })
+})
+
+describe('isBlankNote', () => {
+  it('es vacía si no hay título, cuerpo ni elementos con texto', () => {
+    expect(isBlankNote({ title: ' ', body: '\n ', items: [{ text: '', done: false }] })).toBe(true)
+    expect(isBlankNote({ title: null, body: '', items: null })).toBe(true)
+  })
+
+  it('no es vacía con cualquier texto', () => {
+    expect(isBlankNote({ title: 'x', body: '', items: null })).toBe(false)
+    expect(isBlankNote({ title: null, body: 'x', items: null })).toBe(false)
+    expect(isBlankNote({ title: null, body: '', items: [{ text: 'x', done: false }] })).toBe(false)
   })
 })

@@ -1,0 +1,104 @@
+/* ==== Notas — lista y hoja (2026-10-28) ===================================
+   Mínimo propio: la pantalla usa las piezas comunes (.screen, .seg, .card,
+   .chip, .tag, .check, .input). Solo tokens; el pulido visual llega después. */
+
+.notes-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+
+/* Cinco vistas no caben en 393px: la pista se desliza en vez de romperse. */
+.notes-seg {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  align-self: flex-start;
+}
+.notes-seg::-webkit-scrollbar {
+  display: none;
+}
+.notes-seg .seg__btn {
+  flex: none;
+}
+.notes-seg__count {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.notes-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin-bottom: var(--s5);
+}
+
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.note-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s1);
+  width: 100%;
+  text-align: left;
+  color: var(--text);
+}
+.note-card__head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s2);
+  width: 100%;
+}
+.note-card__title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.note-card__pin {
+  flex: none;
+}
+.note-card__excerpt {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+/* ---- Hoja ---------------------------------------------------------------- */
+.note-body {
+  min-height: 140px;
+}
+
+.note-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.note-items__row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+.note-items__text.is-done {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+.note-items__plus {
+  flex: none;
+  width: 28px;
+  display: inline-flex;
+  justify-content: center;
+  color: var(--text-muted);
+}

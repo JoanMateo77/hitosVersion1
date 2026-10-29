@@ -1,4 +1,4 @@
-import type { Note, NotePlace } from '@/lib/types'
+import type { Note, NoteItem, NotePlace } from '@/lib/types'
 
 export type NoteView = 'inbox' | 'goals' | 'areas' | 'ideas' | 'archived'
 
@@ -48,4 +48,48 @@ export function notesForGoal(notes: Note[], goalId: string): Note[] {
   return notes
     .filter((n) => n.archivedAt === null && n.goalId === goalId && n.place === 'goal')
     .sort(byPinnedThenRecent)
+}
+
+/** Lo que define si una nota tiene contenido (título, cuerpo, lista). */
+export type NoteContent = Pick<Note, 'title' | 'body' | 'items'>
+
+function textLines(text: string): string[] {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+}
+
+function itemTexts(items: NoteItem[] | null): string[] {
+  return (items ?? []).map((i) => i.text.trim()).filter((t) => t !== '')
+}
+
+/** Encabezado visible: el título, o la primera línea (o elemento) con texto. */
+export function noteHeading(n: NoteContent): string {
+  const title = n.title?.trim() ?? ''
+  if (title !== '') return title
+  return (n.items ? itemTexts(n.items) : textLines(n.body))[0] ?? ''
+}
+
+/** Extracto de una línea: el contenido que no quedó ya en el encabezado. */
+export function noteExcerpt(n: NoteContent): string {
+  const hasTitle = (n.title?.trim() ?? '') !== ''
+  const parts = n.items ? itemTexts(n.items) : textLines(n.body)
+  const rest = hasTitle ? parts : parts.slice(1)
+  return rest.join(n.items ? ' · ' : ' ')
+}
+
+/** Texto → lista: cada línea con texto es un elemento sin marcar. */
+export function linesToItems(body: string): NoteItem[] {
+  return textLines(body).map((text) => ({ text, done: false }))
+}
+
+/** Lista → texto: una línea por elemento con texto. */
+export function itemsToLines(items: NoteItem[]): string {
+  return itemTexts(items).join('\n')
+}
+
+/** ¿No hay nada escrito? (una nota así no se guarda al cerrar). */
+export function isBlankNote(n: NoteContent): boolean {
+  return noteHeading(n) === '' && noteExcerpt(n) === ''
 }

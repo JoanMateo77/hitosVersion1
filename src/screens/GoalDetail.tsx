@@ -63,6 +63,7 @@ import {
 } from '@/components/icons'
 import { NicheGlyph } from '@/components/NicheGlyph'
 import { Disclosure } from '@/components/Disclosure'
+import { GoalNotes } from '@/screens/notes/GoalNotes'
 import { sessionCache } from '@/lib/sessionCache'
 import { useCacheMirror } from '@/hooks/useCacheMirror'
 
@@ -679,6 +680,9 @@ export function GoalDetail() {
               )}
             </div>
           )}
+
+          {/* ----- Notas de esta meta ----- */}
+          <GoalNotes goalId={goal.id} />
         </div>
 
         <div className="detail-grid__side stack stack--lg">

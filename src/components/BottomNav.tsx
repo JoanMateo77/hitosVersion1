@@ -1,41 +1,29 @@
 import type { MouseEvent } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import {
-  IconCalendar,
-  IconFlame,
-  IconGoals,
-  IconProgress,
-  IconToday,
-} from '@/components/icons'
+import { IconCalendar, IconFlame, IconGoals, IconNote, IconToday } from '@/components/icons'
 import { withViewTransition } from '@/lib/viewTransition'
 
 // 5 pestañas máximo: Perfil vive en el avatar del TopBar para que cada zona
-// táctil quede cómoda en pantallas chicas.
-// `alsoMatch`: rutas de la misma zona que también marcan la pestaña (Aprender
-// forma parte de Crecer, así el usuario nunca queda sin saber dónde está).
+// táctil quede cómoda en pantallas chicas. Progreso y Aprender (ex "Crecer")
+// se abren desde Perfil; en escritorio siguen en la barra lateral.
 const TABS = [
   { to: '/', label: 'Hoy', Icon: IconToday },
   { to: '/habitos', label: 'Hábitos', Icon: IconFlame },
   { to: '/metas', label: 'Metas', Icon: IconGoals },
   { to: '/calendario', label: 'Agenda', Icon: IconCalendar },
-  { to: '/progreso', label: 'Crecer', Icon: IconProgress, alsoMatch: '/aprender' },
+  { to: '/notas', label: 'Notas', Icon: IconNote },
 ] as const
 
 export function BottomNav() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
-  const activeIndex = TABS.findIndex((tab) => {
-    const alsoMatch = 'alsoMatch' in tab ? tab.alsoMatch : undefined
-    return tab.to === '/'
-      ? pathname === '/'
-      : pathname.startsWith(tab.to) ||
-          (alsoMatch !== undefined && pathname.startsWith(alsoMatch))
-  })
+  const activeIndex = TABS.findIndex((tab) =>
+    tab.to === '/' ? pathname === '/' : pathname.startsWith(tab.to),
+  )
   return (
     <nav className="bottomnav" aria-label="Navegación principal">
       <div className="bottomnav__inner">
         {TABS.map((tab, index) => {
-          const alsoMatch = 'alsoMatch' in tab ? tab.alsoMatch : undefined
           const { to, label, Icon } = tab
           const active = index === activeIndex
           return (
@@ -45,11 +33,7 @@ export function BottomNav() {
               // 'end' en "/" evita que quede activa en todas las rutas.
               end={to === '/'}
               className={({ isActive }) =>
-                `bottomnav__item${
-                  isActive || (alsoMatch && pathname.startsWith(alsoMatch))
-                    ? ' bottomnav__item--active'
-                    : ''
-                }`
+                `bottomnav__item${isActive ? ' bottomnav__item--active' : ''}`
               }
               onClick={(e: MouseEvent<HTMLAnchorElement>) => {
                 if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type ComponentType } from 'react'
+import { Link } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { useToast } from '@/app/toast'
 import { deleteAccount, signOut } from '@/services/auth'
 import { fetchCurrentStreak, updateRhythm, uploadAvatar } from '@/services/profile'
 import { disablePush, enablePush, getPushState } from '@/lib/push'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
-import { IconMoon, IconSun, IconSunrise } from '@/components/icons'
+import { IconMoon, IconProgress, IconSun, IconSunrise } from '@/components/icons'
 import { FRAMES, frameForStreak } from '@/domain/frames'
 import { useCachedData } from '@/hooks/useCachedData'
 import { Disclosure } from '@/components/Disclosure'
@@ -187,6 +188,14 @@ export function ProfileScreen() {
       </header>
 
       <div className="settings-grid">
+      {/* ----- Crecer: Progreso y Aprender salieron de la barra inferior (ahora Notas) ----- */}
+      <section className="card stack stack--sm" aria-label="Crecer">
+        <span className="kicker">Crecer</span>
+        <Link className="btn btn--ghost btn--block" to="/progreso">
+          <IconProgress size={18} /> Tu progreso y aprendizaje
+        </Link>
+      </section>
+
       {/* ----- Tu ritmo: defaults que alimentan el wizard y los horarios ----- */}
       <section className="card stack stack--sm" aria-label="Tu ritmo">
         <span className="kicker">Tu ritmo</span>
