@@ -98,12 +98,16 @@ describe('weekDaySummary', () => {
 })
 
 describe('canSkip', () => {
+  const today = '2026-10-28'
   it('solo se salta lo pendiente o proyectado', () => {
-    expect(canSkip('pending')).toBe(true)
-    expect(canSkip('projected')).toBe(true)
+    expect(canSkip('pending', today, today)).toBe(true)
+    expect(canSkip('projected', '2026-10-29', today)).toBe(true)
     for (const st of ['running', 'done', 'partial', 'missed', 'unconfirmed', 'skipped'] as const) {
-      expect(canSkip(st)).toBe(false)
+      expect(canSkip(st, today, today)).toBe(false)
     }
+  })
+  it('un día pasado no se salta (no repara una racha rota)', () => {
+    expect(canSkip('pending', '2026-10-27', today)).toBe(false)
   })
 })
 

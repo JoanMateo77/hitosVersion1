@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { ScheduleBlock } from '@/lib/types'
 import { WEEKDAY_LABELS, WEEKDAY_PLURALS, durationStep } from '@/domain/commitment'
 import type { EditScope } from '@/domain/scheduleEdit'
-import { formatDuration } from '@/lib/date'
+import { formatDuration, todayISO } from '@/lib/date'
 import { canSkip, goalWeekdays, type SessionState } from '@/screens/calendar/agendaItems'
 
 /**
@@ -70,6 +70,7 @@ export function BlockEditSection({
   block,
   goalBlocks,
   state,
+  day,
   onSaveDays,
   onSaveValue,
   onSkip,
@@ -82,6 +83,8 @@ export function BlockEditSection({
   goalBlocks: ScheduleBlock[]
   /** Estado de la sesión de este día. */
   state: SessionState
+  /** Día (ISO) de la sesión: un día pasado no se salta. */
+  day: string
   onSaveDays: (weekdays: number[]) => Promise<void>
   onSaveValue: (value: number, scope: EditScope) => Promise<void>
   onSkip: () => Promise<void>
@@ -178,7 +181,7 @@ export function BlockEditSection({
         />
       )}
 
-      {canSkip(state) && (
+      {canSkip(state, day, todayISO()) && (
         <button className="btn btn--ghost btn--block" disabled={busy} onClick={() => void run(onSkip)}>
           Saltar solo este día
         </button>

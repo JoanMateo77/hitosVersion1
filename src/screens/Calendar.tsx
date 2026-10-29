@@ -35,6 +35,7 @@ import { assignEventsToSessions, rangeLabel, sessionSpan } from '@/domain/agenda
 import {
   CLOSED_STATES,
   agendaTargetLabel,
+  canSkip,
   isOpenToday,
   sessionStateLabel,
   weekDaySummary,
@@ -461,6 +462,7 @@ export function Calendar() {
 
   /** Salta SOLO este día (neutro para la racha). Una proyectada se materializa primero. */
   async function skipDay(it: DayAgendaSession, day: string) {
+    if (!canSkip(it.state, day, todayISO())) return
     try {
       const session = await materializeSession(it, day)
       if (!session) return
@@ -925,6 +927,7 @@ export function Calendar() {
                     block={it.block}
                     goalBlocks={goalBlocksOf(it.goal.id)}
                     state={it.state}
+                    day={blockSheet.day}
                     onSaveDays={(weekdays) => saveBlockDays(it, weekdays)}
                     onSaveValue={(value, scope) => saveBlockValue(it, value, scope)}
                     onSkip={() => skipDay(it, blockSheet.day)}

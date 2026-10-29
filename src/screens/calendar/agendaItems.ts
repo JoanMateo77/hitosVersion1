@@ -49,9 +49,12 @@ export const CLOSED_STATES: readonly SessionState[] = ['done', 'partial', 'misse
 /** Estados de una sesión real de HOY que llevan directo al cronómetro. */
 export const OPEN_STATUSES: readonly Session['status'][] = ['pending', 'running', 'unconfirmed']
 
-/** Solo se salta un día que sigue abierto sin empezar: pendiente o proyectado. */
-export function canSkip(state: SessionState): boolean {
-  return state === 'pending' || state === 'projected'
+/**
+ * Solo se salta un día que sigue abierto sin empezar (pendiente o proyectado)
+ * y que no pasó: saltar un día viejo serviría para reparar una racha rota.
+ */
+export function canSkip(state: SessionState, day: string, today: string): boolean {
+  return day >= today && (state === 'pending' || state === 'projected')
 }
 
 /** Los días (lunes=0) en que la meta tiene agenda, sin repetir y en orden. */
