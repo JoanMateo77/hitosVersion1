@@ -10,7 +10,7 @@ import {
   setMilestoneDone,
   updateMilestoneFields,
 } from '@/services/milestones'
-import { listActiveGoalSchedule, listScheduleForGoal, replaceSchedule } from '@/services/schedule'
+import { listActiveGoalSchedule, listScheduleForGoal, applyScheduleChange } from '@/services/schedule'
 import {
   generateSessionsForDate,
   listAccomplishments,
@@ -332,6 +332,7 @@ export function GoalDetail() {
   async function openCommitmentEditor() {
     setCommitDraft(
       blocks.map((b) => ({
+        id: b.id,
         weekday: b.weekday,
         targetKind: b.targetKind,
         targetValue: b.targetValue,
@@ -348,10 +349,11 @@ export function GoalDetail() {
     if (validateCommitment(commitDraft) !== null) return
     setUpdating(true)
     try {
-      const next = await replaceSchedule(userId, goal.id, commitDraft)
+      const today = todayISO()
+      const next = await applyScheduleChange(userId, goal.id, blocks, commitDraft, today)
       setBlocks(next)
       setCommitDraft(null)
-      await generateSessionsForDate(userId, todayISO(), next).catch(() => {})
+      await generateSessionsForDate(userId, today, next).catch(() => {})
       toast('Compromiso actualizado.', 'success')
     } catch {
       toast('No se pudo guardar el compromiso.', 'warning')

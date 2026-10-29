@@ -326,3 +326,51 @@ export async function sessionStatsForGoal(
   for (const r of rows) if (r.target_kind === 'time') minutes += r.actual_value ?? 0
   return { done: rows.length, minutes }
 }
+
+/** Sesiones de una meta desde una fecha (incluida): para sincronizarlas al editar la agenda. */
+export async function listGoalSessionsFrom(
+  userId: string,
+  goalId: string,
+  fromISO: string,
+): Promise<Session[]> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('goal_id', goalId)
+    .gte('session_date', fromISO)
+  if (error) throw new Error(error.message)
+  return (data as SessionRow[]).map(mapSession)
+}
+
+/**
+ * Aplica la sincronización calculada por domain/scheduleEdit.sessionsToSync.
+ * Los filtros de estado se repiten en el servidor: si la sesión arrancó entre
+ * la lectura y el guardado, no se borra ni se pisa.
+ */
+export async function syncScheduledSessions(
+  userId: string,
+  sync: { deleteIds: string[]; update: { id: string; targetValue: number; plannedTime: string | null }[] },
+): Promise<void> {
+  if (sync.deleteIds.length > 0) {
+    const { error } = await supabase
+      .from('sessions')
+      .delete()
+      .eq('user_id', userId)
+      .in('id', sync.deleteIds)
+      .in('status', ['pending', 'skipped'])
+    if (error) throw new Error(error.message)
+  }
+  const results = await Promise.all(
+    sync.update.map((u) =>
+      supabase
+        .from('sessions')
+        .update({ target_value: u.targetValue, planned_time: u.plannedTime })
+        .eq('user_id', userId)
+        .eq('id', u.id)
+        .eq('status', 'pending'),
+    ),
+  )
+  const failed = results.find((r) => r.error)
+  if (failed?.error) throw new Error(failed.error.message)
+}

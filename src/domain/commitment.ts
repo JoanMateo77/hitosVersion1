@@ -21,8 +21,13 @@ export function weekdayMon0(dateISO: string): number {
   return (parseISO(dateISO).getDay() + 6) % 7
 }
 
-/** Un bloque de compromiso todavía sin persistir (lo arma el wizard). */
+/**
+ * Un bloque de compromiso todavía sin persistir (lo arma el wizard). Al editar
+ * una meta existente lleva el `id` del bloque que representa, para que la
+ * edición por diferencias (domain/scheduleEdit) conserve ese bloque.
+ */
 export interface CommitmentBlockDraft {
+  id?: string
   weekday: number
   targetKind: TargetKind
   targetValue: number

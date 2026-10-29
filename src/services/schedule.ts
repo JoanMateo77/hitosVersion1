@@ -1,5 +1,7 @@
 import type { ScheduleBlock } from '@/lib/types'
 import type { CommitmentBlockDraft } from '@/domain/commitment'
+import { diffSchedule, sessionsToSync } from '@/domain/scheduleEdit'
+import { listGoalSessionsFrom, syncScheduledSessions } from '@/services/sessions'
 import { supabase } from '@/lib/supabase'
 
 interface ScheduleRow {
@@ -103,20 +105,51 @@ export async function updateBlockStartTime(
 }
 
 /**
- * Reemplaza el compromiso completo de una meta (editar desde el detalle).
- * Las sesiones pasadas conservan su historia (schedule_id queda en NULL por
- * el ON DELETE SET NULL); las futuras se regeneran solas al abrir cada día.
+ * Guarda el compromiso editado por diferencias (domain/scheduleEdit): los
+ * bloques que siguen conservan su id (y con él el historial de sus sesiones),
+ * los nuevos se insertan y los quitados se borran. Antes de borrar/actualizar
+ * bloques se sincronizan las sesiones pendientes de hoy en adelante, para que
+ * no queden huérfanas ni duplicadas junto a los bloques nuevos.
  */
-export async function replaceSchedule(
+export async function applyScheduleChange(
   userId: string,
   goalId: string,
-  drafts: CommitmentBlockDraft[],
+  current: ScheduleBlock[],
+  desired: CommitmentBlockDraft[],
+  todayISO: string,
 ): Promise<ScheduleBlock[]> {
-  const { error } = await supabase
-    .from('goal_schedule')
-    .delete()
-    .eq('goal_id', goalId)
-    .eq('user_id', userId)
-  if (error) throw new Error(error.message)
-  return createScheduleBlocks(userId, goalId, drafts)
+  const change = diffSchedule(current, desired)
+  const sessions = await listGoalSessionsFrom(userId, goalId, todayISO)
+  await syncScheduledSessions(userId, sessionsToSync(change, sessions, todayISO))
+
+  const updates = await Promise.all(
+    change.update.map((u) =>
+      supabase
+        .from('goal_schedule')
+        .update({
+          target_kind: u.targetKind,
+          target_value: u.targetValue,
+          unit: u.unit,
+          start_time: u.startTime,
+        })
+        .eq('id', u.id)
+        .eq('user_id', userId),
+    ),
+  )
+  const failed = updates.find((r) => r.error)
+  if (failed?.error) throw new Error(failed.error.message)
+
+  await createScheduleBlocks(userId, goalId, change.insert)
+
+  if (change.remove.length > 0) {
+    const { error } = await supabase
+      .from('goal_schedule')
+      .delete()
+      .eq('user_id', userId)
+      .eq('goal_id', goalId)
+      .in('id', change.remove)
+    if (error) throw new Error(error.message)
+  }
+
+  return listScheduleForGoal(goalId)
 }
