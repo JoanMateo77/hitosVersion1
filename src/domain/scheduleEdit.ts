@@ -166,23 +166,34 @@ export function editBlockDays(
 /** Sincronización de sesiones: qué borrar y qué actualizar (tipo, valor, unidad y hora). */
 export interface SessionSync {
   deleteIds: string[]
-  update: { id: string; targetKind: TargetKind; targetValue: number; unit: string | null; plannedTime: string | null }[]
+  /** `plannedTime` solo viene si cambió la hora del bloque; si no, no se toca. */
+  update: {
+    id: string
+    targetKind: TargetKind
+    targetValue: number
+    unit: string | null
+    plannedTime?: string | null
+  }[]
 }
 
 /**
  * Qué sesiones tocar al aplicar el cambio (solo fecha >= hoy):
  * - de bloques en `remove` con status pending|skipped → borrar;
- * - pending de bloques en `update` → actualizar tipo, valor, unidad y hora
- *   (si cambió la medida, la sesión no puede quedar mezclada: "3 min").
+ * - pending de bloques en `update` → actualizar tipo, valor y unidad (si
+ *   cambió la medida, la sesión no puede quedar mezclada: "3 min"); la hora
+ *   solo si cambió la del bloque (`current`), para no pisar la hora propia de
+ *   un día fijada con Reorganizar.
  * Nunca toca running/done/partial/missed/unconfirmed ni fechas pasadas.
  */
 export function sessionsToSync(
   change: ScheduleChange,
+  current: ScheduleBlock[],
   sessions: Session[],
   todayISO: string,
 ): SessionSync {
   const removed = new Set(change.remove)
   const updated = new Map(change.update.map((u) => [u.id, u]))
+  const previousTime = new Map(current.map((b) => [b.id, b.startTime]))
   const result: SessionSync = { deleteIds: [], update: [] }
   for (const s of sessions) {
     if (!s.scheduleId || s.date < todayISO) continue
@@ -192,12 +203,13 @@ export function sessionsToSync(
     }
     const u = updated.get(s.scheduleId)
     if (u && s.status === 'pending') {
+      const timeChanged = previousTime.get(u.id) !== u.startTime
       result.update.push({
         id: s.id,
         targetKind: u.targetKind,
         targetValue: u.targetValue,
         unit: u.unit,
-        plannedTime: u.startTime,
+        ...(timeChanged ? { plannedTime: u.startTime } : {}),
       })
     }
   }

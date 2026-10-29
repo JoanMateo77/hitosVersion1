@@ -379,7 +379,8 @@ export async function syncScheduledSessions(
           target_kind: u.targetKind,
           target_value: u.targetValue,
           unit: u.unit,
-          planned_time: u.plannedTime,
+          // Sin cambio de hora del bloque se respeta la hora propia del día.
+          ...(u.plannedTime !== undefined ? { planned_time: u.plannedTime } : {}),
         })
         .eq('user_id', userId)
         .eq('id', u.id)

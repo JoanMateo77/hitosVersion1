@@ -122,7 +122,7 @@ export async function applyScheduleChange(
   const current = await listScheduleForGoal(goalId)
   const change = diffSchedule(current, desired)
   const sessions = await listGoalSessionsFrom(userId, goalId, todayISO)
-  await syncScheduledSessions(userId, sessionsToSync(change, sessions, todayISO))
+  await syncScheduledSessions(userId, sessionsToSync(change, current, sessions, todayISO))
 
   const updates = await Promise.all(
     change.update.map((u) =>

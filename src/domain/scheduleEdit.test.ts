@@ -254,16 +254,18 @@ describe('sessionsToSync', () => {
     insert: [],
     remove: ['fri'],
   }
+  // Estado actual: el lunes sin hora (el cambio le pone las 07:00).
+  const current = [block('mon', 0, 30, null), block('fri', 4, 30, null)]
 
   it('pending de hoy de un bloque removido → delete', () => {
-    expect(sessionsToSync(change, [session('s1', 'fri', today, 'pending')], today)).toEqual({
+    expect(sessionsToSync(change, current, [session('s1', 'fri', today, 'pending')], today)).toEqual({
       deleteIds: ['s1'],
       update: [],
     })
   })
 
   it('running de hoy de un bloque removido → intacta', () => {
-    expect(sessionsToSync(change, [session('s1', 'fri', today, 'running')], today)).toEqual({
+    expect(sessionsToSync(change, current, [session('s1', 'fri', today, 'running')], today)).toEqual({
       deleteIds: [],
       update: [],
     })
@@ -271,21 +273,33 @@ describe('sessionsToSync', () => {
 
   it('pending de ayer → intacta', () => {
     const sessions = [session('s1', 'fri', '2026-10-27', 'pending'), session('s2', 'mon', '2026-10-27', 'pending')]
-    expect(sessionsToSync(change, sessions, today)).toEqual({ deleteIds: [], update: [] })
+    expect(sessionsToSync(change, current, sessions, today)).toEqual({ deleteIds: [], update: [] })
   })
 
   it('skipped de mañana de un bloque removido → delete', () => {
-    expect(sessionsToSync(change, [session('s1', 'fri', '2026-10-29', 'skipped')], today)).toEqual({
+    expect(sessionsToSync(change, current, [session('s1', 'fri', '2026-10-29', 'skipped')], today)).toEqual({
       deleteIds: ['s1'],
       update: [],
     })
   })
 
   it('pending de hoy de un bloque actualizado → update de valor y hora', () => {
-    expect(sessionsToSync(change, [session('s1', 'mon', today, 'pending')], today)).toEqual({
+    expect(sessionsToSync(change, current, [session('s1', 'mon', today, 'pending')], today)).toEqual({
       deleteIds: [],
       update: [{ id: 's1', targetKind: 'time', targetValue: 45, unit: null, plannedTime: '07:00' }],
     })
+  })
+
+  it('si la hora del bloque no cambió, no pisa la hora propia de la sesión (Reorganizar)', () => {
+    const onlyValue: ScheduleChange = {
+      update: [{ id: 'mon', targetKind: 'time', targetValue: 45, unit: null, startTime: '07:00' }],
+      insert: [],
+      remove: [],
+    }
+    const sameTime = [block('mon', 0, 30, '07:00')]
+    const result = sessionsToSync(onlyValue, sameTime, [session('s1', 'mon', today, 'pending')], today)
+    expect(result.update).toEqual([{ id: 's1', targetKind: 'time', targetValue: 45, unit: null }])
+    expect('plannedTime' in result.update[0]).toBe(false)
   })
 
   it('cambio de medida (30 min → 3 km) → la sesión pendiente cambia tipo, valor y unidad', () => {
@@ -294,7 +308,7 @@ describe('sessionsToSync', () => {
       insert: [],
       remove: [],
     }
-    expect(sessionsToSync(km, [session('s1', 'mon', today, 'pending')], today)).toEqual({
+    expect(sessionsToSync(km, current, [session('s1', 'mon', today, 'pending')], today)).toEqual({
       deleteIds: [],
       update: [{ id: 's1', targetKind: 'count', targetValue: 3, unit: 'km', plannedTime: '07:00' }],
     })
@@ -309,6 +323,6 @@ describe('sessionsToSync', () => {
       session('s5', 'mon', today, 'skipped'),
       session('s6', null, today, 'pending'),
     ]
-    expect(sessionsToSync(change, sessions, today)).toEqual({ deleteIds: [], update: [] })
+    expect(sessionsToSync(change, current, sessions, today)).toEqual({ deleteIds: [], update: [] })
   })
 })
