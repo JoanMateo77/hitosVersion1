@@ -46,6 +46,20 @@ export function parseNoteDraft(raw: string | null): NoteDraft | null {
   }
 }
 
+/**
+ * ¿El borrador es de la hoja que se está abriendo? Una nota existente, por su
+ * id; una nueva, solo desde la misma pantalla (la misma meta, o la bandeja con
+ * goalId null): así no aparece en otra meta ni se lleva una meta ajena.
+ */
+export function draftMatches(
+  draft: NoteDraft,
+  noteId: string | null,
+  newGoalId: string | null,
+): boolean {
+  if (draft.noteId !== null) return draft.noteId === noteId
+  return noteId === null && draft.goalId === newGoalId
+}
+
 /* Sin sessionStorage (modo privado estricto) no hay rescate: el toast ya avisó. */
 export function saveNoteDraft(draft: NoteDraft): void {
   try {

@@ -21,7 +21,7 @@ import {
   notePlace,
   noteWhy,
 } from '@/domain/notes'
-import { clearNoteDraft, loadNoteDraft, saveNoteDraft } from '@/lib/noteDraft'
+import { clearNoteDraft, draftMatches, loadNoteDraft, saveNoteDraft } from '@/lib/noteDraft'
 import { seedWizardDraft } from '@/lib/wizardDraft'
 import { todayISO } from '@/lib/date'
 import { Sheet } from '@/components/Sheet'
@@ -82,7 +82,7 @@ export function NoteSheet({
   // Si un guardado anterior de ESTA nota falló, se retoma lo que quedó escrito.
   const [recovered] = useState(() => {
     const draft = loadNoteDraft()
-    return draft && draft.noteId === (note?.id ?? null) ? draft : null
+    return draft && draftMatches(draft, note?.id ?? null, newGoalId) ? draft : null
   })
   const [title, setTitle] = useState(recovered?.title ?? note?.title ?? '')
   const [body, setBody] = useState(recovered?.body ?? note?.body ?? '')
@@ -94,15 +94,18 @@ export function NoteSheet({
   const [panel, setPanel] = useState<Panel>('edit')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const goalIdForNew = recovered ? recovered.goalId : newGoalId
 
   // Refs para el guardado al salir: corre cuando la hoja ya se desmontó.
   const savedRef = useRef<Note | null>(note)
   const skipSaveRef = useRef(false)
   /** true cuando ya se guardó al salir (cierre animado o desmontaje). */
   const leftRef = useRef(false)
-  /** La conversión ya creó su meta/etapa/tarea: un reintento solo archiva. */
-  const convertedRef = useRef(false)
+  /**
+   * Conversión a medias: la meta/etapa/tarea se creó pero archivar falló. Solo
+   * se ofrece reintentar el archivado (con lo que seguía), nunca otra creación.
+   */
+  const [archivePending, setArchivePending] = useState(false)
+  const afterArchiveRef = useRef<() => void>(() => undefined)
   /** Guardados en fila: dos acciones seguidas nunca crean la nota dos veces. */
   const queue = useRef<Promise<unknown>>(Promise.resolve())
 
@@ -131,8 +134,12 @@ export function NoteSheet({
       const current = savedRef.current
       let result: Note | null
       if (current === null) {
-        if (isBlankNote(content)) return null
-        result = await createNote(userId, { ...content, goalId: goalIdForNew })
+        if (isBlankNote(content)) {
+          // Borrar todo el texto rescatado también es descartarlo.
+          if (recovered) clearNoteDraft()
+          return null
+        }
+        result = await createNote(userId, { ...content, goalId: newGoalId })
         remember(result)
       } else if (sameContent(current, content)) {
         result = current
@@ -159,7 +166,7 @@ export function NoteSheet({
     ensureSaved(text).catch(() => {
       saveNoteDraft({
         noteId: savedRef.current?.id ?? null,
-        goalId: goalIdForNew,
+        goalId: newGoalId,
         title: text.title,
         body: text.body,
         items: text.items,
@@ -214,21 +221,22 @@ export function NoteSheet({
     close()
   }
 
-  /**
-   * Convierte: crea la meta/etapa/tarea UNA vez y archiva la nota. Si archivar
-   * falla, un reintento solo vuelve a archivar (nunca duplica lo creado).
-   */
+  /** Convierte: crea la meta/etapa/tarea y archiva la nota. */
   async function convert(n: Note, create: () => Promise<void>, after: () => void) {
-    if (!convertedRef.current) {
-      await create()
-      convertedRef.current = true
-    }
+    await create()
+    await archiveConverted(n, after)
+  }
+
+  async function archiveConverted(n: Note, after: () => void) {
     try {
       remember(await setNoteArchived(n.id, true))
     } catch {
+      afterArchiveRef.current = after
+      setArchivePending(true)
       setError('Se creó, pero no pudimos archivar la nota.')
       return
     }
+    setArchivePending(false)
     toast(CONVERTED_MESSAGE, 'success')
     after()
   }
@@ -443,56 +451,67 @@ export function NoteSheet({
           {panel === 'convert' && (
             <>
               <span className="kicker">Convertir en…</span>
-              <NoteConvertPicker
-                goals={activeGoals}
-                busy={busy}
-                onGoal={() =>
-                  void act((n) =>
-                    convert(
-                      n,
-                      async () =>
-                        seedWizardDraft({
-                          title: noteHeading(n),
-                          templateKey: 'personalizada',
-                          area:
-                            notePlace(n) === 'area' && n.area
-                              ? n.area
-                              : (profile.primaryNiche ?? 'otra'),
-                          milestones: [],
-                          why: noteWhy(n),
-                          step: 0,
-                        }),
-                      () => {
-                        finish(close)
-                        navigate('/meta/nueva')
-                      },
-                    ),
-                  )
-                }
-                onMilestone={(goalId) =>
-                  void act((n) =>
-                    convert(
-                      n,
-                      async () => {
-                        const count = (await listMilestones(goalId)).length
-                        await addMilestone(userId, goalId, noteHeading(n), count)
-                      },
-                      () => finish(close),
-                    ),
-                  )
-                }
-                onTask={() =>
-                  void act((n) =>
-                    convert(
-                      n,
-                      async () => {
-                        await createUserTask(userId, noteHeading(n), todayISO())
-                      },
-                      () => finish(close),
-                    ),
-                  )
-                }
-              />
+              {archivePending ? (
+                <button
+                  type="button"
+                  className="btn btn--primary btn--block"
+                  disabled={busy}
+                  onClick={() => void act((n) => archiveConverted(n, afterArchiveRef.current))}
+                >
+                  Reintentar archivar
+                </button>
+              ) : (
+                <NoteConvertPicker
+                  goals={activeGoals}
+                  busy={busy}
+                  onGoal={() =>
+                    void act((n) =>
+                      convert(
+                        n,
+                        async () =>
+                          seedWizardDraft({
+                            title: noteHeading(n),
+                            templateKey: 'personalizada',
+                            area:
+                              notePlace(n) === 'area' && n.area
+                                ? n.area
+                                : (profile.primaryNiche ?? 'otra'),
+                            milestones: [],
+                            why: noteWhy(n),
+                            step: 0,
+                          }),
+                        () => {
+                          finish(close)
+                          navigate('/meta/nueva')
+                        },
+                      ),
+                    )
+                  }
+                  onMilestone={(goalId) =>
+                    void act((n) =>
+                      convert(
+                        n,
+                        async () => {
+                          const count = (await listMilestones(goalId)).length
+                          await addMilestone(userId, goalId, noteHeading(n), count)
+                        },
+                        () => finish(close),
+                      ),
+                    )
+                  }
+                  onTask={() =>
+                    void act((n) =>
+                      convert(
+                        n,
+                        async () => {
+                          await createUserTask(userId, noteHeading(n), todayISO())
+                        },
+                        () => finish(close),
+                      ),
+                    )
+                  }
+                />
+              )}
               <button type="button" className="btn--link" onClick={() => setPanel('edit')}>
                 Volver a la nota
               </button>
@@ -512,6 +531,7 @@ export function NoteSheet({
                   onClick={() => {
                     const current = savedRef.current
                     if (current === null) {
+                      if (recovered) clearNoteDraft()
                       finish(close)
                       return
                     }
