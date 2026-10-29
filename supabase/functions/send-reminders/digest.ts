@@ -26,9 +26,8 @@ export function digestBody(
   const shown = goalTitles.slice(0, 3).join(' · ')
   const rest = goalTitles.length - 3
   const goals = rest > 0 ? `${shown} y ${rest} más` : shown
+  const noun = sessionsToday === 1 ? 'sesión' : 'sesiones'
   const sessions =
-    sessionsToday === 0
-      ? 'Hoy no tienes sesiones agendadas.'
-      : `Hoy tienes ${sessionsToday} ${sessionsToday === 1 ? 'sesión' : 'sesiones'}.`
+    sessionsToday === 0 ? 'Hoy no tienes sesiones agendadas.' : `Hoy tienes ${sessionsToday} ${noun}.`
   return { title: 'Tus metas de hoy', body: `${goals}. ${sessions}` }
 }

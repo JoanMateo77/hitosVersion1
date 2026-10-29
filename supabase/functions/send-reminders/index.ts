@@ -149,6 +149,61 @@ async function sendDigest(userId: string, subs: PushSub[], date: string, nowMin:
   return sendToSubs(subs, JSON.stringify({ title, body, url: '/', tag: 'daily-digest' }))
 }
 
+async function remindSession(
+  sess: Record<string, unknown>,
+  userSubs: PushSub[],
+): Promise<number> {
+  const { data: goal } = await supabase
+    .from('goals')
+    .select('title, status')
+    .eq('id', sess.goal_id)
+    .single()
+  if (!goal || goal.status !== 'active') return 0
+
+  const target =
+    sess.target_kind === 'time'
+      ? `${sess.target_value} min`
+      : `${sess.target_value} ${sess.unit ?? ''}`
+  const payload = JSON.stringify({
+    title: `Tu sesión de ${goal.title}`,
+    body: `${target} — es tu momento. Un toque y empezamos.`,
+    url: `/sesion/${sess.id}?start=1`,
+    tag: `session-${sess.id}`,
+  })
+
+  const count = await sendToSubs(userSubs, payload)
+  await supabase
+    .from('sessions')
+    .update({ reminded_at: new Date().toISOString() })
+    .eq('id', sess.id)
+  return count
+}
+
+async function remindUser(userId: string, userSubs: PushSub[]): Promise<number> {
+  const tz = (userSubs[0] as { profiles?: { tz?: string } }).profiles?.tz ?? 'UTC'
+  const { date, hhmm } = localNow(tz)
+  const nowMin = minutesOf(hhmm)
+
+  const { data: sessions } = await supabase
+    .from('sessions')
+    .select('id, goal_id, planned_time, target_kind, target_value, unit')
+    .eq('user_id', userId)
+    .eq('session_date', date)
+    .eq('status', 'pending')
+    .is('reminded_at', null)
+    .not('planned_time', 'is', null)
+
+  const due = (sessions ?? []).filter((sess) => {
+    const planned = minutesOf((sess.planned_time as string).slice(0, 5))
+    // Ventana: desde la hora planificada hasta 10 min después.
+    return nowMin >= planned && nowMin <= planned + 10
+  })
+  const counts = await Promise.all(due.map((sess) => remindSession(sess, userSubs)))
+  const sent = counts.reduce((acc, n) => acc + n, 0)
+
+  return sent + (await sendDigest(userId, userSubs, date, nowMin))
+}
+
 Deno.serve(async (req) => {
   // Solo el cron (o tú) puede invocarla: secreto compartido en el header.
   if (req.headers.get('x-cron-key') !== Deno.env.get('CRON_SECRET')) {
@@ -160,7 +215,6 @@ Deno.serve(async (req) => {
     .select('user_id, endpoint, p256dh, auth, profiles!inner(tz)')
   if (error) return new Response(error.message, { status: 500 })
 
-  let sent = 0
   const byUser = new Map<string, typeof subs>()
   for (const s of subs ?? []) {
     const list = byUser.get(s.user_id) ?? []
@@ -168,52 +222,12 @@ Deno.serve(async (req) => {
     byUser.set(s.user_id, list)
   }
 
-  for (const [userId, userSubs] of byUser) {
-    const tz = (userSubs[0] as { profiles?: { tz?: string } }).profiles?.tz ?? 'UTC'
-    const { date, hhmm } = localNow(tz)
-    const nowMin = minutesOf(hhmm)
-
-    const { data: sessions } = await supabase
-      .from('sessions')
-      .select('id, goal_id, planned_time, target_kind, target_value, unit')
-      .eq('user_id', userId)
-      .eq('session_date', date)
-      .eq('status', 'pending')
-      .is('reminded_at', null)
-      .not('planned_time', 'is', null)
-
-    for (const sess of sessions ?? []) {
-      const planned = minutesOf((sess.planned_time as string).slice(0, 5))
-      // Ventana: desde la hora planificada hasta 10 min después.
-      if (nowMin < planned || nowMin > planned + 10) continue
-
-      const { data: goal } = await supabase
-        .from('goals')
-        .select('title, status')
-        .eq('id', sess.goal_id)
-        .single()
-      if (!goal || goal.status !== 'active') continue
-
-      const target =
-        sess.target_kind === 'time'
-          ? `${sess.target_value} min`
-          : `${sess.target_value} ${sess.unit ?? ''}`
-      const payload = JSON.stringify({
-        title: `Tu sesión de ${goal.title}`,
-        body: `${target} — es tu momento. Un toque y empezamos.`,
-        url: `/sesion/${sess.id}?start=1`,
-        tag: `session-${sess.id}`,
-      })
-
-      sent += await sendToSubs(userSubs, payload)
-      await supabase
-        .from('sessions')
-        .update({ reminded_at: new Date().toISOString() })
-        .eq('id', sess.id)
-    }
-
-    sent += await sendDigest(userId, userSubs, date, nowMin)
-  }
+  // Cada usuario es independiente: se procesan en paralelo. Dentro de un usuario, el
+  // digest se envía después de los recordatorios de sesión (y marca-antes-de-enviar).
+  const perUser = await Promise.all(
+    [...byUser].map(([userId, userSubs]) => remindUser(userId, userSubs)),
+  )
+  const sent = perUser.reduce((acc, n) => acc + n, 0)
 
   return new Response(JSON.stringify({ sent }), {
     headers: { 'Content-Type': 'application/json' },
