@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  anchorSuggestions,
   buildGoalPlanPrompt,
   buildQuestionsPrompt,
   buildRefinePrompt,
   checkPlanRealism,
   parseGoalPlan,
   parseQuestions,
+  resolveInsertIndex,
   type GoalPlan,
 } from './goalPlan'
 
@@ -148,5 +150,57 @@ describe('checkPlanRealism', () => {
     expect(issues).toHaveLength(2)
     expect(issues[0]).toContain('300 min')
     expect(issues[1]).toContain('12 semanas')
+  })
+})
+
+describe('anchorSuggestions', () => {
+  const s = (title: string, insertAfter?: number) => ({ ...stage(title), insertAfter })
+  const plan = (stages: ReturnType<typeof s>[]): GoalPlan => ({ schemaVersion: 1, summary: '', weeklyMinutes: 0, stages })
+
+  it('ancla por título y encadena varias sugerencias del mismo hueco', () => {
+    const input = { title: 't', typeLabel: 't', currentStages: ['A', 'B', 'C'] }
+    const out = anchorSuggestions(plan([s('X', 0), s('Y', 2), s('Z', 2), s('W', 9)]), input)
+    expect(out.stages.map((st) => [st.title, st.afterTitle])).toEqual([
+      ['X', null],
+      ['Y', 'B'],
+      ['Z', 'Y'],
+      ['W', 'C'],
+    ])
+  })
+
+  it('sin etapas propias, forma una cadena desde el inicio', () => {
+    const out = anchorSuggestions(plan([s('X', 0), s('Y', 0)]), { title: 't', typeLabel: 't' })
+    expect(out.stages.map((st) => st.afterTitle)).toEqual([null, 'X'])
+  })
+
+  it('descarta las que repiten literalmente una etapa existente', () => {
+    const out = anchorSuggestions(plan([s('b', 1), s('Nueva', 1)]), { title: 't', typeLabel: 't', currentStages: ['A', 'B'] })
+    expect(out.stages.map((st) => st.title)).toEqual(['Nueva'])
+  })
+})
+
+describe('parseGoalPlan con etapas propias', () => {
+  it('acepta 0 sugerencias si el mínimo es 0 y conserva notas', () => {
+    const plan = parseGoalPlan({ summary: 'ok', weeklyMinutes: 60, stages: [], notes: ['La 2 es vaga', 'x', 'y'] }, 0)
+    expect(plan?.stages).toEqual([])
+    expect(plan?.notes).toEqual(['La 2 es vaga', 'x'])
+  })
+})
+
+describe('resolveInsertIndex', () => {
+  const sug = (title: string, afterTitle: string | null) => ({ ...stage(title), afterTitle })
+
+  it('null al inicio, título existente después de él, sin ancla al final', () => {
+    expect(resolveInsertIndex(null, ['A', 'B'], [])).toBe(0)
+    expect(resolveInsertIndex('a', ['A', 'B'], [])).toBe(1)
+    expect(resolveInsertIndex(undefined, ['A', 'B'], [])).toBe(2)
+    expect(resolveInsertIndex('Borrada', ['A', 'B'], [])).toBe(2)
+  })
+
+  it('se resuelve en cadena a través de sugerencias no agregadas', () => {
+    const suggestions = [sug('X', 'A'), sug('Y', 'X')]
+    expect(resolveInsertIndex('X', ['A', 'B'], suggestions)).toBe(1)
+    // Cuando X ya se agregó, Y va justo después de X.
+    expect(resolveInsertIndex('X', ['A', 'X', 'B'], suggestions)).toBe(2)
   })
 })

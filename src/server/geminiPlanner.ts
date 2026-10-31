@@ -6,11 +6,13 @@
 import {
   GOAL_PLAN_RESPONSE_SCHEMA,
   QUESTIONS_RESPONSE_SCHEMA,
+  anchorSuggestions,
   buildGoalPlanPrompt,
   buildQuestionsPrompt,
   buildRefinePrompt,
   buildRepairPrompt,
   checkPlanRealism,
+  minStagesFor,
   parseGoalPlan,
   parseQuestions,
 } from '../domain/goalPlan'
@@ -74,14 +76,20 @@ export function createGeminiPlanner(apiKey: string, model: string): GoalPlanner 
     return result
   }
 
-  /** Genera y, si no pasa la revisión de realismo, pide UNA corrección. */
+  /**
+   * Genera y, si no pasa la revisión de realismo, pide UNA corrección. Al final
+   * ancla cada sugerencia a la etapa tras la cual encaja.
+   */
   async function planWithReview(prompt: string, input: GoalPlanInput): Promise<GoalPlan> {
-    const first = await callWithRetry(prompt, GOAL_PLAN_RESPONSE_SCHEMA, parseGoalPlan)
+    const parse = (raw: unknown) => parseGoalPlan(raw, minStagesFor(input))
+    const first = await callWithRetry(prompt, GOAL_PLAN_RESPONSE_SCHEMA, parse)
     const issues = checkPlanRealism(first, input)
-    if (issues.length === 0) return first
-    const repaired = await call(buildRepairPrompt(prompt, issues), GOAL_PLAN_RESPONSE_SCHEMA, parseGoalPlan)
     // Si la corrección falla, el primer plan sigue siendo usable: mejor eso que nada.
-    return repaired ?? first
+    const plan =
+      issues.length === 0
+        ? first
+        : ((await call(buildRepairPrompt(prompt, issues), GOAL_PLAN_RESPONSE_SCHEMA, parse)) ?? first)
+    return anchorSuggestions(plan, input)
   }
 
   return {

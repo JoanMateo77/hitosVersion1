@@ -25,8 +25,8 @@ import { WIZARD_DRAFT_KEY } from '@/lib/wizardDraft'
 import { clearWizardIntent } from '@/app/onboardingIntent'
 import { CommitmentStep } from '@/components/wizard/CommitmentStep'
 import { MilestonesStep } from '@/components/wizard/MilestonesStep'
-import { StageSuggestions } from '@/components/wizard/StageSuggestions'
-import { parseGoalPlan, type GoalPlan } from '@/domain/goalPlan'
+import { CoachPanel } from '@/components/wizard/CoachPanel'
+import { parseGoalPlan, resolveInsertIndex, type GoalPlan, type GoalPlanStage } from '@/domain/goalPlan'
 
 /** Pasos del wizard: título · tipo · compromiso · camino · ancla · resumen. */
 const STEPS = 6
@@ -265,6 +265,24 @@ export function Wizard() {
     ]
   })()
 
+  // Sugerencias del coach que la persona aún no agregó (por título).
+  const milestoneTitles = milestones.map((m) => m.title)
+  const pendingSuggestions: GoalPlanStage[] = (aiPlan?.stages ?? []).filter(
+    (s) => !milestoneTitles.some((t) => t.trim().toLowerCase() === s.title.trim().toLowerCase()),
+  )
+
+  /** Inserta una sugerencia en la posición donde encaja según su ancla. */
+  function insertStage(current: MilestoneDraft[], stage: GoalPlanStage): MilestoneDraft[] {
+    const index = resolveInsertIndex(
+      stage.afterTitle,
+      current.map((m) => m.title),
+      pendingSuggestions,
+    )
+    const next = [...current]
+    next.splice(index, 0, { title: stage.title, position: 0, targetDate: null, done: false })
+    return renumberDrafts(next)
+  }
+
   const commitmentError = validateCommitment(blocks)
   const canContinue =
     step === 0
@@ -368,10 +386,9 @@ export function Wizard() {
         {step === 3 && (
           <Question
             title="Arma tu camino"
-            hint="Escribe las etapas de tu meta en orden, o pide sugerencias y agrega las que te sirvan."
+            hint="Las etapas de tu meta, en orden. Escríbelas tú o deja que el coach te proponga y revise."
           >
-            <MilestonesStep milestones={milestones} onChange={setMilestones} />
-            <StageSuggestions
+            <CoachPanel
               input={{
                 title,
                 typeLabel: getTemplate(templateKey || 'personalizada').label,
@@ -381,15 +398,28 @@ export function Wizard() {
                 // El horario del paso anterior es el tiempo real disponible.
                 weeklyMinutes: weeklyTotal(blocks).minutes || null,
               }}
-              templateTitles={getTemplate(templateKey || 'personalizada').milestones}
-              addedTitles={milestones.map((m) => m.title)}
+              stageTitles={milestones.map((m) => m.title)}
               plan={aiPlan}
               onPlan={setAiPlan}
-              onAdd={(titles) =>
+              pendingCount={pendingSuggestions.length}
+              onAddAll={() => setMilestones((current) => pendingSuggestions.reduce(insertStage, current))}
+            />
+            <MilestonesStep
+              milestones={milestones}
+              onChange={setMilestones}
+              ghosts={pendingSuggestions.map((stage) => ({
+                stage,
+                index: resolveInsertIndex(stage.afterTitle, milestoneTitles, pendingSuggestions),
+              }))}
+              onAcceptGhost={(stage) => setMilestones((current) => insertStage(current, stage))}
+            />
+            <TemplateIdeas
+              titles={getTemplate(templateKey || 'personalizada').milestones.filter(
+                (t) => !milestoneTitles.some((m) => m.trim().toLowerCase() === t.trim().toLowerCase()),
+              )}
+              onAdd={(t) =>
                 setMilestones((current) =>
-                  [...current, ...titles.map((t) => ({ title: t, position: 0, targetDate: null, done: false }))].map(
-                    (m, position) => ({ ...m, position }),
-                  ),
+                  renumberDrafts([...current, { title: t, position: 0, targetDate: null, done: false }]),
                 )
               }
             />
@@ -554,5 +584,26 @@ function ReviewCard({
         </div>
       )}
     </div>
+  )
+}
+
+function renumberDrafts(list: MilestoneDraft[]): MilestoneDraft[] {
+  return list.map((m, position) => ({ ...m, position }))
+}
+
+/** Etapas típicas del tipo de meta, plegadas: están si se buscan, no estorban. */
+function TemplateIdeas({ titles, onAdd }: Readonly<{ titles: string[]; onAdd: (title: string) => void }>) {
+  if (titles.length === 0) return null
+  return (
+    <details className="template-ideas">
+      <summary className="small faint">Ver etapas típicas de este tipo de meta</summary>
+      <div className="row wrap" style={{ gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
+        {titles.map((t) => (
+          <button key={t} type="button" className="chip" onClick={() => onAdd(t)}>
+            + {t}
+          </button>
+        ))}
+      </div>
+    </details>
   )
 }

@@ -51,6 +51,9 @@ function readInput(b: Record<string, unknown>): GoalPlanInput | null {
     targetDate: str(b.targetDate),
     weeklyMinutes: typeof b.weeklyMinutes === 'number' && b.weeklyMinutes > 0 ? b.weeklyMinutes : null,
     answers: readAnswers(b.answers),
+    currentStages: Array.isArray(b.currentStages)
+      ? b.currentStages.filter((t): t is string => typeof t === 'string')
+      : [],
   }
 }
 
@@ -72,7 +75,8 @@ export async function handlePlanMeta(request: Request, deps: PlanMetaDeps): Prom
   }
   const input = readInput(body)
   const action = body.action ?? 'plan'
-  const currentPlan = action === 'refine' ? parseGoalPlan(body.plan) : null
+  // Un plan a pulir puede tener 0 sugerencias ("tu camino está completo").
+  const currentPlan = action === 'refine' ? parseGoalPlan(body.plan, 0) : null
   const instruction = str(body.instruction)?.trim() ?? ''
   if (
     !input ||
