@@ -2468,6 +2468,68 @@ select.input {
 .mstone__input {
   flex: 1;
 }
+/* Con mouse, el "⋯" solo aparece al pasar o enfocar la fila: la lista se lee
+   limpia y las acciones siguen a un gesto. En táctil queda siempre visible. */
+@media (hover: hover) {
+  .mstone__more {
+    opacity: 0;
+    transition: opacity var(--dur-tap) var(--ease-out);
+  }
+  .mstone:hover .mstone__more,
+  .mstone:focus-within .mstone__more,
+  .mstone__more[aria-expanded='true'] {
+    opacity: 1;
+  }
+}
+
+/* --- Sugerencias de etapas (wizard): IA a pedido + ideas de plantilla --- */
+.stage-suggest {
+  margin-top: var(--s4);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--border-soft);
+}
+.stage-suggest__ai {
+  align-self: flex-start;
+  min-height: 44px;
+}
+.stage-suggest__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s2);
+}
+.stage-suggest__card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  width: 100%;
+  padding: var(--s3);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color var(--dur-tap) var(--ease-out), background var(--dur-tap) var(--ease-out);
+}
+.stage-suggest__card:hover,
+.stage-suggest__card:focus-visible {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.stage-suggest__plus {
+  flex: none;
+  margin-top: 2px;
+  color: var(--primary);
+}
+.stage-suggest__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
 
 /* --- Mini-cadena de la semana (Hábitos): un punto por día --- */
 .weekstrip__dot {

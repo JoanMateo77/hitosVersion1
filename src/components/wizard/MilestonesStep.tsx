@@ -53,13 +53,28 @@ export function MilestonesStep({ milestones, onChange }: MilestonesStepProps) {
     if (title) patch(index, { title })
   }
 
-  function commitAdd(value: string) {
-    setAdding(false)
+  function commitAdd(value: string, keepAdding = false) {
+    setAdding(keepAdding)
     const title = value.trim()
     if (!title) return
     onChange(
       renumber([...milestones, { title, position: milestones.length, targetDate: null, done: false }]),
     )
+  }
+
+  // Enter agrega y deja el campo listo para la siguiente: armar el camino de
+  // cero es escribir una lista, no abrir un formulario por etapa.
+  function onAddKey(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      const value = e.currentTarget.value
+      e.currentTarget.value = ''
+      commitAdd(value, true)
+    }
+    if (e.key === 'Escape') {
+      e.currentTarget.value = ''
+      setAdding(false)
+    }
   }
 
   function onEditKey(e: KeyboardEvent<HTMLInputElement>) {
@@ -106,7 +121,7 @@ export function MilestonesStep({ milestones, onChange }: MilestonesStepProps) {
             )}
             <button
               type="button"
-              className="iconbtn iconbtn--sm"
+              className="iconbtn iconbtn--sm mstone__more"
               aria-expanded={menuIndex === index}
               aria-label={`Opciones de la etapa ${index + 1}`}
               onClick={() => setMenuIndex(menuIndex === index ? null : index)}
@@ -157,15 +172,16 @@ export function MilestonesStep({ milestones, onChange }: MilestonesStepProps) {
       ))}
 
       <li style={{ marginTop: 'var(--s2)' }}>
-        {adding ? (
+        {/* Sin etapas, el campo ya está a la vista: arrancar de cero es escribir. */}
+        {adding || milestones.length === 0 ? (
           <input
             className="input"
-            autoFocus
-            placeholder="Describe la nueva etapa…"
+            autoFocus={adding}
+            placeholder={milestones.length === 0 ? 'Escribe tu primera etapa y presiona Enter…' : 'Siguiente etapa…'}
             maxLength={200}
             aria-label="Nueva etapa"
             onBlur={(e) => commitAdd(e.target.value)}
-            onKeyDown={onEditKey}
+            onKeyDown={onAddKey}
           />
         ) : (
           <button type="button" className="btn--link" onClick={() => setAdding(true)}>
@@ -173,12 +189,13 @@ export function MilestonesStep({ milestones, onChange }: MilestonesStepProps) {
           </button>
         )}
       </li>
-      <li>
-        <p className="faint tiny" style={{ marginTop: 'var(--s3)' }}>
-          Toca una etapa para editarla; con el menú de puntos le pones fecha, la ordenas o la
-          quitas.
-        </p>
-      </li>
+      {milestones.length > 0 && (
+        <li>
+          <p className="faint tiny" style={{ marginTop: 'var(--s3)' }}>
+            Toca una etapa para editarla. Con ⋯ le pones fecha, la ordenas o la quitas.
+          </p>
+        </li>
+      )}
     </ul>
   )
 }

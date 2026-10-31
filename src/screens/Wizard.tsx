@@ -11,7 +11,6 @@ import { NicheIcon } from '@/components/NicheGlyph'
 import { OptionRow } from '@/components/OptionRow'
 import { Hint } from '@/components/Hint'
 import {
-  buildMilestonesFromTemplate,
   formatCommitmentSummary,
   preferredStartTime,
   validateCommitment,
@@ -25,6 +24,8 @@ import { WIZARD_DRAFT_KEY } from '@/lib/wizardDraft'
 import { clearWizardIntent } from '@/app/onboardingIntent'
 import { CommitmentStep } from '@/components/wizard/CommitmentStep'
 import { MilestonesStep } from '@/components/wizard/MilestonesStep'
+import { StageSuggestions } from '@/components/wizard/StageSuggestions'
+import { parseGoalPlan, type GoalPlan } from '@/domain/goalPlan'
 
 /** Pasos del wizard: título · tipo · compromiso · camino · ancla · resumen. */
 const STEPS = 6
@@ -41,10 +42,8 @@ interface WizardDraft {
   criteria: string
   blocks: CommitmentBlockDraft[]
   milestones: MilestoneDraft[]
-  /** Plantilla con la que se sembraron las etapas (para re-sembrar si cambia). */
-  seededFromTemplate: string
-  /** true si el usuario editó las etapas: nunca se pisan. */
-  milestonesTouched: boolean
+  /** Plan sugerido por la IA en el paso de etapas (se conserva al ir y volver). */
+  aiPlan: GoalPlan | null
 }
 
 /** Type-guard: ¿el valor es un NicheId válido? Espejo de isTheme en theme.ts. */
@@ -74,8 +73,7 @@ function loadDraft(): Partial<WizardDraft> {
     if (typeof d.targetDate === 'string') draft.targetDate = d.targetDate
     if (isNiche(d.area)) draft.area = d.area
     if (typeof d.criteria === 'string') draft.criteria = d.criteria
-    if (typeof d.seededFromTemplate === 'string') draft.seededFromTemplate = d.seededFromTemplate
-    if (typeof d.milestonesTouched === 'boolean') draft.milestonesTouched = d.milestonesTouched
+    if (d.aiPlan != null) draft.aiPlan = parseGoalPlan(d.aiPlan)
     if (Array.isArray(d.blocks)) {
       draft.blocks = (d.blocks as unknown[]).filter(
         (item): item is CommitmentBlockDraft =>
@@ -134,11 +132,9 @@ export function Wizard() {
   )
 
   const [blocks, setBlocks] = useState<CommitmentBlockDraft[]>(draft.blocks ?? [])
+  // Las etapas arrancan vacías: la plantilla y la IA solo SUGIEREN (se agregan con un clic).
   const [milestones, setMilestones] = useState<MilestoneDraft[]>(draft.milestones ?? [])
-  // Si el usuario cambia de plantilla sin haber editado las etapas, se re-siembran;
-  // si las tocó, se respetan siempre (espejo del patrón detectedFromTitle).
-  const [seededFromTemplate, setSeededFromTemplate] = useState(draft.seededFromTemplate ?? '')
-  const [milestonesTouched, setMilestonesTouched] = useState(draft.milestonesTouched ?? false)
+  const [aiPlan, setAiPlan] = useState<GoalPlan | null>(draft.aiPlan ?? null)
   const [existingBlocks, setExistingBlocks] = useState<ScheduleBlock[]>([])
 
   const [saving, setSaving] = useState(false)
@@ -187,14 +183,13 @@ export function Wizard() {
           criteria,
           blocks,
           milestones,
-          seededFromTemplate,
-          milestonesTouched,
+          aiPlan,
         }),
       )
     } catch {
       /* ignore */
     }
-  }, [step, title, templateKey, why, targetDate, area, criteria, blocks, milestones, seededFromTemplate, milestonesTouched])
+  }, [step, title, templateKey, why, targetDate, area, criteria, blocks, milestones, aiPlan])
 
   function goBack() {
     if (step === 0) {
@@ -217,16 +212,8 @@ export function Wizard() {
       )
       setCustomFirst(detected.key === 'personalizada')
     }
-    // Al salir del tipo elegido (paso 1 → 2), sembrar las etapas desde la
-    // plantilla. Se re-siembran si la plantilla cambió y el usuario no las editó;
-    // las etapas editadas a mano no se pisan nunca.
-    if (step === 1) {
-      const key = templateKey || 'personalizada'
-      if (milestones.length === 0 || (!milestonesTouched && key !== seededFromTemplate)) {
-        setMilestones(buildMilestonesFromTemplate(getTemplate(key), 0))
-        setSeededFromTemplate(key)
-      }
-    }
+    // Si cambió la meta, el plan de la IA ya no aplica.
+    if (step === 0 && title !== detectedFromTitle) setAiPlan(null)
     setStep((s) => s + 1)
   }
 
@@ -379,15 +366,28 @@ export function Wizard() {
 
         {step === 3 && (
           <Question
-            title="Estas son tus etapas"
-            hint="El camino típico de este tipo de meta, en orden. Edita, reordena o agrega las que necesites."
+            title="Arma tu camino"
+            hint="Escribe las etapas de tu meta en orden, o pide sugerencias y agrega las que te sirvan."
           >
-            <MilestonesStep
-              milestones={milestones}
-              onChange={(ms) => {
-                setMilestones(ms)
-                setMilestonesTouched(true)
+            <MilestonesStep milestones={milestones} onChange={setMilestones} />
+            <StageSuggestions
+              input={{
+                title,
+                typeLabel: getTemplate(templateKey || 'personalizada').label,
+                why,
+                targetDate,
               }}
+              templateTitles={getTemplate(templateKey || 'personalizada').milestones}
+              addedTitles={milestones.map((m) => m.title)}
+              plan={aiPlan}
+              onPlan={setAiPlan}
+              onAdd={(titles) =>
+                setMilestones((current) =>
+                  [...current, ...titles.map((t) => ({ title: t, position: 0, targetDate: null, done: false }))].map(
+                    (m, position) => ({ ...m, position }),
+                  ),
+                )
+              }
             />
           </Question>
         )}
