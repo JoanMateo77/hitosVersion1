@@ -49,3 +49,25 @@ con el contenido y no se permite para usuarios del EEE/UK). Antes de usuarios re
 - Límite diario persistente (tabla) en vez de memoria.
 - Nivel pago de Gemini + proveedor de respaldo (informe de proveedores).
 - Variables en Vercel: `GEMINI_API_KEY`, `GEMINI_MODEL`.
+
+## Ampliación 2026-10-31: coach especializado (entrega 1)
+
+Pedido del usuario: memoria por usuario, pulir cada meta con preguntas, IA especializada (no un
+prompt genérico), al crear la meta y también después.
+
+Implementado (sin cambios de base de datos):
+- **Método fijo** (`src/domain/planningMethod.ts`): instrucción de sistema con 6 reglas (punto de
+  partida, resultado observable, progresión gradual, capacidad real, primer paso mínimo,
+  obstáculos) + guía por nicho. Prefijo estable → caché implícito del proveedor.
+- **Preguntas antes del plan**: 1–3 preguntas con respuestas rápidas; no repite lo ya sabido.
+- **Revisión de realismo en código** (`checkPlanRealism`): minutos vs. horario comprometido y
+  semanas vs. fecha límite; si falla, una corrección al modelo.
+- **Pulir** con frases o atajos ("Más suave", "Solo fines de semana"); devuelve `changeNote`.
+- **Memoria de comportamiento** (`userSignals`): cumplimiento de sesiones (60 días), minutos ya
+  comprometidos, metas activas, momento preferido. Se lee con el token del usuario (RLS) y se
+  muestra a la persona ("Tuvimos en cuenta…").
+- Límite: 30 acciones/día por usuario (en memoria, ver Pendientes).
+
+Entrega 2 (requiere migración que corre el usuario): guardar `goals.ai_plan` y respuestas,
+perfil de IA visible/editable, y "hablar con la meta" en el detalle (reajuste por pedido; la app
+lo sugiere cuando vas atrasado, pero el usuario decide).

@@ -2530,6 +2530,21 @@ select.input {
   gap: 2px;
   min-width: 0;
 }
+.stage-suggest__q {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s2);
+}
+.stage-suggest__change {
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-sm);
+  background: var(--primary-soft);
+}
+.stage-suggest__refine {
+  margin-top: var(--s3);
+}
 
 /* --- Mini-cadena de la semana (Hábitos): un punto por día --- */
 .weekstrip__dot {

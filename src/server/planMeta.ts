@@ -2,11 +2,15 @@
  * Handler de POST /api/plan-meta con firma Web (Request → Response). Lo monta
  * la función de Vercel (api/plan-meta.ts) y, en local, el middleware de Vite.
  * Las dependencias entran por parámetro para poder testearlo sin red.
+ *
+ * Acciones: "questions" (qué falta saber) · "plan" (camino con respuestas) ·
+ * "refine" (pulir un plan con un pedido en lenguaje natural).
  */
-import type { GoalPlanInput } from '../domain/goalPlan'
+import { parseGoalPlan, type GoalPlanInput, type QuestionAnswer } from '../domain/goalPlan'
 import type { GoalPlanner } from './geminiPlanner'
 
-export const DAILY_LIMIT = 10
+/** Cada acción cuenta: preguntas + plan + unos cuantos pulidos al día. */
+export const DAILY_LIMIT = 30
 
 export interface PlanMetaDeps {
   /** Devuelve el id del usuario dueño del token, o null si no es válido. */
@@ -14,6 +18,8 @@ export interface PlanMetaDeps {
   planner: GoalPlanner | null
   /** Registra un uso y dice si el usuario sigue dentro del límite diario. */
   takeQuota(userId: string): boolean
+  /** Memoria de comportamiento en frases legibles ([] si no hay o falla). */
+  loadSignals(userId: string, accessToken: string): Promise<string[]>
 }
 
 function json(status: number, body: unknown): Response {
@@ -23,15 +29,28 @@ function json(status: number, body: unknown): Response {
   })
 }
 
-function readInput(body: unknown): GoalPlanInput | null {
-  if (body == null || typeof body !== 'object') return null
-  const b = body as Record<string, unknown>
-  if (typeof b.title !== 'string' || b.title.trim().length === 0) return null
+const str = (v: unknown) => (typeof v === 'string' ? v : null)
+
+function readAnswers(value: unknown): QuestionAnswer[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((a) => (a != null && typeof a === 'object' ? (a as Record<string, unknown>) : null))
+    .filter((a): a is Record<string, unknown> => a !== null)
+    .map((a) => ({ question: str(a.question) ?? '', answer: str(a.answer) ?? '' }))
+    .filter((a) => a.question && a.answer)
+}
+
+function readInput(b: Record<string, unknown>): GoalPlanInput | null {
+  const title = str(b.title)
+  if (!title || title.trim().length === 0) return null
   return {
-    title: b.title,
-    typeLabel: typeof b.typeLabel === 'string' ? b.typeLabel : '',
-    why: typeof b.why === 'string' ? b.why : null,
-    targetDate: typeof b.targetDate === 'string' ? b.targetDate : null,
+    title,
+    typeLabel: str(b.typeLabel) ?? '',
+    area: str(b.area),
+    why: str(b.why),
+    targetDate: str(b.targetDate),
+    weeklyMinutes: typeof b.weeklyMinutes === 'number' && b.weeklyMinutes > 0 ? b.weeklyMinutes : null,
+    answers: readAnswers(b.answers),
   }
 }
 
@@ -43,20 +62,38 @@ export async function handlePlanMeta(request: Request, deps: PlanMetaDeps): Prom
   const userId = token ? await deps.verifyUser(token) : null
   if (!userId) return json(401, { error: { code: 'unauthenticated' } })
 
-  let body: unknown
+  let body: Record<string, unknown>
   try {
-    body = await request.json()
+    const parsed: unknown = await request.json()
+    if (parsed == null || typeof parsed !== 'object') throw new Error('body')
+    body = parsed as Record<string, unknown>
   } catch {
     return json(400, { error: { code: 'invalid_body' } })
   }
   const input = readInput(body)
-  if (!input) return json(400, { error: { code: 'invalid_body' } })
+  const action = body.action ?? 'plan'
+  const currentPlan = action === 'refine' ? parseGoalPlan(body.plan) : null
+  const instruction = str(body.instruction)?.trim() ?? ''
+  if (
+    !input ||
+    !['questions', 'plan', 'refine'].includes(String(action)) ||
+    (action === 'refine' && (!currentPlan || !instruction))
+  ) {
+    return json(400, { error: { code: 'invalid_body' } })
+  }
 
   if (!deps.takeQuota(userId)) return json(429, { error: { code: 'daily_limit' } })
 
   try {
-    const plan = await deps.planner.plan(input)
-    return json(200, { plan })
+    const signals = await deps.loadSignals(userId, token)
+    if (action === 'questions') {
+      return json(200, { questions: await deps.planner.questions(input, signals), signals })
+    }
+    const plan =
+      action === 'refine' && currentPlan
+        ? await deps.planner.refine(input, currentPlan, instruction, signals)
+        : await deps.planner.plan(input, signals)
+    return json(200, { plan, signals })
   } catch (err) {
     console.error('[plan-meta] fallo del planner:', err instanceof Error ? err.message : 'desconocido')
     return json(502, { error: { code: 'ai_unavailable' } })

@@ -7,8 +7,13 @@ const plan: GoalPlan = { schemaVersion: 1, summary: 's', weeklyMinutes: 60, stag
 function deps(over: Partial<PlanMetaDeps> = {}): PlanMetaDeps {
   return {
     verifyUser: async (t) => (t === 'ok' ? 'user-1' : null),
-    planner: { plan: vi.fn(async () => plan) },
+    planner: {
+      plan: vi.fn(async () => plan),
+      questions: vi.fn(async () => [{ question: '¿Nivel?', options: ['Bajo', 'Alto'] }]),
+      refine: vi.fn(async () => ({ ...plan, changeNote: 'Más suave' })),
+    },
     takeQuota: () => true,
+    loadSignals: async () => ['Completas el 80% de tus sesiones.'],
     ...over,
   }
 }
@@ -25,7 +30,24 @@ describe('handlePlanMeta', () => {
   it('devuelve el plan a un usuario autenticado', async () => {
     const res = await handlePlanMeta(req({ title: 'Correr 10K', typeLabel: 'Salud' }), deps())
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ plan })
+    expect(await res.json()).toEqual({ plan, signals: ['Completas el 80% de tus sesiones.'] })
+  })
+
+  it('devuelve preguntas y pule un plan existente', async () => {
+    const q = await handlePlanMeta(req({ action: 'questions', title: 'x' }), deps())
+    expect((await q.json()).questions[0].question).toBe('¿Nivel?')
+    const validPlan = {
+      summary: 's',
+      weeklyMinutes: 60,
+      stages: ['a', 'b', 'c'].map((t) => ({ title: t, objective: 'o', weeks: 1, firstActions: ['x'], successSignal: 'y' })),
+    }
+    const r = await handlePlanMeta(req({ action: 'refine', title: 'x', plan: validPlan, instruction: 'más suave' }), deps())
+    expect((await r.json()).plan.changeNote).toBe('Más suave')
+  })
+
+  it('rechaza refine sin plan válido o sin pedido, y acciones desconocidas', async () => {
+    expect((await handlePlanMeta(req({ action: 'refine', title: 'x', instruction: 'y' }), deps())).status).toBe(400)
+    expect((await handlePlanMeta(req({ action: 'borrar', title: 'x' }), deps())).status).toBe(400)
   })
 
   it('rechaza sin token o con token inválido (401) sin llamar a la IA', async () => {
@@ -47,7 +69,8 @@ describe('handlePlanMeta', () => {
 
   it('503 si no hay clave configurada y 502 si el modelo falla', async () => {
     expect((await handlePlanMeta(req({ title: 'x' }), deps({ planner: null }))).status).toBe(503)
-    const failing = deps({ planner: { plan: async () => Promise.reject(new Error('boom')) } })
+    const boom = async () => Promise.reject(new Error('boom'))
+    const failing = deps({ planner: { plan: boom, questions: boom, refine: boom } })
     vi.spyOn(console, 'error').mockImplementation(() => {})
     expect((await handlePlanMeta(req({ title: 'x' }), failing)).status).toBe(502)
   })

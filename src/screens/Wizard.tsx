@@ -12,6 +12,7 @@ import { OptionRow } from '@/components/OptionRow'
 import { Hint } from '@/components/Hint'
 import {
   formatCommitmentSummary,
+  weeklyTotal,
   preferredStartTime,
   validateCommitment,
   type CommitmentBlockDraft,
@@ -374,8 +375,11 @@ export function Wizard() {
               input={{
                 title,
                 typeLabel: getTemplate(templateKey || 'personalizada').label,
+                area,
                 why,
                 targetDate,
+                // El horario del paso anterior es el tiempo real disponible.
+                weeklyMinutes: weeklyTotal(blocks).minutes || null,
               }}
               templateTitles={getTemplate(templateKey || 'personalizada').milestones}
               addedTitles={milestones.map((m) => m.title)}

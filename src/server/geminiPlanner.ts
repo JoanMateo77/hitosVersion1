@@ -3,11 +3,25 @@
  * Vercel o middleware de Vite): recibe la clave por parámetro, nunca la lee
  * del bundle del cliente. Imports relativos: ver nota en goalPlan.ts.
  */
-import { GOAL_PLAN_RESPONSE_SCHEMA, buildGoalPlanPrompt, parseGoalPlan } from '../domain/goalPlan'
-import type { GoalPlan, GoalPlanInput } from '../domain/goalPlan'
+import {
+  GOAL_PLAN_RESPONSE_SCHEMA,
+  QUESTIONS_RESPONSE_SCHEMA,
+  buildGoalPlanPrompt,
+  buildQuestionsPrompt,
+  buildRefinePrompt,
+  buildRepairPrompt,
+  checkPlanRealism,
+  parseGoalPlan,
+  parseQuestions,
+} from '../domain/goalPlan'
+import type { ClarifyingQuestion, GoalPlan, GoalPlanInput } from '../domain/goalPlan'
+import { COACH_SYSTEM } from '../domain/planningMethod'
 
+/** Contrato del coach: cambiar de proveedor = otra implementación de esto. */
 export interface GoalPlanner {
-  plan(input: GoalPlanInput): Promise<GoalPlan>
+  questions(input: GoalPlanInput, signals: string[]): Promise<ClarifyingQuestion[]>
+  plan(input: GoalPlanInput, signals: string[]): Promise<GoalPlan>
+  refine(input: GoalPlanInput, plan: GoalPlan, instruction: string, signals: string[]): Promise<GoalPlan>
 }
 
 export class PlannerError extends Error {}
@@ -20,44 +34,61 @@ interface GeminiResponse {
 }
 
 export function createGeminiPlanner(apiKey: string, model: string): GoalPlanner {
-  async function attempt(input: GoalPlanInput): Promise<GoalPlan | null> {
+  /** Una llamada con JSON forzado por esquema; null si la respuesta no sirve. */
+  async function call<T>(prompt: string, schema: object, parse: (raw: unknown) => T | null): Promise<T | null> {
     const res = await fetch(`${ENDPOINT}/${encodeURIComponent(model)}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       signal: AbortSignal.timeout(TIMEOUT_MS),
       body: JSON.stringify({
-        contents: [{ parts: [{ text: buildGoalPlanPrompt(input) }] }],
+        // El método va como instrucción de sistema fija: prefijo estable para el
+        // caché implícito del proveedor y separado de los datos de la persona.
+        systemInstruction: { parts: [{ text: COACH_SYSTEM }] },
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
           responseMimeType: 'application/json',
-          responseSchema: GOAL_PLAN_RESPONSE_SCHEMA,
-          // Razonamiento bajo: el plan no lo necesita y es lo que más pesa en la latencia.
+          responseSchema: schema,
+          // Razonamiento bajo: es lo que más pesa en la latencia.
           thinkingConfig: { thinkingLevel: 'low' },
           maxOutputTokens: 4096,
         },
       }),
     })
-    if (!res.ok) {
-      // El cuerpo de error de Google no incluye la clave; igual solo logueamos el estado.
-      throw new PlannerError(`Gemini respondió ${res.status}`)
-    }
+    if (!res.ok) throw new PlannerError(`Gemini respondió ${res.status}`)
     const data = (await res.json()) as GeminiResponse
     const candidate = data.candidates?.[0]
     // Un JSON cortado por límite de tokens puede seguir siendo "válido": solo STOP cuenta.
     if (candidate?.finishReason !== 'STOP') return null
     const raw = candidate.content?.parts?.map((p) => p.text ?? '').join('') ?? ''
     try {
-      return parseGoalPlan(JSON.parse(raw))
+      return parse(JSON.parse(raw))
     } catch {
       return null
     }
   }
 
+  /** Un reintento ante respuesta vacía, cortada o fuera de esquema. */
+  async function callWithRetry<T>(prompt: string, schema: object, parse: (raw: unknown) => T | null): Promise<T> {
+    const result = (await call(prompt, schema, parse)) ?? (await call(prompt, schema, parse))
+    if (result === null) throw new PlannerError('El modelo no devolvió una respuesta válida')
+    return result
+  }
+
+  /** Genera y, si no pasa la revisión de realismo, pide UNA corrección. */
+  async function planWithReview(prompt: string, input: GoalPlanInput): Promise<GoalPlan> {
+    const first = await callWithRetry(prompt, GOAL_PLAN_RESPONSE_SCHEMA, parseGoalPlan)
+    const issues = checkPlanRealism(first, input)
+    if (issues.length === 0) return first
+    const repaired = await call(buildRepairPrompt(prompt, issues), GOAL_PLAN_RESPONSE_SCHEMA, parseGoalPlan)
+    // Si la corrección falla, el primer plan sigue siendo usable: mejor eso que nada.
+    return repaired ?? first
+  }
+
   return {
-    async plan(input) {
-      // Un reintento ante respuesta vacía, cortada o fuera de esquema.
-      const plan = (await attempt(input)) ?? (await attempt(input))
-      if (!plan) throw new PlannerError('El modelo no devolvió un plan válido')
-      return plan
-    },
+    questions: (input, signals) =>
+      callWithRetry(buildQuestionsPrompt(input, signals), QUESTIONS_RESPONSE_SCHEMA, parseQuestions),
+    plan: (input, signals) => planWithReview(buildGoalPlanPrompt(input, signals), input),
+    refine: (input, plan, instruction, signals) =>
+      planWithReview(buildRefinePrompt(input, plan, instruction, signals), input),
   }
 }
