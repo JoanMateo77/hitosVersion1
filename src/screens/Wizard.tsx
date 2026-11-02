@@ -487,7 +487,7 @@ export function Wizard() {
                   answers={aiAnswers}
                   onAnswers={setAiAnswers}
                   pendingCount={pendingSuggestions.length}
-                  onAddAll={() => setMilestones((current) => pendingSuggestions.reduce(insertStage, current))}
+                  onAddAll={() => setMilestones((current) => pendingSuggestions.reduce((acc, stage) => insertStage(acc, stage), current))}
                   chat={chat}
                   inlineThread={isDesktop}
                   onOpenChat={() => setChatOpen(true)}

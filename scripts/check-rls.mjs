@@ -20,8 +20,14 @@ const rlsRe = new RegExp(
 
 const missing = []
 for (const file of files) {
+  // Quita comentarios "--" línea por línea (sin regex con retroceso).
   const sql = readFileSync(file, 'utf8')
-    .replace(/--.*$/gm, '')
+    .split('\n')
+    .map((line) => {
+      const i = line.indexOf('--')
+      return i === -1 ? line : line.slice(0, i)
+    })
+    .join(' ')
     .replace(/\s+/g, ' ')
   const withRls = new Set([...sql.matchAll(rlsRe)].map((m) => m[1].toLowerCase()))
   for (const m of sql.matchAll(createRe)) {

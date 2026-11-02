@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { todayISO, formatLongDate } from '@/lib/date'
 import type { MilestoneDraft } from '@/domain/commitment'
 import type { GoalPlanStage } from '@/domain/goalPlan'
@@ -59,6 +59,11 @@ export function MilestonesStep({ milestones, onChange, ghosts = [], onAcceptGhos
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [menuIndex, setMenuIndex] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
+  // Al pulsar "agregar" el campo recibe el foco (por ref, sin el atributo autoFocus).
+  const addRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (adding) addRef.current?.focus()
+  }, [adding])
 
   function patch(index: number, p: Partial<MilestoneDraft>) {
     onChange(milestones.map((m, i) => (i === index ? { ...m, ...p } : m)))
@@ -209,7 +214,7 @@ export function MilestonesStep({ milestones, onChange, ghosts = [], onAcceptGhos
         {adding || milestones.length === 0 ? (
           <input
             className="input"
-            autoFocus={adding}
+            ref={addRef}
             placeholder={milestones.length === 0 ? 'Escribe tu primera etapa y presiona Enter…' : 'Siguiente etapa…'}
             maxLength={200}
             aria-label="Nueva etapa"
