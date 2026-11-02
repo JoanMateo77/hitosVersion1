@@ -3,8 +3,8 @@
  * prompts, esquemas y validación (servidor) y la aplicación de cambios a las
  * etapas (cliente). Imports relativos: lo carga vite.config.ts (ver goalPlan.ts).
  */
-import { areaGuide } from './planningMethod'
-import type { GoalPlanInput } from './goalPlan'
+import { areaGuide } from './planningMethod.js'
+import type { GoalPlanInput } from './goalPlan.js'
 
 export interface ChatTurn {
   role: 'user' | 'coach'
@@ -93,7 +93,7 @@ function clean(text: string | null | undefined, max = 200): string {
   return (text ?? '').replace(/\s+/g, ' ').trim().slice(0, max)
 }
 
-const attr = (s: string) => s.replace(/"/g, "'")
+const attr = (s: string) => s.replaceAll('"', "'")
 
 function contextData(ctx: ChatContext, signalLines: string[]): string[] {
   const lines = [`<meta>${clean(ctx.title)}</meta>`]
@@ -184,7 +184,9 @@ const norm = (s: string) => s.trim().toLowerCase()
 
 /** El modelo a veces copia el título con su número o su marca ("3. X (cumplida)"). */
 function stripMarks(title: string): string {
-  return title.replace(/^\s*\d+\s*[.)-]\s*/, '').replace(/\s*\(cumplida\)\s*$/i, '').trim()
+  let t = title.trim().replace(/^\d+ ?[.)-]/, '').trim()
+  if (t.toLowerCase().endsWith('(cumplida)')) t = t.slice(0, -'(cumplida)'.length).trim()
+  return t
 }
 
 /**

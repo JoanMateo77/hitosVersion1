@@ -1,5 +1,6 @@
 import type { ClarifyingQuestion, GoalPlan, GoalPlanInput } from '@/domain/goalPlan'
 import type { ChatContext, ChatTurn, CoachReply, CriterionOption } from '@/domain/coachChat'
+import type { GoalTypeSuggestion } from '@/domain/goalType'
 import { getSession } from '@/services/auth'
 
 /** Mensajes por código de error del servidor (lo que ve la persona). */
@@ -16,6 +17,7 @@ interface CoachResponse {
   reply?: string
   proposal?: CoachReply['proposal']
   options?: CriterionOption[]
+  type?: GoalTypeSuggestion
   /** Lo que el coach tuvo en cuenta de tu historial, en frases legibles. */
   signals?: string[]
   error?: { code?: string }
@@ -73,4 +75,11 @@ export async function requestChat(ctx: ChatContext, history: ChatTurn[], message
 export async function requestCriteria(ctx: ChatContext, hint = ''): Promise<CriterionOption[]> {
   const data = await callCoach({ ...ctx, action: 'criteria', hint })
   return data.options ?? []
+}
+
+/** Qué tipo de meta es según su título (una clave de las plantillas). */
+export async function requestGoalType(title: string, why: string): Promise<GoalTypeSuggestion> {
+  const data = await callCoach({ title, why: why || null, action: 'type' })
+  if (!data.type) throw new Error(FALLBACK)
+  return data.type
 }

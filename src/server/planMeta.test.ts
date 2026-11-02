@@ -13,9 +13,10 @@ function deps(over: Partial<PlanMetaDeps> = {}): PlanMetaDeps {
       refine: vi.fn(async () => ({ ...plan, changeNote: 'Más suave' })),
       chat: vi.fn(async () => ({ reply: 'Hola', proposal: null })),
       criteria: vi.fn(async () => [{ text: 'Tengo la moto', why: 'Resultado' }]),
+      goalType: vi.fn(async () => ({ key: 'finanzas', reason: 'Quieres comprar algo', alternatives: [] })),
     },
     takeQuota: () => true,
-    loadSignals: async () => ['Completas el 80% de tus sesiones.'],
+    loadSignals: vi.fn(async () => ['Completas el 80% de tus sesiones.']),
     ...over,
   }
 }
@@ -71,6 +72,14 @@ describe('handlePlanMeta', () => {
     expect(d.planner?.criteria).toHaveBeenCalledWith(expect.anything(), 'sin deudas', expect.any(Array))
   })
 
+  it('sugiere el tipo de meta sin cargar la memoria de comportamiento', async () => {
+    const d = deps()
+    const res = await handlePlanMeta(req({ action: 'type', title: 'Comprar una moto', why: 'ir al trabajo' }), d)
+    expect(await res.json()).toEqual({ type: { key: 'finanzas', reason: 'Quieres comprar algo', alternatives: [] } })
+    expect(d.planner?.goalType).toHaveBeenCalledWith('Comprar una moto', 'ir al trabajo')
+    expect(d.loadSignals).not.toHaveBeenCalled()
+  })
+
   it('rechaza chat sin mensaje', async () => {
     expect((await handlePlanMeta(req({ action: 'chat', title: 'x' }), deps())).status).toBe(400)
   })
@@ -100,7 +109,7 @@ describe('handlePlanMeta', () => {
   it('503 si no hay clave configurada y 502 si el modelo falla', async () => {
     expect((await handlePlanMeta(req({ title: 'x' }), deps({ planner: null }))).status).toBe(503)
     const boom = async () => Promise.reject(new Error('boom'))
-    const failing = deps({ planner: { plan: boom, questions: boom, refine: boom, chat: boom, criteria: boom } })
+    const failing = deps({ planner: { plan: boom, questions: boom, refine: boom, chat: boom, criteria: boom, goalType: boom } })
     vi.spyOn(console, 'error').mockImplementation(() => {})
     expect((await handlePlanMeta(req({ title: 'x' }), failing)).status).toBe(502)
   })

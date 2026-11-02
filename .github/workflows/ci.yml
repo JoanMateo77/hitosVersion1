@@ -27,6 +27,8 @@ jobs:
         run: npm run lint
       - name: RLS en todas las tablas
         run: npm run check:rls
+      - name: Funciones de Vercel cargan en Node
+        run: npm run check:api
       - name: Tests
         run: npm test
       - name: Build

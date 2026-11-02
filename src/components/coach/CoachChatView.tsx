@@ -20,6 +20,11 @@ export function CoachComposer({
   autoFocus = false,
 }: Readonly<{ onSend: (text: string) => void; disabled?: boolean; placeholder?: string; autoFocus?: boolean }>) {
   const [text, setText] = useState('')
+  // Foco por ref y no con el atributo autoFocus (accesibilidad, regla de Sonar).
+  const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (autoFocus) inputRef.current?.focus()
+  }, [autoFocus])
   return (
     <form
       className="coach-composer"
@@ -35,7 +40,7 @@ export function CoachComposer({
         placeholder={placeholder}
         value={text}
         maxLength={600}
-        autoFocus={autoFocus}
+        ref={inputRef}
         enterKeyHint="send"
         autoCapitalize="sentences"
         onChange={(e) => setText(e.target.value)}

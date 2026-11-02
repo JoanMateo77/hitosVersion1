@@ -4,7 +4,7 @@
  * Sin imports con alias "@/": el middleware de Vite lo carga desde
  * vite.config.ts, donde el alias no existe todavía.
  */
-import { areaGuide } from './planningMethod'
+import { areaGuide } from './planningMethod.js'
 
 export interface GoalPlanStage {
   title: string
@@ -161,7 +161,7 @@ function goalData(input: GoalPlanInput, signalLines: string[]): string[] {
   for (const a of (input.answers ?? []).slice(0, MAX_QUESTIONS + 1)) {
     const q = clean(a.question)
     const ans = clean(a.answer)
-    if (q && ans) lines.push(`<respuesta pregunta="${q.replace(/"/g, "'")}">${ans}</respuesta>`)
+    if (q && ans) lines.push(`<respuesta pregunta="${q.replaceAll('"', "'")}">${ans}</respuesta>`)
   }
   const current = currentStages(input)
   if (current.length > 0) {
