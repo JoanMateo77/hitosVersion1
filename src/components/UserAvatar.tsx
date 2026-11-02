@@ -22,7 +22,7 @@ interface UserAvatarProps {
  * marco ganado con la racha (ver src/domain/frames.ts). Sin marco no hay
  * anillo: el avatar es neutro, no una acción.
  */
-export function UserAvatar({ frame, size = 'md', label, className }: UserAvatarProps) {
+export function UserAvatar({ frame, size = 'md', label, className }: Readonly<UserAvatarProps>) {
   const { displayName, email, profile } = useSession()
   const classes = ['avatar']
   if (size === 'lg') classes.push('avatar--lg')
