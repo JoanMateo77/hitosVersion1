@@ -73,6 +73,9 @@ function readChatContext(b: Record<string, unknown>, input: GoalPlanInput): Chat
     stages: stages.length > 0 ? stages : readStages(input.currentStages),
     successCriteria: str(b.successCriteria),
     weekProgress: str(b.weekProgress),
+    // Solo cambia el prompt y si se acepta la nota: registrar el avance lo
+    // hace luego la persona con su sesión (RLS), no este servidor.
+    canLogProgress: b.canLogProgress === true,
   }
 }
 

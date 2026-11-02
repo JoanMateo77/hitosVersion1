@@ -320,6 +320,13 @@
   display: grid;
   gap: 2px;
 }
+.coach-proposal__note {
+  margin: 0;
+  padding-left: var(--s3);
+  border-left: 3px solid color-mix(in srgb, var(--primary) 60%, transparent);
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
 .coach-proposal__actions {
   display: flex;
   justify-content: flex-end;

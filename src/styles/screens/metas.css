@@ -142,32 +142,6 @@
   margin: 0 auto var(--s4);
 }
 
-/* Peek (Blendy): la tarjeta de color agrandada. */
-.goal-peek.fc-card {
-  width: min(440px, 100%);
-  padding: var(--s5);
-  gap: var(--s4);
-}
-.goal-peek .goal-card__top {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--s3);
-}
-.goal-peek .goal-card__title {
-  font-size: 22px;
-  align-self: center;
-}
-.goal-peek .goal-peek__close {
-  align-self: center;
-  color: var(--vivid-ink, var(--text));
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.goal-peek .goal-peek__close:focus-visible {
-  outline-color: var(--vivid-ink, var(--primary));
-}
-
 /* =============================================================================
    /metas/:goalId — detalle
    ========================================================================== */

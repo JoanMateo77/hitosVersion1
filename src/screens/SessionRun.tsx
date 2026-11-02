@@ -13,7 +13,14 @@ import {
   setSessionAccomplishment,
   startSession,
 } from '@/services/sessions'
-import { elapsedSeconds, formatClock, isTimeReached, pickSuggestion, remainingSeconds } from '@/domain/sessions'
+import {
+  appendAccomplishment,
+  elapsedSeconds,
+  formatClock,
+  isTimeReached,
+  pickSuggestion,
+  remainingSeconds,
+} from '@/domain/sessions'
 import { getTemplate } from '@/domain/templates'
 import { formatTime12, todayISO } from '@/lib/date'
 import { goalAccent, goalTone } from '@/lib/goalAccent'
@@ -396,7 +403,10 @@ export function SessionRun() {
   /** Guarda la nota de avance (si la hay) — nunca bloquea la salida. */
   async function saveNote() {
     const text = note.trim()
-    if (text && session) await setSessionAccomplishment(session.id, text).catch(() => {})
+    // Se suma a lo que ya hubiera (p. ej. un avance registrado desde el coach).
+    if (text && session) {
+      await setSessionAccomplishment(session.id, appendAccomplishment(session.accomplishment, text)).catch(() => {})
+    }
   }
 
   async function completeMilestoneAndLeave() {

@@ -48,6 +48,7 @@ import {
   isTimeReached,
   neutralDatesOf,
   type DayState,
+  appendAccomplishment,
 } from '@/domain/sessions'
 import { PinnedGoals } from '@/screens/today/PinnedGoals'
 import { goalsInView } from '@/domain/goals'
@@ -524,7 +525,9 @@ export function Today() {
     const text = prompt?.text.trim()
     if (!prompt || !text) return
     void withErrorHandling(async () => {
-      await setSessionAccomplishment(prompt.sessionId, text)
+      // Se suma a lo que ya hubiera (p. ej. un avance registrado desde el coach).
+      const current = todaySessions.find((x) => x.session.id === prompt.sessionId)?.session.accomplishment ?? null
+      await setSessionAccomplishment(prompt.sessionId, appendAccomplishment(current, text))
       toast('Avance anotado.', 'success')
     })
   }

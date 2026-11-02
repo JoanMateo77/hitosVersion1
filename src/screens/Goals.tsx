@@ -1,6 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createBlendy, type Blendy } from 'blendy'
 import { useSession } from '@/app/session'
 import { listGoals } from '@/services/goals'
 import { updatePriorityGoal } from '@/services/profile'
@@ -34,14 +32,6 @@ const STATUS_BADGE: Partial<Record<GoalStatus, string>> = {
   archived: 'Archivada',
 }
 
-/**
- * Id seguro para Blendy. Su querySelector usa el valor SIN comillas
- * (`[data-blendy-to=ID]`), así que el id debe ser un identificador CSS válido: los
- * UUID empiezan con dígito y llevan guiones -> inválido. Prefijamos con letra y
- * sacamos los guiones.
- */
-const bid = (id: string) => 'b' + id.replace(/-/g, '')
-
 export function Goals() {
   const { userId, profile, setProfile } = useSession()
   const navigate = useNavigate()
@@ -58,24 +48,6 @@ export function Goals() {
     [userId],
   )
 
-  // Blendy: tocar una meta hace que la tarjeta se EXPANDA (morph FLIP) en su detalle,
-  // saliendo desde su posición real en la grilla (izq/der/arriba) hacia el centro.
-  const blendyRef = useRef<Blendy | null>(null)
-  const reducedMotion = useRef(false)
-  const [peek, setPeek] = useState<Goal | null>(null)
-
-  useEffect(() => {
-    blendyRef.current = createBlendy({ animation: 'spring' })
-    reducedMotion.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  }, [])
-
-  // El overlay se monta (setPeek) y recién ahí animamos de la card al detalle.
-  useLayoutEffect(() => {
-    if (!peek) return
-    blendyRef.current?.update() // re-escanea las cards (se renderizan tras cargar datos)
-    blendyRef.current?.toggle(bid(peek.id))
-  }, [peek])
-
   async function togglePriority(goal: Goal) {
     const next = profile.priorityGoalId === goal.id ? null : goal.id
     try {
@@ -83,33 +55,6 @@ export function Goals() {
     } catch {
       /* no crítico */
     }
-  }
-
-  function openGoal(goal: Goal) {
-    // Reduced-motion o Blendy no listo: directo al detalle completo (como antes).
-    if (reducedMotion.current || !blendyRef.current) {
-      withViewTransition(() => navigate(`/metas/${goal.id}`))
-      return
-    }
-    setPeek(goal)
-  }
-  function closePeek() {
-    const g = peek
-    if (!g || !blendyRef.current) {
-      setPeek(null)
-      return
-    }
-    // Cierre a prueba de balas: el untoggle morphea de vuelta y restaura la card; el
-    // timeout garantiza el cierre aunque el callback no dispare.
-    let done = false
-    const finish = () => {
-      if (!done) {
-        done = true
-        setPeek(null)
-      }
-    }
-    blendyRef.current.untoggle(bid(g.id), finish)
-    setTimeout(finish, 700)
   }
 
   if (loading) {
@@ -131,13 +76,13 @@ export function Goals() {
   const finished = goals.filter((g) => isGoalClosed(g.status))
 
   const renderCard = (goal: Goal) => (
-    <li key={goal.id} data-blendy-from={bid(goal.id)}>
+    <li key={goal.id}>
       <GoalCard
         goal={goal}
         progress={data.progress.get(goal.id)}
         isPriority={profile.priorityGoalId === goal.id}
         onTogglePriority={goal.status === 'active' ? () => void togglePriority(goal) : undefined}
-        onClick={() => openGoal(goal)}
+        onClick={() => withViewTransition(() => navigate(`/metas/${goal.id}`))}
       />
     </li>
   )
@@ -204,100 +149,7 @@ export function Goals() {
         </>
       )}
 
-      {peek && (
-        <GoalPeek
-          goal={peek}
-          nextTitle={data.progress.get(peek.id)?.nextTitle ?? null}
-          onOpen={() => withViewTransition(() => navigate(`/metas/${peek.id}`))}
-          onClose={closePeek}
-        />
-      )}
     </div>
-  )
-}
-
-/**
- * Detalle "peek" que morphea desde la tarjeta (Blendy FLIP). El `data-blendy-to`
- * debe tener un ÚNICO hijo wrapper (Blendy accede a `children[0]`).
- *
- * Es un <dialog> nativo abierto con showModal(): el navegador vuelve inerte el
- * resto de la página y atrapa el foco. Escape (evento `cancel`) y el clic en el
- * fondo (el propio <dialog>, fuera de la tarjeta) cierran con la animación de
- * vuelta; al cerrarse el foco vuelve a la tarjeta que lo abrió.
- * No usa <Sheet>: la hoja entra desde abajo y rompería el morph desde la tarjeta.
- */
-function GoalPeek({
-  goal,
-  nextTitle,
-  onOpen,
-  onClose,
-}: {
-  goal: Goal
-  nextTitle: string | null
-  onOpen: () => void
-  onClose: () => void
-}) {
-  const dialogRef = useRef<HTMLDialogElement>(null)
-  // El cierre se lee desde un ref para abrir el diálogo UNA vez por montaje.
-  const onCloseRef = useRef(onClose)
-  useEffect(() => {
-    onCloseRef.current = onClose
-  })
-
-  // useLayoutEffect del hijo corre antes que el del padre: el diálogo ya está en
-  // el top layer (y medible) cuando Goals dispara el morph de Blendy.
-  useLayoutEffect(() => {
-    const dialog = dialogRef.current
-    if (!dialog) return
-    const previouslyFocused = document.activeElement as HTMLElement | null
-    if (!dialog.open) dialog.showModal()
-
-    function onCancel(e: Event) {
-      // Escape: cerramos nosotros para animar de vuelta a la tarjeta.
-      e.preventDefault()
-      onCloseRef.current()
-    }
-    function onBackdropClick(e: MouseEvent) {
-      // Solo el fondo: los clics dentro de la tarjeta tienen otro target.
-      if (e.target === dialog) onCloseRef.current()
-    }
-    dialog.addEventListener('cancel', onCancel)
-    dialog.addEventListener('click', onBackdropClick)
-    return () => {
-      dialog.removeEventListener('cancel', onCancel)
-      dialog.removeEventListener('click', onBackdropClick)
-      if (dialog.open) dialog.close()
-      previouslyFocused?.focus?.()
-    }
-  }, [])
-
-  return (
-    <dialog ref={dialogRef} className="goal-peek-backdrop" aria-label={goal.title}>
-      <div data-blendy-to={bid(goal.id)}>
-        {/* El peek es la tarjeta de color agrandada; su view-transition-name es el
-            mismo que la cabecera del detalle, así "Abrir meta" la convierte en ella. */}
-        <div
-          className="goal-peek fc-card"
-          style={{ ...goalAccent(goal), viewTransitionName: `goal-${goal.id}` } as CSSProperties}
-        >
-          <div className="goal-card__top">
-            <NicheGlyph area={goal.area} tone={goalTone(goal)} size="md" />
-            <span className="fc-card__title goal-card__title">{goal.title}</span>
-          </div>
-          {nextTitle && (
-            <p className="fc-card__meta" style={{ margin: 0 }}>
-              Siguiente: {nextTitle}
-            </p>
-          )}
-          <button type="button" className="btn btn--primary btn--block" onClick={onOpen}>
-            Abrir meta
-          </button>
-          <button type="button" className="btn--link goal-peek__close" onClick={onClose}>
-            Cerrar
-          </button>
-        </div>
-      </div>
-    </dialog>
   )
 }
 

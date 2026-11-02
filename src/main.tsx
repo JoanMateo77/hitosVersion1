@@ -6,6 +6,7 @@ import App from '@/App'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ThemeProvider } from '@/app/ThemeProvider'
 import { ToastProvider } from '@/app/toast'
+import { reloadOnceForStaleChunk } from '@/lib/staleChunk'
 
 import '@/styles/tokens.css'
 import '@/styles/base.css'
@@ -22,6 +23,13 @@ import '@/styles/screens/cuenta.css'
 // worker la activa y ESTA pestaña se recarga sola — sin esto, una pestaña
 // abierta seguía mostrando el bundle viejo indefinidamente.
 registerSW({ immediate: true })
+
+// Vite avisa cuando no puede precargar un módulo o su CSS (hash de un deploy
+// anterior): recargamos antes de que la pantalla llegue a fallar. Si no
+// recargamos (ya se intentó hace poco), el error sigue y lo muestra ErrorBoundary.
+window.addEventListener('vite:preloadError', (event) => {
+  if (reloadOnceForStaleChunk()) event.preventDefault()
+})
 
 // En desarrollo no hay service worker: si quedó uno de un build anterior en
 // localhost, seguiría sirviendo la versión vieja desde su caché.

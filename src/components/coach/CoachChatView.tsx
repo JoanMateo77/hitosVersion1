@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { StageChange } from '@/domain/coachChat'
+import type { StageChange, StoredProposal } from '@/domain/coachChat'
 import type { CoachChat } from '@/hooks/useCoachChat'
 import { IconArrowUp, IconSparkle } from '@/components/icons'
 
@@ -58,6 +58,52 @@ function describe(c: StageChange): ReactNode {
   return <>Cambiar <b>“{c.title}”</b> por <b>“{c.newTitle}”</b></>
 }
 
+/** Propuesta del coach: cambios a las etapas o un avance a registrar. Nada se guarda sin el sí. */
+function ProposalCard({
+  proposal,
+  onApply,
+  onDismiss,
+}: Readonly<{ proposal: StoredProposal; onApply: () => void; onDismiss: () => void }>) {
+  const isProgress = proposal.kind === 'progress'
+  const applied = proposal.status === 'applied'
+  const doneLabel = isProgress ? 'Avance registrado' : 'Aplicado'
+  const applyLabel = isProgress ? 'Registrar avance' : 'Aplicar'
+  return (
+    <div className={`coach-proposal${applied ? ' coach-proposal--applied' : ''}`}>
+      {proposal.kind === 'progress' ? (
+        <>
+          <span className="small">Registrar como avance de hoy:</span>
+          {/* La nota viene de la IA: siempre como texto, nunca HTML. */}
+          <blockquote className="small coach-proposal__note">“{proposal.note}”</blockquote>
+        </>
+      ) : (
+        <>
+          <span className="small">{proposal.summary}</span>
+          <ul className="coach-proposal__list">
+            {proposal.changes.map((c) => (
+              <li key={`${c.kind}-${c.title}`} className="small">
+                {describe(c)}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {applied ? (
+        <span className="tiny coach-proposal__done">{doneLabel}</span>
+      ) : (
+        <div className="coach-proposal__actions">
+          <button type="button" className="btn btn--secondary btn--sm" onClick={onDismiss}>
+            Ahora no
+          </button>
+          <button type="button" className="btn btn--primary btn--sm" onClick={onApply}>
+            {applyLabel}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** Hilo de la conversación con las propuestas aplicables. */
 export function CoachThread({ chat, empty }: Readonly<{ chat: CoachChat; empty?: ReactNode }>) {
   const end = useRef<HTMLDivElement | null>(null)
@@ -72,28 +118,11 @@ export function CoachThread({ chat, empty }: Readonly<{ chat: CoachChat; empty?:
         <div key={m.id} className="coach-thread__group">
           <p className={`coach-msg coach-msg--${m.role}`}>{m.text}</p>
           {m.proposal && m.proposal.status !== 'dismissed' && (
-            <div className={`coach-proposal${m.proposal.status === 'applied' ? ' coach-proposal--applied' : ''}`}>
-              <span className="small">{m.proposal.summary}</span>
-              <ul className="coach-proposal__list">
-                {m.proposal.changes.map((c) => (
-                  <li key={`${c.kind}-${c.title}`} className="small">
-                    {describe(c)}
-                  </li>
-                ))}
-              </ul>
-              {m.proposal.status === 'pending' ? (
-                <div className="coach-proposal__actions">
-                  <button type="button" className="btn--link muted" onClick={() => chat.dismiss(m.id)}>
-                    Ahora no
-                  </button>
-                  <button type="button" className="btn btn--primary btn--sm" onClick={() => void chat.apply(m.id)}>
-                    Aplicar
-                  </button>
-                </div>
-              ) : (
-                <span className="tiny coach-proposal__done">Aplicado</span>
-              )}
-            </div>
+            <ProposalCard
+              proposal={m.proposal}
+              onApply={() => void chat.apply(m.id)}
+              onDismiss={() => chat.dismiss(m.id)}
+            />
           )}
         </div>
       ))}

@@ -5,9 +5,12 @@ import {
   buildCriteriaPrompt,
   parseCoachReply,
   parseCriteria,
+  PROGRESS_NOTE_MAX,
   readHistory,
   readStages,
+  readStoredProposal,
   type ChatContext,
+  type CoachReply,
 } from './coachChat'
 
 const stages = [
@@ -19,6 +22,10 @@ const stages = [
 
 const ctx: ChatContext = { title: 'Comprar mi primera moto', typeLabel: 'Ahorro', area: 'finanzas', stages }
 
+function changesOf(r: CoachReply | null) {
+  return r?.proposal?.kind === 'stages' ? r.proposal.changes : undefined
+}
+
 describe('parseCoachReply', () => {
   it('normaliza títulos a la grafía de la persona y arma la propuesta', () => {
     const r = parseCoachReply(
@@ -29,8 +36,11 @@ describe('parseCoachReply', () => {
       },
       stages,
     )
-    expect(r?.proposal?.changes).toEqual([{ kind: 'remove', title: 'Sacar la licencia de conducción' }])
-    expect(r?.proposal?.summary).toBe('Quitar la licencia.')
+    expect(r?.proposal).toEqual({
+      kind: 'stages',
+      summary: 'Quitar la licencia.',
+      changes: [{ kind: 'remove', title: 'Sacar la licencia de conducción' }],
+    })
   })
 
   it('ignora la numeración aunque traiga varios espacios', () => {
@@ -38,7 +48,7 @@ describe('parseCoachReply', () => {
       { reply: 'Sobra.', proposalSummary: 'x', changes: [{ kind: 'remove', title: '3  - Sacar la licencia de conducción' }] },
       stages,
     )
-    expect(r?.proposal?.changes).toEqual([{ kind: 'remove', title: 'Sacar la licencia de conducción' }])
+    expect(changesOf(r)).toEqual([{ kind: 'remove', title: 'Sacar la licencia de conducción' }])
   })
 
   it('ignora la numeración que el modelo copia del prompt', () => {
@@ -46,7 +56,7 @@ describe('parseCoachReply', () => {
       { reply: 'Sobra.', proposalSummary: 'x', changes: [{ kind: 'remove', title: '3. Sacar la licencia de conducción' }] },
       stages,
     )
-    expect(r?.proposal?.changes).toEqual([{ kind: 'remove', title: 'Sacar la licencia de conducción' }])
+    expect(changesOf(r)).toEqual([{ kind: 'remove', title: 'Sacar la licencia de conducción' }])
   })
 
   it('descarta cambios sobre etapas inexistentes o cumplidas', () => {
@@ -78,7 +88,7 @@ describe('parseCoachReply', () => {
       },
       stages,
     )
-    expect(r?.proposal?.changes).toEqual([
+    expect(changesOf(r)).toEqual([
       { kind: 'add', title: 'Separar un fondo para imprevistos', afterTitle: 'Ahorrar la cuota inicial' },
       { kind: 'add', title: 'Revisar ofertas', afterTitle: null },
       { kind: 'add', title: 'Cotizar el seguro' },
@@ -92,7 +102,56 @@ describe('parseCoachReply', () => {
 
   it('limita la cantidad de cambios', () => {
     const changes = Array.from({ length: 8 }, (_, i) => ({ kind: 'add', title: `Etapa ${i}` }))
-    expect(parseCoachReply({ reply: 'x', proposalSummary: '', changes }, stages)?.proposal?.changes).toHaveLength(4)
+    expect(changesOf(parseCoachReply({ reply: 'x', proposalSummary: '', changes }, stages))).toHaveLength(4)
+  })
+})
+
+describe('parseCoachReply: avance', () => {
+  const base = { reply: '¡Bien hecho!', proposalSummary: '', changes: [] }
+  it('arma la propuesta de avance cuando se permite registrar', () => {
+    const r = parseCoachReply({ ...base, progress: '  Revisé mis gastos de la semana: 320.000 ' }, stages, true)
+    expect(r?.proposal).toEqual({ kind: 'progress', note: 'Revisé mis gastos de la semana: 320.000' })
+  })
+  it('recorta la nota al máximo', () => {
+    const r = parseCoachReply({ ...base, progress: 'x'.repeat(400) }, stages, true)
+    expect(r?.proposal?.kind === 'progress' && r.proposal.note).toHaveLength(PROGRESS_NOTE_MAX)
+  })
+  it('nota vacía o que no es texto → sin propuesta', () => {
+    expect(parseCoachReply({ ...base, progress: '   ' }, stages, true)?.proposal).toBeNull()
+    expect(parseCoachReply({ ...base, progress: { html: '<b>x</b>' } }, stages, true)?.proposal).toBeNull()
+  })
+  it('sin permiso para registrar (asistente) se descarta la nota', () => {
+    expect(parseCoachReply({ ...base, progress: 'Hice algo' }, stages)?.proposal).toBeNull()
+  })
+  it('con cambios y nota a la vez, solo quedan los cambios', () => {
+    const r = parseCoachReply(
+      {
+        reply: 'Ya tenías la licencia.',
+        proposalSummary: 'Quitar la licencia.',
+        changes: [{ kind: 'remove', title: 'Sacar la licencia de conducción' }],
+        progress: 'Saqué la licencia',
+      },
+      stages,
+      true,
+    )
+    expect(r?.proposal?.kind).toBe('stages')
+  })
+})
+
+describe('readStoredProposal', () => {
+  it('lee filas viejas sin kind como propuesta de etapas', () => {
+    const old = { summary: 'Quitar la licencia.', changes: [{ kind: 'remove', title: 'X' }], status: 'applied' }
+    expect(readStoredProposal(old)).toEqual({ kind: 'stages', ...old })
+  })
+  it('valida y recorta la nota de avance guardada', () => {
+    expect(readStoredProposal({ kind: 'progress', note: 'y'.repeat(300) })).toEqual({
+      kind: 'progress',
+      note: 'y'.repeat(PROGRESS_NOTE_MAX),
+      status: 'pending',
+    })
+    expect(readStoredProposal({ kind: 'progress', note: 42, status: 'pending' })).toBeNull()
+    expect(readStoredProposal(null)).toBeNull()
+    expect(readStoredProposal({ summary: 'sin cambios' })).toBeNull()
   })
 })
 
@@ -142,6 +201,53 @@ describe('prompts', () => {
     expect(p).toContain('1. Definir el modelo y el presupuesto (cumplida)')
     expect(p).toContain('<mensaje_nuevo>Ya tengo la licencia</mensaje_nuevo>')
     expect(p).toContain('<persona>hola</persona><coach>hola, ¿cómo vas?</coach>')
+  })
+  it('trae las reglas de conversación y la etapa actual', () => {
+    const p = buildChatPrompt({ ...ctx, canLogProgress: true }, [], 'hola')
+    expect(p).toContain('<etapa_actual>2. Ahorrar la cuota inicial</etapa_actual>')
+    expect(p).toContain('Nunca repitas tu respuesta anterior')
+    expect(p).toContain('Nunca anuncies un paso sin decirlo')
+    expect(p).toContain('Marcar esta etapa como cumplida')
+    expect(p).toContain('propón registrarlo como avance en "progress"')
+    expect(p).not.toContain('vos ')
+  })
+  it('sin canLogProgress no propone avances', () => {
+    const p = buildChatPrompt(ctx, [], 'ya lo hice')
+    expect(p).toContain('progress: siempre vacío')
+    expect(p).not.toContain('propón registrarlo como avance')
+  })
+  it('etapa actual cuando todas están cumplidas o no hay etapas', () => {
+    expect(buildChatPrompt({ ...ctx, stages: [{ title: 'A', done: true }] }, [], 'x')).toContain(
+      '<etapa_actual>(todas cumplidas)</etapa_actual>',
+    )
+    expect(buildChatPrompt({ ...ctx, stages: [] }, [], 'x')).not.toContain('</etapa_actual>')
+  })
+  it('conversación del problema: tras la instrucción y un "sí", el prompt pide no repetir y muestra lo ya dicho', () => {
+    const budget: ChatContext = {
+      title: 'Armar mi presupuesto mensual',
+      area: 'finanzas',
+      canLogProgress: true,
+      stages: [
+        { title: 'Registrar mis gastos de un mes' },
+        { title: 'Definir categorías' },
+        { title: 'Fijar topes por categoría' },
+        { title: 'Revisar cada semana' },
+      ],
+    }
+    const instruction = 'Anota todos tus gastos de esta semana en una lista y suma el total.'
+    const history = [
+      { role: 'user' as const, text: '¿Qué hago hoy?' },
+      { role: 'coach' as const, text: instruction },
+      { role: 'user' as const, text: '¿Te basas en el primer paso?' },
+      { role: 'coach' as const, text: instruction },
+    ]
+    const p = buildChatPrompt(budget, history, 'sí')
+    expect(p).toContain(`<coach>${instruction}</coach></conversacion>`)
+    expect(p).toContain('<etapa_actual>1. Registrar mis gastos de un mes</etapa_actual>')
+    expect(p).toContain('Nunca repitas tu respuesta anterior')
+    expect(p).toContain('Si la persona confirma ("sí"')
+    expect(p).toContain('cuéntame el total')
+    expect(p).toContain('<mensaje_nuevo>sí</mensaje_nuevo>')
   })
   it('el criterio incluye el pedido de la persona solo si existe', () => {
     expect(buildCriteriaPrompt(ctx, 'sin deudas')).toContain('<pedido>sin deudas</pedido>')

@@ -12,10 +12,13 @@ import {
 } from '@/services/milestones'
 import { listActiveGoalSchedule, listScheduleForGoal, applyScheduleChange } from '@/services/schedule'
 import {
+  createSpontaneousSession,
+  finishSession,
   generateSessionsForDate,
   listAccomplishments,
   listSessionsInRange,
   sessionStatsForGoal,
+  setSessionAccomplishment,
 } from '@/services/sessions'
 import { minutesByGoalInRange } from '@/services/events'
 import { listHabitChecksInRange, listHabits, setHabitCheck } from '@/services/habits'
@@ -27,7 +30,7 @@ import { coverAccent, goalAccent, goalTone, parseGoalColor } from '@/lib/goalAcc
 import { friendlyError } from '@/lib/errors'
 import { clearFormDraft, loadFormDraft, saveFormDraft } from '@/lib/formDraft'
 import { isGoalClosed } from '@/domain/goals'
-import { milestoneProgress, weekConsistency } from '@/domain/sessions'
+import { appendAccomplishment, milestoneProgress, sessionForNote, weekConsistency } from '@/domain/sessions'
 import {
   blockTimeLabel,
   preferredStartTime,
@@ -488,6 +491,43 @@ export function GoalDetail() {
     toast('Camino actualizado.', 'success')
   }
 
+  /**
+   * Registra el avance que la persona aceptó en el chat. Si hoy ya hay una
+   * sesión de esta meta, la nota se suma a su avance. Si no, el paso del coach
+   * fue el trabajo del día: se crea una sesión espontánea y se cierra como
+   * hecha, igual que "La completé" (actualValue = su objetivo).
+   */
+  async function logCoachProgress(note: string) {
+    if (!goal) return
+    const today = todayISO()
+    // Idempotente: si hoy es día comprometido y la sesión aún no existía, la
+    // crea (así no queda una espontánea duplicada junto a la del horario).
+    const sessions = await generateSessionsForDate(userId, today, blocks)
+    const existing = sessionForNote(sessions, goal.id, today)
+    if (existing) {
+      await setSessionAccomplishment(existing.id, appendAccomplishment(existing.accomplishment, note))
+    } else {
+      const ownBlock = blocks.find((b) => b.weekday === weekdayMon0(today)) ?? blocks[0]
+      const created = await createSpontaneousSession(userId, goal.id, today, {
+        targetKind: ownBlock?.targetKind ?? 'time',
+        targetValue: ownBlock?.targetValue ?? profile.defaultSessionMinutes ?? 25,
+        unit: ownBlock?.unit ?? null,
+      })
+      await finishSession(created.id, { status: 'done', actualValue: created.targetValue })
+      await setSessionAccomplishment(created.id, appendAccomplishment(null, note))
+    }
+    const weekStart = startOfWeek(today)
+    const [adv, st, weekSess] = await Promise.all([
+      listAccomplishments(goal.id),
+      sessionStatsForGoal(goal.id),
+      listSessionsInRange(userId, weekStart, addDays(weekStart, 6)),
+    ])
+    setAdvances(adv)
+    setStats(st)
+    setWeekSessions(weekSess.filter((x) => x.goalId === goal.id))
+    toast('Avance registrado.', 'success')
+  }
+
   if (loading) return <LoadingScreen />
   if (error && !goal) return <LoadingScreen error={error} />
   if (!goal) {
@@ -561,6 +601,7 @@ export function GoalDetail() {
     answers: ai.answers,
     weekProgress,
     stages: sortedMilestones.map((m) => ({ title: m.title, done: m.doneAt !== null })),
+    canLogProgress: true,
   })
 
   // Hábitos que suman a esta meta — la zona de hábitos deja de ser una isla.
@@ -1061,6 +1102,7 @@ export function GoalDetail() {
           nudge={nudge}
           getContext={coachContext}
           onApply={applyCoachChanges}
+          onLogProgress={logCoachProgress}
         />
       )}
     </div>
