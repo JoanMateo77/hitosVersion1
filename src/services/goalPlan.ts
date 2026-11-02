@@ -1,4 +1,5 @@
 import type { ClarifyingQuestion, GoalPlan, GoalPlanInput } from '@/domain/goalPlan'
+import type { ChatContext, ChatTurn, CoachReply, CriterionOption } from '@/domain/coachChat'
 import { getSession } from '@/services/auth'
 
 /** Mensajes por código de error del servidor (lo que ve la persona). */
@@ -12,6 +13,9 @@ const FALLBACK = 'No pudimos generar sugerencias ahora. Usa las ideas de abajo o
 interface CoachResponse {
   questions?: ClarifyingQuestion[]
   plan?: GoalPlan
+  reply?: string
+  proposal?: CoachReply['proposal']
+  options?: CriterionOption[]
   /** Lo que el coach tuvo en cuenta de tu historial, en frases legibles. */
   signals?: string[]
   error?: { code?: string }
@@ -56,4 +60,17 @@ export async function refineGoalPlan(
   const data = await callCoach({ ...input, action: 'refine', plan, instruction })
   if (!data.plan) throw new Error(FALLBACK)
   return { plan: data.plan, signals: data.signals ?? [] }
+}
+
+/** Un turno de conversación con el coach. Puede traer cambios propuestos. */
+export async function requestChat(ctx: ChatContext, history: ChatTurn[], message: string): Promise<CoachReply> {
+  const data = await callCoach({ ...ctx, action: 'chat', history, message })
+  if (!data.reply) throw new Error(FALLBACK)
+  return { reply: data.reply, proposal: data.proposal ?? null }
+}
+
+/** Tres formas de saber que la meta está lograda; `hint` guía las opciones. */
+export async function requestCriteria(ctx: ChatContext, hint = ''): Promise<CriterionOption[]> {
+  const data = await callCoach({ ...ctx, action: 'criteria', hint })
+  return data.options ?? []
 }

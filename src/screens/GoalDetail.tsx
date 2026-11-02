@@ -66,6 +66,11 @@ import { Disclosure } from '@/components/Disclosure'
 import { GoalNotes } from '@/screens/notes/GoalNotes'
 import { sessionCache } from '@/lib/sessionCache'
 import { useCacheMirror } from '@/hooks/useCacheMirror'
+import { getGoalAi, type GoalAi } from '@/services/goalCoach'
+import { applyStageChanges, type ChatContext, type StageChange } from '@/domain/coachChat'
+import { coachNudge } from '@/domain/coachNudge'
+import type { GoalPlanStage } from '@/domain/goalPlan'
+import { GoalCoach } from '@/components/coach/GoalCoach'
 
 /**
  * Saca una meta borrada del cache de sesión: sin esto, /metas y Hoy la pintan
@@ -140,6 +145,19 @@ export function GoalDetail() {
   // Etapa recién cumplida: se enciende 700 ms y se apaga.
   const [justDoneId, setJustDoneId] = useState<string | null>(null)
   const flashTimer = useRef<number | null>(null)
+  // Plan y respuestas que guardó el coach al crear la meta (migración 0018).
+  const [ai, setAi] = useState<GoalAi>({ plan: null, answers: [] })
+
+  useEffect(() => {
+    if (!goalId) return
+    let active = true
+    void getGoalAi(goalId).then((value) => {
+      if (active) setAi(value)
+    })
+    return () => {
+      active = false
+    }
+  }, [goalId])
 
   useEffect(
     () => () => {
@@ -408,6 +426,32 @@ export function GoalDetail() {
     toast('Meta actualizada.')
   }
 
+  /** Aplica a las etapas reales los cambios que la persona aceptó en el chat. */
+  async function applyCoachChanges(changes: StageChange[]) {
+    if (!goal) return
+    const norm = (t: string) => t.trim().toLowerCase()
+    const list = sortedMilestones
+    for (const c of changes) {
+      const m = list.find((x) => norm(x.title) === norm(c.title))
+      if (c.kind === 'remove' && m) await deleteMilestone(m.id)
+      else if (c.kind === 'rename' && m) await updateMilestoneFields(m.id, { title: c.newTitle })
+      else if (c.kind === 'add' && !m) await addMilestone(userId, goal.id, c.title, list.length)
+    }
+    // El orden final sale de la misma función pura que usa el asistente.
+    const fresh = await listMilestones(goal.id)
+    const order = applyStageChanges(
+      list.map((m) => m.title),
+      changes,
+    )
+    const placed = order
+      .map((t) => fresh.find((f) => norm(f.title) === norm(t)))
+      .filter((m): m is Milestone => m !== undefined)
+    const final = [...placed, ...fresh.filter((f) => !placed.includes(f))].map((m, position) => ({ ...m, position }))
+    await reorderMilestones(final.map((m) => ({ id: m.id, position: m.position })))
+    setMilestones(final)
+    toast('Camino actualizado.', 'success')
+  }
+
   if (loading) return <LoadingScreen />
   if (error && !goal) return <LoadingScreen error={error} />
   if (!goal) {
@@ -448,6 +492,40 @@ export function GoalDetail() {
   const progress = milestoneProgress(sortedMilestones)
   const consistency = weekConsistency(blocks, weekSessions, startOfWeek(todayISO()))
   const isActive = goal.status === 'active'
+  const currentStage = sortedMilestones.find((m) => m.doneAt === null) ?? null
+  const stageLabel =
+    progress.total === 0
+      ? 'Sin etapas'
+      : currentStage
+        ? `Etapa ${sortedMilestones.indexOf(currentStage) + 1} de ${progress.total}`
+        : 'Camino completo'
+  const planFor = (title: string): GoalPlanStage | undefined =>
+    ai.plan?.stages.find((st) => st.title.trim().toLowerCase() === title.trim().toLowerCase())
+  const currentPlan = currentStage ? planFor(currentStage.title) : undefined
+  const weekProgress =
+    consistency.committed > 0 ? `${consistency.done} de ${consistency.committed} sesiones esta semana` : null
+  const ageDays = Math.floor((Date.now() - Date.parse(goal.createdAt)) / 86_400_000)
+  const nudge = isActive
+    ? coachNudge({
+        committed: consistency.committed,
+        done: consistency.done,
+        weekday: weekdayMon0(todayISO()),
+        pendingStages: progress.total - progress.done,
+        doneStages: progress.done,
+        ageDays: Number.isFinite(ageDays) ? ageDays : 0,
+      })
+    : null
+  const coachContext = (): ChatContext => ({
+    title: goal.title,
+    typeLabel: getTemplate(goal.templateKey).label,
+    area: goal.area,
+    why: goal.why,
+    targetDate: goal.targetDate,
+    successCriteria: goal.successCriteria,
+    answers: ai.answers,
+    weekProgress,
+    stages: sortedMilestones.map((m) => ({ title: m.title, done: m.doneAt !== null })),
+  })
 
   // Hábitos que suman a esta meta — la zona de hábitos deja de ser una isla.
   const linkedHabits = habits.filter((h) => h.goalId === goal.id && h.archivedAt === null)
@@ -486,7 +564,7 @@ export function GoalDetail() {
   }
 
   return (
-    <div className="screen" style={nicheAccent(goal.area)}>
+    <div className={`screen${isActive ? ' screen--with-fab' : ''}`} style={nicheAccent(goal.area)}>
       {won && <Celebration title={won} onDone={() => setWon(null)} />}
       <BackButton onClick={goBack} />
 
@@ -521,34 +599,49 @@ export function GoalDetail() {
 
       <div className="detail-grid">
         <div className="detail-grid__main stack stack--lg">
-          {goal.why && (
-            <div className="focus-card stack stack--sm">
-              <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
-                <IconQuote size={12} /> Tu porqué
-              </span>
-              <p style={{ fontWeight: 500, fontSize: 'var(--fs-lg)', lineHeight: 1.35 }}>
-                {goal.why}
-              </p>
+          {/* ----- Ahora: la etapa actual y qué hacer, lo primero que se ve ----- */}
+          <article className="now-card" aria-label="Ahora">
+            <div>
+              <span className="now-card__kicker">{currentStage ? `Ahora: ${stageLabel.toLowerCase()}` : stageLabel}</span>
+              <h2 className="now-card__stage">
+                {currentStage ? currentStage.title : progress.total > 0 ? 'Cumpliste todas las etapas' : 'Arma tu camino abajo'}
+              </h2>
             </div>
-          )}
-
-          {/* ----- Progreso calculado: etapas + consistencia + invertido ----- */}
-          <div className="card stack stack--sm">
-            <div className="row row--between">
-              <span className="kicker">Tu progreso</span>
-              <span className="tag">
-                {progress.total > 0 ? `Etapa ${Math.min(progress.done + 1, progress.total)} de ${progress.total}` : 'Sin etapas'}
-              </span>
-            </div>
-            <div className="progress">
-              <div className="progress__bar" style={{ width: `${progress.ratio * 100}%` }} />
-            </div>
-            <div className="row wrap" style={{ gap: 'var(--s5)', marginTop: 'var(--s2)' }}>
-              <Stat value={`${consistency.done}/${consistency.committed}`} label="sesiones esta semana" />
-              <Stat value={String(stats.done)} label={stats.done === 1 ? 'sesión total' : 'sesiones totales'} />
-              <Stat value={formatDuration(stats.minutes)} label="invertidas" />
-            </div>
-          </div>
+            {currentPlan && (
+              <ul className="now-card__actions" aria-label="Primeros pasos de esta etapa">
+                {currentPlan.firstActions.map((a) => (
+                  <li key={a}>{a}</li>
+                ))}
+              </ul>
+            )}
+            {currentPlan && <p className="small muted" style={{ margin: 0 }}>Sabrás que está cuando: {currentPlan.successSignal}</p>}
+            {progress.total > 0 && (
+              <>
+                <div className="now-card__progress">
+                  <span>
+                    <b>{Math.round(progress.ratio * 100)}%</b>del camino
+                  </span>
+                  {weekProgress && <span>{weekProgress}</span>}
+                </div>
+                <div className="segbar" aria-hidden="true">
+                  {sortedMilestones.map((m) => (
+                    <span key={m.id} className={m.doneAt !== null ? 'done' : m === currentStage ? 'current' : ''} />
+                  ))}
+                </div>
+              </>
+            )}
+            {currentStage && isActive && (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                style={{ justifySelf: 'start' }}
+                disabled={updating}
+                onClick={() => void toggleMilestone(currentStage)}
+              >
+                <IconCheck size={14} /> Marcar esta etapa como cumplida
+              </button>
+            )}
+          </article>
 
           {/* ----- Tu compromiso, visible y editable (backlog smoke #3) ----- */}
           <div className="card stack stack--sm">
@@ -662,6 +755,33 @@ export function GoalDetail() {
               onDelete={(m) => void removeMilestone(m)}
               onAdd={(t) => void appendMilestone(t)}
             />
+            {ai.plan && sortedMilestones.some((m) => planFor(m.title)) && (
+              <div style={{ marginTop: 'var(--s3)' }}>
+                <Disclosure summary="Ver el plan del coach por etapa">
+                  <div className="stack plan-details">
+                    {sortedMilestones.map((m) => {
+                      const st = planFor(m.title)
+                      if (!st) return null
+                      return (
+                        <div key={m.id} className="stack stack--sm">
+                          <strong className="small">{m.title}</strong>
+                          <dl>
+                            <dt>Objetivo</dt>
+                            <dd>{st.objective}</dd>
+                            <dt>Sabrás que está</dt>
+                            <dd>{st.successSignal}</dd>
+                            <dt>Primeros pasos</dt>
+                            <dd>{st.firstActions.join(' · ')}</dd>
+                            <dt>Tiempo</dt>
+                            <dd>{st.weeks === 1 ? '1 semana' : `${st.weeks} semanas`}</dd>
+                          </dl>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </Disclosure>
+              </div>
+            )}
             {offerAchieve && isActive && (
               <div className="focus-card stack stack--sm" style={{ marginTop: 'var(--s4)' }}>
                 <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
@@ -701,6 +821,22 @@ export function GoalDetail() {
         </div>
 
         <div className="detail-grid__side stack stack--lg">
+          {goal.why && (
+            <div className="focus-card stack stack--sm">
+              <span className="focus-card__kicker row row--sm" style={{ alignItems: 'center' }}>
+                <IconQuote size={12} /> Tu porqué
+              </span>
+              <p style={{ fontWeight: 500, fontSize: 'var(--fs-md)', lineHeight: 1.4 }}>{goal.why}</p>
+            </div>
+          )}
+          {goal.successCriteria && (
+            <div className="card stack stack--sm">
+              <span className="kicker">Así sabrás que lo lograste</span>
+              <p className="small" style={{ margin: 0 }}>
+                {goal.successCriteria}
+              </p>
+            </div>
+          )}
           <div className="card">
             <Disclosure summary="Detalles">
               <div className="stack">
@@ -709,7 +845,8 @@ export function GoalDetail() {
                 {goal.targetDate && (
                   <InfoRow label="Para cuándo" value={formatLongDate(goal.targetDate)} />
                 )}
-                {goal.successCriteria && <InfoRow label="Lo logras cuando" value={goal.successCriteria} />}
+                <InfoRow label="Sesiones" value={`${stats.done} en total`} />
+                {stats.minutes > 0 && <InfoRow label="Tiempo invertido" value={formatDuration(stats.minutes)} />}
                 {weekMinutes > 0 && (
                   <InfoRow label="Agendado esta semana" value={`${formatDuration(weekMinutes)} en tu agenda`} />
                 )}
@@ -867,6 +1004,16 @@ export function GoalDetail() {
           </div>
         </div>
       </div>
+      {isActive && (
+        <GoalCoach
+          userId={userId}
+          goalId={goal.id}
+          subtitle={[stageLabel, weekProgress].filter(Boolean).join(', ')}
+          nudge={nudge}
+          getContext={coachContext}
+          onApply={applyCoachChanges}
+        />
+      )}
     </div>
   )
 }
@@ -890,15 +1037,6 @@ function AdvancesTimeline({ items }: { items: Session[] }) {
         </li>
       ))}
     </ul>
-  )
-}
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <div>
-      <div style={{ fontWeight: 700, fontSize: 'var(--fs-lg)' }}>{value}</div>
-      <div className="faint tiny">{label}</div>
-    </div>
   )
 }
 

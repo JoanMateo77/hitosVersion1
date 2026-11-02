@@ -10,6 +10,7 @@ import { ToastProvider } from '@/app/toast'
 import '@/styles/tokens.css'
 import '@/styles/base.css'
 import '@/styles/components.css'
+import '@/styles/coach.css'
 
 // Actualización automática de la PWA: cuando hay versión nueva, el service
 // worker la activa y ESTA pestaña se recarga sola — sin esto, una pestaña
