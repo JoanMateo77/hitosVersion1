@@ -30,7 +30,7 @@ textarea{width:100%;min-height:180px;font:inherit;font-size:14px;color:var(--ink
 .btns{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 0}
 .btn{min-height:48px;padding:10px 20px;border:0;border-radius:14px;background:var(--action);color:var(--action-ink);font:inherit;font-weight:700;cursor:pointer}
 .btn--alt{background:var(--surface);color:var(--ink);border:2px solid var(--line)}
-.total{font-size:18px;font-weight:700;margin:24px 0 0}
+.total{display:block;font-size:18px;font-weight:700;margin:24px 0 0}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:16px}
 .bar{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:12px;align-items:center;margin-top:12px}
 .bar img{width:56px;height:76px;object-fit:cover;object-position:top;border-radius:8px;border:1px solid var(--line)}
@@ -54,7 +54,7 @@ textarea{width:100%;min-height:180px;font:inherit;font-size:14px;color:var(--ink
     <button type="button" class="btn" id="contar">Contar</button>
     <button type="button" class="btn btn--alt" id="limpiar">Borrar todo</button>
   </div>
-  <p class="total" id="total" role="status" aria-live="polite"></p>
+  <output class="total" id="total" aria-live="polite"></output>
   <div id="salida"></div>
 </div>
 <script src="preguntas.js"></script>
@@ -64,28 +64,47 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const entrada = document.getElementById('entrada')
 try { entrada.value = localStorage.getItem(KEY) || '' } catch { /* sin almacenamiento */ }
 
+/** Lee "LG1 metas=F hoy=B …" a { metas: 'F', hoy: 'B' }; null si la línea no trae código. */
+function eleccionesDe(linea) {
+  const i = linea.indexOf('LG1')
+  if (i < 0) return null
+  const elecciones = {}
+  for (const par of linea.slice(i + 3).trim().split(/\s+/)) {
+    const [id, valor] = par.split('=')
+    if (!id || valor === undefined) continue
+    try { elecciones[id] = decodeURIComponent(valor) } catch { elecciones[id] = valor }
+  }
+  return elecciones
+}
+
+function nombreDe(bloque) {
+  const l = bloque.map((x) => x.trim()).find((x) => x.startsWith('De:'))
+  return l ? l.slice(3).trim() : ''
+}
+
+function textosLibresDe(bloque) {
+  const libres = {}
+  for (const p of PREGUNTAS.filter((q) => q.tipo === 'texto')) {
+    const marca = p.titulo + ':'
+    const l = bloque.find((x) => x.includes(marca))
+    const v = l ? l.slice(l.indexOf(marca) + marca.length).trim() : ''
+    if (v && v !== '(sin respuesta)') libres[p.id] = v
+  }
+  return libres
+}
+
 /** Separa el texto pegado en respuestas: cada una termina en su línea "Código: LG1 …". */
 function leer(texto) {
   const respuestas = new Map()
   let bloque = []
   for (const linea of texto.split(/\r?\n/)) {
     bloque.push(linea)
-    const m = linea.match(/LG1((?:\s+[\w-]+=\S+)*)/)
-    if (!m) continue
-    const elecciones = {}
-    for (const par of m[1].trim().split(/\s+/).filter(Boolean)) {
-      const [id, valor] = par.split('=')
-      try { elecciones[id] = decodeURIComponent(valor) } catch { elecciones[id] = valor }
-    }
-    const nombre = (bloque.map((l) => l.match(/^\s*De:\s*(.+)$/)).find(Boolean) || [])[1]?.trim() || ''
-    const libres = {}
-    for (const p of PREGUNTAS.filter((q) => q.tipo === 'texto')) {
-      const l = bloque.find((x) => x.includes(`${p.titulo}:`))
-      const v = l ? l.slice(l.indexOf(`${p.titulo}:`) + p.titulo.length + 1).trim() : ''
-      if (v && v !== '(sin respuesta)') libres[p.id] = v
-    }
+    const elecciones = eleccionesDe(linea)
+    if (!elecciones) continue
+    const nombre = nombreDe(bloque)
+    const libres = textosLibresDe(bloque)
     // La misma persona que envía dos veces cuenta una sola vez (vale la última).
-    const clave = nombre ? `n:${nombre.toLowerCase()}` : `c:${m[0]}|${JSON.stringify(libres)}`
+    const clave = nombre ? 'n:' + nombre.toLowerCase() : 'c:' + linea.trim() + JSON.stringify(libres)
     respuestas.delete(clave)
     respuestas.set(clave, { nombre, elecciones, libres })
     bloque = []
@@ -93,39 +112,52 @@ function leer(texto) {
   return [...respuestas.values()]
 }
 
+function textoTotal(rs) {
+  if (!rs.length) return 'No encontré respuestas. Cada mensaje debe traer su línea “Código: LG1 …”.'
+  const palabra = rs.length === 1 ? 'respuesta' : 'respuestas'
+  const nombres = rs.filter((r) => r.nombre).map((r) => r.nombre)
+  const quienes = nombres.length ? ' · ' + nombres.join(', ') : ''
+  return `${rs.length} ${palabra}${quienes}`
+}
+
+function tarjetaTexto(p, n, rs) {
+  const frases = rs.filter((r) => r.libres[p.id])
+  if (!frases.length) return ''
+  const item = (r) => {
+    const autor = r.nombre ? ` <span class="muted">· ${esc(r.nombre)}</span>` : ''
+    return `<li>${esc(r.libres[p.id])}${autor}</li>`
+  }
+  return `<section class="card"><h2>${n}. ${esc(p.titulo)}</h2><ul class="quotes">${frases.map(item).join('')}</ul></section>`
+}
+
+function filaVoto({ o, n, votos, max }) {
+  const nombre = o.letra === o.nombre ? o.nombre : `${o.letra} · ${o.nombre}`
+  const pct = votos ? Math.round((n / votos) * 100) : 0
+  const clases = ['bar']
+  if (!o.img) clases.push('bar--plain')
+  if (n > 0 && n === max) clases.push('bar--top')
+  const img = o.img ? `<img src="${esc(o.img)}" alt="" loading="lazy">` : ''
+  return `<div class="${clases.join(' ')}">${img}
+    <div><div class="bar__name">${esc(nombre)}</div><div class="bar__track"><div class="bar__fill" style="width:${pct}%"></div></div></div>
+    <div class="bar__n">${n} <span class="muted" style="font-weight:600">(${pct}%)</span></div>
+  </div>`
+}
+
+function tarjetaVotos(p, n, rs) {
+  const votos = rs.filter((r) => r.elecciones[p.id]).length
+  const cuentas = p.opciones.map((o) => ({ o, n: rs.filter((r) => r.elecciones[p.id] === o.letra).length }))
+  const max = Math.max(0, ...cuentas.map((c) => c.n))
+  const filas = cuentas.sort((a, b) => b.n - a.n).map((c) => filaVoto({ ...c, votos, max })).join('')
+  return `<section class="card"><h2>${n}. ${esc(p.titulo)}</h2>
+    <p class="muted">${votos} de ${rs.length} respondieron</p>${filas}</section>`
+}
+
 function contar() {
   try { localStorage.setItem(KEY, entrada.value) } catch { /* sin almacenamiento */ }
   const rs = leer(entrada.value)
-  document.getElementById('total').textContent = rs.length
-    ? `${rs.length} ${rs.length === 1 ? 'respuesta' : 'respuestas'}${rs.some((r) => r.nombre) ? ` · ${rs.filter((r) => r.nombre).map((r) => r.nombre).join(', ')}` : ''}`
-    : 'No encontré respuestas. Cada mensaje debe traer su línea “Código: LG1 …”.'
-  const html = PREGUNTAS.map((p, i) => {
-    if (p.tipo === 'texto') {
-      const frases = rs.filter((r) => r.libres[p.id])
-      if (!frases.length) return ''
-      return `<section class="card"><h2>${i + 1}. ${esc(p.titulo)}</h2>
-        <ul class="quotes">${frases.map((r) => `<li>${esc(r.libres[p.id])}${r.nombre ? ` <span class="muted">· ${esc(r.nombre)}</span>` : ''}</li>`).join('')}</ul></section>`
-    }
-    const votos = rs.filter((r) => r.elecciones[p.id]).length
-    const cuenta = (o) => rs.filter((r) => r.elecciones[p.id] === o.letra).length
-    const max = Math.max(0, ...p.opciones.map(cuenta))
-    const filas = p.opciones
-      .map((o) => ({ o, n: cuenta(o) }))
-      .sort((a, b) => b.n - a.n)
-      .map(({ o, n }) => {
-        const nombre = o.letra === o.nombre ? o.nombre : `${o.letra} · ${o.nombre}`
-        const pct = votos ? Math.round((n / votos) * 100) : 0
-        const top = n > 0 && n === max ? ' bar--top' : ''
-        return `<div class="bar${o.img ? '' : ' bar--plain'}${top}">
-          ${o.img ? `<img src="${esc(o.img)}" alt="" loading="lazy">` : ''}
-          <div><div class="bar__name">${esc(nombre)}</div><div class="bar__track"><div class="bar__fill" style="width:${pct}%"></div></div></div>
-          <div class="bar__n">${n} <span class="muted" style="font-weight:600">(${pct}%)</span></div>
-        </div>`
-      }).join('')
-    return `<section class="card"><h2>${i + 1}. ${esc(p.titulo)}</h2>
-      <p class="muted">${votos} de ${rs.length} respondieron</p>${filas}</section>`
-  }).join('')
-  document.getElementById('salida').innerHTML = rs.length ? html : ''
+  document.getElementById('total').textContent = textoTotal(rs)
+  const tarjeta = (p, i) => (p.tipo === 'texto' ? tarjetaTexto(p, i + 1, rs) : tarjetaVotos(p, i + 1, rs))
+  document.getElementById('salida').innerHTML = rs.length ? PREGUNTAS.map(tarjeta).join('') : ''
 }
 
 document.getElementById('contar').addEventListener('click', contar)
