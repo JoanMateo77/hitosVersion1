@@ -17,6 +17,13 @@ import '@/styles/coach.css'
 // abierta seguía mostrando el bundle viejo indefinidamente.
 registerSW({ immediate: true })
 
+// En desarrollo no hay service worker: si quedó uno de un build anterior en
+// localhost, seguiría sirviendo la versión vieja desde su caché.
+if (import.meta.env.DEV && 'serviceWorker' in navigator) {
+  void navigator.serviceWorker.getRegistrations().then((regs) => regs.forEach((r) => void r.unregister()))
+  if ('caches' in window) void caches.keys().then((keys) => keys.forEach((k) => void caches.delete(k)))
+}
+
 const rootEl = document.getElementById('root')
 if (!rootEl) throw new Error('No se encontró el elemento #root')
 
