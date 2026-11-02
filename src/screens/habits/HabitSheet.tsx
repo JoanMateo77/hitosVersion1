@@ -160,7 +160,9 @@ export function HabitSheet({
   return (
     <Sheet onClose={onClose} label={title} panelClassName="hsheet-panel">
       {(close) => (
-        <>
+        // El marco publica el color de identidad del borrador (--hab-a) para
+        // que la hoja tome el color del hábito que se está creando.
+        <div className="hsheet-frame" data-color={draft.color}>
           <div className="hsheet-head">
             <button
               type="button"
@@ -217,7 +219,7 @@ export function HabitSheet({
               {saving ? 'Guardando…' : cta}
             </button>
           </div>
-        </>
+        </div>
       )}
     </Sheet>
   )

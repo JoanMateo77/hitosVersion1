@@ -136,23 +136,41 @@ fieldset.row {
 .btn:active {
   transform: scale(0.98);
 }
+/* Deshabilitado: se ve apagado (gris, sin relieve), nunca azul vivo. El
+   botón principal repite esto en fullcolor.css, donde vive su definición. */
 .btn:disabled {
-  opacity: 0.5;
-  pointer-events: none;
+  background: var(--surface-2);
+  border-color: transparent;
+  color: var(--text-faint);
+  box-shadow: none;
+  transform: none;
+  filter: none;
+  cursor: not-allowed;
 }
-.btn--primary {
-  background: var(--gradient-brand);
-  color: #fff;
-  font-weight: 700;
-  box-shadow: var(--shadow-primary);
-}
-.btn--primary:active {
-  filter: brightness(0.94);
-}
+/* .btn--primary: definición única en fullcolor.css (azul de acción con relieve). */
+/* Secundario canónico: superficie + borde, texto normal, SIN relieve (el
+   relieve y el azul son del principal: una sola acción principal por vista).
+   .btn--ghost es alias heredado; lo nuevo usa .btn--secondary. */
+.btn--secondary,
 .btn--ghost {
-  background: transparent;
+  background: var(--surface);
   border-color: var(--border);
   color: var(--text);
+}
+/* Destructivo como enlace ("Eliminar meta"): texto en --danger-text, que
+   cumple ≥ 4.5:1 sobre --bg y --surface en ambos temas. La confirmación
+   posterior sí usa el botón relleno (.btn--danger). */
+.btn--danger-link {
+  background: none;
+  border: none;
+  min-height: 44px;
+  padding: 10px 6px;
+  font-weight: 600;
+  color: var(--danger-text);
+}
+.btn--danger-link:disabled {
+  background: none;
+  color: var(--text-faint);
 }
 .btn--subtle {
   background: var(--surface);
@@ -171,10 +189,15 @@ fieldset.row {
   font-size: var(--fs-sm);
   border-radius: var(--radius-sm);
 }
+/* Botón de crear en la cabecera de pantalla (Metas, Notas, Hábitos, Agenda):
+   pastilla pequeña con objetivo táctil completo. */
+.screen__add {
+  min-height: 44px;
+}
 .btn--link {
   background: none;
   border: none;
-  color: var(--primary);
+  color: var(--action-text);
   min-height: 0;
   /* Hit-area táctil aceptable aunque visualmente sea sólo texto. */
   padding: 10px 6px;
@@ -182,8 +205,37 @@ fieldset.row {
   position: relative;
 }
 .btn--link:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  background: none;
+  color: var(--text-faint);
+}
+
+/* Botón Atrás canónico: chevron + texto, 44 px de alto. Es un enlace de
+   navegación (azul de texto); sobre una cabecera de color va en su tinta.
+   <Link className="back-link"><IconChevronLeft size={18} />Metas</Link> */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 0 var(--s2) 0 0;
+  margin-left: -6px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--action-text);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  text-decoration: none;
+}
+.back-link svg {
+  flex: none;
+}
+.back-link:active {
+  opacity: 0.7;
+}
+.fc-hero .back-link,
+.fc-card .back-link {
+  color: var(--vivid-ink, var(--text));
 }
 
 /* Botón redondo de ícono (volver, cerrar, etc.) — 44 px = mínimo iOS. */
@@ -195,7 +247,8 @@ fieldset.row {
   height: 44px;
   border-radius: var(--radius-pill);
   background: var(--surface);
-  border: 1px solid var(--border-soft);
+  /* --border (no --border-soft): en oscuro el soft se funde con --surface. */
+  border: 1px solid var(--border);
   color: var(--text);
   flex: none;
   transition: transform var(--dur-tap) var(--ease-out), background var(--dur-tap) var(--ease-out);
@@ -238,7 +291,9 @@ fieldset.row {
 .textarea {
   width: 100%;
   background: var(--surface-2);
-  border: 1px solid transparent;
+  /* Borde visible (≥ 3:1 contra --bg y --surface): sin él, el relleno gris
+     sobre el fondo gris quedaba a 1.13:1 y el campo no se distinguía. */
+  border: 1px solid var(--input-border);
   border-radius: var(--radius);
   color: var(--text);
   padding: 13px 14px;
@@ -246,12 +301,12 @@ fieldset.row {
 }
 .input::placeholder,
 .textarea::placeholder {
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 .input:focus,
 .textarea:focus {
   outline: none;
-  border-color: var(--primary);
+  border-color: var(--focus-ring);
 }
 .textarea {
   resize: vertical;
@@ -296,7 +351,7 @@ fieldset.row {
 .option--selected .option__icon {
   background: var(--primary-soft);
   border-color: color-mix(in srgb, var(--primary) 35%, transparent);
-  color: var(--primary);
+  color: var(--action-text);
 }
 .option__body {
   display: flex;
@@ -313,7 +368,7 @@ fieldset.row {
 }
 .option__check {
   margin-left: auto;
-  color: var(--primary);
+  color: var(--action-text);
   flex: none;
 }
 
@@ -398,10 +453,11 @@ fieldset.row {
 .check:active {
   transform: scale(0.86);
 }
+/* Cumplido = verde de estado con su tinta (mismo par en toda la app). */
 .check--done {
-  background: var(--success-fill);
-  border-color: var(--success-fill);
-  color: var(--on-primary);
+  background: var(--state-ok);
+  border-color: var(--state-ok);
+  color: var(--state-ok-ink);
 }
 
 /* Glyph de nicho en la fila de hábito: alinea el ícono con la primera línea
@@ -425,29 +481,8 @@ fieldset.row {
   font-size: var(--fs-xs);
   font-weight: 600;
 }
-/* Tag teñido por nicho: fondo suave del color del área + texto mezclado con el
-   color de texto del tema para que se lea bien en claro y oscuro. */
-.tag--niche {
-  background: color-mix(in srgb, var(--niche, var(--primary)) 14%, transparent);
-  color: color-mix(in srgb, var(--niche, var(--primary)) 62%, var(--text));
-}
 
-/* Grilla de metas: stack en móvil, grid auto-fit en desktop ancho. */
-.goals-grid {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s3);
-}
-@media (min-width: 900px) {
-  .goals-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: var(--s4);
-  }
-  .goals-grid > li > .goal-card {
-    height: 100%;
-  }
-}
+/* .goals-grid: vive en screens/metas.css. */
 
 /* ---- Tarjeta de meta ---------------------------------------------------- */
 .goal-card {
@@ -520,43 +555,21 @@ fieldset.row {
   transform: scale(0.88);
 }
 .goal-card__star--on {
-  color: var(--primary);
+  color: var(--action-text);
 }
 
-/* ---- Chip de racha: la llama de los días cumplidos ----------------------- */
-.streak-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 11px;
-  border-radius: var(--radius-pill);
-  background: var(--primary-soft);
-  border: 1px solid transparent;
-  color: var(--primary);
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-}
-
-/* Barra de progreso */
-.progress {
-  height: 7px;
-  background: var(--bg-elev);
-  border-radius: var(--radius-pill);
-  overflow: hidden;
-}
-.progress__bar {
-  height: 100%;
-  background: var(--success-fill);
-  border-radius: var(--radius-pill);
-}
+/* .streak-chip y .progress: definición única en fullcolor.css. */
 
 /* ---- Foco de la semana (recomendación continua) ------------------------- */
 .focus-card {
   position: relative;
   background: var(--surface);
-  background-image: var(--gradient-focus);
+  /* Halo del color del área (de qué meta se habla), no azul: azul = actuar. */
+  background-image: radial-gradient(
+    120% 80% at 0% 0%,
+    color-mix(in srgb, var(--vivid, transparent) 12%, transparent),
+    transparent 60%
+  );
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
   padding: var(--s4) var(--s5);
@@ -579,12 +592,9 @@ fieldset.row {
 }
 .focus-card__kicker {
   font-family: var(--font);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: var(--tracking-kicker);
-  text-transform: uppercase;
-  /* Tinte por nicho del foco (--niche, seteado en .focus-card). */
-  color: color-mix(in srgb, var(--niche, var(--primary)) 72%, var(--text));
+  font-size: var(--fs-sm, 14px);
+  font-weight: 700;
+  color: var(--text-muted);
 }
 .focus-card strong {
   font-family: var(--font-display);
@@ -593,14 +603,21 @@ fieldset.row {
   line-height: var(--lh-display);
 }
 
-/* ---- Kicker reutilizable (eyebrow encima de títulos / cards) ------------ */
+/* ---- Título de sección canónico --------------------------------------------
+   Sentence case, nunca MAYÚSCULAS: "Tus metas", no "TUS METAS". Encabeza un
+   bloque dentro de la pantalla (h2/h3 o span). Con acción a la derecha va
+   dentro de .section-head. .kicker es el nombre viejo de esta misma pieza:
+   se ve igual y se migra a .section-title al tocar cada pantalla. */
+.section-title,
 .kicker {
-  font-family: var(--font);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: var(--tracking-kicker);
-  text-transform: uppercase;
-  color: var(--text-muted);
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  text-transform: none;
+  color: var(--text);
 }
 
 /* ---- Roadmap / "el camino" (hitos como SVG ondulante) ------------------- */
@@ -625,9 +642,8 @@ fieldset.row {
   stroke-dasharray: 100 100;
 }
 .roadmap__path--done {
-  stroke: var(--primary);
+  stroke: var(--state-ok);
   transition: stroke-dasharray var(--dur-focal) var(--ease-out);
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--primary) 40%, transparent));
 }
 .roadmap__circle {
   fill: var(--surface);
@@ -636,35 +652,21 @@ fieldset.row {
   transition: fill var(--dur-state) var(--ease-out), stroke var(--dur-state) var(--ease-out);
 }
 .roadmap__svg-step--done .roadmap__circle {
-  fill: var(--primary);
-  stroke: var(--primary);
+  fill: var(--state-ok);
+  stroke: var(--state-ok);
 }
 .roadmap__svg-step--current .roadmap__circle {
   fill: var(--surface);
-  stroke: var(--primary);
+  stroke: var(--vivid, var(--text));
   stroke-width: 2.5;
 }
 .roadmap__halo {
-  fill: var(--primary);
+  fill: var(--vivid, var(--text));
   opacity: 0.18;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: roadmap-halo 2.4s ease-in-out infinite;
-}
-@keyframes roadmap-halo {
-  0%,
-  100% {
-    opacity: 0.14;
-    transform: scale(0.95);
-  }
-  50% {
-    opacity: 0.3;
-    transform: scale(1.08);
-  }
 }
 .roadmap__tick {
   fill: none;
-  stroke: var(--on-primary);
+  stroke: var(--state-ok-ink);
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -780,22 +782,22 @@ fieldset.row {
   color: inherit;
 }
 
-/* ---- Barra inferior -----------------------------------------------------
-   Sin borde ni blur: un degradado que se funde con la página, por el que el
-   contenido pasa por debajo. La barra no captura el toque (pointer-events:
-   none); solo lo hacen las pestañas. */
+/* ---- Barra inferior (móvil/tablet) --------------------------------------
+   Barra nítida: superficie translúcida con borde superior. El ítem activo
+   lleva una píldora azul sólida detrás del ícono (dónde estás = azul) y su
+   texto en --action-text (pasa 4.5:1 en ambos temas). */
 .bottomnav {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 20;
-  height: calc(98px + var(--safe-bottom));
-  padding-bottom: var(--safe-bottom);
-  background: linear-gradient(to bottom, transparent, var(--bg) 40%);
   display: flex;
-  align-items: flex-end;
-  pointer-events: none;
+  padding: 6px max(var(--safe-left), 4px) var(--safe-bottom) max(var(--safe-right), 4px);
+  background: color-mix(in srgb, var(--bg-elev) 88%, transparent);
+  -webkit-backdrop-filter: saturate(1.6) blur(18px);
+  backdrop-filter: saturate(1.6) blur(18px);
+  border-top: 1px solid var(--border-soft);
 }
 .bottomnav__inner {
   position: relative;
@@ -803,31 +805,67 @@ fieldset.row {
   max-width: var(--app-width);
   margin: 0 auto;
   display: flex;
-  pointer-events: auto;
 }
 .bottomnav__item {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
+  min-height: 58px;
+  padding: 4px 0 8px;
   color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   background: none;
   border: none;
-  padding: 8px 0 10px;
+  border-radius: var(--radius);
   transition: transform var(--dur-tap) var(--ease-out), color var(--dur-tap) var(--ease-out);
   -webkit-user-select: none;
   user-select: none;
+}
+.bottomnav__item svg {
+  position: relative;
+  width: 24px;
+  height: 24px;
+}
+/* Píldora del indicador: detrás del ícono, crece al activarse (respuesta). */
+.bottomnav__item::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  width: 56px;
+  height: 32px;
+  margin-left: -28px;
+  border-radius: var(--radius-pill);
+  background: var(--action);
+  opacity: 0;
+  transform: scaleX(0.4);
+  transition:
+    opacity var(--dur-state) var(--ease-out),
+    transform var(--dur-state) var(--ease-ios);
 }
 .bottomnav__item:active {
   transform: scale(0.92);
 }
 .bottomnav__item--active {
-  color: var(--primary);
-  font-weight: 600;
+  color: var(--action-text);
+  font-weight: 800;
+}
+.bottomnav__item--active::before {
+  opacity: 1;
+  transform: scaleX(1);
+}
+.bottomnav__item--active svg {
+  color: var(--action-ink);
+}
+/* La barra es el borde de la ventana: el anillo va hacia dentro. */
+.bottomnav__item:focus-visible {
+  outline-offset: -2px;
 }
 
 /* ---- Stepper del wizard ------------------------------------------------- */
@@ -864,7 +902,7 @@ fieldset.row {
   justify-content: center;
   background: var(--primary-soft);
   border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
-  color: var(--primary);
+  color: var(--action-text);
   margin-bottom: var(--s3);
 }
 .empty__title {
@@ -927,7 +965,7 @@ fieldset.row {
   place-content: center;
   gap: var(--s3);
   text-align: center;
-  color: var(--primary);
+  color: var(--action-text);
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   animation: won-in var(--dur-state) var(--ease-out) both, won-out 160ms ease-in 2.2s both;
   pointer-events: none;
@@ -947,27 +985,27 @@ fieldset.row {
   }
 }
 
-/* ---- Spinner — tres hitos del camino caminando -------------------------- */
+/* ---- Spinner — tres hitos del camino caminando --------------------------
+   Neutros, como el camino de PathIllustration: cargar no es una acción (sin
+   azul) ni habla de un área (sin colores de área). */
 .spinner {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
 }
 .spinner span {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: var(--primary);
+  background: var(--text-muted);
   animation: spinner-walk 1.2s var(--ease-out) infinite;
 }
 .spinner span:nth-child(2) {
   animation-delay: 0.14s;
-  opacity: 0.7;
 }
 .spinner span:nth-child(3) {
   animation-delay: 0.28s;
-  opacity: 0.4;
 }
 @keyframes spinner-walk {
   0%,
@@ -995,9 +1033,9 @@ fieldset.row {
   align-items: center;
   gap: var(--s2);
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 800;
   font-size: var(--fs-xl);
-  letter-spacing: -0.03em;
+  letter-spacing: -0.035em;
   line-height: 1;
   font-optical-sizing: auto;
 }
@@ -1005,31 +1043,54 @@ fieldset.row {
   display: inline-flex;
 }
 
-/* ---- Segmento (toggle de vistas / opciones binarias) -------------------- */
+/* ---- Control segmentado canónico (vistas / opciones excluyentes) --------
+   Pista --surface-2; la opción activa "perfora" a --surface con texto --text.
+   Elegir una vista no es actuar: nada de azul. Cada opción mide 44 px de
+   alto (zona táctil completa: el hueco de 3 px es borde transparente, no
+   relleno de la pista) y encoge con elipsis: a 320 px no desborda. Si las
+   opciones no caben ni así, la pantalla añade overflow-x: auto a su .seg
+   (el anillo de foco va por dentro y no se recorta). */
 .seg {
   display: inline-flex;
-  gap: 2px;
-  /* Control segmentado estilo iOS: pista --surface-2, opción activa "perfora" a --surface. */
+  max-width: 100%;
+  min-width: 0;
   background: var(--surface-2);
-  border: 1px solid transparent;
+  border: 0;
   border-radius: var(--radius-pill);
-  padding: 3px;
+  padding: 0;
 }
 .seg__btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 7px 13px;
+  padding: 0 14px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
   border-radius: var(--radius-pill);
+  background-color: transparent;
   font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-muted);
-  background: none;
-  border: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color var(--dur-tap) var(--ease-out), color var(--dur-tap) var(--ease-out);
+}
+.seg__btn:hover {
+  color: var(--text);
 }
 .seg__btn--active {
-  background: var(--surface);
+  background-color: var(--surface);
   color: var(--text);
+  font-weight: 700;
+}
+.seg__btn:focus-visible {
+  outline-offset: -3px;
+  border-radius: var(--radius-pill);
 }
 
 /* ---- Calendario / agenda ------------------------------------------------ */
@@ -1067,7 +1128,7 @@ fieldset.row {
 /* Hoy se reconoce de un vistazo: número en color de marca + halo sutil. */
 .cal-cell--today {
   border-color: color-mix(in srgb, var(--primary) 40%, transparent);
-  color: var(--primary);
+  color: var(--action-text);
   font-weight: 700;
 }
 .cal-cell--selected {
@@ -1100,7 +1161,7 @@ fieldset.row {
   color: var(--text);
 }
 .cal-day__label--today {
-  color: var(--primary);
+  color: var(--action-text);
 }
 
 .ev {
@@ -1149,11 +1210,6 @@ fieldset.row {
   align-items: flex-end;
   justify-content: center;
 }
-.sheet__backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.62);
-}
 .sheet__panel {
   position: relative;
   width: 100%;
@@ -1164,8 +1220,8 @@ fieldset.row {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   background: var(--bg-elev);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  border: 0;
+  border-radius: 28px 28px 0 0;
   padding: calc(var(--s6) + 8px) var(--s5) calc(var(--safe-bottom) + var(--s5));
   box-shadow: var(--shadow);
   animation: sheet-up var(--dur-layout) var(--ease-ios);
@@ -1195,15 +1251,15 @@ fieldset.row {
   top: 10px;
   left: 50%;
   transform: translateX(-50%);
-  width: 40px;
-  height: 4px;
+  width: 44px;
+  height: 5px;
   border-radius: var(--radius-pill);
-  background: var(--border);
+  background: var(--surface-3);
 }
 .sheet__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.62);
+  background: rgba(0, 0, 0, 0.5);
   animation: sheet-fade var(--dur-state) var(--ease-out);
 }
 /* Salida: la hoja se va hacia abajo y el fondo se apaga. `sheet-down` solo
@@ -1242,27 +1298,29 @@ select.input {
 
 /* ---- Realces del tema neón --------------------------------------------- */
 /* ---- Skeletons de carga ------------------------------------------------- */
+/* Misma superficie y radio que las tarjetas: sin borde, esquinas de 18 px;
+   la transición a contenido real no cambia la silueta. */
 .skeleton {
   background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 37%, var(--surface) 63%);
   background-size: 400% 100%;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius);
+  border: 0;
+  border-radius: 18px;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
 /* Skeleton "task-shaped" — replica la forma del .task para una transición continua. */
 .skeleton-task {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--s3);
   padding: var(--s4);
   background: var(--surface);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius);
+  border: 0;
+  border-radius: 18px;
 }
 .skeleton-task__check {
   flex: none;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: var(--radius-pill);
   background: var(--surface-2);
   animation: skeleton-shimmer-bg 1.4s ease-in-out infinite;
@@ -1285,7 +1343,7 @@ select.input {
   flex: none;
   width: 36px;
   height: 36px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--surface-2);
   animation: skeleton-shimmer-bg 1.4s ease-in-out infinite;
 }
@@ -1357,7 +1415,9 @@ select.input {
   gap: var(--s3);
   height: calc(var(--nav-height) + var(--safe-top));
   padding: var(--safe-top) var(--s4) 0;
-  background: var(--bg);
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  -webkit-backdrop-filter: saturate(1.6) blur(18px);
+  backdrop-filter: saturate(1.6) blur(18px);
   -webkit-user-select: none;
   user-select: none;
   transition: transform var(--dur-state) var(--ease-out);
@@ -1368,27 +1428,46 @@ select.input {
 .topbar--hidden {
   transform: translateY(-100%);
 }
-
-/* Acceso a Perfil en móvil (saca la 6.ª pestaña de la barra inferior) */
-.topbar__avatar {
-  flex: none;
-  width: 32px;
-  height: 32px;
+/* El avatar es el acceso a Perfil: aire para el anillo del marco y el foco. */
+.topbar__avatar:focus-visible {
+  outline-offset: 5px;
   border-radius: var(--radius-pill);
+}
+
+/* ---- Avatar canónico: neutro (no es una acción ni una meta) ---------------
+   Disco --surface-2 con la inicial en --text, o la foto. El marco ganado con
+   la racha va como anillo: clase .avatar--ring + --avatar-ring (color). Sin
+   marco no hay anillo. Tamaños: base 36 px · --lg 64 px. */
+.avatar {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: var(--surface-2);
-  color: var(--text-muted);
-  border: 1px solid var(--border-soft);
+  color: var(--text);
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 13px;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
 }
-.topbar__avatar--active {
-  background: var(--primary);
-  color: var(--on-primary);
-  border-color: var(--primary);
+.avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.avatar--ring {
+  box-shadow: 0 0 0 3px var(--avatar-ring, var(--border));
+}
+.avatar--lg {
+  width: 64px;
+  height: 64px;
+  font-size: 26px;
 }
 
 /* Barra lateral (escritorio): oculta por defecto, se enciende en el breakpoint */
@@ -1410,6 +1489,7 @@ select.input {
   display: flex;
   align-items: center;
   gap: var(--s2);
+  min-height: 36px;
   padding: var(--s2) var(--s3);
   border-radius: var(--radius-sm);
   border: none;
@@ -1425,6 +1505,11 @@ select.input {
 .themeswitch__btn--active {
   background: var(--surface);
   color: var(--text);
+  font-weight: 800;
+}
+/* Dentro de la pista: el anillo no se sale de ella. */
+.themeswitch__btn:focus-visible {
+  outline-offset: 1px;
 }
 
 /* Switcher en el login: al pie del formulario, discreto y centrado. */
@@ -1433,19 +1518,6 @@ select.input {
   justify-content: center;
   margin-top: var(--s6);
   padding-bottom: var(--s2);
-}
-.auth__trail {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  color: var(--primary);
-  pointer-events: none;
-  z-index: 0;
-}
-.auth__brand-mark {
-  display: inline-flex;
-  filter: drop-shadow(0 0 24px color-mix(in srgb, var(--primary) 30%, transparent));
 }
 
 /* En mobile, el hero está oculto — la marca vive en el header del form. */
@@ -1488,13 +1560,6 @@ select.input {
     min-height: 100dvh;
     overflow: hidden;
   }
-  .auth__trail {
-    /* La curva se contiene al cuadrante izquierdo y se hace más expresiva. */
-    inset: auto auto 0 0;
-    width: 55%;
-    height: 90%;
-    opacity: 1;
-  }
   .auth-hero {
     display: flex;
     flex-direction: column;
@@ -1503,9 +1568,6 @@ select.input {
     max-width: 640px;
     z-index: 1;
     position: relative;
-  }
-  .auth-hero__mark {
-    margin-bottom: var(--s5);
   }
   .auth-hero__brand {
     font-size: var(--fs-5xl);
@@ -1583,10 +1645,12 @@ select.input {
   .hide-on-desktop {
     display: none;
   }
+  /* Barra lateral: el ítem activo es azul sólido con tinta blanca (el mismo
+     lenguaje que la píldora de la barra inferior). Hover neutro, nunca azul. */
   .sidenav {
     display: flex;
     flex-direction: column;
-    gap: var(--s2);
+    gap: var(--s1);
     position: sticky;
     top: 0;
     align-self: flex-start;
@@ -1594,7 +1658,7 @@ select.input {
     height: 100dvh;
     width: var(--sidenav-width);
     flex: none;
-    padding: var(--s6) var(--s4) calc(var(--safe-bottom) + var(--s4));
+    padding: var(--s6) var(--s3) calc(var(--safe-bottom) + var(--s4));
     background: var(--surface);
     border-right: 1px solid var(--border-soft);
     -webkit-user-select: none;
@@ -1602,36 +1666,23 @@ select.input {
   }
   .sidenav__brand {
     font-size: var(--fs-xl);
-    padding: 0 var(--s2) var(--s4);
+    padding: 0 var(--s3) var(--s4);
   }
   .sidenav__identity {
     display: flex;
     align-items: center;
     gap: var(--s3);
     padding: var(--s3);
+    margin: 0 var(--s1) var(--s4);
     /* --surface-2 (no --surface): la barra ya vive en --surface, y una tarjeta
        del mismo tono encima quedaba sin distinguirse. */
     background: var(--surface-2);
-    border: 1px solid var(--border-soft);
-    border-radius: var(--radius);
-    margin-bottom: var(--s4);
+    border-radius: 18px;
     overflow: hidden;
   }
-  .sidenav__avatar {
-    flex: none;
-    width: 36px;
-    height: 36px;
-    border-radius: var(--radius-pill);
-    background: var(--primary);
-    color: var(--on-primary);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: var(--fs-lg);
-    line-height: 1;
-    box-shadow: var(--shadow-sm);
+  /* Sobre la tarjeta --surface-2 el avatar baja un escalón para verse. */
+  .sidenav__identity .avatar {
+    background: var(--surface);
   }
   .sidenav__identity-text {
     display: flex;
@@ -1640,7 +1691,7 @@ select.input {
     min-width: 0;
     flex: 1;
   }
-  .sidenav__email {
+  .sidenav__name {
     color: var(--text);
     font-size: var(--fs-sm);
     font-weight: 600;
@@ -1649,7 +1700,9 @@ select.input {
     text-overflow: ellipsis;
   }
   .sidenav__day {
-    font-size: 10px;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--text-muted);
   }
   .sidenav__nav {
     display: flex;
@@ -1657,25 +1710,29 @@ select.input {
     gap: 4px;
   }
   .sidenav__item {
+    position: relative;
     display: flex;
     align-items: center;
     gap: var(--s3);
-    padding: var(--s3);
+    min-height: 44px;
+    padding: 11px var(--s3);
     border-radius: var(--radius);
     color: var(--text-muted);
     font-weight: 600;
     transition: background var(--dur-tap) var(--ease-out), color var(--dur-tap) var(--ease-out);
   }
   .sidenav__item:hover {
-    background: var(--surface);
+    background: var(--surface-2);
     color: var(--text);
   }
-  .sidenav__item--active {
-    background: var(--primary-soft);
-    color: var(--primary);
+  .sidenav__item--active,
+  .sidenav__item--active:hover {
+    background: var(--action);
+    color: var(--action-ink);
+    font-weight: 800;
   }
   .sidenav__footer {
-    margin-top: auto;
+    margin: auto var(--s1) 0;
     padding-top: var(--s4);
     border-top: 1px solid var(--border-soft);
   }
@@ -1717,24 +1774,25 @@ select.input {
 
 /* Elevación: la superficie es plana; las tarjetas se separan por contraste. */
 .task,
-.ev,
-.goal-card {
+.ev {
   box-shadow: var(--shadow-sm);
   transition: transform var(--dur-tap) var(--ease-out), box-shadow var(--dur-state) var(--ease-out), border-color var(--dur-tap) var(--ease-out);
 }
 
 /* Estados táctiles (hover solo con puntero; tap depress en todos) */
 @media (hover: hover) {
-  .goal-card:hover,
   .task:hover,
   .ev:hover {
     transform: translateY(-1px);
     border-color: var(--border);
     box-shadow: var(--shadow);
   }
-  .btn--ghost:hover {
+  .btn--secondary:hover:not(:disabled),
+  .btn--ghost:hover:not(:disabled) {
     border-color: var(--text-faint);
-    background: var(--surface);
+  }
+  .btn--danger-link:hover:not(:disabled) {
+    text-decoration: underline;
   }
   .btn--subtle:hover {
     color: var(--text);
@@ -1752,31 +1810,11 @@ select.input {
     border-color: var(--text-faint);
   }
 }
-.goal-card:active,
 .ev:active {
   transform: scale(0.99);
 }
 
-/* Botón primario: degradado azul de marca + sombra de color. El estado activo
-   oscurece con filter, así el degradado no se pierde al presionar. */
-.btn--primary {
-  background: var(--gradient-brand);
-  color: #fff;
-  font-weight: 700;
-  border-color: transparent;
-  box-shadow: var(--shadow-primary), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-}
-@media (hover: hover) {
-  .btn--primary:hover {
-    filter: brightness(1.04);
-  }
-}
-.btn--primary:active {
-  filter: brightness(0.94);
-  transform: scale(0.98);
-}
-
-/* Focus-card: el elemento estrella con un bloom de marca por detrás */
+/* Focus-card: el elemento estrella con un bloom del color del área por detrás */
 .focus-card {
   position: relative;
   overflow: hidden;
@@ -1791,7 +1829,7 @@ select.input {
   height: 220px;
   background: radial-gradient(
     circle,
-    color-mix(in srgb, var(--primary) 10%, transparent),
+    color-mix(in srgb, var(--vivid, transparent) 10%, transparent),
     transparent 70%
   );
   pointer-events: none;
@@ -1799,10 +1837,6 @@ select.input {
 .focus-card > * {
   position: relative;
 }
-.focus-card__kicker {
-  letter-spacing: 0.08em;
-}
-
 /* Inputs: anillo de foco suave + flecha del select (que hoy no se ve) */
 .input:focus,
 .textarea:focus,
@@ -1820,16 +1854,6 @@ select.input {
 .empty__title {
   font-size: var(--fs-lg);
   line-height: var(--lh-snug);
-}
-
-/* Barra de progreso: relleno verde con un respiro de luz al frente */
-.progress {
-  height: 8px;
-  background: var(--surface-2);
-}
-.progress__bar {
-  background: var(--success-fill);
-  transition: width var(--dur-layout) var(--ease-out);
 }
 
 /* Completar tarea: pequeño "pop" (respeta prefers-reduced-motion de base.css) */
@@ -1852,87 +1876,74 @@ select.input {
   transition: opacity var(--dur-state) var(--ease-out);
 }
 
-/* Foco accesible: el outline en base.css ya hace el trabajo; acá sólo el ajuste
-   del primary para que el ring contraste sobre fondo verde. */
-.btn--primary:focus-visible {
-  outline-color: var(--on-primary);
-  outline-offset: -3px;
-}
-
 /* Tag con hairline (más nítido en claro) */
 .tag {
   border: 1px solid var(--border-soft);
 }
 
-/* Hero de login / onboarding: wash de marca + wordmark grande con degradado */
+/* Pantallas completas (login, onboarding, asistente): wordmark grande en
+   tinta, sin halo ni degradado azul (el azul es para actuar, no para decorar). */
 .screen--full {
   position: relative;
   isolation: isolate;
 }
-/* Lavado de marca SIMÉTRICO: un solo halo centrado arriba. (El segundo radial
-   descentrado verde hacía ver la pantalla "torcida", sobre todo en oscuro.) */
-.screen--full::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background: radial-gradient(
-    56% 42% at 50% 0%,
-    color-mix(in srgb, var(--primary) 13%, transparent),
-    transparent 70%
-  );
-}
 .screen--full .brand {
   font-size: var(--fs-3xl);
-  background: var(--gradient-brand);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  /* Con background-clip:text solo se pinta lo que cae dentro de la caja, y la
-     tilde de la ó y el descendente de la g sobresalen del line-height apretado.
-     Aire extra; arriba y a los lados se compensa con margen negativo (el de
-     abajo se deja quieto para no pisar el margin-bottom del hero). */
-  padding: 0.16em 0.08em;
-  margin-top: -0.16em;
-  margin-inline: -0.08em;
+  color: var(--text);
 }
 
-/* ---- Hint — explicación contextual de primera vez --------------------- */
+/* ---- Hint — explicación contextual de primera vez ---------------------
+   Neutro: explicar no es actuar (azul) ni un estado (verde/ámbar). La
+   bombilla dice "dato útil" sin pintar el bloque. */
 .hint {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--s3);
   padding: var(--s3) var(--s4);
-  background: var(--primary-soft);
-  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
-  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
   color: var(--text);
   font-size: var(--fs-sm);
   line-height: 1.4;
+}
+.hint__icon {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text);
 }
 .hint__body {
   flex: 1;
   min-width: 0;
 }
+/* 44 px de zona táctil; el margen negativo lo mete en el padding del aviso. */
 .hint__close {
   flex: none;
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: none;
   border: none;
   border-radius: var(--radius-pill);
-  color: var(--text-faint);
-  margin: -4px -8px -4px 0;
+  color: var(--text-muted);
+  margin: -10px -14px -10px 0;
   cursor: pointer;
   transition: background var(--dur-tap) var(--ease-out), color var(--dur-tap) var(--ease-out);
 }
 .hint__close:hover {
-  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  background: var(--surface-2);
   color: var(--text);
+}
+.hint__close:focus-visible {
+  outline-offset: -4px;
 }
 
 .novedades__list {
@@ -2059,10 +2070,17 @@ select.input {
      En monitores, el flujo deja de ser una columna de celular flotando en el
      vacío: vive en un panel con superficie, borde y sombra, centrado en ambos
      ejes — como un diálogo de producto, no como un teléfono estirado. */
-  .app:has(.flow-screen) {
+  /* Colchón mínimo arriba y abajo: el panel se centra con margin-block:auto,
+     pero cuando es más alto que la ventana esos márgenes valen 0 y quedaba
+     pegado al borde. Con padding en el contenedor, centrado seguro. */
+  .app:has(.flow-screen, .review-focus) {
     max-width: none;
+    padding-block: var(--s8);
   }
-  .flow-screen {
+  /* La revisión guiada (fuera del AppShell, Review.tsx) es flujo de foco:
+     mismo panel que onboarding y meta creada. */
+  .flow-screen,
+  .review-focus {
     width: 100%;
     max-width: 640px;
     /* No estirar a toda la altura: el bloque se sizea al contenido y se centra
@@ -2088,11 +2106,11 @@ select.input {
     background:
       radial-gradient(
         120% 80% at 50% 0%,
-        color-mix(in srgb, var(--niche, var(--primary)) 9%, transparent),
+        color-mix(in srgb, var(--vivid, var(--primary)) 12%, transparent),
         transparent 65%
       ),
       var(--bg-elev);
-    border-color: color-mix(in srgb, var(--niche, var(--primary)) 22%, var(--border-soft));
+    border-color: color-mix(in srgb, var(--vivid, var(--primary)) 30%, var(--border-soft));
   }
   .flow-screen--session .ring {
     width: min(300px, 100%);
@@ -2120,26 +2138,27 @@ select.input {
   }
 }
 
-/* Skip-link: oculto hasta recibir foco por teclado. */
+/* Skip-link: oculto hasta recibir foco por teclado. Fondo del botón de
+   acción (--action + --action-ink pasa 4.5:1 en ambos temas) y anillo en la
+   tinta, por dentro: el azul del foco se perdería sobre el azul del fondo. */
 .skip-link {
   position: absolute;
   left: var(--s3);
   top: -56px;
   z-index: 1000;
-  padding: 8px 14px;
-  border-radius: 8px;
-  background: var(--primary);
-  color: var(--on-primary);
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--action);
+  color: var(--action-ink);
   font-size: var(--fs-sm);
+  font-weight: 700;
   text-decoration: none;
   transition: top var(--dur-tap) var(--ease-out);
 }
 .skip-link:focus-visible {
   top: var(--s3);
-  /* El ring global es var(--primary); sobre el fondo primary del skip-link
-     queda invisible, así que contrastamos con --on-primary (igual que .btn--primary). */
-  outline-color: var(--on-primary);
-  outline-offset: -3px;
+  outline-color: var(--action-ink);
+  outline-offset: -4px;
 }
 
 /* Barras fijas con view-transition-name propio: quedan fuera del cross-fade de
@@ -2198,40 +2217,7 @@ select.input {
   box-shadow: var(--shadow);
 }
 
-/* Progreso: resumen en grilla de tarjetas + línea de tiempo del camino recorrido. */
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--s3);
-  margin-bottom: var(--s8);
-}
-.stat-card {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--s4);
-  background: var(--surface);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius);
-}
-.stat-card__value {
-  font-family: var(--font-display);
-  font-size: var(--fs-2xl);
-  font-weight: 600;
-  line-height: 1.05;
-}
-.stat-card__label {
-  font-size: var(--fs-sm);
-  font-weight: 500;
-  color: var(--text);
-}
-
-.section-title {
-  font-family: var(--font-display);
-  font-size: var(--fs-lg);
-  font-weight: 500;
-  margin-bottom: var(--s4);
-}
+/* Progreso: línea de tiempo del camino recorrido. */
 
 .timeline {
   position: relative;
@@ -2290,11 +2276,6 @@ select.input {
   font-weight: 500;
 }
 
-@media (min-width: 1024px) {
-  .stat-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
 
 /* --- Sesiones del día (Fase 2): tarjeta con tinte sutil por meta --- */
 .session {
@@ -2414,10 +2395,6 @@ select.input {
   font-family: var(--font-display);
 }
 
-/* --- Sesiones en la agenda (Fase 3) --- */
-.cal-dot--session {
-  background: var(--primary);
-}
 
 /* --- Checklist compacto de etapas (detalle de meta y wizard) --- */
 .mstone {
@@ -2508,13 +2485,13 @@ select.input {
   height: 34px;
   border-radius: 50%;
   background: var(--primary-soft);
-  color: var(--primary);
+  color: var(--action-text);
 }
 .coach__cta {
   justify-self: start;
 }
 .coach__loading {
-  color: var(--primary);
+  color: var(--action-text);
 }
 .coach__q {
   border: none;
@@ -2564,7 +2541,7 @@ select.input {
   place-items: center;
   width: 28px;
   margin-left: var(--s2);
-  color: var(--primary);
+  color: var(--action-text);
 }
 .mstone-ghost__text {
   flex: 1;
@@ -2574,14 +2551,14 @@ select.input {
   min-width: 0;
 }
 .mstone-ghost__title {
-  color: var(--primary);
+  color: var(--action-text);
   font-weight: 600;
 }
 .mstone-ghost__cta {
   flex: none;
   font-size: var(--fs-xs);
   font-weight: 600;
-  color: var(--primary);
+  color: var(--action-text);
 }
 @media (max-width: 480px) {
   .mstone-ghost__cta {
@@ -2737,39 +2714,12 @@ select.input {
     gap: var(--s5) var(--s6);
     align-items: start;
   }
-  /* Tu semana arriba-izquierda; Tus metas ocupa la columna derecha completa;
-     las 8 semanas debajo de Tu semana. */
-  .progress-grid > :nth-child(2) {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-  }
-}
-
-/* --- Revisión guiada: columna enfocada en escritorio ----------------------- */
-@media (min-width: 1024px) {
-  .review-focus {
-    width: 100%;
-    max-width: 620px;
-    margin-inline: auto;
-  }
 }
 
 /* ==== Aprender: colecciones y lecciones con identidad editorial ===========
    El color del nicho (--niche vía nicheAccent) tiñe cards, números y capitular:
    cada colección se reconoce por su tono antes de leer una palabra. Las
    animaciones las apaga prefers-reduced-motion con la regla global de base.css. */
-
-/* Entrada en cascada: los items suben y aparecen; --i escalona el delay. */
-.learn-enter {
-  animation: learn-rise var(--dur-layout) var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 36ms);
-}
-@keyframes learn-rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-}
 
 /* Card de colección: borde y lavado del color del área. */
 .learn-card {
@@ -2802,6 +2752,30 @@ select.input {
   transform: scale(0.99);
 }
 
+/* Colección destacada ("Sigue aquí"): neutra como las demás; se distingue
+   por un anillo interior en tinta y la etiqueta, no por color de área.
+   El base de .learn-card / .fc-card vive en cuenta.css y fullcolor.css. */
+.learn-card.learn-card--featured {
+  box-shadow:
+    inset 0 0 0 2px var(--text-muted),
+    0 var(--lip) 0 var(--neutral-lip);
+}
+.learn-card.learn-card--featured:active {
+  box-shadow: inset 0 0 0 2px var(--text-muted);
+}
+@media (hover: hover) {
+  .learn-card.learn-card--featured:hover {
+    box-shadow:
+      inset 0 0 0 2px var(--text-muted),
+      0 var(--lip) 0 var(--neutral-lip);
+  }
+}
+.learn-card__tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--s1);
+}
 /* Avance de lectura de la colección, en el color del área. */
 .learn-card__bar {
   height: 5px;
@@ -2940,12 +2914,6 @@ select.input {
   color: inherit;
 }
 
-/* --- Hábitos en la agenda (0013: horarios y repeticiones) --- */
-/* Puntito del mes para días con hábitos (los eventos usan --success y las
-   sesiones/metas --primary; el ámbar los distingue sin estridencia). */
-.cal-dot--habit {
-  background: var(--warning);
-}
 
 /* ---- Agenda: bloques, rangos y huecos (0014) ----------------------------- */
 /* Sub-lista contenida en la tarjeta: filete teñido del nicho y filas compactas
@@ -2997,13 +2965,6 @@ select.input {
   height: 20px;
   margin-top: 0;
 }
-/* Relleno plano (más luz que --success) para que el disco de 20px se lea
-   como color sólido en la agenda, igual que las barras de Hoy. */
-.check--sm.check--done {
-  background: var(--success-fill);
-  border-color: var(--success-fill);
-}
-
 /* "hecha" celebra en verde, coherente con los checks de cumplido. */
 .tag--done {
   display: inline-flex;
@@ -3049,6 +3010,10 @@ select.input {
     max-height: calc(100vh - var(--s8));
     overflow-y: auto;
   }
+  /* El scroll recorta lo que sobresale: el anillo de foco va por dentro. */
+  .cal-month__day :focus-visible {
+    outline-offset: -2px;
+  }
 }
 
 /* ---- Reorganizar el día (0015) -------------------------------------------
@@ -3059,8 +3024,6 @@ select.input {
   margin: 0;
   font-size: var(--fs-xs);
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--text-faint);
 }
 .reorg-row {
@@ -3118,10 +3081,8 @@ select.input {
 }
 .ag__kicker {
   margin: var(--s4) 0 2px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
   color: var(--text-faint);
 }
 .ag__kicker:first-child {
@@ -3356,7 +3317,7 @@ button.ag-row:active,
   text-align: left;
   font-size: 13px;
   font-weight: 600;
-  color: var(--primary);
+  color: var(--action-text);
 }
 /* Cabecera de la agenda: fecha a la izquierda, acciones (✎, +) a la derecha. */
 .ag-hdr {
@@ -3374,11 +3335,9 @@ button.ag-row:active,
   align-items: center;
   gap: 8px;
   margin: 6px 0 4px;
-  color: var(--primary);
-  font-size: 11px;
+  color: var(--action-text);
+  font-size: var(--fs-xs);
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 .ag-now::before {
   content: '';
@@ -3423,11 +3382,11 @@ button.ag-row:active,
 }
 @media (hover: hover) {
   .ag-gap:hover {
-    color: var(--primary);
+    color: var(--action-text);
   }
 }
 .ag-gap:active {
-  color: var(--primary);
+  color: var(--action-text);
 }
 /* Franja "Todo el día": fechas objetivo y eventos sin hora, en chips. */
 .ag-allday {
@@ -3453,7 +3412,7 @@ button.ag-row:active,
 .ag-chip__flag {
   display: inline-flex;
   flex: none;
-  color: var(--primary);
+  color: var(--action-text);
 }
 .ag-chip__title {
   min-width: 0;
@@ -3505,10 +3464,8 @@ button.ag-row:active,
 }
 .wk-day__dow {
   margin-bottom: 3px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--text-faint);
 }
 .wk-day__num {
@@ -3518,7 +3475,7 @@ button.ag-row:active,
 }
 .wk-day--today .wk-day__num,
 .wk-day--today .wk-day__dow {
-  color: var(--primary);
+  color: var(--action-text);
 }
 /* Día activo de la agenda: marcador discreto (hoy sigue distinguiéndose por color). */
 .wk-day--selected .wk-day__num {
@@ -3623,7 +3580,7 @@ button.ag-row:active,
   padding: var(--s2) 0;
   font-size: var(--fs-sm);
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--text);
   cursor: pointer;
 }
 .disclosure__label {
@@ -3632,22 +3589,22 @@ button.ag-row:active,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.disclosure__summary:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
-}
 .disclosure__chev {
   display: inline-flex;
-  color: var(--text-faint);
+  color: var(--text-muted);
   transition: transform var(--dur-state) var(--ease-out);
 }
 .disclosure--open > .disclosure__summary .disclosure__chev {
   transform: rotate(90deg);
 }
+/* El aire vive en __inner (Disclosure.tsx): el cuerpo plegado mide 0 de
+   verdad. El margen negativo lateral conserva el hueco para el anillo de foco
+   de lo que hay dentro (el cuerpo recorta con overflow) sin desplazarlo. */
 .disclosure__body {
+  margin: 0 -4px;
+}
+.disclosure__inner {
   padding: calc(var(--s2) + 4px) 4px 4px;
-  margin: -4px -4px 0;
 }
 .disclosure__wrap,
 .blk__wrap,

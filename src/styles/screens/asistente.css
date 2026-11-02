@@ -1,0 +1,455 @@
+/* Full color — pantallas del grupo "asistente" (spec 2026-11-02-full-color-design.md).
+   Solo estilos de estas pantallas; las piezas comunes viven en fullcolor.css.
+   Gramática: azul = actuar y coach · color del área = de qué meta se habla ·
+   verde = cumplido. Relieve (--lip) solo en lo que se toca. */
+
+/* ---- Cabecera del asistente y del onboarding: volver · progreso · paso ---- */
+.wizard__top {
+  align-items: center;
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+.wizard__count {
+  flex: none;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+/* Barra de pasos: gruesa como la barra de progreso full color. Verde lo
+   cumplido (estado), azul el paso actual (lo que toca hacer). */
+.flow-screen .stepper {
+  gap: 5px;
+  align-items: center;
+}
+.flow-screen .stepper__dot {
+  height: 8px;
+  background: var(--surface-2);
+  transition: background var(--dur-state) var(--ease-out);
+}
+.flow-screen .stepper__dot--done {
+  background: var(--state-ok);
+}
+.flow-screen .stepper__dot--active {
+  background: var(--action);
+}
+
+/* ---- Opción que representa un área (onboarding: "¿Qué quieres cambiar?") --
+   Disco sólido del área en reposo; elegida, la opción entera se pinta del área
+   con su tinta y relieve. Todo lo de .option--area vive aquí. */
+.option--area {
+  transition:
+    background var(--dur-tap) var(--ease-out),
+    box-shadow var(--dur-tap) var(--ease-out),
+    transform var(--dur-tap) var(--ease-out);
+}
+.option--area .option__icon {
+  background: var(--vivid);
+  border-color: transparent;
+  color: var(--vivid-ink);
+}
+.option--area.option--selected {
+  background: var(--vivid);
+  border-color: transparent;
+  color: var(--vivid-ink);
+  box-shadow: 0 var(--lip) 0 var(--vivid-lip);
+  transform: translateY(calc(var(--lip) * -1));
+  margin-bottom: calc(var(--lip) * -1);
+}
+.option--area.option--selected .option__icon {
+  background: color-mix(in srgb, var(--vivid-ink) 20%, transparent);
+  color: var(--vivid-ink);
+}
+.option--area.option--selected .option__desc,
+.option--area.option--selected .option__check {
+  color: var(--vivid-ink);
+}
+.option--area:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 0 0 transparent;
+}
+
+/* ---- Paso "¿Qué tipo de meta es?" ---------------------------------------- */
+.type-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+}
+.type-step__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+}
+.type-step__featured {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+/* El coach lee la meta: su orbe azul respira; el texto lo anuncia una vez.
+   La región viva está montada siempre; vacía no ocupa ni deja hueco. */
+.type-step__reading {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.type-step__reading:empty {
+  margin-bottom: calc(var(--s5) * -1);
+}
+
+/* Tarjeta de tipo: en reposo, superficie con el disco del área; elegida, se
+   pinta del área con su tinta y relieve. Todas se tocan: todas llevan relieve. */
+.type-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  width: 100%;
+  padding: var(--s3) var(--s4);
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 var(--lip) 0 var(--border);
+  margin-bottom: var(--lip);
+  cursor: pointer;
+  transition:
+    transform var(--dur-tap) var(--ease-out),
+    box-shadow var(--dur-tap) var(--ease-out),
+    background var(--dur-state) var(--ease-out),
+    border-color var(--dur-state) var(--ease-out);
+}
+.type-card:active {
+  transform: translateY(var(--lip));
+  box-shadow: 0 0 0 transparent;
+}
+@media (hover: hover) {
+  .type-card:not(.type-card--on):hover {
+    border-color: var(--vivid);
+  }
+}
+.type-card__glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--vivid);
+  color: var(--vivid-ink);
+}
+.type-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.type-card__label {
+  font-weight: 800;
+  line-height: 1.25;
+}
+.type-card__desc {
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+.type-card__check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+}
+.type-card--on {
+  color: var(--vivid-ink);
+  background:
+    var(--pat, none) right 10px bottom 8px / auto 28px no-repeat,
+    var(--vivid);
+  border-color: transparent;
+  box-shadow: 0 var(--lip) 0 var(--vivid-lip);
+}
+.type-card--on .type-card__glyph {
+  background: color-mix(in srgb, var(--vivid-ink) 20%, transparent);
+}
+/* Texto secundario sobre color: misma tinta (la opacidad bajaría el contraste). */
+.type-card--on .type-card__desc {
+  color: var(--vivid-ink);
+}
+.type-card--on .type-card__check {
+  border-color: transparent;
+  background: var(--vivid-ink);
+  color: var(--vivid);
+}
+/* El check va arriba a la derecha y el patrón abajo en esa misma columna: el
+   margen reserva el hueco del patrón para que no se pisen en tarjetas bajas
+   (una línea de descripción, p. ej. a 1280). */
+.type-card--on .type-card__check {
+  margin-bottom: 32px;
+}
+/* La razón del coach: ✦ en una pastilla. En reposo, azul de texto sobre un
+   velo azul. Sobre la tarjeta elegida va en la tinta del área y SOLO con borde:
+   cualquier velo de tinta aclara el fondo y la tinta blanca baja de 4.5:1
+   (lo vigila scripts/check-contrast.mjs, "razón sobre tipo elegido"). */
+.type-card__reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: var(--s2);
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--action-text);
+  background: color-mix(in srgb, var(--action) 10%, transparent);
+  border: 1.5px solid transparent;
+}
+.type-card__reason svg {
+  flex: none;
+  margin-top: 2px;
+}
+.type-card--on .type-card__reason {
+  color: var(--vivid-ink);
+  background: transparent;
+  border-color: var(--vivid-ink);
+}
+
+/* Destacada: más aire y título más grande. */
+.type-card--featured {
+  padding: var(--s4) var(--s5);
+  border-radius: 22px;
+}
+.type-card--featured .type-card__glyph {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+}
+.type-card--featured .type-card__label {
+  font-size: var(--fs-lg);
+}
+.type-card--featured .type-card__desc {
+  font-size: var(--fs-md);
+}
+
+/* Alternativas y grilla: compactas, la descripción en dos líneas. */
+.type-alts,
+.type-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s2) var(--s3);
+}
+.type-card--tile .type-card__desc,
+.type-card--alt .type-card__desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.type-card--tile .type-card__glyph {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+.type-card--tile .type-card__check {
+  width: 22px;
+  height: 22px;
+}
+.type-card--tile:not(.type-card--on) .type-card__check {
+  display: none;
+}
+
+.type-all__summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 44px;
+  font-weight: 700;
+  color: var(--action-text);
+  cursor: pointer;
+  list-style: none;
+}
+.type-all__summary::-webkit-details-marker {
+  display: none;
+}
+.type-all__summary::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--dur-state) var(--ease-out);
+}
+.type-all[open] > .type-all__summary::before {
+  transform: rotate(45deg);
+}
+.type-all[open] > .type-all__summary {
+  margin-bottom: var(--s2);
+}
+
+/* "¿Ninguno encaja?": siempre a la vista. Al escribir, toma el gris del área
+   "otra" (meta personalizada) como señal de que quedó elegida. */
+.type-note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s4);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1.5px dashed var(--border);
+  transition: border-color var(--dur-state) var(--ease-out);
+}
+.type-note__hint {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.type-note__label {
+  font-weight: 800;
+}
+.type-note--on {
+  border-style: solid;
+  border-color: var(--vivid-otra);
+}
+
+@media (min-width: 600px) {
+  .type-alts,
+  .type-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---- Pasos del asistente ------------------------------------------------- */
+/* Días comprometidos: del color del área de la meta, con relieve (se tocan). */
+.wizard-days .chip {
+  min-width: 48px;
+  justify-content: center;
+  box-shadow: 0 3px 0 var(--border);
+  margin-bottom: 3px;
+  transition: transform var(--dur-tap) var(--ease-out), box-shadow var(--dur-tap) var(--ease-out);
+}
+.wizard-days .chip--selected {
+  background: var(--vivid);
+  border-color: transparent;
+  color: var(--vivid-ink);
+  font-weight: 800;
+  box-shadow: 0 3px 0 var(--vivid-lip);
+}
+.wizard-days .chip:active {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 transparent;
+}
+
+/* Número de etapa en el camino: disco neutro. Es orden, no estado ni área
+   (el verde queda para "cumplido"; el color del área ya tiñe la pantalla). */
+.mstone__num {
+  flex: none;
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* Viñetas de las notas del coach: el reset global de ul las quita. */
+.camino .coach__notes {
+  list-style: disc;
+}
+.camino .coach__notes li::marker {
+  color: var(--text-muted);
+}
+
+/* Resumen final: tarjeta full color de la meta. Se lee, no se toca: sin relieve. */
+.wizard-review {
+  margin-top: var(--s2);
+  margin-bottom: 0;
+  box-shadow: none;
+}
+.wizard-review__title {
+  font-size: var(--fs-xl);
+}
+/* Etiquetas dentro de la tarjeta de color: en su tinta, sentence case. */
+.wizard-review__kicker,
+.review-goal__kicker {
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  color: var(--vivid-ink);
+}
+.wizard-review__block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wizard-review__block p {
+  margin: 0;
+}
+
+/* CTA pegajoso: el fondo debe fundirse con el del panel en escritorio. */
+@media (min-width: 1024px) {
+  .wizard .wizard-cta {
+    background: linear-gradient(180deg, transparent, var(--bg-elev) 45%);
+  }
+  /* Tipo de meta: la grilla aprovecha el ancho como el paso del camino. */
+  .flow-screen.flow-screen--tipo {
+    max-width: 1040px;
+  }
+  .flow-screen--tipo .type-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .flow-screen--tipo .type-step__group {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: start;
+    gap: var(--s5) var(--s6);
+  }
+  .flow-screen--tipo .type-all {
+    grid-column: 1 / -1;
+  }
+  /* Sin alternativas, la destacada ocupa toda la fila. */
+  .flow-screen--tipo .type-step__featured:has(+ .type-all) {
+    grid-column: 1 / -1;
+  }
+  .flow-screen--tipo .type-alts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* Los pasos de una sola columna respiran un poco más que el panel base. */
+  .flow-screen.wizard:not(.flow-screen--tipo):not(.flow-screen--camino) {
+    max-width: 720px;
+  }
+}
+
+/* ---- Onboarding ---------------------------------------------------------- */
+.onb-hero svg {
+  margin-bottom: var(--s2);
+}
+
+/* ---- Revisión guiada ----------------------------------------------------- */
+.review-count {
+  margin: var(--s2) 0 var(--s3);
+}
+.review-goal {
+  margin-bottom: var(--s3);
+  box-shadow: none;
+}
+.review-goal__title {
+  margin: 0;
+  font-size: var(--fs-xl);
+}
+.review-goal__stage {
+  margin: 0;
+  color: var(--vivid-ink);
+}
+/* La barra de etapas es la .segbar canónica (dentro de .fc-card va en la tinta). */
+.review-illus {
+  display: block;
+  margin: 0 auto var(--s2);
+}

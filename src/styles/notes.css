@@ -1,6 +1,7 @@
 /* ==== Notas — lista y hoja (2026-10-28) ===================================
-   Mínimo propio: la pantalla usa las piezas comunes (.screen, .seg, .card,
-   .chip, .tag, .check, .input). Solo tokens; el pulido visual llega después. */
+   La pantalla usa las piezas comunes (.screen, .seg, .card, .section-title,
+   .chip, .tag, .check, .input). Todo lo propio de Notas vive aquí (carga
+   perezosa, después de main.tsx). Solo tokens. */
 
 .notes-bar {
   display: flex;
@@ -9,7 +10,10 @@
   margin-bottom: var(--s4);
 }
 
-/* Cinco vistas no caben en 393px: la pista se desliza en vez de romperse. */
+/* Cuatro vistas en el segmentado canónico (.seg). En móvil ocupa todo el
+   ancho y reparte las opciones; a 320 px aún caben sin cortar palabras
+   (padding menor). Si una fuente más ancha no cupiera, la pista se desliza
+   en vez de cortar (overflow-x + flex: none). */
 .notes-seg {
   max-width: 100%;
   overflow-x: auto;
@@ -20,50 +24,182 @@
   display: none;
 }
 .notes-seg .seg__btn {
-  flex: none;
+  flex: 1 0 auto;
 }
+@media (max-width: 639px) {
+  .notes-seg {
+    align-self: stretch;
+  }
+}
+@media (max-width: 359px) {
+  .notes-seg .seg__btn {
+    padding: 0 9px;
+  }
+}
+/* Contador de la Bandeja: --text-muted sobre --surface (pestaña inactiva,
+   pista --surface-2) o sobre --surface-2 (pestaña activa): >= 4.5 en ambos
+   temas. Vive aquí (notes.css carga después de main.tsx). */
 .notes-seg__count {
-  font-size: var(--fs-xs);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
   color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.seg__btn--active .notes-seg__count {
+  background: var(--surface-2);
+}
+
+/* Buscador + interruptor de Archivadas (fuera del segmentado). */
+.notes-search {
+  display: flex;
+  gap: var(--s2);
+}
+.notes-search .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.notes-archived {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color var(--dur-tap) var(--ease-out), color var(--dur-tap) var(--ease-out);
+}
+.notes-archived:hover {
+  color: var(--text);
+}
+/* Encendido como la opción activa del .seg: perfora a --surface, sin azul. */
+.notes-archived[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 3px var(--surface-2);
+}
+
+/* Estado vacío: disco neutro (no es una acción: sin azul) y la acción
+   debajo del texto. */
+.notes-empty .empty__icon {
+  background: var(--surface-2);
+  border-color: transparent;
+  color: var(--text-muted);
+}
+.notes-empty .btn {
+  margin-top: var(--s3);
+}
+
+/* Cabeza de grupo (vista Metas / Áreas): disco con el color del área. */
+.notes-group {
+  justify-content: flex-start;
+  gap: var(--s2);
+  margin-bottom: 0;
+}
+.notes-group__glyph {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--vivid);
+  color: var(--vivid-ink);
+}
+.notes-group__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .notes-section {
   display: flex;
   flex-direction: column;
-  gap: var(--s2);
+  gap: var(--s3);
   margin-bottom: var(--s5);
 }
 
 .notes-list {
   display: flex;
   flex-direction: column;
-  gap: var(--s2);
+  gap: var(--s3);
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
+/* ---- Tarjeta --------------------------------------------------------------
+   Se toca: lleva relieve. Neutra (Bandeja, Ideas, Archivadas) con
+   --neutral-lip; si vive en una meta o un área, el color del área en el canto
+   izquierdo, en la etiqueta del lugar y en el relieve (--vivid-lip). */
 .note-card {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--s1);
   width: 100%;
+  padding: var(--s4);
+  border: 0;
+  border-radius: 18px;
   text-align: left;
   color: var(--text);
+  box-shadow: 0 var(--lip) 0 var(--neutral-lip);
+  margin-bottom: var(--lip);
+  transition: transform var(--dur-tap) var(--ease-out), box-shadow var(--dur-tap) var(--ease-out);
+}
+.note-card:active {
+  transform: translateY(var(--lip));
+  box-shadow: 0 0 0 transparent;
+}
+.note-card--area {
+  position: relative;
+  overflow: hidden;
+  padding-left: calc(var(--s4) + 6px);
+  box-shadow: 0 var(--lip) 0 var(--vivid-lip);
+}
+.note-card--area::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+  background: var(--vivid);
 }
 .note-card__head {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--s2);
   width: 100%;
 }
 .note-card__title {
   min-width: 0;
+  font-weight: 800;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
+/* Chincheta centrada en la primera línea del título. */
 .note-card__pin {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 1.35em;
+  color: var(--text-muted);
 }
 .note-card__excerpt {
   display: -webkit-box;
@@ -71,6 +207,42 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: anywhere;
+}
+.note-card__place {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  margin-top: var(--s1);
+  padding: 3px 10px 3px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--vivid);
+  color: var(--vivid-ink);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.note-card__place svg {
+  flex: none;
+}
+
+/* Opciones de "Mover a…": la meta o el área con su color. */
+.option__icon:has(> .note-swatch) {
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  background: transparent;
+}
+.note-swatch {
+  width: 100%;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--vivid);
+  color: var(--vivid-ink);
 }
 
 /* ---- Hoja ---------------------------------------------------------------- */
@@ -101,4 +273,25 @@
   display: inline-flex;
   justify-content: center;
   color: var(--text-muted);
+}
+
+/* "Elegir otra opción" del paso ¿En qué meta?: enlace a la izquierda. */
+.notes-picker__other {
+  align-self: flex-start;
+}
+
+/* Acciones de la hoja: rejilla pareja (2 columnas) en vez de una
+   fila que se parte a destiempo. Eliminar queda aparte, debajo. */
+.note-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s2);
+}
+.note-actions .btn {
+  width: 100%;
+}
+.note-actions .note-actions__delete {
+  grid-column: 1 / -1;
+  justify-self: start;
+  width: auto;
 }

@@ -1,0 +1,373 @@
+/* Full color — grupo "cuenta y navegación" (spec 2026-11-02-full-color-design.md).
+   Aprender, Perfil y acceso (Notas vive en notes.css). Se carga después de components.css y
+   fullcolor.css: lo que aquí se redefine gana por orden, sin subir especificidad.
+   Gramática: azul = actuar y = dónde estás en la navegación · color del área =
+   de qué meta se habla · verde/ámbar = estado. */
+
+/* El chrome común (barras, avatar, hojas, avisos, desplegables, skeletons,
+   carga, control segmentado) vive en components.css: una sola definición. */
+
+/* ==== Acceso (Auth), contraseña nueva y configuración ======================
+   Misma marca que dentro de la app: wordmark en tinta (no degradado azul: el
+   azul es para actuar). En móvil, solo el logo (sin la ilustración encima);
+   la ilustración del camino vive en el hero de escritorio. */
+.account-flow .brand {
+  font-size: var(--fs-2xl);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  background: none;
+  color: var(--text);
+  padding: 0;
+  margin: 0;
+}
+.auth-form__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s2);
+  margin-bottom: var(--s6);
+  text-align: center;
+}
+.auth-form__wordmark {
+  justify-content: center;
+}
+/* Wordmark compacto en móvil (el genérico de .screen--full es más grande). */
+.auth-form__brand .brand {
+  font-size: var(--fs-2xl);
+}
+.auth-form__tagline {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+.auth-form__title {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.auth-form-card .btn--ghost:focus-visible,
+.auth-screen .btn--link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+@media (min-width: 1024px) {
+  .auth-hero__brand {
+    font-size: var(--fs-2xl);
+    margin-bottom: var(--s8);
+  }
+  .auth-hero__path {
+    width: min(360px, 100%);
+    height: auto;
+    margin-bottom: var(--s8);
+  }
+  .auth-hero__headline {
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+  /* En escritorio la marca vive en el hero: la cabecera compacta se oculta
+     (components.css ya lo hace, pero el display:flex de arriba lo pisaba). */
+  .auth-form__brand {
+    display: none;
+  }
+  .auth-form-card {
+    border: 0;
+    border-radius: 28px;
+  }
+}
+
+/* ==== Perfil ===============================================================
+   Cabecera de identidad: avatar grande neutro (.avatar--lg) con el anillo del
+   marco ganado; la racha va en el chip neutro de racha. */
+.profile-id {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+}
+.profile-id__avatar {
+  margin: 3px;
+}
+/* En Perfil el avatar ya encabeza la pantalla: el de la barra superior (que
+   lleva aquí mismo) sobra. NavLink marca la ruta actual con aria-current. */
+.topbar__avatar[aria-current='page'] {
+  visibility: hidden;
+}
+/* Momento preferido: control segmentado; a 320 px puede desplazarse. */
+.profile-moments {
+  align-self: flex-start;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+/* El pie (marca) cierra la pantalla a todo el ancho, no como celda de la grilla. */
+.profile-foot {
+  grid-column: 1 / -1;
+  margin: var(--s2) 0 0;
+  text-align: center;
+}
+.profile-id__text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.profile-id__title {
+  font-size: var(--fs-2xl);
+}
+.profile-id__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+  margin-top: var(--s1);
+}
+/* Marco ganado: su color vive en un punto con anillo (como el del avatar); la
+   etiqueta va en --text, porque Plata y Oro no llegan a 4.5:1 como texto. */
+.profile-frame-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin: 0 5px 0 2px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  box-shadow: 0 0 0 2.5px var(--frame-color);
+  vertical-align: -0.05em;
+}
+
+/* Accesos de Progreso y Aprender: filas tocables, neutras (navegar no es una meta). */
+.profile-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+.profile-link {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 56px;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  text-decoration: none;
+  transition: transform var(--dur-tap) var(--ease-out), background var(--dur-tap) var(--ease-out);
+}
+@media (hover: hover) {
+  .profile-link:hover {
+    background: color-mix(in srgb, var(--text) 6%, var(--surface-2));
+  }
+}
+.profile-link:active {
+  transform: scale(0.98);
+}
+.profile-link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.profile-link__icon {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+}
+.profile-link__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.profile-link__chev {
+  flex: none;
+  color: var(--text-muted);
+}
+
+/* ==== Aprender ============================================================= */
+
+/* Colecciones: una columna en móvil, dos en escritorio (las tarjetas de
+   color a todo el ancho de 720px se leían como franjas). */
+@media (min-width: 900px) {
+  .learn-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s4);
+    align-items: stretch;
+  }
+}
+
+/* Tarjeta de colección (fc-card de fullcolor.css). Neutras por defecto: sin
+   nicheAccent, fc-card cae a --surface + relieve neutro. Solo la siguiente
+   para leer (.learn-card--featured) se distingue por un anillo, no por color. */
+.learn-card {
+  width: 100%;
+  overflow: hidden;
+  gap: var(--s2);
+  border-color: transparent;
+}
+.learn-card::before {
+  content: none;
+}
+@media (hover: hover) {
+  .learn-card:hover {
+    transform: none;
+    filter: brightness(1.04);
+    box-shadow: 0 var(--lip) 0 var(--vivid-lip, var(--neutral-lip));
+  }
+}
+.learn-card__icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.learn-card:active {
+  transform: translateY(var(--lip));
+}
+.learn-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+}
+/* El patrón del área vive arriba a la derecha: la etiqueta no lo tapa. */
+.learn-card__blurb {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  line-height: 1.45;
+}
+.learn-card__done {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+/* Barra de lectura: la .progress común; en la tarjeta neutra
+   (.fc-card--neutral, fullcolor.css) la barra es --state-ok sobre --surface-2. */
+.learn-card .progress {
+  height: 10px;
+  background: var(--surface-2);
+}
+.learn-card__next {
+  color: var(--vivid-ink, var(--text));
+}
+
+/* Cabecera de colección y de lección: bloque de color del área. */
+/* Atrás (.back-link, en la tinta del área) arriba; el texto debajo. */
+.learn-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s1);
+  padding: var(--s2) var(--s4) var(--s5);
+  border-radius: 24px;
+  background:
+    var(--pat, none) right 16px bottom 14px / auto 52px no-repeat,
+    var(--vivid, var(--surface));
+}
+.learn-hero__text {
+  align-self: stretch;
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  padding-top: 2px;
+}
+.learn-hero__kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--fs-sm);
+  color: inherit;
+}
+.learn-hero__title {
+  margin: 0;
+  font-size: var(--fs-xl);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  color: inherit;
+}
+.learn-hero__blurb {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  line-height: 1.45;
+  max-width: 46ch;
+}
+.learn-hero__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--s2);
+  /* Deja libre la esquina del patrón del área. */
+  padding-right: 72px;
+}
+.learn-hero__count {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+/* Fila de lección: número en un disco del color del área (la tinta del área
+   garantiza contraste); leída = disco neutro; la siguiente lleva relieve. */
+.lesson-row__num {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  background: var(--vivid, var(--surface-2));
+  color: var(--vivid-ink, var(--text));
+}
+.lesson-row--read .lesson-row__num {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.lesson-row--next {
+  border: 2px solid var(--vivid, var(--border));
+  box-shadow: 0 var(--lip) 0 var(--vivid-lip, var(--neutral-lip));
+  margin-bottom: var(--lip);
+}
+.lesson-row--next:active {
+  transform: translateY(var(--lip));
+  box-shadow: none;
+}
+.lesson-row:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Lectura: puntos y capitular en el color del área. La capitular mezcla el
+   color con la tinta del tema para pasar 3:1 (texto grande) en claro y oscuro. */
+.lesson-dots span {
+  background: color-mix(in srgb, var(--vivid, var(--text)) 30%, var(--surface-2));
+}
+.lesson-dots span[data-read='true'],
+.lesson-dots span[data-current='true'] {
+  background: var(--vivid, var(--text));
+}
+.lesson-idea::first-letter {
+  font-weight: 800;
+  color: color-mix(in srgb, var(--vivid, var(--text)) 72%, var(--text));
+}
+.lesson-idea--follow::first-letter {
+  font-weight: inherit;
+  color: inherit;
+}
+.lesson-apply {
+  border: 0;
+  border-left: 5px solid var(--vivid, var(--border));
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--vivid, var(--surface-2)) 14%, var(--surface));
+}

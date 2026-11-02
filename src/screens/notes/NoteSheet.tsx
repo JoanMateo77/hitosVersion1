@@ -25,7 +25,7 @@ import { clearNoteDraft, draftMatches, loadNoteDraft, saveNoteDraft } from '@/li
 import { seedWizardDraft } from '@/lib/wizardDraft'
 import { todayISO } from '@/lib/date'
 import { Sheet } from '@/components/Sheet'
-import { IconCheck, IconClose, IconPlus } from '@/components/icons'
+import { IconCheck, IconChevronLeft, IconClose, IconPlus } from '@/components/icons'
 import { NoteConvertPicker, NoteMovePicker } from '@/screens/notes/NotePickers'
 import { noteErrorMessage, notePlaceLabel } from '@/screens/notes/noteUi'
 
@@ -318,7 +318,7 @@ export function NoteSheet({
                 {placeText && (
                   <span className="small muted">
                     {archived ? 'Archivada' : `En ${placeText}`}
-                    {saved?.pinned ? ' · 📌 Fijada' : ''}
+                    {saved?.pinned ? ' · Fijada' : ''}
                   </span>
                 )}
                 <input
@@ -396,7 +396,7 @@ export function NoteSheet({
                 </button>
               </div>
 
-              <div className="row wrap">
+              <div className="note-actions">
                 <button
                   type="button"
                   className="btn btn--ghost btn--sm"
@@ -445,7 +445,7 @@ export function NoteSheet({
                 </button>
                 <button
                   type="button"
-                  className="btn btn--subtle btn--sm"
+                  className="btn btn--subtle btn--sm note-actions__delete"
                   disabled={busy}
                   onClick={() => setPanel('confirm-delete')}
                 >
@@ -457,7 +457,11 @@ export function NoteSheet({
 
           {panel === 'move' && (
             <>
-              <span className="kicker">Mover a…</span>
+              <button type="button" className="back-link" onClick={() => setPanel('edit')}>
+                <IconChevronLeft size={18} />
+                Volver a la nota
+              </button>
+              <span className="section-title">Mover a…</span>
               <NoteMovePicker
                 goals={activeGoals}
                 busy={busy}
@@ -469,15 +473,16 @@ export function NoteSheet({
                   })
                 }
               />
-              <button type="button" className="btn--link" onClick={() => setPanel('edit')}>
-                Volver a la nota
-              </button>
             </>
           )}
 
           {panel === 'convert' && (
             <>
-              <span className="kicker">Convertir en…</span>
+              <button type="button" className="back-link" onClick={() => setPanel('edit')}>
+                <IconChevronLeft size={18} />
+                Volver a la nota
+              </button>
+              <span className="section-title">Convertir en…</span>
               {archivePending ? (
                 <button
                   type="button"
@@ -539,14 +544,11 @@ export function NoteSheet({
                   }
                 />
               )}
-              <button type="button" className="btn--link" onClick={() => setPanel('edit')}>
-                Volver a la nota
-              </button>
             </>
           )}
 
           {panel === 'confirm-delete' && (
-            <div className="card card--tight stack stack--sm" style={{ borderColor: 'var(--danger)' }}>
+            <div className="card card--tight card--danger stack stack--sm">
               <p className="small" style={{ margin: 0 }}>
                 ¿Eliminar esta nota? No se puede deshacer.
               </p>

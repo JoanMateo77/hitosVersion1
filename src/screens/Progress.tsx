@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import type { Goal, Habit, HabitCheck, Milestone, Session } from '@/lib/types'
@@ -18,18 +19,31 @@ import {
   globalStreak,
   neutralDatesOf,
   weekConsistency,
+  type DayState,
 } from '@/domain/sessions'
-import { WEEKDAY_LABELS } from '@/domain/commitment'
-import { addDays, formatLongDate, startOfWeek, todayISO } from '@/lib/date'
+import { WEEKDAY_SHORT } from '@/domain/weekdays'
+import { formatPercent } from '@/lib/format'
+import { addDays, formatLongDate, parseISO, startOfWeek, todayISO } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { useCachedData } from '@/hooks/useCachedData'
 import { Disclosure } from '@/components/Disclosure'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
-import { IconCheck, IconFlame, IconProgress } from '@/components/icons'
+import { IconCheck, IconFlame, IconMinus, IconProgress } from '@/components/icons'
 import { NicheGlyph } from '@/components/NicheGlyph'
 
 const HISTORY_DAYS = 120
+/** Etiqueta corta de semana en el gráfico de 8 semanas: "19 oct". */
+const WEEK_LABEL = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short' })
+
+/** Texto del estado de un día de la semana (para el lector de pantalla y el title). */
+const DAY_STATE_LABELS: Record<DayState, string> = {
+  done: 'cumplido',
+  partial: 'parcial',
+  missed: 'sin cumplir',
+  future: 'por venir',
+  free: 'libre',
+}
 
 /** Una entrada de "Tu camino": un hito cumplido o una meta cerrada. */
 type Entry =
@@ -171,109 +185,69 @@ export function Progress() {
 
       <div className="progress-grid">
       {/* ----- Tu semana ----- */}
-      <section className="card stack stack--sm" aria-label="Tu semana">
+      <section className="card prog-week" aria-label="Tu semana">
         <div className="row row--between">
-          <span className="kicker">Tu semana</span>
+          <h2 className="section-title">Tu semana</h2>
           {streak >= 2 && (
-            <span className="streak-chip">
+            <span className="streak-chip prog-streak">
               <IconFlame size={13} /> {streak} días{best > streak ? ` · récord ${best}` : ''}
             </span>
           )}
         </div>
-        <div className="row" style={{ alignItems: 'center', gap: 'var(--s5)' }}>
+        <div className="prog-week__body">
+          {/* Anillo de cumplimiento (verde = cumplido). Se llena una vez al entrar. */}
           <div
-            style={{
-              width: 84,
-              height: 84,
-              borderRadius: '50%',
-              flex: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: `conic-gradient(var(--success-fill) ${
-                week.committed > 0 ? (week.done / week.committed) * 360 : 0
-              }deg, var(--surface-2) 0deg)`,
-            }}
+            className="prog-ring"
+            style={{ '--prog-ring': `${week.committed > 0 ? (week.done / week.committed) * 360 : 0}deg` } as CSSProperties}
             role="img"
             aria-label={`${week.done} de ${week.committed} sesiones cumplidas esta semana`}
           >
-            <div
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: '50%',
-                background: 'var(--surface)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <strong style={{ fontSize: 'var(--fs-lg)' }}>
+            <span className="prog-ring__hole" aria-hidden="true">
+              <strong className="prog-ring__n">
                 {week.done}/{week.committed}
               </strong>
-              <span className="faint" style={{ fontSize: 10 }}>
-                sesiones
-              </span>
-            </div>
+              <span className="prog-ring__lbl">sesiones</span>
+            </span>
           </div>
-          <div style={{ flex: 1 }}>
-            <div className="row" style={{ gap: 6 }}>
-              {weekDates.map((d, i) => {
-                const st = dayState(d)
-                const bg =
-                  st === 'done'
-                    ? 'var(--success-fill)'
-                    : st === 'partial'
-                      ? 'var(--warning)'
-                      : st === 'missed'
-                        ? 'var(--surface-3)'
-                        : 'transparent'
-                const border =
-                  st === 'future'
-                    ? '1.5px dashed var(--border)'
-                    : st === 'free'
-                      ? '1px solid var(--border-soft)'
-                      : 'none'
-                const stateLabel =
-                  st === 'done'
-                    ? 'cumplido'
-                    : st === 'partial'
-                      ? 'parcial'
-                      : st === 'missed'
-                        ? 'sin cumplir'
-                        : st === 'future'
-                          ? 'por venir'
-                          : 'libre'
-                const dayLabel = `${WEEKDAY_LABELS[i]}: ${stateLabel}`
-                return (
-                  <div key={d} style={{ flex: 1, textAlign: 'center' }}>
-                    <div
-                      style={{ height: 26, borderRadius: 7, background: bg, border }}
-                      role="img"
-                      aria-label={dayLabel}
-                      title={dayLabel}
-                    />
-                    <span className="faint" style={{ fontSize: 9 }}>
-                      {WEEKDAY_LABELS[i]}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+          <ol className="prog-days">
+            {weekDates.map((d, i) => {
+              const st = dayState(d)
+              const stateLabel = DAY_STATE_LABELS[st]
+              const isToday = d === today
+              const dayLabel = `${WEEKDAY_SHORT[i]}${isToday ? ' (hoy)' : ''}: ${stateLabel}`
+              return (
+                <li key={d} className={`prog-day${isToday ? ' prog-day--today' : ''}`}>
+                  {/* Forma además de color: ✓ cumplido, rayas parcial, – sin cumplir. */}
+                  <span
+                    className={`prog-day__box prog-day__box--${st}`}
+                    role="img"
+                    aria-label={dayLabel}
+                    title={dayLabel}
+                  >
+                    {st === 'done' && <IconCheck size={13} />}
+                    {st === 'missed' && <IconMinus size={13} />}
+                  </span>
+                  <span className="prog-day__lbl" aria-hidden="true">
+                    {WEEKDAY_SHORT[i]}
+                  </span>
+                </li>
+              )
+            })}
+          </ol>
         </div>
       </section>
 
-      {/* ----- Tus metas ----- */}
+      {/* ----- Tus metas: barras por meta en el color de su área ----- */}
       {activeGoals.length > 0 && (
-        <section aria-label="Tus metas">
-          <div className="section-head">
-            <span className="kicker">Tus metas</span>
+        <section className="card prog-goals" aria-label="Tus metas">
+          <div className="row row--between">
+            <h2 className="section-title">Tus metas</h2>
+            <span className="faint tiny">Etapas cumplidas</span>
           </div>
-          <div className="stack stack--sm">
+          <ul className="prog-goals__list">
             {activeGoals.map((g) => {
               const prog = progressByGoal.get(g.id) ?? { done: 0, total: 0 }
+              const pct = prog.total > 0 ? Math.round((prog.done / prog.total) * 100) : 0
               const goalBlocks = blocks.filter((b) => b.goalId === g.id)
               const goalWeek = weekConsistency(
                 goalBlocks,
@@ -281,42 +255,39 @@ export function Progress() {
                 weekStart,
               )
               return (
-                <button
-                  key={g.id}
-                  className="card card--tight stack stack--sm"
-                  style={{ ...nicheAccent(g.area), width: '100%', textAlign: 'left' }}
-                  onClick={() => navigate(`/metas/${g.id}`)}
-                >
-                  <div className="row row--between">
-                    <span className="row row--sm" style={{ alignItems: 'center', minWidth: 0 }}>
+                <li key={g.id}>
+                  <button
+                    type="button"
+                    className="prog-goal"
+                    style={nicheAccent(g.area)}
+                    onClick={() => navigate(`/metas/${g.id}`)}
+                  >
+                    <span className="prog-goal__head">
                       <NicheGlyph area={g.area} size="sm" />
-                      <strong className="nowrap-ellipsis">{g.title}</strong>
+                      <strong className="prog-goal__title">{g.title}</strong>
+                      <span className="prog-goal__pct">{formatPercent(pct)}</span>
                     </span>
-                    {goalWeek.committed > 0 && (
-                      <span className="faint tiny" style={{ flex: 'none' }}>
-                        {goalWeek.done}/{goalWeek.committed} esta semana
-                      </span>
-                    )}
-                  </div>
-                  <div className="progress">
-                    <div
-                      className="progress__bar"
-                      style={{
-                        width: `${prog.total > 0 ? (prog.done / prog.total) * 100 : 0}%`,
-                        background: 'var(--niche, var(--success-fill))',
-                      }}
-                    />
-                  </div>
-                </button>
+                    <span className="progress prog-goal__bar" aria-hidden="true">
+                      <span className="progress__bar" style={{ width: `${pct}%` }} />
+                    </span>
+                    <span className="prog-goal__meta">
+                      {prog.total > 0 ? `${prog.done} de ${prog.total} etapas` : 'Sin etapas aún'}
+                      {goalWeek.committed > 0 &&
+                        ` · ${goalWeek.done} de ${goalWeek.committed} ${
+                          goalWeek.committed === 1 ? 'sesión' : 'sesiones'
+                        } esta semana`}
+                    </span>
+                  </button>
+                </li>
               )
             })}
-          </div>
+          </ul>
         </section>
       )}
 
       {/* ----- Tus hábitos ----- */}
       {activeHabits.length > 0 && (
-        <section aria-label="Tus hábitos" className="card card--tight row row--between" style={{ alignItems: 'center' }}>
+        <section aria-label="Tus hábitos" className="card card--tight row row--between prog-habits">
           <span className="small">
             {activeHabits.length} {activeHabits.length === 1 ? 'hábito activo' : 'hábitos activos'}
             {bestHabitStreak >= 2 ? ` · mejor racha ${bestHabitStreak} días` : ''}
@@ -327,33 +298,51 @@ export function Progress() {
         </section>
       )}
 
-      {/* ----- Últimas 8 semanas ----- */}
+      {/* ----- Últimas 8 semanas: % cumplido por semana, con etiqueta en cada barra ----- */}
       {anyHistory && (
-        <section className="card" aria-label="Últimas 8 semanas">
-          <Disclosure summary="Últimas 8 semanas">
-            <div className="row" style={{ alignItems: 'flex-end', gap: 6, height: 56 }}>
-              {weeks.map((w, i) => (
-                <div
-                  key={w.start}
-                  style={{
-                    flex: 1,
-                    borderRadius: '4px 4px 0 0',
-                    background: i === 7 ? 'var(--success-fill)' : 'var(--success-soft)',
-                    height: `${Math.max(6, w.ratio * 100)}%`,
-                    border: w.total === 0 ? '1px dashed var(--border-soft)' : 'none',
-                  }}
-                  role="img"
-                  aria-label={`Semana del ${formatLongDate(w.start)}: ${Math.round(w.ratio * 100)}% cumplido`}
-                />
-              ))}
-            </div>
+        <section className="card card--tight" aria-label="Últimas 8 semanas">
+          <Disclosure summary={<span className="section-title">Últimas 8 semanas</span>}>
+            <ol className="prog-weeks">
+              {weeks.map((w, i) => {
+                const pct = Math.round(w.ratio * 100)
+                const current = i === 7
+                return (
+                  <li
+                    key={w.start}
+                    className={`prog-weeks__col${current ? ' prog-weeks__col--now' : ''}`}
+                  >
+                    <span className="prog-weeks__val" aria-hidden="true">
+                      {w.total === 0 ? '—' : formatPercent(pct)}
+                    </span>
+                    {/* La barra es la imagen: su nombre accesible dice semana y %. */}
+                    <span
+                      className="prog-weeks__track"
+                      role="img"
+                      aria-label={`Semana del ${formatLongDate(w.start)}: ${
+                        w.total === 0 ? 'sin sesiones' : `${formatPercent(pct)} cumplido`
+                      }`}
+                    >
+                      <span
+                        className={`prog-weeks__bar${w.total === 0 ? ' prog-weeks__bar--empty' : ''}`}
+                        style={{ height: `${Math.max(4, pct)}%` }}
+                      />
+                    </span>
+                    <span className="prog-weeks__lbl" aria-hidden="true">
+                      {current ? 'Esta' : WEEK_LABEL.format(parseISO(w.start)).replace('.', '')}
+                    </span>
+                  </li>
+                )
+              })}
+            </ol>
           </Disclosure>
         </section>
       )}
-      </div>
 
-      {/* ----- Tu camino ----- */}
-      <h2 className="section-title section">Tu camino</h2>
+      {/* ----- Tu camino ----- (en escritorio, columna izquierda bajo la semana) */}
+      <section className="prog-path-sec" aria-labelledby="prog-path-title">
+      <div className="section-head">
+        <h2 className="section-title" id="prog-path-title">Tu camino</h2>
+      </div>
       {timeline.length === 0 ? (
         <div className="empty">
           <span className="empty__icon">
@@ -372,6 +361,8 @@ export function Progress() {
           )}
         </>
       )}
+      </section>
+      </div>
     </div>
   )
 }
@@ -379,7 +370,7 @@ export function Progress() {
 /** Lista de entradas de "Tu camino": hitos cumplidos y metas cerradas. */
 function TimelineList({ entries, onOpen }: { entries: Entry[]; onOpen: (goalId: string) => void }) {
   return (
-    <ul className="timeline">
+    <ul className="timeline prog-path">
       {entries.map((e) => (
         <li
           key={e.kind === 'milestone' ? `m-${e.milestone.id}` : `g-${e.goal.id}`}
@@ -393,11 +384,11 @@ function TimelineList({ entries, onOpen }: { entries: Entry[]; onOpen: (goalId: 
             aria-hidden="true"
           />
           <button type="button" className="timeline__card" onClick={() => onOpen(e.goal.id)}>
-            <div className="row row--between" style={{ alignItems: 'flex-start', gap: 'var(--s2)' }}>
-              <span className="timeline__title row row--sm" style={{ alignItems: 'center' }}>
+            <div className="prog-path__head">
+              <span className="timeline__title prog-path__title">
                 {e.kind === 'milestone' ? (
                   <>
-                    <IconCheck size={14} style={{ color: 'var(--success)', flex: 'none' }} />
+                    <IconCheck size={14} className="prog-path__check" />
                     {e.milestone.title}
                   </>
                 ) : (
@@ -407,9 +398,13 @@ function TimelineList({ entries, onOpen }: { entries: Entry[]; onOpen: (goalId: 
                   </>
                 )}
               </span>
-              <span className="tag">
-                {e.kind === 'milestone' ? 'Etapa' : e.goal.status === 'done' ? 'Lograda' : 'Archivada'}
-              </span>
+              {e.kind === 'milestone' ? (
+                <span className="tag">Etapa</span>
+              ) : (
+                <span className={`chip-state${e.goal.status === 'done' ? ' chip-state--ok' : ''}`}>
+                  {e.goal.status === 'done' ? 'Lograda' : 'Archivada'}
+                </span>
+              )}
             </div>
             <span className="faint tiny">
               {e.kind === 'milestone' ? e.goal.title : getNiche(e.goal.area).label} ·{' '}

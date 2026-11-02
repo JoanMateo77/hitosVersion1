@@ -174,3 +174,32 @@ export function weekDaySummary(input: {
   const [main, ...rest] = parts
   return { main, sub: rest.length > 0 ? rest.join(' · ') : null, dots }
 }
+
+/** Un punto de la celda del mes. */
+export interface MonthDot {
+  key: string
+  /** session = una sesión de meta ese día (punto neutro) · goal = fecha
+   *  objetivo de una meta (anillo del color de su área: el único acento). */
+  kind: 'session' | 'goal'
+  area: NicheId | null
+}
+
+/** Máximo de puntos por celda del mes: más se vuelve confeti ilegible. */
+export const MONTH_DOTS_MAX = 3
+
+/**
+ * Puntos de una celda del mes, con significado y nunca más de 3:
+ * - la fecha objetivo va primero, como anillo del color de la meta (el único
+ *   color de la grilla: es lo raro y lo importante);
+ * - luego un punto neutro por sesión de meta (cuánta carga tiene el día).
+ * Hábitos y eventos no suman puntos: casi todos los días los tienen y el
+ * panel del día los muestra.
+ */
+export function monthDots({ sessions, deadline }: { sessions: number; deadline: NicheId | null }): MonthDot[] {
+  const dots: MonthDot[] = []
+  if (deadline) dots.push({ key: 'goal', kind: 'goal', area: deadline })
+  for (let i = 0; dots.length < MONTH_DOTS_MAX && i < sessions; i++) {
+    dots.push({ key: `s-${i}`, kind: 'session', area: null })
+  }
+  return dots
+}

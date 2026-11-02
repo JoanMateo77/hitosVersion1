@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react'
+import type { CSSProperties, MouseEvent } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { fetchCurrentStreak } from '@/services/profile'
@@ -16,6 +16,7 @@ import {
 } from '@/components/icons'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 import { withViewTransition } from '@/lib/viewTransition'
+import { avatarInitials } from '@/lib/avatar'
 
 const NAV = [
   { to: '/', label: 'Hoy', Icon: IconToday },
@@ -23,16 +24,19 @@ const NAV = [
   { to: '/metas', label: 'Metas', Icon: IconGoals },
   { to: '/calendario', label: 'Agenda', Icon: IconCalendar },
   { to: '/notas', label: 'Notas', Icon: IconNote },
-  { to: '/progreso', label: 'Crecer', Icon: IconProgress, alsoMatch: '/aprender' },
+  // Mismo nombre que el título de la pantalla; /aprender también la marca activa.
+  { to: '/progreso', label: 'Progreso', Icon: IconProgress, alsoMatch: '/aprender' },
   { to: '/perfil', label: 'Perfil', Icon: IconProfile },
 ] as const
 
 /** Barra lateral (solo escritorio): marca + identidad del usuario + navegación + tema. */
 export function SideNav() {
-  const { userId, email, profile } = useSession()
+  const { userId, email, displayName, profile } = useSession()
   const { pathname } = useLocation()
   const navigate = useNavigate()
-  const initial = (email.charAt(0) || '·').toUpperCase()
+  const initials = avatarInitials({ displayName, email })
+  // Se muestra el nombre; el email solo si no hay nombre.
+  const identity = displayName.trim() || email
   const days = daysSince(profile.createdAt)
   const activeIndex = NAV.findIndex((item) => {
     const alsoMatch = 'alsoMatch' in item ? item.alsoMatch : undefined
@@ -62,29 +66,18 @@ export function SideNav() {
 
       <div className="sidenav__identity">
         <span
-          className="sidenav__avatar"
+          className={`avatar${frame ? ' avatar--ring' : ''}`}
           aria-hidden="true"
-          style={{
-            overflow: 'hidden',
-            // Anillo del marco ganado, o --primary por defecto (igual que en Hoy).
-            boxShadow: `0 0 0 3px ${frame?.color ?? 'var(--primary)'}`,
-          }}
+          // Anillo del marco ganado, igual que en la TopBar; sin marco, ninguno.
+          style={frame ? ({ '--avatar-ring': frame.color } as CSSProperties) : undefined}
         >
-          {profile.avatarUrl ? (
-            <img
-              src={profile.avatarUrl}
-              alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
-            />
-          ) : (
-            initial
-          )}
+          {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : initials}
         </span>
         <div className="sidenav__identity-text">
-          <span className="sidenav__email" title={email}>
-            {email}
+          <span className="sidenav__name" title={identity}>
+            {identity}
           </span>
-          <span className="kicker sidenav__day">
+          <span className="sidenav__day">
             {frame ? `${frame.label} · racha de ${streak}` : `Día ${days} en Lógralo`}
           </span>
         </div>

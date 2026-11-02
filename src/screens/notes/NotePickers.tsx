@@ -1,16 +1,26 @@
 import { useState } from 'react'
-import type { Goal } from '@/lib/types'
+import type { Goal, NicheId } from '@/lib/types'
 import type { NoteDestination } from '@/services/notes'
 import { NICHES } from '@/domain/niches'
 import { OptionRow } from '@/components/OptionRow'
 import { NicheIcon } from '@/components/NicheGlyph'
+import { nicheAccent } from '@/lib/nicheAccent'
 import {
-  IconArchive,
   IconCheck,
   IconFlag,
   IconGoals,
   IconLightbulb,
+  IconNote,
 } from '@/components/icons'
+
+/** Ícono de área pintado con su color: llena el disco de OptionRow. */
+function AreaSwatch({ area }: Readonly<{ area: NicheId }>) {
+  return (
+    <span className="note-swatch" style={nicheAccent(area)}>
+      <NicheIcon area={area} size={20} />
+    </span>
+  )
+}
 
 /** "Mover a…": Bandeja, Ideas, una meta activa o un área. */
 export function NoteMovePicker({
@@ -26,7 +36,7 @@ export function NoteMovePicker({
     <div className="stack">
       <div className="stack stack--sm">
         <OptionRow
-          icon={<IconArchive size={20} />}
+          icon={<IconNote size={20} />}
           label="Bandeja"
           disabled={busy}
           onClick={() => onPick({ place: 'inbox' }, 'Bandeja')}
@@ -41,11 +51,11 @@ export function NoteMovePicker({
 
       {goals.length > 0 && (
         <div className="stack stack--sm">
-          <span className="kicker">Una meta</span>
+          <span className="section-title">Una meta</span>
           {goals.map((g) => (
             <OptionRow
               key={g.id}
-              icon={<IconGoals size={20} />}
+              icon={<AreaSwatch area={g.area} />}
               label={g.title}
               disabled={busy}
               onClick={() => onPick({ place: 'goal', goalId: g.id }, g.title)}
@@ -55,11 +65,11 @@ export function NoteMovePicker({
       )}
 
       <div className="stack stack--sm">
-        <span className="kicker">Un área</span>
+        <span className="section-title">Un área</span>
         {NICHES.map((n) => (
           <OptionRow
             key={n.id}
-            icon={<NicheIcon area={n.id} size={20} />}
+            icon={<AreaSwatch area={n.id} />}
             label={n.label}
             disabled={busy}
             onClick={() => onPick({ place: 'area', area: n.id }, n.label)}
@@ -90,18 +100,18 @@ export function NoteConvertPicker({
   if (choosingGoal) {
     return (
       <div className="stack stack--sm">
-        <span className="kicker">¿En qué meta?</span>
+        <span className="section-title">¿En qué meta?</span>
         {goals.map((g) => (
           <OptionRow
             key={g.id}
-            icon={<IconGoals size={20} />}
+            icon={<AreaSwatch area={g.area} />}
             label={g.title}
             disabled={busy}
             onClick={() => onMilestone(g.id)}
           />
         ))}
-        <button type="button" className="btn--link" onClick={() => setChoosingGoal(false)}>
-          Volver
+        <button type="button" className="btn--link notes-picker__other" onClick={() => setChoosingGoal(false)}>
+          Elegir otra opción
         </button>
       </div>
     )

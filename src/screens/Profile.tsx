@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ComponentType } from 'react'
+import { useEffect, useRef, useState, type ComponentType, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { useToast } from '@/app/toast'
@@ -6,12 +6,21 @@ import { deleteAccount, signOut } from '@/services/auth'
 import { fetchCurrentStreak, setDailyDigestTime, updateRhythm, uploadAvatar } from '@/services/profile'
 import { disablePush, enablePush, getPushState } from '@/lib/push'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
-import { IconMoon, IconProgress, IconSun, IconSunrise } from '@/components/icons'
+import {
+  IconBook,
+  IconChevronRight,
+  IconFlame,
+  IconMoon,
+  IconProgress,
+  IconSun,
+  IconSunrise,
+} from '@/components/icons'
 import { FRAMES, frameForStreak } from '@/domain/frames'
 import { useCachedData } from '@/hooks/useCachedData'
 import { Disclosure } from '@/components/Disclosure'
 import { NOVEDADES } from '@/content/novedades'
 import { formatLongDate } from '@/lib/date'
+import { avatarInitials } from '@/lib/avatar'
 import type { PreferredMoment } from '@/lib/types'
 
 const MOMENTS: { id: PreferredMoment; label: string; Icon: ComponentType<{ size?: number }> }[] = [
@@ -20,8 +29,20 @@ const MOMENTS: { id: PreferredMoment; label: string; Icon: ComponentType<{ size?
   { id: 'evening', label: 'Noche', Icon: IconMoon },
 ]
 
+/** Texto del botón de foto según el estado de la subida. */
+function photoButtonLabel(uploading: boolean, hasPhoto: boolean): string {
+  if (uploading) return 'Subiendo…'
+  return hasPhoto ? 'Cambiar foto' : 'Añadir foto'
+}
+
+/** Texto del interruptor de recordatorios. */
+function pushButtonLabel(push: 'on' | 'off' | 'blocked' | 'unsupported' | 'loading'): string {
+  if (push === 'loading') return '…'
+  return push === 'on' ? 'Activado' : 'Activar'
+}
+
 export function ProfileScreen() {
-  const { userId, email, profile, setProfile } = useSession()
+  const { userId, email, displayName, profile, setProfile } = useSession()
   const { toast } = useToast()
   const [signingOut, setSigningOut] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -83,7 +104,7 @@ export function ProfileScreen() {
     }
   }
 
-  const initial = (email[0] ?? '?').toUpperCase()
+  const initials = avatarInitials({ displayName, email })
   // Local y optimista: los +/- rápidos no deben leer estado viejo del perfil.
   const [minutes, setMinutes] = useState(profile.defaultSessionMinutes ?? 25)
 
@@ -139,83 +160,86 @@ export function ProfileScreen() {
 
   return (
     <div className="screen">
-      <header className="screen__header row" style={{ alignItems: 'center', gap: 'var(--s3)' }}>
+      <header className="screen__header profile-id">
         <span
+          className={`avatar avatar--lg profile-id__avatar${frame ? ' avatar--ring' : ''}`}
           aria-hidden="true"
-          style={{
-            width: 46,
-            height: 46,
-            borderRadius: '50%',
-            background: 'var(--gradient-brand)',
-            color: 'var(--on-primary)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 700,
-            fontSize: 18,
-            flex: 'none',
-            overflow: 'hidden',
-            // El marco ganado con la racha se pinta como anillo alrededor, o
-            // --primary por defecto si aún no hay marco (igual que en Hoy).
-            boxShadow: `0 0 0 3px ${frame?.color ?? 'var(--primary)'}`,
-          }}
+          // El marco ganado con la racha va como anillo (igual que en la barra
+          // superior). Sin marco no hay anillo: el avatar es neutro.
+          style={frame ? ({ '--avatar-ring': frame.color } as CSSProperties) : undefined}
         >
-          {profile.avatarUrl ? (
-            <img
-              src={profile.avatarUrl}
-              alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
-            />
-          ) : (
-            initial
-          )}
+          {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : initials}
         </span>
-        <div style={{ minWidth: 0 }}>
-          <h1 className="screen__title" style={{ fontSize: 'var(--fs-xl)' }}>
-            Perfil
-          </h1>
+        <div className="profile-id__text">
+          <h1 className="screen__title profile-id__title">Perfil</h1>
           <p className="muted small nowrap-ellipsis" style={{ margin: 0 }}>
             {email}
           </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={(e) => void handleAvatarFile(e.target.files?.[0])}
-          />
-          <button
-            type="button"
-            className="btn--link small"
-            style={{ padding: 0 }}
-            disabled={uploading}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {uploading ? 'Subiendo…' : profile.avatarUrl ? 'Cambiar foto' : 'Añadir foto'}
-          </button>
+          <div className="profile-id__meta">
+            {streak > 0 && (
+              <span className="streak-chip">
+                <IconFlame size={13} /> Racha de {streak} {streak === 1 ? 'día' : 'días'}
+              </span>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => void handleAvatarFile(e.target.files?.[0])}
+            />
+            <button
+              type="button"
+              className="btn--link small"
+              style={{ padding: 0 }}
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {photoButtonLabel(uploading, Boolean(profile.avatarUrl))}
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="settings-grid">
-      {/* ----- Crecer: Progreso y Aprender salieron de la barra inferior (ahora Notas) ----- */}
-      <section className="card stack stack--sm" aria-label="Crecer">
-        <span className="kicker">Crecer</span>
-        <Link className="btn btn--ghost btn--block" to="/progreso">
-          <IconProgress size={18} /> Tu progreso y aprendizaje
-        </Link>
+      {/* ----- Progreso y Aprender salieron de la barra inferior (ahora Notas) ----- */}
+      <section className="card stack stack--sm" aria-label="Progreso y aprendizaje">
+        <h2 className="section-title">Progreso y aprendizaje</h2>
+        <div className="profile-links">
+          <Link className="profile-link" to="/progreso">
+            <span className="profile-link__icon" aria-hidden="true">
+              <IconProgress size={20} />
+            </span>
+            <span className="profile-link__text">
+              <strong>Tu progreso</strong>
+              <span className="small muted">Racha, metas y camino recorrido</span>
+            </span>
+            <IconChevronRight size={16} className="profile-link__chev" />
+          </Link>
+          <Link className="profile-link" to="/aprender">
+            <span className="profile-link__icon" aria-hidden="true">
+              <IconBook size={20} />
+            </span>
+            <span className="profile-link__text">
+              <strong>Aprender</strong>
+              <span className="small muted">Lecciones cortas para tu foco</span>
+            </span>
+            <IconChevronRight size={16} className="profile-link__chev" />
+          </Link>
+        </div>
       </section>
 
       {/* ----- Tu ritmo: defaults que alimentan el wizard y los horarios ----- */}
       <section className="card stack stack--sm" aria-label="Tu ritmo">
-        <span className="kicker">Tu ritmo</span>
+        <h2 className="section-title">Tu ritmo</h2>
         <div className="field">
           <span className="field__label">¿Cuándo te es más fácil cumplir?</span>
-          <div className="row wrap">
+          <div className="seg profile-moments" role="group" aria-label="Momento preferido">
             {MOMENTS.map((m) => (
               <button
                 key={m.id}
                 type="button"
-                className={`chip${profile.preferredMoment === m.id ? ' chip--selected' : ''}`}
+                className={`seg__btn${profile.preferredMoment === m.id ? ' seg__btn--active' : ''}`}
                 aria-pressed={profile.preferredMoment === m.id}
                 onClick={() =>
                   void saveRhythm({ preferredMoment: profile.preferredMoment === m.id ? null : m.id })
@@ -261,12 +285,19 @@ export function ProfileScreen() {
 
       {/* ----- Tu marco: identidad de constancia (racha de días comprometidos) ----- */}
       <section className="card stack stack--sm" aria-label="Tu marco">
-        <span className="kicker">Tu marco</span>
+        <h2 className="section-title">Tu marco</h2>
         <p className="small" style={{ margin: 0 }}>
           Racha actual: <strong>{streak} {streak === 1 ? 'día cumplido' : 'días cumplidos'}</strong>
           {frame && (
             <>
-              {' · '}marco <strong style={{ color: frame.color }}>{frame.label}</strong>
+              {' · '}marco{' '}
+              {/* El color del marco va en el punto; el texto, siempre en --text. */}
+              <span
+                className="profile-frame-dot"
+                aria-hidden="true"
+                style={{ '--frame-color': frame.color } as CSSProperties}
+              />
+              <strong>{frame.label}</strong>
             </>
           )}
         </p>
@@ -325,7 +356,7 @@ export function ProfileScreen() {
 
       {/* ----- Recordatorios ----- */}
       <section className="card stack stack--sm" aria-label="Recordatorios">
-        <span className="kicker">Recordatorios</span>
+        <h2 className="section-title">Recordatorios</h2>
         {push === 'unsupported' ? (
           <div className="stack stack--sm">
             <p className="small muted" style={{ margin: 0 }}>Este navegador no permite notificaciones.</p>
@@ -362,7 +393,7 @@ export function ProfileScreen() {
               disabled={push === 'loading'}
               onClick={() => void togglePush()}
             >
-              {push === 'loading' ? '…' : push === 'on' ? 'Activado' : 'Activar'}
+              {pushButtonLabel(push)}
             </button>
           </div>
         )}
@@ -403,13 +434,13 @@ export function ProfileScreen() {
 
       {/* ----- Apariencia (solo móvil: en escritorio el tema vive en la barra lateral) ----- */}
       <section className="card stack stack--sm hide-on-desktop" aria-label="Apariencia">
-        <span className="kicker">Apariencia</span>
+        <h2 className="section-title">Apariencia</h2>
         <ThemeSwitcher variant="compact" />
       </section>
 
       {/* ----- Cuenta ----- */}
       <section className="card stack stack--sm" aria-label="Cuenta">
-        <span className="kicker">Cuenta</span>
+        <h2 className="section-title">Cuenta</h2>
         <button className="btn btn--ghost btn--block" onClick={handleSignOut} disabled={signingOut}>
           {signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
         </button>
@@ -440,7 +471,7 @@ export function ProfileScreen() {
       </section>
 
       {/* ----- Acerca de ----- */}
-      <p className="faint tiny" style={{ margin: 0, textAlign: 'center' }}>
+      <p className="faint tiny profile-foot">
         Lógralo · Desarrollado por Seki Software
       </p>
       </div>

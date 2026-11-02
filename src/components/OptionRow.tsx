@@ -1,9 +1,14 @@
 import type { ReactNode } from 'react'
+import type { NicheId } from '@/lib/types'
 import { IconCheck } from '@/components/icons'
+import { nicheAccent } from '@/lib/nicheAccent'
 
 interface OptionRowProps {
   /** Ícono dibujado (componente del set) — va en un disco neutro a la izquierda. */
   icon?: ReactNode
+  /** Si la opción representa un área: disco sólido de su color y, elegida,
+   *  la opción entera se pinta del área con relieve (full color). */
+  area?: NicheId
   label: string
   desc?: string
   selected?: boolean
@@ -15,6 +20,7 @@ interface OptionRowProps {
 /** Opción grande seleccionable. Base de onboarding, wizard y sugerencias. */
 export function OptionRow({
   icon,
+  area,
   label,
   desc,
   selected = false,
@@ -25,7 +31,8 @@ export function OptionRow({
   return (
     <button
       type="button"
-      className={`option${selected ? ' option--selected' : ''}`}
+      className={`option${area ? ' option--area' : ''}${selected ? ' option--selected' : ''}`}
+      style={area ? nicheAccent(area) : undefined}
       onClick={onClick}
       disabled={disabled}
       aria-pressed={selected}

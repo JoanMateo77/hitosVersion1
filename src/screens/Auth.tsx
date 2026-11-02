@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { resendConfirmation, resetPassword, signIn, signInWithGoogle, signUp } from '@/services/auth'
 import { IconHito } from '@/components/icons'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
+import { PathIllustration } from '@/components/PathIllustration'
 
 type Mode = 'signin' | 'signup' | 'reset'
 
@@ -135,37 +136,19 @@ export function Auth() {
   }
 
   return (
-    <div className="screen screen--full auth-screen">
-      {/* Camino decorativo: en mobile cruza toda la pantalla; en desktop vive en
-          la columna izquierda del hero, más amplio y expresivo. */}
-      <svg
-        className="auth__trail"
-        viewBox="0 0 400 720"
-        preserveAspectRatio="xMidYMid slice"
-        aria-hidden="true"
-      >
-        <path
-          d="M -40 580 C 100 540, 140 420, 240 380 S 360 220, 440 140"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeDasharray="2 6"
-          opacity="0.35"
-        />
-        <circle cx="60" cy="560" r="5" fill="currentColor" opacity="0.5" />
-        <circle cx="240" cy="380" r="6" fill="currentColor" opacity="0.6" />
-        <circle cx="430" cy="148" r="11" fill="currentColor" />
-        <circle cx="430" cy="148" r="4" fill="var(--bg)" />
-      </svg>
-
+    <main className="screen screen--full auth-screen">
       {/* Hero editorial — sólo visible en desktop ≥1024px. */}
       <aside className="auth-hero">
-        <span className="brand__mark auth-hero__mark">
-          <IconHito size={96} animate />
+        <span className="brand auth-hero__brand">
+          <span className="brand__mark">
+            <IconHito size={56} animate />
+          </span>
+          Lógralo
         </span>
-        <span className="brand auth-hero__brand">Lógralo</span>
-        <h1 className="auth-hero__headline">Tu meta, con un compromiso real.</h1>
+        {/* La idea del producto dibujada: llegar por etapas, cada una de un color. */}
+        <PathIllustration width={360} done={3} className="auth-hero__path" />
+        {/* El h1 de la pantalla es el del formulario ("Entra"): aquí, un lema. */}
+        <p className="auth-hero__headline">Tu meta, con un compromiso real.</p>
         <p className="auth-hero__lede">
           La app que convierte tus metas en un plan diario: horarios reales, progreso visible y
           constancia sin culpa.
@@ -173,19 +156,15 @@ export function Auth() {
       </aside>
 
       <div className="auth-form-wrap">
-        <header className="auth-form__brand center stack stack--sm">
-          <span className="brand__mark auth__brand-mark">
-            <IconHito size={72} animate />
-          </span>
-          <span
-            className="brand"
-            style={{ justifyContent: 'center', fontSize: 'var(--fs-3xl)', marginTop: 'var(--s2)' }}
-          >
+        {/* Móvil: solo el logo (la ilustración se apilaba encima y competía). */}
+        <header className="auth-form__brand">
+          <span className="brand auth-form__wordmark">
+            <span className="brand__mark">
+              <IconHito size={36} animate />
+            </span>
             Lógralo
           </span>
-          <p className="muted" style={{ fontWeight: 600, fontSize: 'var(--fs-lg)' }}>
-            Tu meta, con un compromiso real.
-          </p>
+          <p className="auth-form__tagline">Tu meta, con un compromiso real.</p>
         </header>
 
         <div className="auth-form-card">
@@ -366,6 +345,6 @@ export function Auth() {
           <ThemeSwitcher variant="compact" />
         </div>
       </div>
-    </div>
+    </main>
   )
 }

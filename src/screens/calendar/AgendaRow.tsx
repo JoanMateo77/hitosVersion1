@@ -1,13 +1,12 @@
 import type { CalendarEvent } from '@/lib/types'
 import { formatTime12, formatTimeShort, meridiem } from '@/lib/date'
-import { nicheAccent } from '@/lib/nicheAccent'
 import { tapHaptic } from '@/lib/haptics'
 import { IconArrowReturn, IconCheck, IconChevronRight, IconPlay } from '@/components/icons'
 import { EventCheck } from '@/screens/calendar/EventCheck'
+import { rowAccent } from '@/screens/calendar/rowAccent'
 import {
   CLOSED_STATES,
   isOpenToday,
-  rowArea,
   sessionAriaLabel,
   sessionStateTitle,
   type AgendaRowItem,
@@ -60,7 +59,7 @@ export function AgendaRow({
   onOpenEvent,
   onToggleEvent,
 }: { item: AgendaRowItem; past?: boolean } & AgendaRowHandlers) {
-  const accent = nicheAccent(rowArea(item))
+  const accent = rowAccent(item)
   const pastCls = past ? ' ag-row--past' : ''
 
   if (item.kind === 'session') {

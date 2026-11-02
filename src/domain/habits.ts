@@ -2,7 +2,8 @@ import type { Habit, HabitCheck, HabitColor, HabitSkip, NicheId } from '@/lib/ty
 import { weekdayMon0 } from '@/domain/commitment'
 import { currentStreakCommitted } from '@/domain/sessions'
 import { NICHES } from '@/domain/niches'
-import { addDays, daysUntil, parseISO, startOfMonth, todayISO } from '@/lib/date'
+import { addDays, daysUntil, formatTime12, parseISO, startOfMonth, todayISO } from '@/lib/date'
+import { WEEKDAY_SHORT } from '@/domain/weekdays'
 
 /**
  * Hábitos diarios: lógica pura, sin I/O ni React.
@@ -499,23 +500,20 @@ export function frequencyLabel(habit: Habit): string {
   return target === 1 ? 'Una vez al día' : `${target} veces al día`
 }
 
-const DAY_ABBR = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do']
-
 /** "Todos los días" / "Lu a Vi" / "Fin de semana" / "Ma · Ju · Sa". */
 export function daysLabel(weekdays: number[]): string {
   const days = [...new Set(weekdays)].filter((d) => d >= 0 && d <= 6).sort((a, b) => a - b)
   if (days.length === 0 || days.length === 7) return 'Todos los días'
   if (days.length === 2 && days[0] === 5 && days[1] === 6) return 'Fin de semana'
   const contiguous = days.every((d, i) => i === 0 || d === days[i - 1] + 1)
-  if (contiguous && days.length >= 3) return `${DAY_ABBR[days[0]]} a ${DAY_ABBR[days.at(-1)!]}`
-  return days.map((d) => DAY_ABBR[d]).join(' · ')
+  if (contiguous && days.length >= 3) return `${WEEKDAY_SHORT[days[0]]} a ${WEEKDAY_SHORT[days.at(-1)!]}`
+  return days.map((d) => WEEKDAY_SHORT[d]).join(' · ')
 }
 
-/** "9:00, 13:00, 17:00" / "Sin recordatorios". */
+/** "9:00 am, 1:00 pm, 5:00 pm" / "Sin recordatorios" (12 h, como el resto de la app). */
 export function remindersLabel(times: string[] | null): string {
   if (!times || times.length === 0) return 'Sin recordatorios'
-  // Sin el cero de la izquierda ("09:00" → "9:00"): es como lo pide el mockup.
-  return times.map((t) => t.replace(/^0/, '')).join(', ')
+  return times.map(formatTime12).join(', ')
 }
 
 /** "1 de 5 vasos" (con unidad) / "1 de 5". */

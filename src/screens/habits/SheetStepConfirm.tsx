@@ -6,6 +6,7 @@ import { relativeDeadline } from '@/lib/date'
 import { milestoneProgressByGoal } from '@/services/milestones'
 import { HabitIcon } from '@/components/HabitIcon'
 import { NicheIcon } from '@/components/NicheGlyph'
+import { nicheAccent } from '@/lib/nicheAccent'
 import { IconChevronRight, IconPlus } from '@/components/icons'
 import type { HabitDraft } from '@/screens/habits/habitDraft'
 
@@ -83,7 +84,7 @@ export function SheetStepConfirm({
   return (
     <>
       <section className="hsheet-group">
-        <span className="hab-kicker">Vista previa</span>
+        <span className="section-title">Vista previa</span>
         <div className="hsheet-preview" data-color={draft.color}>
           <HabitIcon icon={draft.icon} color={draft.color} size="md" />
           <div className="hsheet-preview__main">
@@ -165,7 +166,7 @@ export function SheetStepConfirm({
       </div>
 
       <section className="hsheet-group">
-        <span className="hab-kicker">Metas activas</span>
+        <span className="section-title">Metas activas</span>
         {goals.length === 0 ? (
           <p className="hsheet-note">No tienes metas activas. Puedes vincularlo después.</p>
         ) : (
@@ -178,6 +179,7 @@ export function SheetStepConfirm({
                   key={goal.id}
                   type="button"
                   className="hsheet-goal"
+                  style={nicheAccent(goal.area)}
                   aria-pressed={on}
                   onClick={() => patch({ goalId: on ? null : goal.id })}
                 >

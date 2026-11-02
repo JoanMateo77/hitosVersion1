@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   canSkip,
   goalWeekdays,
+  monthDots,
   weekDaySummary,
   type DayAgendaSession,
   type DayHabitRowItem,
@@ -123,5 +124,21 @@ describe('goalWeekdays', () => {
   })
   it('sin bloques, sin días', () => {
     expect(goalWeekdays([])).toEqual([])
+  })
+})
+
+describe('monthDots', () => {
+  it('pone la fecha objetivo primero (con su área) y nunca más de 3 puntos', () => {
+    const dots = monthDots({ sessions: 5, deadline: 'aprendizaje' })
+    expect(dots.map((d) => [d.kind, d.area])).toEqual([
+      ['goal', 'aprendizaje'],
+      ['session', null],
+      ['session', null],
+    ])
+  })
+
+  it('un punto neutro por sesión; sin sesiones ni fecha, ninguno', () => {
+    expect(monthDots({ sessions: 2, deadline: null }).map((d) => d.kind)).toEqual(['session', 'session'])
+    expect(monthDots({ sessions: 0, deadline: null })).toEqual([])
   })
 })

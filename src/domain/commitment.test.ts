@@ -58,14 +58,14 @@ describe('formatCommitmentSummary', () => {
   it('resume sesiones y tiempo semanal', () => {
     // El formato del tiempo lo define formatDuration (lib/date): no lo duplicamos.
     expect(formatCommitmentSummary([time(0, 25), time(2, 25), time(4, 45)])).toBe(
-      `Tu compromiso: 3 sesiones · ${formatDuration(95)} por semana`,
+      `3 sesiones · ${formatDuration(95)} por semana`,
     )
   })
   it('sin minutos (solo cantidad) omite el tiempo', () => {
     const blocks: CommitmentBlockDraft[] = [
       { weekday: 0, targetKind: 'count', targetValue: 10, unit: 'páginas', startTime: null },
     ]
-    expect(formatCommitmentSummary(blocks)).toBe('Tu compromiso: 1 sesión por semana')
+    expect(formatCommitmentSummary(blocks)).toBe('1 sesión por semana')
   })
 })
 

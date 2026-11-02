@@ -6,15 +6,18 @@ import { listGoals } from '@/services/goals'
 import { updatePriorityGoal } from '@/services/profile'
 import { milestoneProgressByGoal } from '@/services/milestones'
 import { isGoalClosed } from '@/domain/goals'
-import { relativeDeadline } from '@/lib/date'
+import { daysUntil, relativeDeadline } from '@/lib/date'
+import { formatPercent } from '@/lib/format'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { withViewTransition } from '@/lib/viewTransition'
 import type { Goal, GoalStatus } from '@/lib/types'
 import { useCachedData } from '@/hooks/useCachedData'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
-import { IconCalendar, IconChevronRight, IconGoals, IconPlus, IconStar } from '@/components/icons'
+import { IconChevronRight, IconPlus, IconStar } from '@/components/icons'
 import { NicheGlyph } from '@/components/NicheGlyph'
+import { PathIllustration } from '@/components/PathIllustration'
 
 /** Orden de presentación por estado: lo activo primero. */
 const STATUS_ORDER: Record<GoalStatus, number> = {
@@ -142,19 +145,22 @@ export function Goals() {
     <div className="screen">
       <header className="row row--between screen__header">
         <h1 className="screen__title">Tus metas</h1>
-        <button className="btn btn--primary btn--sm" onClick={() => navigate('/meta/nueva')}>
+        <button
+          type="button"
+          className="btn btn--primary btn--sm screen__add"
+          aria-label="Nueva meta"
+          onClick={() => navigate('/meta/nueva')}
+        >
           <IconPlus size={18} /> Nueva
         </button>
       </header>
 
       {goals.length === 0 ? (
-        <div className="empty">
-          <span className="empty__icon">
-            <IconGoals size={34} />
-          </span>
-          <p className="empty__title">Todavía no tienes metas</p>
+        <div className="empty goals-empty">
+          <PathIllustration width={200} className="goals-empty__art" />
+          <p className="empty__title">Tu primera meta empieza aquí</p>
           <p className="muted" style={{ marginBottom: 'var(--s4)' }}>
-            Mira ideas para tu foco y adopta una, o escribe la tuya.
+            Mira ideas para tu foco y adopta una, o escribe la tuya. La dividimos en etapas.
           </p>
           <div className="stack stack--sm" style={{ alignItems: 'center' }}>
             <button className="btn btn--primary" onClick={() => navigate('/ideas')}>
@@ -212,6 +218,10 @@ export function Goals() {
 /**
  * Detalle "peek" que morphea desde la tarjeta (Blendy FLIP). El `data-blendy-to`
  * debe tener un ÚNICO hijo wrapper (Blendy accede a `children[0]`).
+ *
+ * Es un diálogo modal de verdad: atrapa el foco (entra en "Abrir meta"), Escape
+ * cierra y al cerrarse el foco vuelve a la tarjeta que lo abrió (useFocusTrap).
+ * No usa <Sheet>: la hoja entra desde abajo y rompería el morph desde la tarjeta.
  */
 function GoalPeek({
   goal,
@@ -224,34 +234,50 @@ function GoalPeek({
   onOpen: () => void
   onClose: () => void
 }) {
+  const panelRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(panelRef, onClose)
   return (
     <div className="goal-peek-backdrop" onClick={onClose}>
       <div data-blendy-to={bid(goal.id)}>
-        <div className="goal-peek" onClick={(e) => e.stopPropagation()} style={nicheAccent(goal.area)}>
+        {/* El peek es la tarjeta de color agrandada; su view-transition-name es el
+            mismo que la cabecera del detalle, así "Abrir meta" la convierte en ella. */}
+        <div
+          ref={panelRef}
+          className="goal-peek fc-card"
+          role="dialog"
+          aria-modal="true"
+          aria-label={goal.title}
+          onClick={(e) => e.stopPropagation()}
+          style={{ ...nicheAccent(goal.area), viewTransitionName: `goal-${goal.id}` } as CSSProperties}
+        >
           <div className="goal-card__top">
             <NicheGlyph area={goal.area} size="md" />
-            <span
-              className="goal-card__title"
-              style={{ viewTransitionName: `goal-${goal.id}` } as CSSProperties}
-            >
-              {goal.title}
-            </span>
+            <span className="fc-card__title goal-card__title">{goal.title}</span>
           </div>
           {nextTitle && (
-            <p className="small" style={{ margin: 0 }}>
-              <span className="faint">Siguiente:</span> {nextTitle}
+            <p className="fc-card__meta" style={{ margin: 0 }}>
+              Siguiente: {nextTitle}
             </p>
           )}
-          <button className="btn btn--primary btn--block" onClick={onOpen}>
+          <button type="button" className="btn btn--primary btn--block" onClick={onOpen}>
             Abrir meta
           </button>
-          <button className="btn--link" style={{ alignSelf: 'center' }} onClick={onClose}>
+          <button type="button" className="btn--link goal-peek__close" onClick={onClose}>
             Cerrar
           </button>
         </div>
       </div>
     </div>
   )
+}
+
+/** Estado de la meta en una palabra, solo cuando aporta (verde = al día, ámbar = atrasada). */
+function goalState(goal: Goal, pathComplete: boolean): { tone: 'ok' | 'late' | 'neutral'; label: string } | null {
+  const badge = STATUS_BADGE[goal.status]
+  if (badge) return { tone: goal.status === 'done' ? 'ok' : 'neutral', label: badge }
+  if (pathComplete) return { tone: 'ok', label: 'Camino completo' }
+  if (goal.targetDate && daysUntil(goal.targetDate) < 0) return { tone: 'late', label: 'Vencida' }
+  return null
 }
 
 function GoalCard({
@@ -270,63 +296,67 @@ function GoalCard({
   const progressDone = progress?.done ?? 0
   const progressTotal = progress?.total ?? 0
   const pathComplete = progressTotal > 0 && progressDone >= progressTotal
-  const deadline =
-    isGoalClosed(goal.status) || pathComplete ? null : relativeDeadline(goal.targetDate)
-  const showProgress =
-    (goal.status === 'active' || goal.status === 'paused') && progressTotal > 1
-  const badge = STATUS_BADGE[goal.status]
-  const dimmed = isGoalClosed(goal.status)
+  const closed = isGoalClosed(goal.status)
+  const deadline = closed || pathComplete ? null : relativeDeadline(goal.targetDate)
+  const overdue = deadline !== null && goal.targetDate !== null && daysUntil(goal.targetDate) < 0
+  const showProgress = (goal.status === 'active' || goal.status === 'paused') && progressTotal > 1
+  const pct = Math.round((progressDone / Math.max(1, progressTotal)) * 100)
+  const state = goalState(goal, pathComplete)
+  // Una sola línea de contexto: "2 de 5 etapas · faltan 6 semanas". "Vencida" ya
+  // lo dice el chip de estado, así que no se repite aquí.
+  const metaLine = [
+    progressTotal > 0 ? `${progressDone} de ${progressTotal} ${progressTotal === 1 ? 'etapa' : 'etapas'}` : null,
+    overdue ? null : deadline,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   return (
-    <button
-      type="button"
-      className="goal-card"
-      onClick={onClick}
-      aria-label={`Ver meta: ${goal.title}`}
-      style={{ ...nicheAccent(goal.area), ...(dimmed ? { opacity: 0.7 } : {}) }}
-    >
-      <div className="goal-card__top">
-        <NicheGlyph area={goal.area} size="md" />
-        <span className="goal-card__title nowrap-ellipsis">{goal.title}</span>
-        {onTogglePriority && (
-          <span
-            role="button"
-            tabIndex={0}
-            aria-pressed={isPriority}
-            aria-label={isPriority ? 'Quitar prioridad' : 'Marcar como prioritaria'}
-            className={`goal-card__star${isPriority ? ' goal-card__star--on' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation()
-              onTogglePriority()
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                e.stopPropagation()
-                onTogglePriority()
-              }
-            }}
-          >
-            <IconStar size={17} style={isPriority ? { fill: 'currentColor' } : undefined} />
+    <div className={`goal-card-wrap${closed ? ' goal-card-wrap--closed' : ''}`}>
+      <button
+        type="button"
+        className="fc-card goal-card"
+        onClick={onClick}
+        style={nicheAccent(goal.area)}
+      >
+        {/* Banda superior: ícono a la izquierda, patrón del área al centro y la
+            estrella (hermana, superpuesta) a la derecha. El título va debajo
+            a todo el ancho, así nunca choca con el patrón. */}
+        <span className="goal-card__top">
+          <NicheGlyph area={goal.area} size="md" />
+        </span>
+        <span className="fc-card__title goal-card__title">{goal.title}</span>
+        {(metaLine || state) && (
+          <span className="goal-card__meta">
+            {metaLine && <span className="fc-card__meta">{metaLine}</span>}
+            {state && (
+              <span className={`chip-state${state.tone === 'neutral' ? '' : ` chip-state--${state.tone}`}`}>
+                {state.label}
+              </span>
+            )}
           </span>
         )}
-        {badge && <span className="tag">{badge}</span>}
-      </div>
-      {deadline && (
-        <span className="faint tiny row row--sm" style={{ alignItems: 'center', gap: 4 }}>
-          <IconCalendar size={12} /> {deadline}
-        </span>
+        {showProgress && (
+          <span className="goal-card__prog">
+            <span className="progress" aria-hidden="true">
+              <span className="progress__bar" style={{ width: `${pct}%` }} />
+            </span>
+            <span className="goal-card__pct">{formatPercent(pct)}</span>
+          </span>
+        )}
+      </button>
+      {onTogglePriority && (
+        <button
+          type="button"
+          aria-pressed={isPriority}
+          aria-label={isPriority ? `Quitar prioridad: ${goal.title}` : `Marcar como prioritaria: ${goal.title}`}
+          className={`goal-card__star${isPriority ? ' goal-card__star--on' : ''}`}
+          style={nicheAccent(goal.area)}
+          onClick={onTogglePriority}
+        >
+          <IconStar size={18} style={isPriority ? { fill: 'currentColor' } : undefined} />
+        </button>
       )}
-      {showProgress && (
-        <div className="stack stack--sm">
-          <div className="progress">
-            <div
-              className="progress__bar"
-              style={{ width: `${Math.round((progressDone / Math.max(1, progressTotal)) * 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
-    </button>
+    </div>
   )
 }

@@ -49,10 +49,17 @@ function StreakTail({ streak }: Readonly<{ streak: number }>) {
   )
 }
 
-/** "Racha de 3 días" o, sin racha vigente, el genérico "Hecho hoy". */
-function doneCaption(streak: number): string {
-  if (streak <= 0) return 'Hecho hoy'
-  return `Racha de ${streak} ${streak === 1 ? 'día' : 'días'}`
+/**
+ * "Racha de 3 días" o, sin racha vigente, el genérico "Hecho hoy". El número va
+ * en su propio span para que `.fc-bump` lo haga entrar desde abajo.
+ */
+function DoneCaption({ streak }: Readonly<{ streak: number }>) {
+  if (streak <= 0) return <span>Hecho hoy</span>
+  return (
+    <span>
+      Racha de <span className="fc-bump__n">{streak}</span> {streak === 1 ? 'día' : 'días'}
+    </span>
+  )
 }
 
 /** Variante del control de la derecha: qué pinta según el estado del hábito. */
@@ -70,11 +77,18 @@ function ControlGlyph({ complete, multi }: Readonly<{ complete: boolean; multi: 
 }
 
 /** Subtítulo de la fila de Hoy: barra de repeticiones, "hecho" o días/racha. */
+/** Clases de un tramo de la .segbar: cumplido y, al festejar, el último con brillo. */
+function progressSegClass(on: boolean, last: boolean): string | undefined {
+  const names = [on ? 'done' : '', last ? 'is-last' : ''].filter(Boolean)
+  return names.length > 0 ? names.join(' ') : undefined
+}
+
 function HabitTodayRowSub({
   habit,
   progress,
   asDone,
   celebrating,
+  bump,
   streak,
   time,
 }: Readonly<{
@@ -82,6 +96,7 @@ function HabitTodayRowSub({
   progress: HabitDayProgress
   asDone: boolean
   celebrating: boolean
+  bump: boolean
   streak: number
   time: string | null
 }>) {
@@ -91,13 +106,11 @@ function HabitTodayRowSub({
   if (multi && !asDone) {
     return (
       <span className="hab-progress">
-        <span className="hab-progress__bar" aria-hidden="true">
+        <span className="segbar" aria-hidden="true">
           {Array.from({ length: target }, (_, i) => (
             <span
               key={i}
-              className={`hab-progress__seg${i < done ? ' is-on' : ''}${
-                celebrating && i === target - 1 ? ' is-last' : ''
-              }`}
+              className={progressSegClass(i < done, celebrating && i === target - 1)}
             />
           ))}
         </span>
@@ -110,9 +123,9 @@ function HabitTodayRowSub({
 
   if (asDone) {
     return (
-      <span className="hab-row__sub hab-row__sub--done">
+      <span className={`hab-row__sub hab-row__sub--done${bump ? ' fc-bump' : ''}`}>
         <IconFlame size={12} />
-        <span>{doneCaption(streak)}</span>
+        <DoneCaption streak={streak} />
         {time && <span className="hab-row__sub-faint">· {time}</span>}
       </span>
     )
@@ -145,6 +158,8 @@ interface HabitTodayRowProps {
   lastAt: string | null
   /** Momento de festejo tras completar la última repetición (~1,2 s). */
   celebrating: boolean
+  /** La racha acaba de subir: la llama late y el número entra (una vez). */
+  bump?: boolean
   onToggle: () => void
 }
 
@@ -155,6 +170,7 @@ export function HabitTodayRow({
   streak,
   lastAt,
   celebrating,
+  bump = false,
   onToggle,
 }: Readonly<HabitTodayRowProps>) {
   const { target, complete } = progress
@@ -178,6 +194,7 @@ export function HabitTodayRow({
             progress={progress}
             asDone={asDone}
             celebrating={celebrating}
+            bump={bump}
             streak={streak}
             time={time}
           />

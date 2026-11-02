@@ -19,6 +19,10 @@ describe('frameForStreak', () => {
     expect(frameForStreak(365)?.id).toBe('leyenda')
   })
 
+  it('ningún marco usa el azul de acción ni de marca (azul = actuar)', () => {
+    for (const f of FRAMES) expect(f.color).not.toMatch(/--(primary|action)/)
+  })
+
   it('los marcos están en orden ascendente de exigencia (el algoritmo lo asume)', () => {
     for (let i = 1; i < FRAMES.length; i++) {
       expect(FRAMES[i].minStreak).toBeGreaterThan(FRAMES[i - 1].minStreak)

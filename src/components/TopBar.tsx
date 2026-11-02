@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { fetchCurrentStreak } from '@/services/profile'
 import { frameForStreak } from '@/domain/frames'
 import { useCachedData } from '@/hooks/useCachedData'
 import { IconHito } from '@/components/icons'
+import { avatarInitials } from '@/lib/avatar'
 
 /** Barra superior fina (solo móvil/tablet): la marca + acceso a Perfil.
  *  Perfil vive aquí (avatar) para que la barra inferior quede en 5 pestañas
@@ -13,8 +14,8 @@ import { IconHito } from '@/components/icons'
  *  Se esconde al scrollear hacia abajo y reaparece al subir o al llegar arriba
  *  (patrón iOS/Instagram): el contenido manda, la marca no estorba. */
 export function TopBar() {
-  const { userId, email, profile } = useSession()
-  const initial = (email.charAt(0) || '·').toUpperCase()
+  const { userId, email, displayName, profile } = useSession()
+  const initials = avatarInitials({ displayName, email })
   const [hidden, setHidden] = useState(false)
 
   // Marco por racha: misma métrica y misma clave de cache que Perfil, así solo
@@ -58,23 +59,12 @@ export function TopBar() {
       <NavLink
         to="/perfil"
         aria-label="Tu perfil"
-        className={({ isActive }) => `topbar__avatar${isActive ? ' topbar__avatar--active' : ''}`}
-        style={{
-          overflow: 'hidden',
-          // Anillo del marco ganado con la racha (ver src/domain/frames.ts), o
-          // --primary por defecto si aún no hay marco (igual que en Hoy).
-          boxShadow: `0 0 0 3px ${frame?.color ?? 'var(--primary)'}`,
-        }}
+        className={`avatar topbar__avatar${frame ? ' avatar--ring' : ''}`}
+        // Anillo del marco ganado con la racha (ver src/domain/frames.ts). Sin
+        // marco no hay anillo: el avatar es neutro, no una acción.
+        style={frame ? ({ '--avatar-ring': frame.color } as CSSProperties) : undefined}
       >
-        {profile.avatarUrl ? (
-          <img
-            src={profile.avatarUrl}
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
-          />
-        ) : (
-          initial
-        )}
+        {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : initials}
       </NavLink>
     </header>
   )

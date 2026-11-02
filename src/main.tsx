@@ -11,6 +11,12 @@ import '@/styles/tokens.css'
 import '@/styles/base.css'
 import '@/styles/components.css'
 import '@/styles/coach.css'
+// Full color: piezas base y luego cada grupo de pantallas (spec 2026-11-02).
+import '@/styles/fullcolor.css'
+import '@/styles/screens/metas.css'
+import '@/styles/screens/asistente.css'
+import '@/styles/screens/agenda-progreso.css'
+import '@/styles/screens/cuenta.css'
 
 // Actualización automática de la PWA: cuando hay versión nueva, el service
 // worker la activa y ESTA pestaña se recarga sola — sin esto, una pestaña

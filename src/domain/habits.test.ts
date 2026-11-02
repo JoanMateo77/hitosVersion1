@@ -542,8 +542,8 @@ describe('etiquetas', () => {
     expect(daysLabel([4, 0])).toBe('Lu · Vi') // desordenado: se ordena
   })
 
-  it('remindersLabel: horas sin el cero de la izquierda o "Sin recordatorios"', () => {
-    expect(remindersLabel(['09:00', '13:00', '17:00'])).toBe('9:00, 13:00, 17:00')
+  it('remindersLabel: horas en 12 h o "Sin recordatorios"', () => {
+    expect(remindersLabel(['09:00', '13:00', '17:00'])).toBe('9:00 am, 1:00 pm, 5:00 pm')
     expect(remindersLabel([])).toBe('Sin recordatorios')
     expect(remindersLabel(null)).toBe('Sin recordatorios')
   })

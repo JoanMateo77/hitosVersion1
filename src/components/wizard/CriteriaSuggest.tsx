@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type { ChatContext, CriterionOption } from '@/domain/coachChat'
 import { requestCriteria } from '@/services/goalPlan'
 import { CoachComposer } from '@/components/coach/CoachChatView'
@@ -50,12 +50,26 @@ export function CriteriaSuggest({
   }, [])
 
   const selected = (o: CriterionOption) => value.trim().replace(/\.$/, '') === o.text.trim().replace(/\.$/, '')
+  // Un solo punto de tabulación en el grupo: la elegida o, si no hay, la primera.
+  const checkedIndex = options?.findIndex(selected) ?? -1
+  const tabIndexOf = (i: number) => (i === Math.max(checkedIndex, 0) ? 0 : -1)
+
+  // Flechas: mueven el foco y eligen (patrón radiogroup), dando la vuelta.
+  function onRadioKey(e: KeyboardEvent<HTMLDivElement>) {
+    const delta = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key]
+    if (!delta || !options || options.length === 0) return
+    const radios = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]')]
+    const i = radios.indexOf(e.target as HTMLButtonElement)
+    if (i < 0) return
+    e.preventDefault()
+    const next = (i + delta + radios.length) % radios.length
+    radios[next].focus()
+    onChange(options[next].text)
+  }
 
   return (
     <div className="stack stack--sm criteria">
-      <span className="small" style={{ fontWeight: 600 }}>
-        ¿Cómo sabrás que lo lograste?
-      </span>
+      <span className="section-title">¿Cómo sabrás que lo lograste?</span>
       {loading ? (
         <div className="stack stack--sm" aria-hidden="true">
           {[0, 1, 2].map((i) => (
@@ -68,13 +82,14 @@ export function CriteriaSuggest({
       ) : (
         options &&
         options.length > 0 && (
-          <div className="stack stack--sm" role="radiogroup" aria-label="Propuestas del coach">
+          <div className="stack stack--sm" role="radiogroup" aria-label="Propuestas del coach" onKeyDown={onRadioKey}>
             {options.map((o, i) => (
               <button
                 key={o.text}
                 type="button"
                 role="radio"
                 aria-checked={selected(o)}
+                tabIndex={tabIndexOf(i)}
                 className="criteria-opt coach-rise"
                 style={{ animationDelay: `${i * 70}ms` }}
                 onClick={() => onChange(o.text)}
@@ -82,7 +97,7 @@ export function CriteriaSuggest({
                 <span className="criteria-opt__radio" aria-hidden="true" />
                 <span className="stack" style={{ gap: 2 }}>
                   <b>{o.text}</b>
-                  <span className="tiny faint">{o.why}</span>
+                  <span className="tiny muted">{o.why}</span>
                 </span>
               </button>
             ))}

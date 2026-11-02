@@ -74,7 +74,7 @@ textarea {
 }
 
 a {
-  color: var(--primary);
+  color: var(--action-text);
   text-decoration: none;
 }
 
@@ -111,7 +111,7 @@ ul {
 
 /* Focus ring que NO se come la sombra del componente (vivimos con outline). */
 :focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }

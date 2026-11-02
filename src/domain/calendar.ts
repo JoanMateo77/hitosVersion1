@@ -5,8 +5,8 @@
 import type { CalendarEvent } from '@/lib/types'
 import { addDays, startOfMonth, startOfWeek } from '@/lib/date'
 
-/** Etiquetas cortas de los días, de lunes a domingo. */
-export const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] as const
+/** Etiquetas de los días para la agenda, de lunes a domingo. */
+export { WEEKDAY_ABBR as WEEKDAY_LABELS } from './weekdays'
 
 /** Los 7 días (lunes→domingo) de la semana que contiene la fecha ancla. */
 export function weekDays(anchorISO: string): string[] {

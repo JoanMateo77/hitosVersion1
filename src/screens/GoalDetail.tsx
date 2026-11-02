@@ -22,6 +22,7 @@ import { listHabitChecksInRange, listHabits, setHabitCheck } from '@/services/ha
 import { habitDoneCount, habitIsComplete, habitTarget, nextSlot } from '@/domain/habits'
 import { getTemplate } from '@/domain/templates'
 import { NICHES, getNiche } from '@/domain/niches'
+import { formatPercent } from '@/lib/format'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { friendlyError } from '@/lib/errors'
 import { clearFormDraft, loadFormDraft, saveFormDraft } from '@/lib/formDraft'
@@ -52,16 +53,16 @@ import { useToast } from '@/app/toast'
 import { shareAchievement } from '@/lib/shareCard'
 import { successHaptic } from '@/lib/haptics'
 import {
-  IconBack,
   IconCalendar,
+  IconChevronLeft,
   IconCelebrate,
   IconCheck,
-  IconCompass,
   IconDots,
   IconQuote,
   IconShare,
 } from '@/components/icons'
 import { NicheGlyph } from '@/components/NicheGlyph'
+import { PathIllustration } from '@/components/PathIllustration'
 import { Disclosure } from '@/components/Disclosure'
 import { GoalNotes } from '@/screens/notes/GoalNotes'
 import { sessionCache } from '@/lib/sessionCache'
@@ -82,6 +83,33 @@ function forgetGoalInCache(userId: string, goalId: string) {
   const goalsKey = `goals:${userId}`
   const list = sessionCache.get<{ goals: Goal[] }>(goalsKey)
   if (list) sessionCache.set(goalsKey, { ...list, goals: list.goals.filter((g) => g.id !== goalId) })
+}
+
+const STATUS_TAG: Record<Exclude<GoalStatus, 'active'>, string> = {
+  done: 'Lograda',
+  paused: 'Pausada',
+  archived: 'Archivada',
+}
+
+/** Clase del tramo de la barra segmentada para una etapa. */
+function segClass(m: Milestone, justDone: boolean, currentStage: Milestone | null): string {
+  if (justDone) return 'just-done'
+  if (m.doneAt !== null) return 'done'
+  if (m === currentStage) return 'current'
+  return ''
+}
+
+/** Título de la tarjeta "Ahora": la etapa actual o el estado del camino. */
+function nowStageTitle(currentStage: Milestone | null, total: number): string {
+  if (currentStage) return currentStage.title
+  return total > 0 ? 'Cumpliste todas las etapas' : 'Arma tu camino abajo'
+}
+
+/** Rótulo corto del punto del camino: "Etapa 2 de 5", "Sin etapas"… */
+function stageLabelFor(sorted: Milestone[], currentStage: Milestone | null, total: number): string {
+  if (total === 0) return 'Sin etapas'
+  if (!currentStage) return 'Camino completo'
+  return `Etapa ${sorted.indexOf(currentStage) + 1} de ${total}`
 }
 
 /** Instantánea de datos cacheada por sesión para pintar el detalle al instante. */
@@ -457,12 +485,16 @@ export function GoalDetail() {
   if (!goal) {
     return (
       <div className="screen">
-        <BackButton onClick={() => navigate('/metas')} />
+        <BackButton label="Metas" onClick={() => navigate('/metas')} />
         <div className="empty">
-          <span className="empty__icon">
-            <IconCompass size={32} />
-          </span>
+          <PathIllustration width={180} done={0} />
           <p className="empty__title">No encontramos esa meta</p>
+          <p className="muted" style={{ marginBottom: 'var(--s4)' }}>
+            Puede que la hayas eliminado. Tus otras metas siguen en su lugar.
+          </p>
+          <button className="btn btn--primary" onClick={() => navigate('/metas')}>
+            Ver mis metas
+          </button>
         </div>
       </div>
     )
@@ -472,6 +504,7 @@ export function GoalDetail() {
     return (
       <div className="screen">
         <BackButton
+          label="Atrás"
           onClick={() => {
             // Volver atrás es descartar a propósito: el borrador no debe volver.
             clearFormDraft(`logralo.goal-edit.${goal.id}`)
@@ -493,12 +526,7 @@ export function GoalDetail() {
   const consistency = weekConsistency(blocks, weekSessions, startOfWeek(todayISO()))
   const isActive = goal.status === 'active'
   const currentStage = sortedMilestones.find((m) => m.doneAt === null) ?? null
-  const stageLabel =
-    progress.total === 0
-      ? 'Sin etapas'
-      : currentStage
-        ? `Etapa ${sortedMilestones.indexOf(currentStage) + 1} de ${progress.total}`
-        : 'Camino completo'
+  const stageLabel = stageLabelFor(sortedMilestones, currentStage, progress.total)
   const planFor = (title: string): GoalPlanStage | undefined =>
     ai.plan?.stages.find((st) => st.title.trim().toLowerCase() === title.trim().toLowerCase())
   const currentPlan = currentStage ? planFor(currentStage.title) : undefined
@@ -564,16 +592,31 @@ export function GoalDetail() {
   }
 
   return (
-    <div className={`screen${isActive ? ' screen--with-fab' : ''}`} style={nicheAccent(goal.area)}>
+    <div
+      className={`screen goal-detail${isActive ? ' screen--with-fab' : ''}`}
+      style={nicheAccent(goal.area)}
+    >
       {won && <Celebration title={won} onDone={() => setWon(null)} />}
-      <BackButton onClick={goBack} />
 
-      <header className="screen__header" style={{ marginTop: 'var(--s4)' }}>
-        <div className="row" style={{ marginBottom: 'var(--s2)', alignItems: 'center' }}>
-          <NicheGlyph area={goal.area} size="lg" />
+      {/* Cabecera full color: la tarjeta de la lista "se convierte" en ella
+          (mismo view-transition-name que el peek de /metas). */}
+      <header
+        className="fc-hero goal-hero"
+        style={{ viewTransitionName: `goal-${goal.id}` } as CSSProperties}
+      >
+        <div className="goal-hero__bar">
+          <BackButton label="Atrás" onClick={goBack} />
+          <button className="goal-hero__edit" onClick={() => setEditing(true)}>
+            Editar
+          </button>
+        </div>
+        <NicheGlyph area={goal.area} size="xl" />
+        <h1 className="goal-hero__title">{goal.title}</h1>
+        <div className="goal-hero__tags">
+          <span className="tag">{niche.label}</span>
           {goal.status !== 'active' && (
             <span className="tag">
-              {goal.status === 'done' ? 'Lograda' : goal.status === 'paused' ? 'Pausada' : 'Archivada'}
+              {STATUS_TAG[goal.status]}
             </span>
           )}
           {deadline && (
@@ -581,20 +624,7 @@ export function GoalDetail() {
               <IconCalendar size={12} /> {deadline}
             </span>
           )}
-          <button
-            className="btn btn--ghost btn--sm"
-            style={{ marginLeft: 'auto' }}
-            onClick={() => setEditing(true)}
-          >
-            Editar
-          </button>
         </div>
-        <h1
-          className="screen__title"
-          style={{ viewTransitionName: `goal-${goal.id}` } as CSSProperties}
-        >
-          {goal.title}
-        </h1>
       </header>
 
       <div className="detail-grid">
@@ -604,7 +634,7 @@ export function GoalDetail() {
             <div>
               <span className="now-card__kicker">{currentStage ? `Ahora: ${stageLabel.toLowerCase()}` : stageLabel}</span>
               <h2 className="now-card__stage">
-                {currentStage ? currentStage.title : progress.total > 0 ? 'Cumpliste todas las etapas' : 'Arma tu camino abajo'}
+                {nowStageTitle(currentStage, progress.total)}
               </h2>
             </div>
             {currentPlan && (
@@ -619,26 +649,37 @@ export function GoalDetail() {
               <>
                 <div className="now-card__progress">
                   <span>
-                    <b>{Math.round(progress.ratio * 100)}%</b>del camino
+                    <b>{formatPercent(progress.ratio * 100)}</b>del camino
                   </span>
                   {weekProgress && <span>{weekProgress}</span>}
                 </div>
                 <div className="segbar" aria-hidden="true">
-                  {sortedMilestones.map((m) => (
-                    <span key={m.id} className={m.doneAt !== null ? 'done' : m === currentStage ? 'current' : ''} />
-                  ))}
+                  {sortedMilestones.map((m) => {
+                    // La etapa recién cumplida se llena de izquierda a derecha y
+                    // suelta un destello del color del área (una vez).
+                    const justDone = m.id === justDoneId && m.doneAt !== null
+                    return (
+                      <span key={m.id} className={segClass(m, justDone, currentStage)}>
+                        {justDone && (
+                          <>
+                            <i className="segbar__fill fc-seg-fill" />
+                            <i className="fc-spark segbar__spark" />
+                          </>
+                        )}
+                      </span>
+                    )
+                  })}
                 </div>
               </>
             )}
             {currentStage && isActive && (
               <button
                 type="button"
-                className="btn btn--ghost btn--sm"
-                style={{ justifySelf: 'start' }}
+                className="btn now-card__done fc-press"
                 disabled={updating}
                 onClick={() => void toggleMilestone(currentStage)}
               >
-                <IconCheck size={14} /> Marcar esta etapa como cumplida
+                <IconCheck size={16} /> Marcar esta etapa como cumplida
               </button>
             )}
           </article>
@@ -646,7 +687,7 @@ export function GoalDetail() {
           {/* ----- Tu compromiso, visible y editable (backlog smoke #3) ----- */}
           <div className="card stack stack--sm">
             <div className="row row--between">
-              <span className="kicker">Tu compromiso</span>
+              <span className="section-title">Tu compromiso</span>
               {isActive && commitDraft === null && blocks.length > 0 && (
                 <button className="btn--link" style={{ fontSize: 'var(--fs-xs)' }} onClick={() => void openCommitmentEditor()}>
                   Editar
@@ -686,7 +727,7 @@ export function GoalDetail() {
                             Sacar de la agenda
                           </button>
                           <button
-                            className="btn btn--ghost btn--sm"
+                            className="btn btn--secondary btn--sm"
                             disabled={updating}
                             onClick={() => setConfirmUnschedule(false)}
                           >
@@ -703,7 +744,7 @@ export function GoalDetail() {
                   </p>
                   {isActive && (
                     <button
-                      className="btn btn--ghost btn--sm"
+                      className="btn btn--secondary btn--sm"
                       style={{ alignSelf: 'flex-start' }}
                       onClick={() => void openCommitmentEditor()}
                     >
@@ -730,7 +771,7 @@ export function GoalDetail() {
                   >
                     Guardar
                   </button>
-                  <button className="btn btn--ghost btn--sm" style={{ flex: 1 }} onClick={() => setCommitDraft(null)}>
+                  <button className="btn btn--secondary btn--sm" style={{ flex: 1 }} onClick={() => setCommitDraft(null)}>
                     Cancelar
                   </button>
                 </div>
@@ -741,8 +782,8 @@ export function GoalDetail() {
 
           {/* ----- El camino: checklist real ----- */}
           <div>
-            <div className="row row--between" style={{ marginBottom: 'var(--s3)' }}>
-              <h2 style={{ fontSize: 'var(--fs-lg)' }}>El camino</h2>
+            <div className="section-head">
+              <h2 className="section-title">El camino</h2>
             </div>
             <MilestoneChecklist
               milestones={sortedMilestones}
@@ -792,7 +833,7 @@ export function GoalDetail() {
                   <button className="btn btn--primary btn--sm" disabled={updating} onClick={() => void changeStatus('done')}>
                     Sí, lograda
                   </button>
-                  <button className="btn btn--ghost btn--sm" onClick={() => setOfferAchieve(false)}>
+                  <button className="btn btn--secondary btn--sm" onClick={() => setOfferAchieve(false)}>
                     Todavía no
                   </button>
                 </div>
@@ -804,7 +845,7 @@ export function GoalDetail() {
           {advances.length > 0 && (
             <div>
               <div className="section-head">
-                <h2 style={{ fontSize: 'var(--fs-lg)' }}>Tus avances</h2>
+                <h2 className="section-title">Tus avances</h2>
                 <span className="small muted">{advances.length}</span>
               </div>
               <AdvancesTimeline items={advances.slice(0, 3)} />
@@ -831,14 +872,14 @@ export function GoalDetail() {
           )}
           {goal.successCriteria && (
             <div className="card stack stack--sm">
-              <span className="kicker">Así sabrás que lo lograste</span>
+              <span className="section-title">Así sabrás que lo lograste</span>
               <p className="small" style={{ margin: 0 }}>
                 {goal.successCriteria}
               </p>
             </div>
           )}
-          <div className="card">
-            <Disclosure summary="Detalles">
+          <div className="card card--tight">
+            <Disclosure summary={<span className="section-title">Detalles</span>}>
               <div className="stack">
                 <InfoRow label="Área" value={niche.label} />
                 <InfoRow label="Tipo" value={template.label} />
@@ -856,7 +897,7 @@ export function GoalDetail() {
 
           {linkedHabits.length > 0 && (
             <div className="card stack stack--sm">
-              <span className="kicker">Hábitos que suman</span>
+              <span className="section-title">Hábitos que suman</span>
               {linkedHabits.map((h) => {
                 const done = habitDoneToday(h)
                 const target = habitTarget(h)
@@ -881,8 +922,7 @@ export function GoalDetail() {
                     )}
                     <button
                       type="button"
-                      className="row row--between"
-                      style={{ alignItems: 'center', flex: 1, minWidth: 0, textAlign: 'left' }}
+                      className="row row--between goal-detail__habit"
                       aria-label={`Ver hábito: ${h.title}`}
                       onClick={() => navigate('/habitos')}
                     >
@@ -897,11 +937,11 @@ export function GoalDetail() {
           <div className="stack stack--sm">
             {isActive && (
               <>
-                <button className="btn btn--ghost btn--block" disabled={updating} onClick={() => changeStatus('paused')}>
+                <button className="btn btn--secondary btn--block" disabled={updating} onClick={() => changeStatus('paused')}>
                   Pausar esta meta
                 </button>
                 <button
-                  className="btn btn--subtle btn--block"
+                  className="btn btn--secondary btn--block"
                   aria-expanded={moreOpen}
                   onClick={() => setMoreOpen((v) => !v)}
                 >
@@ -909,10 +949,10 @@ export function GoalDetail() {
                 </button>
                 {moreOpen && (
                   <div className="stack stack--sm">
-                    <button className="btn btn--ghost btn--block" disabled={updating} onClick={requestAchieve}>
+                    <button className="btn btn--secondary btn--block" disabled={updating} onClick={requestAchieve}>
                       Marcar como lograda
                     </button>
-                    <button className="btn btn--ghost btn--block" disabled={updating} onClick={() => changeStatus('archived')}>
+                    <button className="btn btn--secondary btn--block" disabled={updating} onClick={() => changeStatus('archived')}>
                       Archivar
                     </button>
                   </div>
@@ -926,10 +966,10 @@ export function GoalDetail() {
                       <button className="btn btn--primary btn--sm" disabled={updating} onClick={() => void achieveMarkingPending()}>
                         Ya las cumplí — márcalas y lógrala
                       </button>
-                      <button className="btn btn--ghost btn--sm" disabled={updating} onClick={() => void changeStatus('done')}>
+                      <button className="btn btn--secondary btn--sm" disabled={updating} onClick={() => void changeStatus('done')}>
                         Cerrarla igual
                       </button>
-                      <button className="btn btn--subtle btn--sm" onClick={() => setConfirmAchieve(false)}>
+                      <button className="btn btn--secondary btn--sm" onClick={() => setConfirmAchieve(false)}>
                         Cancelar
                       </button>
                     </div>
@@ -966,20 +1006,20 @@ export function GoalDetail() {
                 >
                   <IconShare size={16} /> Compartir mi logro
                 </button>
-                <button className="btn btn--ghost btn--block" onClick={() => navigate(`/ideas?area=${goal.area}`)}>
+                <button className="btn btn--secondary btn--block" onClick={() => navigate(`/ideas?area=${goal.area}`)}>
                   Ver ideas para tu próxima meta
                 </button>
               </div>
             )}
             {(goal.status === 'done' || goal.status === 'archived') && (
-              <button className="btn btn--ghost btn--block" disabled={updating} onClick={() => changeStatus('active')}>
+              <button className="btn btn--secondary btn--block" disabled={updating} onClick={() => changeStatus('active')}>
                 Reactivar
               </button>
             )}
             {!confirmDelete ? (
               <button
-                className="btn--link"
-                style={{ color: 'var(--danger)', alignSelf: 'center' }}
+                className="btn btn--danger-link"
+                style={{ alignSelf: 'center' }}
                 onClick={() => setConfirmDelete(true)}
               >
                 Eliminar meta
@@ -995,7 +1035,7 @@ export function GoalDetail() {
                   <button className="btn btn--danger btn--sm" onClick={() => void handleDelete()} disabled={deleting}>
                     {deleting ? 'Eliminando…' : 'Sí, eliminar'}
                   </button>
-                  <button className="btn btn--ghost btn--sm" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+                  <button className="btn btn--secondary btn--sm" onClick={() => setConfirmDelete(false)} disabled={deleting}>
                     Cancelar
                   </button>
                 </div>
@@ -1040,10 +1080,12 @@ function AdvancesTimeline({ items }: { items: Session[] }) {
   )
 }
 
-function BackButton({ onClick }: { onClick: () => void }) {
+/** Atrás canónico (.back-link). Es botón: vuelve por historial o descarta la edición. */
+function BackButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button className="iconbtn" onClick={onClick} aria-label="Volver">
-      <IconBack />
+    <button type="button" className="back-link" onClick={onClick}>
+      <IconChevronLeft size={18} />
+      {label}
     </button>
   )
 }
@@ -1211,7 +1253,7 @@ function GoalEditor({
         <button className="btn btn--primary btn--block" disabled={!title.trim() || saving} onClick={submit}>
           {saving ? 'Guardando…' : 'Guardar cambios'}
         </button>
-        <button className="btn btn--ghost btn--block" disabled={saving} onClick={cancel}>
+        <button className="btn btn--secondary btn--block" disabled={saving} onClick={cancel}>
           Cancelar
         </button>
       </div>

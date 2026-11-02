@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type { Milestone } from '@/lib/types'
 import { formatLongDate, todayISO } from '@/lib/date'
 import {
@@ -42,6 +42,16 @@ export function MilestoneChecklist({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [menuId, setMenuId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  // El campo recibe el foco solo cuando el usuario lo abre (tocar el título o
+  // "+ Agregar etapa"), no al montar la pantalla.
+  const editRef = useRef<HTMLInputElement>(null)
+  const addRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (editingId) editRef.current?.focus()
+  }, [editingId])
+  useEffect(() => {
+    if (adding) addRef.current?.focus()
+  }, [adding])
 
   function commitRename(m: Milestone, value: string) {
     setEditingId(null)
@@ -83,32 +93,36 @@ export function MilestoneChecklist({
             >
               <IconCheck size={16} />
             </button>
-            {editingId === m.id ? (
-              <input
-                className="input mstone__input"
-                autoFocus
-                defaultValue={m.title}
-                maxLength={200}
-                aria-label={`Editar la etapa ${index + 1}`}
-                onBlur={(e) => commitRename(m, e.target.value)}
-                onKeyDown={onEditKey}
-              />
-            ) : (
-              <button
-                type="button"
-                className="mstone__title"
-                disabled={disabled}
-                onClick={() => setEditingId(m.id)}
-                aria-label={`Editar el texto de la etapa: ${m.title}`}
-              >
-                {m.title}
-              </button>
-            )}
-            {m.targetDate && (
-              <span className="tag mstone__date">
-                <IconCalendar size={11} /> {formatLongDate(m.targetDate)}
-              </span>
-            )}
+            <span className="mstone__text">
+              {editingId === m.id ? (
+                <input
+                  ref={editRef}
+                  className="input mstone__input"
+                  defaultValue={m.title}
+                  maxLength={200}
+                  aria-label={`Editar la etapa ${index + 1}`}
+                  onBlur={(e) => commitRename(m, e.target.value)}
+                  onKeyDown={onEditKey}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="mstone__title"
+                  disabled={disabled}
+                  onClick={() => setEditingId(m.id)}
+                  aria-label={`Editar el texto de la etapa: ${m.title}`}
+                >
+                  {m.title}
+                </button>
+              )}
+              {/* La fecha va debajo del título: a su lado lo estrujaba en una
+                  columna de dos palabras en móvil. */}
+              {m.targetDate && editingId !== m.id && (
+                <span className="mstone__date">
+                  <IconCalendar size={11} /> {formatLongDate(m.targetDate)}
+                </span>
+              )}
+            </span>
             {!disabled && (
               <button
                 type="button"
@@ -170,8 +184,8 @@ export function MilestoneChecklist({
         <li style={{ marginTop: 'var(--s2)' }}>
           {adding ? (
             <input
+              ref={addRef}
               className="input"
-              autoFocus
               placeholder="Describe la nueva etapa…"
               maxLength={200}
               aria-label="Nueva etapa"

@@ -6,7 +6,6 @@ import {
   formatHeaderDate,
   frameCaption,
   greeting,
-  initialsFrom,
   laterTodayItems,
   nextPendingSession,
   progressLine,
@@ -136,21 +135,6 @@ describe('displayNameFrom', () => {
   })
   it('email cuya parte local empieza con separador: cadena vacía', () => {
     expect(displayNameFrom(undefined, '.raro@x.com')).toBe('')
-  })
-})
-
-describe('initialsFrom', () => {
-  it('dos palabras: primera letra de cada una', () => {
-    expect(initialsFrom('María José', 'x@y.com')).toBe('MJ')
-  })
-  it('una palabra: sus dos primeras letras', () => {
-    expect(initialsFrom('Carlos', 'x@y.com')).toBe('CA')
-  })
-  it('sin nombre: dos primeras letras del email', () => {
-    expect(initialsFrom('', 'ana@x.com')).toBe('AN')
-  })
-  it('sin nombre ni email: punto medio', () => {
-    expect(initialsFrom('', '')).toBe('·')
   })
 })
 

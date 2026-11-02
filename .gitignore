@@ -52,3 +52,10 @@ revision-prs/
 
 # Enlace local con Vercel (vercel link)
 .vercel
+
+# Playwright (arnés de capturas)
+test-results/
+playwright-report/
+
+# Capturas de Playwright (npm run shots): se regeneran, pesan ~10 MB por tanda
+docs/diseno/**/capturas/

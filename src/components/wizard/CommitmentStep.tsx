@@ -283,7 +283,7 @@ export function CommitmentStep({
         })}
       </div>
 
-      <div className="row wrap" role="group" aria-label="¿Qué días le vas a dedicar?">
+      <div className="row wrap wizard-days" role="group" aria-label="¿Qué días le vas a dedicar?">
         {WEEKDAY_LABELS.map((label, weekday) => (
           <button
             key={label}
@@ -430,7 +430,7 @@ export function CommitmentStep({
           {rangeError}
         </p>
       )}
-      {blocks.length > 0 && <div className="alert">{formatCommitmentSummary(blocks)}</div>}
+      {blocks.length > 0 && <div className="alert">Tu compromiso: {formatCommitmentSummary(blocks)}</div>}
       {warning && (
         <div className="alert alert--warn" role="status" aria-live="polite" aria-atomic="true">
           {warning}

@@ -1,0 +1,100 @@
+import { CUSTOM_TYPE_KEY, type GoalTypeSuggestion } from '@/domain/goalType'
+import type { QuestionAnswer } from '@/domain/goalPlan'
+import { TEMPLATES, getTemplate } from '@/domain/templates'
+
+/**
+ * Lógica pura del paso "¿Qué tipo de meta es?": validación del borrador y cómo
+ * llega la descripción libre ("Otra: …") al coach. Sin React, para testearla.
+ */
+
+/** Largo máximo de la descripción libre del tipo. */
+export const TYPE_NOTE_MAX = 120
+
+/** Largo máximo de la razón de la IA: viene de fuera, se acota antes de pintarla. */
+export const TYPE_REASON_MAX = 160
+
+/** Pregunta con la que la descripción libre viaja en las respuestas del coach. */
+export const TYPE_QUESTION = '¿Qué tipo de meta es?'
+
+/** Sugerencia de tipo y de dónde salió: palabras clave del título o la IA. */
+export interface TypeSuggestionDraft extends GoalTypeSuggestion {
+  source: 'keywords' | 'ai'
+}
+
+const VALID_KEYS = new Set(TEMPLATES.map((t) => t.key))
+
+export function isTemplateKey(key: unknown): key is string {
+  return typeof key === 'string' && VALID_KEYS.has(key)
+}
+
+/** Sugerencia por palabras clave (sin razón ni alternativas). */
+export function keywordSuggestion(key: string): TypeSuggestionDraft {
+  return { key, reason: '', alternatives: [], source: 'keywords' }
+}
+
+/** Sugerencia de la IA ya validada por el servidor; se re-filtra por si acaso. */
+export function aiSuggestion(s: GoalTypeSuggestion): TypeSuggestionDraft | null {
+  if (!isTemplateKey(s.key)) return null
+  return {
+    key: s.key,
+    reason: typeof s.reason === 'string' ? s.reason.trim().slice(0, TYPE_REASON_MAX) : '',
+    alternatives: [...new Set(Array.isArray(s.alternatives) ? s.alternatives.filter(isTemplateKey) : [])]
+      .filter((k) => k !== s.key && k !== CUSTOM_TYPE_KEY)
+      .slice(0, 2),
+    source: 'ai',
+  }
+}
+
+/** Campos del paso de tipo leídos de un borrador desconocido (sessionStorage). */
+export interface TypeDraftFields {
+  /** Solo si es un tipo del catálogo; '' (ninguno) se deja al valor por defecto. */
+  templateKey?: string
+  typeNote?: string
+  typePicked?: boolean
+  typeSuggestion?: TypeSuggestionDraft
+}
+
+export function parseTypeDraft(d: Record<string, unknown>): TypeDraftFields {
+  const out: TypeDraftFields = {}
+  if (isTemplateKey(d.templateKey)) out.templateKey = d.templateKey
+  // La descripción libre solo vive con el tipo personalizada: con otro tipo es basura.
+  if (typeof d.typeNote === 'string' && out.templateKey === CUSTOM_TYPE_KEY) {
+    out.typeNote = d.typeNote.slice(0, TYPE_NOTE_MAX)
+  }
+  if (typeof d.typePicked === 'boolean') out.typePicked = d.typePicked
+  const s = d.typeSuggestion
+  if (s != null && typeof s === 'object' && !Array.isArray(s)) {
+    const r = s as Record<string, unknown>
+    if (isTemplateKey(r.key) && (r.source === 'ai' || r.source === 'keywords')) {
+      const alternatives = Array.isArray(r.alternatives) ? r.alternatives.filter(isTemplateKey) : []
+      const parsed = aiSuggestion({
+        key: r.key,
+        reason: typeof r.reason === 'string' ? r.reason : '',
+        alternatives,
+      })
+      if (parsed) out.typeSuggestion = { ...parsed, source: r.source }
+    }
+  }
+  return out
+}
+
+/** La descripción libre solo cuenta si el tipo elegido es "personalizada". */
+export function effectiveTypeNote(templateKey: string, typeNote: string): string {
+  return (templateKey || CUSTOM_TYPE_KEY) === CUSTOM_TYPE_KEY ? typeNote.trim() : ''
+}
+
+/** Cómo se nombra el tipo ante el coach y en el resumen. */
+export function typeLabelFor(templateKey: string, typeNote: string): string {
+  const note = effectiveTypeNote(templateKey, typeNote)
+  return note ? `Otra: ${note}` : getTemplate(templateKey || CUSTOM_TYPE_KEY).label
+}
+
+/** Respuestas que se guardan con la meta: la descripción libre va primero. */
+export function answersWithTypeNote(
+  answers: readonly QuestionAnswer[],
+  templateKey: string,
+  typeNote: string,
+): QuestionAnswer[] {
+  const note = effectiveTypeNote(templateKey, typeNote)
+  return note ? [{ question: TYPE_QUESTION, answer: note }, ...answers] : [...answers]
+}

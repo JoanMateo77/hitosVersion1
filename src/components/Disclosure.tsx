@@ -36,8 +36,11 @@ export function Disclosure({
         </span>
       </button>
       <div className="disclosure__wrap">
+        {/* El aire va en __inner, no en __body: el padding del cuerpo no se
+            pliega con grid-template-rows: 0fr y dejaba asomar ~16px del
+            contenido con el desplegable cerrado. */}
         <div className="disclosure__body" id={id} inert={!open}>
-          {children}
+          <div className="disclosure__inner">{children}</div>
         </div>
       </div>
     </div>

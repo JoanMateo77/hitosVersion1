@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="oscuro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lógralo · Color y vida en Metas (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Tokens copiados de src/styles/tokens.css (misma fuente de verdad visual). */
+:root{
+  --radius-sm:10px;--radius:14px;--radius-lg:16px;--radius-xl:24px;--radius-pill:999px;
+  --font:'Archivo',-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',system-ui,sans-serif;
+  --ease-out:cubic-bezier(.25,1,.5,1);--ease-spring:cubic-bezier(.34,1.56,.64,1);--ease-ios:cubic-bezier(.32,.72,.18,1);
+  --dur-tap:120ms;--dur-state:220ms;--dur-layout:320ms;--dur-focal:560ms;
+  --bg:#f2f2f7;--surface:#fff;--surface-2:#e5e5ea;--surface-3:#d1d1d6;--border:#d1d1d6;--border-soft:#e5e5ea;
+  --text:#1c1c1e;--text-muted:#6e6e73;--text-faint:#aeaeb2;
+  --primary:#5b6cff;--primary-soft:rgba(91,108,255,.12);--on-primary:#fff;
+  --success:#1f9d55;--success-fill:#34c77b;--warning:#b8730f;--warning-dot:#f0a11c;
+  --niche-salud:#16a777;--niche-finanzas:#e0992f;--niche-carrera:#4a8ee6;--niche-aprendizaje:#7b6cf0;
+  --niche-relaciones:#ec5f8f;--niche-creatividad:#c75ad6;--niche-bienestar:#19b3c4;--niche-otra:#98a0ab;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.05);
+  --canvas:#dcdce3;
+}
+[data-theme='oscuro']{
+  color-scheme:dark;
+  --bg:#000;--surface:#1c1c1e;--surface-2:#2c2c2e;--surface-3:#3a3a3c;--border:#3a3a3c;--border-soft:#2c2c2e;
+  --text:#fff;--text-muted:#8e8e93;--text-faint:#5a5a5f;
+  --primary:#7d8cff;--primary-soft:rgba(125,140,255,.16);
+  --success:#4cd383;--warning:#e6b84c;
+  --niche-salud:#2dc78b;--niche-finanzas:#eead4e;--niche-carrera:#6ba5f5;--niche-aprendizaje:#998cf5;
+  --niche-relaciones:#f278a2;--niche-creatividad:#d878e3;--niche-bienestar:#38c4d3;--niche-otra:#a7afba;
+  --shadow-sm:none;
+  --canvas:#121214;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--font);background:var(--canvas);color:var(--text);font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+
+/* ===== Lienzo del mockup (no es parte de la app) ===== */
+.doc{max-width:1400px;margin:0 auto;padding:32px 16px 96px}
+.doc__top{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:flex-end}
+.doc__top h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.025em}
+.doc__top p{margin:4px 0 0;color:var(--text-muted);max-width:700px}
+.pill-row{display:flex;flex-wrap:wrap;gap:6px}
+.pill-row button{font-size:13px;font-weight:600;border:1px solid var(--border);background:var(--surface);padding:6px 12px;border-radius:var(--radius-pill)}
+.pill-row button[aria-pressed='true']{background:var(--text);color:var(--surface);border-color:var(--text)}
+.rule{margin:16px 0 0;padding:14px 18px;background:var(--surface);border-radius:var(--radius);font-size:14px;max-width:920px}
+.rule b{font-weight:700}
+.scene{margin-top:56px}
+.scene__head{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline;margin-bottom:16px}
+.scene__head h2{margin:0;font-size:22px;font-weight:800;letter-spacing:-.02em}
+.scene__head p{margin:0;color:var(--text-muted);font-size:14px;max-width:760px}
+.trio{display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start}
+#list-trio,#detail-trio,#combo-trio{display:grid;grid-template-columns:repeat(auto-fill,390px);gap:48px 40px;justify-content:start}
+.trio__col{display:flex;flex-direction:column;gap:10px}
+.trio__label{font-size:14px;font-weight:700}
+.trio__label span{display:block;font-weight:400;font-size:13px;color:var(--text-muted);max-width:390px}
+
+.phone{width:390px;height:780px;background:var(--bg);border-radius:48px;overflow:hidden;position:relative;box-shadow:0 0 0 10px #1c1c1e;display:flex;flex-direction:column;flex-shrink:0}
+.phone__status{height:44px;flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:8px 30px 0;font-size:15px;font-weight:600}
+.phone__scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 16px 110px;scrollbar-width:none}
+.phone__scroll::-webkit-scrollbar{display:none}
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:84px;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(20px);border-top:1px solid var(--border-soft);display:flex;justify-content:space-around;padding-top:10px;font-size:11px;color:var(--text-faint)}
+.tabbar span{display:flex;flex-direction:column;align-items:center;gap:4px}
+.tabbar span svg{width:24px;height:24px}
+.tabbar span.on{color:var(--primary);font-weight:600}
+.phone__status svg{height:12px;width:auto}
+.phone__status .sys{display:flex;gap:6px;align-items:center}
+
+.desk{width:100%;max-width:1280px;height:760px;background:var(--bg);border-radius:14px;overflow:hidden;box-shadow:0 0 0 1px var(--border-soft),0 30px 60px -30px rgba(0,0,0,.35);display:flex}
+.sidenav{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border-soft);padding:20px 14px;display:flex;flex-direction:column;gap:4px}
+.brand{font-weight:800;font-size:20px;letter-spacing:-.02em;padding:4px 10px 18px}
+.navi{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--radius-sm);font-size:15px;color:var(--text-muted);font-weight:500}
+.navi--on{background:var(--primary-soft);color:var(--primary);font-weight:600}
+.navi svg{width:19px;height:19px}
+.desk__main{flex:1;overflow-y:auto;padding:32px 40px 48px;min-width:0}
+
+/* ===== App: comunes ===== */
+.head{display:flex;justify-content:space-between;align-items:center;margin:8px 0 18px}
+.title{margin:0;font-size:32px;font-weight:800;letter-spacing:-.03em}
+.btn{border:0;border-radius:var(--radius-pill);font-weight:600;padding:8px 14px;font-size:14px;background:var(--primary);color:var(--on-primary)}
+.btn--block{display:block;width:100%;padding:14px;font-size:16px}
+.kicker{font-size:13px;font-weight:600;color:var(--text-muted)}
+.faint{color:var(--text-faint)}
+.muted{color:var(--text-muted)}
+.small{font-size:14px}
+.tiny{font-size:12px}
+.grid{display:flex;flex-direction:column;gap:12px}
+.desk .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.sectionlabel{font-size:15px;font-weight:700;margin:22px 0 10px}
+
+/* Tarjeta de meta (base = lo que hay hoy) */
+.gc{position:relative;display:flex;flex-direction:column;gap:12px;padding:16px;background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);text-align:left;overflow:hidden;isolation:isolate;width:100%;transition:transform var(--dur-tap) var(--ease-out)}
+.gc:active{transform:scale(.985)}
+.gc__top{display:flex;align-items:center;gap:12px}
+.gc__title{font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gc__meta{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:var(--text-muted)}
+.gc__prog{display:flex;align-items:center;gap:10px}
+.gc__prog .bar{flex:1}
+.gc__pct{font-size:13px;font-weight:600;color:var(--text-muted);min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
+.glyph{position:relative;z-index:1;flex:none;width:36px;height:36px;border-radius:var(--radius);display:grid;place-items:center;
+  background:color-mix(in srgb,var(--niche) 14%,var(--surface-2));border:1px solid color-mix(in srgb,var(--niche) 26%,var(--border-soft));color:color-mix(in srgb,var(--niche) 78%,var(--text))}
+.glyph svg{width:20px;height:20px}
+.bar{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:inherit;background:var(--primary);width:var(--p)}
+.star{color:var(--text-faint);display:inline-flex;flex:none}
+.star svg{width:17px;height:17px}
+.star--on{color:var(--primary)}
+.star--on svg{fill:currentColor}
+.v-viva .star--on{color:#fff}
+.chip-state{font-size:12px;font-weight:600;padding:3px 8px;border-radius:var(--radius-pill);background:var(--surface-2);color:var(--text-muted)}
+.n-salud{--niche:var(--niche-salud)}.n-finanzas{--niche:var(--niche-finanzas)}.n-carrera{--niche:var(--niche-carrera)}
+.n-aprendizaje{--niche:var(--niche-aprendizaje)}.n-relaciones{--niche:var(--niche-relaciones)}.n-creatividad{--niche:var(--niche-creatividad)}
+.n-bienestar{--niche:var(--niche-bienestar)}
+
+/* ===== Variante SOBRIA: color con significado, superficies igual ===== */
+.v-sobria .glyph,.v-viva .glyph{background:var(--niche);border-color:transparent;color:#fff}
+.v-sobria .bar i,.v-viva .bar i{background:var(--niche)}
+.v-sobria .gc__pct,.v-viva .gc__pct{color:color-mix(in srgb,var(--niche) 80%,var(--text));font-weight:700}
+.chip-state--late{background:color-mix(in srgb,var(--warning-dot) 16%,transparent);color:var(--warning)}
+.chip-state--ok{background:color-mix(in srgb,var(--success-fill) 16%,transparent);color:var(--success)}
+.v-hoy .chip-state--late,.v-hoy .chip-state--ok{background:var(--surface-2);color:var(--text-muted)}
+.v-sobria .gc{border-left:3px solid var(--niche)}
+
+/* ===== Variante VIVA: además franja con patrón por área ===== */
+.gc__band{display:none}
+.v-viva .gc{padding-top:0}
+.v-viva .gc__band{display:block;margin:0 -16px;height:64px;
+  background:
+    var(--pat) right 14px center/auto 62% no-repeat,
+    linear-gradient(115deg,color-mix(in srgb,var(--niche) 72%,var(--surface)) 0%,color-mix(in srgb,var(--niche) 30%,var(--surface)) 100%)}
+.v-viva .gc__top{flex-direction:column;align-items:flex-start;gap:8px;margin-top:-26px}
+.v-viva .gc__top .glyph{width:46px;height:46px;border-radius:15px;box-shadow:0 0 0 4px var(--surface)}
+.v-viva .gc__top .glyph svg{width:22px;height:22px}
+.v-viva .gc__title{white-space:normal;font-size:17px;font-weight:700;letter-spacing:-.01em}
+.v-viva .star{position:absolute;top:12px;right:12px;z-index:2;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;background:rgba(0,0,0,.22);backdrop-filter:blur(6px)}
+.v-viva .star svg{width:15px;height:15px}
+.desk .v-viva .gc__band,.desk.v-viva .gc__band{height:72px}
+
+/* Patrones SVG por área (trazos finos, color del texto sobre la franja) */
+.n-salud{--pat:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60'%3E%3Cpath d='M0 34h40l8-16 10 32 10-40 10 30 6-6h76' fill='none' stroke='white' stroke-opacity='.6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+.n-finanzas{--pat:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60' fill='none' stroke='white' stroke-opacity='.55' stroke-width='2.5'%3E%3Cellipse cx='110' cy='46' rx='22' ry='7'/%3E%3Cellipse cx='110' cy='36' rx='22' ry='7'/%3E%3Cellipse cx='110' cy='26' rx='22' ry='7'/%3E%3Cellipse cx='146' cy='40' rx='16' ry='5'/%3E%3Cellipse cx='146' cy='32' rx='16' ry='5'/%3E%3C/svg%3E")}
+.n-aprendizaje{--pat:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60' fill='white' fill-opacity='.45'%3E%3Ccircle cx='80' cy='12' r='3'/%3E%3Ccircle cx='96' cy='12' r='3'/%3E%3Ccircle cx='112' cy='12' r='3'/%3E%3Ccircle cx='128' cy='12' r='3'/%3E%3Ccircle cx='144' cy='12' r='3'/%3E%3Ccircle cx='96' cy='28' r='3'/%3E%3Ccircle cx='112' cy='28' r='3'/%3E%3Ccircle cx='128' cy='28' r='3'/%3E%3Ccircle cx='144' cy='28' r='3'/%3E%3Ccircle cx='112' cy='44' r='3'/%3E%3Ccircle cx='128' cy='44' r='3'/%3E%3Ccircle cx='144' cy='44' r='3'/%3E%3C/svg%3E")}
+.n-relaciones{--pat:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60' fill='none' stroke='white' stroke-opacity='.55' stroke-width='2.5'%3E%3Ccircle cx='104' cy='30' r='20'/%3E%3Ccircle cx='132' cy='30' r='20'/%3E%3C/svg%3E")}
+.n-creatividad{--pat:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60' fill='none' stroke='white' stroke-opacity='.6' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M86 44l10-14M104 18l14 6M124 44l8-18M140 14l10 10M100 50l16-2M146 46l6-10'/%3E%3Ccircle cx='132' cy='34' r='3' fill='white' fill-opacity='.5' stroke='none'/%3E%3Ccircle cx='92' cy='20' r='3' fill='white' fill-opacity='.5' stroke='none'/%3E%3C/svg%3E")}
+.n-bienestar{--pat:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60' fill='none' stroke='white' stroke-opacity='.55' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M70 22q10-8 20 0t20 0 20 0 20 0M70 36q10-8 20 0t20 0 20 0 20 0M70 50q10-8 20 0t20 0 20 0 20 0'/%3E%3C/svg%3E")}
+.n-carrera{--pat:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60' fill='none' stroke='white' stroke-opacity='.55' stroke-width='2.5' stroke-linejoin='round'%3E%3Cpath d='M84 54h18V42h18V30h18V18h18'/%3E%3C/svg%3E")}
+
+
+/* ===== Variante FULL COLOR: plano, saturado, botones con relieve ===== */
+:root{--intensity:92%}
+.n-salud{--vivid-base:#1fae6a}.n-finanzas{--vivid-base:#ff9500}.n-carrera{--vivid-base:#1c7cf4}.n-aprendizaje{--vivid-base:#7a4dff}
+.n-relaciones{--vivid-base:#ff3d71}.n-creatividad{--vivid-base:#d23be0}.n-bienestar{--vivid-base:#00b2c2}
+[class*='n-']{--vivid:color-mix(in oklch,var(--vivid-base) var(--intensity),#8c8c8c)}
+.v-full{--lip:4px}
+.v-full .btn{background:var(--primary);box-shadow:0 var(--lip) 0 color-mix(in srgb,var(--primary) 70%,#000);font-weight:800;letter-spacing:.01em;border-radius:14px;transform:translateY(calc(var(--lip) * -1))}
+.v-full .btn:active{transform:none;box-shadow:none}
+.v-full .gc{background:
+    var(--pat) right 14px top 14px/auto 44px no-repeat,
+    var(--vivid);
+  border:0;border-radius:22px;color:#fff;box-shadow:0 var(--lip) 0 color-mix(in srgb,var(--vivid) 68%,#000);margin-bottom:var(--lip);padding:18px}
+.v-full .gc:active{transform:translateY(var(--lip));box-shadow:none}
+.v-full .glyph{background:rgba(255,255,255,.24);border:0;color:#fff;width:42px;height:42px;border-radius:14px}
+.v-full .gc__title{font-size:18px;font-weight:800;letter-spacing:-.01em;white-space:normal}
+.v-full .gc__meta{color:rgba(255,255,255,.88);font-weight:600}
+.v-full .bar{height:12px;border-radius:6px;background:rgba(0,0,0,.2)}
+.v-full .bar i{background:#fff}
+.v-full .gc__pct{color:#fff;font-weight:800;font-size:15px}
+.v-full .star{color:rgba(255,255,255,.75)}
+.v-full .star--on{color:#fff}
+.v-full .chip-state{background:#fff;font-weight:800}
+.v-full .chip-state--ok{color:#138a4f}
+.v-full .chip-state--late{color:#c45c00}
+.v-full .title{font-weight:900}
+/* Detalle */
+.v-full .hero{background:var(--pat) right 20px top 60px/auto 64px no-repeat,var(--vivid);color:#fff;border-radius:0 0 28px 28px;padding-bottom:24px;margin-bottom:20px}
+.v-full .hero .glyph{width:56px;height:56px;border-radius:18px}
+.v-full .hero .glyph svg{width:28px;height:28px}
+.v-full .hero__back{background:rgba(255,255,255,.24);color:#fff}
+.v-full .hero__title{font-weight:900}
+.v-full .tag{background:rgba(255,255,255,.24);color:#fff;font-weight:700}
+.v-full .now{border:2px solid var(--border-soft);border-radius:22px;box-shadow:0 var(--lip) 0 var(--border-soft)}
+.v-full .now__kicker{color:var(--vivid);font-weight:800}
+.v-full .now__title{font-weight:800}
+.v-full .now li::before{border-color:var(--vivid);border-width:3px}
+.v-full .seg i{height:12px;border-radius:6px}
+.v-full .seg i.done{background:var(--vivid)}
+.v-full .seg i.cur{background:color-mix(in srgb,var(--vivid) 30%,var(--surface-2))}
+.v-full .now__foot{font-weight:600}
+.v-full .now__btn{background:var(--vivid);color:#fff;font-weight:800;border-radius:14px;box-shadow:0 var(--lip) 0 color-mix(in srgb,var(--vivid) 68%,#000);margin-bottom:var(--lip)}
+.v-full .now__btn:active{transform:translateY(var(--lip));box-shadow:none}
+.v-full .week b{width:34px;height:34px;font-weight:800}
+.v-full .week b.ok{background:color-mix(in oklch,#1fae6a var(--intensity),#8c8c8c);box-shadow:0 3px 0 #13804c}
+.v-full .week b.miss{background:color-mix(in oklch,#ff9500 var(--intensity),#8c8c8c);color:#fff;box-shadow:0 3px 0 #b86b00}
+.v-full .fab{box-shadow:0 var(--lip) 0 color-mix(in srgb,var(--primary) 65%,#000)}
+.v-full .tabbar span.on svg{filter:drop-shadow(0 2px 0 color-mix(in srgb,var(--primary) 60%,#000))}
+
+
+/* ===== Combinaciones de full color ===== */
+/* Tapa: cabecera de color, cuerpo neutro */
+.v-full.v-tapa .gc{background:var(--surface);color:var(--text);padding:0 18px 16px;border:2px solid var(--border-soft);box-shadow:0 var(--lip) 0 var(--border-soft)}
+.v-full.v-tapa .gc__top{margin:0 -18px;padding:16px 18px;color:#fff;background:var(--pat) right 52px center/auto 34px no-repeat,var(--vivid)}
+.v-full.v-tapa .gc__meta{color:var(--text-muted)}
+.v-full.v-tapa .bar{background:var(--surface-2)}
+.v-full.v-tapa .bar i{background:var(--vivid)}
+.v-full.v-tapa .gc__pct{color:var(--vivid)}
+.v-full.v-tapa .chip-state{background:color-mix(in srgb,var(--vivid) 16%,transparent)}
+.v-full.v-tapa .chip-state--ok{color:var(--success);background:color-mix(in srgb,var(--success-fill) 18%,transparent)}
+.v-full.v-tapa .chip-state--late{color:var(--warning);background:color-mix(in srgb,var(--warning-dot) 18%,transparent)}
+/* Acento: tarjeta neutra con relieve; el color va en el ícono y la barra gruesa */
+.v-full.v-acento .gc{background:var(--surface);color:var(--text);border:2px solid var(--border-soft);box-shadow:0 var(--lip) 0 var(--border-soft)}
+.v-full.v-acento .glyph{background:var(--vivid);box-shadow:0 3px 0 color-mix(in srgb,var(--vivid) 65%,#000)}
+.v-full.v-acento .gc__meta{color:var(--text-muted)}
+.v-full.v-acento .bar{background:var(--surface-2)}
+.v-full.v-acento .bar i{background:var(--vivid)}
+.v-full.v-acento .gc__pct{color:var(--vivid)}
+.v-full.v-acento .star{color:var(--text-faint)}
+.v-full.v-acento .star--on{color:var(--primary)}
+.v-full.v-acento .chip-state--ok{background:color-mix(in oklch,#1fae6a var(--intensity),#8c8c8c);color:#fff}
+.v-full.v-acento .chip-state--late{background:color-mix(in oklch,#ff9500 var(--intensity),#8c8c8c);color:#fff}
+/* Degradado: full color con profundidad (claro arriba a la izquierda, más hondo abajo) */
+.v-full.v-grad .gc{background:
+    var(--pat) right 14px bottom 40px/auto 56px no-repeat,
+    radial-gradient(120% 90% at 0% 0%,color-mix(in srgb,var(--vivid) 82%,#fff) 0%,transparent 55%),
+    linear-gradient(160deg,var(--vivid) 30%,color-mix(in srgb,var(--vivid) 78%,#000) 100%)}
+
+/* ===== Detalle de meta ===== */
+.hero{position:relative;margin:0 -16px 16px;padding:12px 16px 18px;overflow:hidden}
+.hero__back{width:34px;height:34px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center;margin-bottom:14px}
+.hero__title{margin:10px 0 4px;font-size:28px;font-weight:800;letter-spacing:-.025em;line-height:1.15}
+.hero__row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tag{font-size:12px;font-weight:600;padding:4px 9px;border-radius:var(--radius-pill);background:var(--surface-2);color:var(--text-muted)}
+.v-sobria .tag--area,.v-viva .tag--area{background:color-mix(in srgb,var(--niche) 18%,transparent);color:color-mix(in srgb,var(--niche) 85%,var(--text))}
+.v-viva .hero{padding-top:12px;background:
+  var(--pat) right 18px top 58px/auto 64px no-repeat,
+  linear-gradient(180deg,color-mix(in srgb,var(--niche) 45%,var(--bg)) 0%,color-mix(in srgb,var(--niche) 12%,var(--bg)) 70%,var(--bg) 100%)}
+.v-viva .hero .glyph{width:56px;height:56px;border-radius:18px}
+.v-viva .hero .glyph svg{width:28px;height:28px}
+.v-viva .hero__back{background:color-mix(in srgb,var(--surface) 70%,transparent)}
+
+.now{background:var(--surface);border-radius:var(--radius-lg);padding:16px;display:flex;flex-direction:column;gap:10px;border:1px solid var(--border-soft)}
+.v-sobria .now,.v-viva .now{border-color:color-mix(in srgb,var(--niche) 35%,var(--border-soft))}
+.v-viva .now{background:linear-gradient(160deg,color-mix(in srgb,var(--niche) 10%,var(--surface)) 0%,var(--surface) 60%)}
+.now__kicker{font-size:13px;font-weight:600;color:var(--text-muted)}
+.v-sobria .now__kicker,.v-viva .now__kicker{color:color-mix(in srgb,var(--niche) 85%,var(--text))}
+.now__title{font-size:20px;font-weight:700;letter-spacing:-.015em;margin:0}
+.now ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.now li{display:flex;gap:10px;font-size:15px;align-items:flex-start}
+.now li::before{content:'';width:18px;height:18px;border-radius:50%;border:2px solid var(--surface-3);flex:none;margin-top:1px}
+.v-sobria .now li::before,.v-viva .now li::before{border-color:color-mix(in srgb,var(--niche) 55%,var(--surface-3))}
+.seg{display:flex;gap:4px}
+.seg i{flex:1;height:8px;border-radius:4px;background:var(--surface-2);position:relative;overflow:hidden}
+.seg i.done{background:var(--primary)}
+.seg i.cur{background:color-mix(in srgb,var(--primary) 40%,var(--surface-2))}
+.v-sobria .seg i.done,.v-viva .seg i.done{background:var(--niche)}
+.v-sobria .seg i.cur,.v-viva .seg i.cur{background:color-mix(in srgb,var(--niche) 35%,var(--surface-2))}
+.now__foot{display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted)}
+.now__btn{border:0;border-radius:var(--radius-pill);padding:11px;font-weight:600;background:var(--surface-2);color:var(--text)}
+.v-sobria .now__btn,.v-viva .now__btn{background:color-mix(in srgb,var(--niche) 16%,var(--surface-2));color:color-mix(in srgb,var(--niche) 80%,var(--text))}
+.week{margin-top:14px;display:flex;gap:6px}
+.week span{flex:1;text-align:center;font-size:11px;color:var(--text-faint);display:flex;flex-direction:column;gap:6px;align-items:center}
+.week b{width:30px;height:30px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center;font-size:12px;color:var(--text-muted);font-weight:600}
+.week b.ok{background:var(--success-fill);color:#fff}
+.week b.miss{background:color-mix(in srgb,var(--warning-dot) 22%,transparent);color:var(--warning)}
+.v-hoy .week b.ok{background:var(--primary);}
+.v-hoy .week b.miss{background:var(--surface-2);color:var(--text-muted)}
+.fab{position:absolute;right:18px;bottom:100px;width:54px;height:54px;border-radius:50%;background:var(--primary);color:#fff;display:grid;place-items:center;font-size:22px;box-shadow:0 8px 24px rgba(106,123,255,.4)}
+
+/* ===== Vacío ===== */
+.empty{text-align:center;padding:28px 8px}
+.empty svg{width:220px;height:auto}
+.empty h3{margin:12px 0 4px;font-size:20px;font-weight:800}
+
+/* ===== Animaciones ===== */
+@keyframes fill{from{width:0}}
+.play .bar i{animation:fill 900ms var(--ease-ios) both}
+.play .grid > *:nth-child(2) .bar i{animation-delay:80ms}
+.play .grid > *:nth-child(3) .bar i{animation-delay:160ms}
+.play .grid > *:nth-child(4) .bar i{animation-delay:240ms}
+@keyframes segdone{0%{transform:scaleX(0)}100%{transform:scaleX(1)}}
+@keyframes burst{0%{opacity:.9;transform:scale(.2)}100%{opacity:0;transform:scale(2.6)}}
+.seg i.anim::after{content:'';position:absolute;inset:0;background:var(--niche,var(--primary));transform-origin:left;animation:segdone 520ms var(--ease-ios) both}
+.spark{position:absolute;width:24px;height:24px;border-radius:50%;border:3px solid var(--niche,var(--primary));pointer-events:none;animation:burst 600ms var(--ease-out) both}
+@keyframes flame{0%{transform:scale(1)}35%{transform:scale(1.28) rotate(-6deg)}70%{transform:scale(.96)}100%{transform:scale(1)}}
+.streak{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:15px;padding:6px 12px;border-radius:var(--radius-pill);background:color-mix(in srgb,#ff8a3d 16%,transparent);color:#ff8a3d}
+.streak svg{width:18px;height:18px}
+.streak.bump svg{animation:flame 560ms var(--ease-spring)}
+@keyframes countup{from{transform:translateY(60%);opacity:0}}
+.streak.bump b{display:inline-block;animation:countup 320ms var(--ease-ios)}
+.demo{background:var(--surface);border-radius:var(--radius-lg);padding:20px;width:390px;display:flex;flex-direction:column;gap:14px}
+.demo h3{margin:0;font-size:16px;font-weight:700}
+.demo p{margin:0;font-size:13px;color:var(--text-muted)}
+.demo .play-btn{align-self:flex-start;border:1px solid var(--border);background:transparent;border-radius:var(--radius-pill);padding:6px 12px;font-size:13px;font-weight:600}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-salud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/><path d="M3.5 12h4l2-3 3 6 2-3h6"/></symbol>
+  <symbol id="i-finanzas" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></symbol>
+  <symbol id="i-aprendizaje" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2zM22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z"/></symbol>
+  <symbol id="i-relaciones" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M15 14.5a5 5 0 0 1 6.5 4.5"/></symbol>
+  <symbol id="i-creatividad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.4 2.6a2 2 0 0 1 2.9 2.9L11 15.8 8 16l.2-3z"/><path d="M8 16c-2 0-3.5 1.2-3.5 3 0 .9-.7 1.7-1.5 2 3.5.6 7-1 7-4.5"/></symbol>
+  <symbol id="i-carrera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.3L12 17.1l-5.7 3.1 1.2-6.3-4.7-4.4 6.4-.8z"/></symbol>
+  <symbol id="t-hoy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="t-metas" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h12l-2.5 4L17 12H5"/></symbol>
+  <symbol id="t-habitos" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M9 11.5l2.5 2.5L20 5.5"/></symbol>
+  <symbol id="t-agenda" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+  <symbol id="t-progreso" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V14M10 20V9M16 20v-6M22 20V5"/></symbol>
+  <symbol id="s-signal" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.5" width="3" height="9.5" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></symbol>
+  <symbol id="s-batt" viewBox="0 0 27 12" fill="none" stroke="currentColor"><rect x=".5" y=".5" width="23" height="11" rx="3" stroke-opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.6" fill="currentColor" stroke="none"/><path d="M25.5 4v4" stroke-opacity=".4" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-flame" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1 3.5 5 5.6 5 10.5A5 5 0 0 1 7 13c0-2 1-3.5 2-4.5 0 2 1 3 2 3-.5-3 0-6.5 1-9.5z"/></symbol>
+</svg>
+
+<div class="doc">
+  <div class="doc__top">
+    <div>
+      <h1>Color y vida en Metas</h1>
+      <p>Las mismas metas y pantallas en cuatro versiones: cómo se ve <b>hoy</b>, <b>sobria</b>, <b>viva</b> y <b>full color</b>. Cambia el tema para ver claro y oscuro.</p>
+    </div>
+    <div class="pill-row" role="group" aria-label="Intensidad del color" style="align-items:center">
+      <span class="small muted" style="margin-right:4px">Intensidad</span>
+      <button type="button" data-int="100%" aria-pressed="false">100 %</button>
+      <button type="button" data-int="95%" aria-pressed="false">95 %</button>
+      <button type="button" data-int="92%" aria-pressed="true">92 %</button>
+      <button type="button" data-int="88%" aria-pressed="false">88 %</button>
+      <button type="button" data-int="85%" aria-pressed="false">85 %</button>
+    </div>
+    <div class="pill-row" role="group" aria-label="Tema">
+      <button type="button" data-theme-btn="claro" aria-pressed="false">Claro</button>
+      <button type="button" data-theme-btn="oscuro" aria-pressed="true">Oscuro</button>
+    </div>
+  </div>
+  <div class="rule">
+    <b>La regla:</b> el azul es para <b>actuar</b> (botones, coach). El color del área dice <b>de qué meta hablamos</b> (ícono, barra, etapa actual). Verde y ámbar solo para estados: cumplido y atrasado. Así hay más color sin que cada cosa compita.
+  </div>
+
+  <!-- ===================== ESCENA 1: lista móvil ===================== -->
+  <section class="scene">
+    <div class="scene__head">
+      <h2>1 · Tus metas (móvil)</h2>
+      <p>Toca una pantalla para ver cómo se llenan las barras al entrar (una sola vez, no en cada render).</p>
+    </div>
+    <div class="trio" id="list-trio"></div>
+  </section>
+
+  <!-- ===================== ESCENA 1b: combinaciones full color ===================== -->
+  <section class="scene">
+    <div class="scene__head">
+      <h2>1b · Combinaciones de full color</h2>
+      <p>Cuatro formas de usar los colores plenos en la lista. Usa "Intensidad" arriba para bajarle un poco lo vivo; afecta a todas las versiones full color de la página.</p>
+    </div>
+    <div class="trio" id="combo-trio"></div>
+  </section>
+
+  <!-- ===================== ESCENA 2: detalle móvil ===================== -->
+  <section class="scene">
+    <div class="scene__head">
+      <h2>2 · Detalle de una meta (móvil)</h2>
+      <p>La cabecera dice de qué área es la meta; la tarjeta "Ahora" y la barra de etapas toman su color. El coach (✦) sigue en azul porque es una acción.</p>
+    </div>
+    <div class="trio" id="detail-trio"></div>
+  </section>
+
+  <!-- ===================== ESCENA 3: PC ===================== -->
+  <section class="scene">
+    <div class="scene__head">
+      <h2>3 · Tus metas en PC</h2>
+      <div class="pill-row" role="group" aria-label="Versión en PC">
+        <button type="button" data-desk="v-hoy" aria-pressed="false">Hoy</button>
+        <button type="button" data-desk="v-sobria" aria-pressed="false">Sobria</button>
+        <button type="button" data-desk="v-viva" aria-pressed="true">Viva</button>
+        <button type="button" data-desk="v-full" aria-pressed="false">Full color</button>
+      </div>
+    </div>
+    <div class="desk">
+      <aside class="sidenav">
+        <div class="brand">Lógralo</div>
+        <div class="navi"><svg><use href="#t-hoy"/></svg>Hoy</div>
+        <div class="navi navi--on"><svg><use href="#t-metas"/></svg>Metas</div>
+        <div class="navi"><svg><use href="#t-habitos"/></svg>Hábitos</div>
+        <div class="navi"><svg><use href="#t-agenda"/></svg>Agenda</div>
+        <div class="navi"><svg><use href="#t-progreso"/></svg>Progreso</div>
+      </aside>
+      <main class="desk__main v-viva" id="desk-main"></main>
+    </div>
+  </section>
+
+  <!-- ===================== ESCENA 4: movimiento ===================== -->
+  <section class="scene">
+    <div class="scene__head">
+      <h2>4 · Dónde va el movimiento</h2>
+      <p>Solo en respuesta a algo que hiciste o a un logro. Nada se mueve solo en las listas. Con "reducir movimiento" activo, todo aparece sin animar.</p>
+    </div>
+    <div class="trio">
+      <div class="demo n-salud">
+        <h3>Cumplir una etapa</h3>
+        <p>El segmento se llena con el color del área y suelta un destello. Es el momento más importante de la meta: merece su gesto.</p>
+        <div class="seg" id="seg-demo" style="position:relative"><i class="done"></i><i class="done"></i><i class="cur"></i><i></i><i></i></div>
+        <button type="button" class="play-btn" id="seg-play">▶ Marcar etapa cumplida</button>
+      </div>
+      <div class="demo">
+        <h3>La racha sube</h3>
+        <p>La llama late y el número sube desde abajo. Solo cuando cambia, no cada vez que abres la app.</p>
+        <span class="streak" id="streak"><svg><use href="#i-flame"/></svg><b id="streak-n">6</b>&nbsp;días</span>
+        <button type="button" class="play-btn" id="streak-play">▶ Cumplir hoy</button>
+      </div>
+      <div class="demo">
+        <h3>De la tarjeta al detalle</h3>
+        <p>La tarjeta crece hasta ser la cabecera del detalle (View Transitions, que ya usa la app). La franja de color se vuelve el fondo de la cabecera: sabes dónde estás sin leer.</p>
+        <p class="tiny faint">No se puede reproducir bien en un mockup estático; se ve en la app.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ESCENA 5: imágenes ===================== -->
+  <section class="scene">
+    <div class="scene__head">
+      <h2>5 · Imágenes: ilustración propia, no fotos</h2>
+      <p>Formas SVG con los colores de las áreas: pesan casi nada, funcionan en claro y oscuro y no parecen de banco de imágenes. Van en los estados vacíos y en "¡Meta creada!".</p>
+    </div>
+    <div class="trio">
+      <div class="phone v-viva"><div class="phone__status"><span>9:41</span><span class="sys"><svg viewBox="0 0 18 12"><use href="#s-signal"/></svg><svg viewBox="0 0 27 12"><use href="#s-batt"/></svg></span></div>
+        <div class="phone__scroll">
+          <div class="head"><h1 class="title">Tus metas</h1></div>
+          <div class="empty">
+            <svg viewBox="0 0 240 170" aria-hidden="true">
+              <path d="M20 150 C70 150 70 110 110 110 S150 70 190 70" fill="none" stroke="var(--surface-3)" stroke-width="6" stroke-linecap="round" stroke-dasharray="2 14"/>
+              <circle cx="20" cy="150" r="13" fill="var(--niche-salud)"/>
+              <circle cx="110" cy="110" r="13" fill="var(--niche-finanzas)"/>
+              <circle cx="190" cy="70" r="13" fill="var(--niche-aprendizaje)"/>
+              <path d="M190 70 V18" stroke="var(--text)" stroke-width="4" stroke-linecap="round"/>
+              <path d="M190 18 h34 l-8 11 8 11 h-34z" fill="var(--niche-relaciones)"/>
+            </svg>
+            <h3>Tu primera meta empieza aquí</h3>
+            <p class="muted small">Elige algo que quieras lograr. La dividimos en etapas y te acompaña el coach.</p>
+            <button class="btn btn--block" type="button" style="margin-top:16px">Crear mi primera meta</button>
+          </div>
+        </div>
+        <div class="tabbar"><span><svg><use href="#t-hoy"/></svg>Hoy</span><span class="on"><svg><use href="#t-metas"/></svg>Metas</span><span><svg><use href="#t-habitos"/></svg>Hábitos</span><span><svg><use href="#t-agenda"/></svg>Agenda</span></div>
+      </div>
+      <div class="trio__col" style="max-width:420px">
+        <div class="trio__label">Por qué así<span>Una ilustración por momento (vacío, meta creada, meta lograda), no decoración en cada pantalla. El camino punteado con banderín es la idea de la app: llegar por etapas. Si más adelante queremos ilustraciones más ricas, se encargan en este mismo estilo plano.</span></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const GOALS = [
+  { title: 'Lanzar mi app de metas', area: 'creatividad', label: 'Crear o publicar', pct: 40, stages: '2 de 5 etapas', due: 'Faltan 6 semanas', state: null, star: true },
+  { title: 'Comprar una moto', area: 'finanzas', label: 'Finanzas', pct: 65, stages: '3 de 4 etapas', due: 'Faltan 3 meses', state: 'ok' },
+  { title: 'Correr mis primeros 10K', area: 'salud', label: 'Salud', pct: 20, stages: '1 de 5 etapas', due: 'Faltan 9 semanas', state: 'late' },
+  { title: 'Inglés B2 para el trabajo', area: 'aprendizaje', label: 'Aprender', pct: 55, stages: '3 de 6 etapas', due: 'Faltan 4 meses', state: null },
+  { title: 'Llamar más a mi familia', area: 'relaciones', label: 'Relaciones', pct: 80, stages: '4 de 5 etapas', due: 'Sin fecha', state: null },
+  { title: 'Meditar 10 minutos al día', area: 'bienestar', label: 'Bienestar', pct: 30, stages: '1 de 3 etapas', due: 'Faltan 5 semanas', state: null },
+]
+const STATE = { ok: ['chip-state--ok', 'Al día'], late: ['chip-state--late', 'Vas atrasado'] }
+
+function card(g) {
+  const st = g.state ? `<span class="chip-state ${STATE[g.state][0]}">${STATE[g.state][1]}</span>` : ''
+  return `<button type="button" class="gc n-${g.area}">
+    <span class="gc__band" aria-hidden="true"></span>
+    <div class="gc__top">
+      <span class="glyph"><svg><use href="#i-${g.area}"/></svg></span>
+      <span class="gc__title">${g.title}</span>
+      <span class="star${g.star ? ' star--on' : ''}"><svg><use href="#i-star"/></svg></span>
+    </div>
+    <div class="gc__meta"><span>${g.stages} · ${g.due}</span>${st}</div>
+    <div class="gc__prog"><div class="bar" style="--p:${g.pct}%"><i></i></div><span class="gc__pct">${g.pct}%</span></div>
+  </button>`
+}
+
+function listScreen(v) {
+  return `<div class="phone ${v}"><div class="phone__status"><span>9:41</span><span class="sys"><svg viewBox="0 0 18 12"><use href="#s-signal"/></svg><svg viewBox="0 0 27 12"><use href="#s-batt"/></svg></span></div>
+    <div class="phone__scroll">
+      <div class="head"><h1 class="title">Tus metas</h1><button class="btn" type="button">+ Nueva</button></div>
+      <div class="grid">${GOALS.slice(0, 4).map(card).join('')}</div>
+    </div>
+    <div class="tabbar"><span><svg><use href="#t-hoy"/></svg>Hoy</span><span class="on"><svg><use href="#t-metas"/></svg>Metas</span><span><svg><use href="#t-habitos"/></svg>Hábitos</span><span><svg><use href="#t-agenda"/></svg>Agenda</span></div>
+  </div>`
+}
+
+function detailScreen(v) {
+  const g = GOALS[2]
+  return `<div class="phone ${v} n-${g.area}"><div class="phone__status"><span>9:41</span><span class="sys"><svg viewBox="0 0 18 12"><use href="#s-signal"/></svg><svg viewBox="0 0 27 12"><use href="#s-batt"/></svg></span></div>
+    <div class="phone__scroll">
+      <div class="hero">
+        <span class="hero__back">‹</span>
+        <span class="glyph"><svg><use href="#i-${g.area}"/></svg></span>
+        <h1 class="hero__title">${g.title}</h1>
+        <div class="hero__row"><span class="tag tag--area">${g.label}</span><span class="tag">${g.due}</span></div>
+      </div>
+      <div class="now">
+        <span class="now__kicker">Ahora: etapa 2 de 5</span>
+        <p class="now__title">Correr 3 km sin parar</p>
+        <ul><li>Tres salidas de 20 min esta semana</li><li>Alternar 2 min trotando y 1 caminando</li></ul>
+        <div class="seg"><i class="done"></i><i class="cur"></i><i></i><i></i><i></i></div>
+        <div class="now__foot"><span>20% del camino</span><span>Esta semana: 1 de 3</span></div>
+        <button class="now__btn" type="button">Marcar esta etapa como cumplida</button>
+      </div>
+      <div class="week">
+        ${['L','M','M','J','V','S','D'].map((d, i) => `<span><b class="${i === 0 ? 'ok' : i === 2 ? 'miss' : ''}">${i === 0 ? '✓' : i === 2 ? '!' : ''}</b>${d}</span>`).join('')}
+      </div>
+    </div>
+    <span class="fab" aria-hidden="true">✦</span>
+    <div class="tabbar"><span><svg><use href="#t-hoy"/></svg>Hoy</span><span class="on"><svg><use href="#t-metas"/></svg>Metas</span><span><svg><use href="#t-habitos"/></svg>Hábitos</span><span><svg><use href="#t-agenda"/></svg>Agenda</span></div>
+  </div>`
+}
+
+const VARIANTS = [
+  ['v-hoy', 'Hoy', 'Todo gris y azul: las metas se distinguen solo por el ícono, muy tenue.'],
+  ['v-sobria', 'Sobria', 'Ícono sólido, barra y borde del color del área; estados en verde/ámbar. Superficies iguales.'],
+  ['v-viva', 'Viva', 'Además una franja con patrón propio por área y la cabecera del detalle teñida.'],
+  ['v-full', 'Full color', 'Tarjetas planas del color del área, saturado (no neón), texto blanco y botones con relieve que se hunden al tocarlos.'],
+]
+const col = (v, label, why, html) => `<div class="trio__col"><div class="trio__label">${label}<span>${why}</span></div>${html}</div>`
+document.getElementById('list-trio').innerHTML = VARIANTS.map(([v, l, w]) => col(v, l, w, listScreen(v))).join('')
+const COMBOS = [
+  ['v-full', 'A · Tarjeta entera', 'La que ya viste: cada meta es un bloque de su color. Máxima energía.'],
+  ['v-full v-grad', 'B · Entera con profundidad', 'Igual, con una luz suave arriba a la izquierda y el tono más hondo abajo. Menos plano, más "objeto".'],
+  ['v-full v-tapa', 'C · Tapa de color', 'Solo la cabecera va pintada; datos y barra sobre fondo neutro. Se lee más fácil con muchas metas.'],
+  ['v-full v-acento', 'D · Acento con relieve', 'Tarjeta neutra con relieve; el color va en el ícono, la barra gruesa y los estados. La más calmada.'],
+]
+document.getElementById('combo-trio').innerHTML = COMBOS.map(([v, l, w]) => col(v, l, w, listScreen(v))).join('')
+document.querySelectorAll('#combo-trio .phone').forEach((p) => { p.addEventListener('click', () => replay(p)); replay(p) })
+document.querySelectorAll('[data-int]').forEach((b) => b.addEventListener('click', () => {
+  document.documentElement.style.setProperty('--intensity', b.dataset.int)
+  document.querySelectorAll('[data-int]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)))
+}))
+document.getElementById('detail-trio').innerHTML = VARIANTS.map(([v, l, w]) => col(v, l, w, detailScreen(v))).join('')
+
+const desk = document.getElementById('desk-main')
+desk.innerHTML = `<div class="head"><h1 class="title">Tus metas</h1><button class="btn" type="button">+ Nueva meta</button></div>
+  <div class="grid">${GOALS.map(card).join('')}</div>`
+
+// Barras: se llenan al tocar la pantalla (simula la entrada).
+function replay(el) { el.classList.remove('play'); void el.offsetWidth; el.classList.add('play') }
+document.querySelectorAll('#list-trio .phone').forEach((p) => p.addEventListener('click', () => replay(p)))
+document.querySelectorAll('#list-trio .phone').forEach(replay)
+
+document.querySelectorAll('[data-desk]').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-desk]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)))
+  desk.className = 'desk__main ' + b.dataset.desk
+  replay(desk)
+}))
+document.querySelectorAll('[data-theme-btn]').forEach((b) => b.addEventListener('click', () => {
+  document.documentElement.dataset.theme = b.dataset.themeBtn
+  document.querySelectorAll('[data-theme-btn]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)))
+}))
+
+// Etapa cumplida: llena el segmento actual y suelta un destello.
+document.getElementById('seg-play').addEventListener('click', () => {
+  const seg = document.getElementById('seg-demo')
+  const cur = seg.querySelector('.cur')
+  if (!cur) { seg.innerHTML = '<i class="done"></i><i class="done"></i><i class="cur"></i><i></i><i></i>'; return }
+  cur.classList.remove('cur'); cur.classList.add('done', 'anim')
+  const next = cur.nextElementSibling
+  if (next) next.classList.add('cur')
+  const s = document.createElement('span')
+  s.className = 'spark'
+  s.style.left = cur.offsetLeft + cur.offsetWidth - 12 + 'px'
+  s.style.top = '-8px'
+  seg.appendChild(s)
+  setTimeout(() => s.remove(), 650)
+})
+let n = 6
+document.getElementById('streak-play').addEventListener('click', () => {
+  const s = document.getElementById('streak')
+  document.getElementById('streak-n').textContent = String(++n)
+  s.classList.remove('bump'); void s.offsetWidth; s.classList.add('bump')
+})
+</script>
+</body>
+</html>

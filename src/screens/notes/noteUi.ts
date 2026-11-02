@@ -1,4 +1,4 @@
-import type { Goal, Note } from '@/lib/types'
+import type { Goal, NicheId, Note } from '@/lib/types'
 import { notePlace } from '@/domain/notes'
 import { getNiche } from '@/domain/niches'
 import { friendlyError } from '@/lib/errors'
@@ -19,4 +19,15 @@ export function notePlaceLabel(note: Note, goals: Goal[]): string {
   if (place === 'goal') return goals.find((g) => g.id === note.goalId)?.title ?? 'Meta'
   if (place === 'area') return note.area ? getNiche(note.area).label : 'Área'
   return place === 'ideas' ? 'Ideas' : 'Bandeja'
+}
+
+/**
+ * Área que tiñe la nota (full color): la de su meta o la suya propia. null en
+ * Bandeja e Ideas, que no hablan de ninguna meta y quedan neutras.
+ */
+export function noteArea(note: Note, goals: Goal[]): NicheId | null {
+  const place = notePlace(note)
+  if (place === 'goal') return goals.find((g) => g.id === note.goalId)?.area ?? null
+  if (place === 'area') return note.area
+  return null
 }

@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { createGoal, deleteGoal } from '@/services/goals'
-import { detectTemplate, getTemplate, templatesForNiche } from '@/domain/templates'
+import { detectTemplate, getTemplate } from '@/domain/templates'
 import { NICHES, getNiche } from '@/domain/niches'
 import type { NicheId, ScheduleBlock } from '@/lib/types'
 import { formatLongDate, relativeDeadline, todayISO } from '@/lib/date'
-import { IconBack, IconCalendar, IconLightbulb } from '@/components/icons'
-import { NicheIcon } from '@/components/NicheGlyph'
-import { OptionRow } from '@/components/OptionRow'
+import { IconCalendar, IconChevronLeft, IconLightbulb } from '@/components/icons'
+import { NicheGlyph } from '@/components/NicheGlyph'
+import { nicheAccent } from '@/lib/nicheAccent'
 import { Hint } from '@/components/Hint'
 import {
   formatCommitmentSummary,
@@ -32,12 +32,24 @@ import { useCoachChat } from '@/hooks/useCoachChat'
 import { DESKTOP_QUERY, useMediaQuery } from '@/hooks/useMediaQuery'
 import { addCoachMessages, saveGoalAi, type CoachMessage } from '@/services/goalCoach'
 import { Sheet } from '@/components/Sheet'
-import { CoachButton, CoachComposer, CoachOrb, CoachThread } from '@/components/coach/CoachChatView'
+import { CoachComposer, CoachOrb, CoachThread } from '@/components/coach/CoachChatView'
 import { CriteriaSuggest } from '@/components/wizard/CriteriaSuggest'
 import type { CriterionOption } from '@/domain/coachChat'
+import { requestGoalType } from '@/services/goalPlan'
+import { TypeStep } from '@/components/wizard/TypeStep'
+import {
+  aiSuggestion,
+  answersWithTypeNote,
+  keywordSuggestion,
+  parseTypeDraft,
+  typeLabelFor,
+  type TypeSuggestionDraft,
+} from '@/components/wizard/typeDraft'
 
 /** Pasos del wizard: título · tipo · compromiso · camino · ancla · resumen. */
 const STEPS = 6
+/** Espacio que no se corta ("5 kg" en una línea), escapado: no-irregular-whitespace. */
+const NBSP = '\u00a0'
 
 const DRAFT_KEY = WIZARD_DRAFT_KEY
 
@@ -57,6 +69,12 @@ interface WizardDraft {
   aiAnswers: QuestionAnswer[] | null
   /** Conversación con el coach durante el asistente; se guarda con la meta. */
   chat: CoachMessage[]
+  /** "¿Ninguno encaja?": la meta descrita con sus palabras (tipo personalizada). */
+  typeNote: string
+  /** La persona eligió el tipo a mano: la IA ya no lo cambia. */
+  typePicked: boolean
+  /** Tipo sugerido (palabras clave o IA), para no volver a preguntar al recargar. */
+  typeSuggestion: TypeSuggestionDraft | null
 }
 
 /** Type-guard: ¿el valor es un NicheId válido? Espejo de isTheme en theme.ts. */
@@ -81,11 +99,12 @@ function loadDraft(): Partial<WizardDraft> {
       draft.step = Math.min(Math.max(Math.trunc(d.step), 0), STEPS - 1)
     }
     if (typeof d.title === 'string') draft.title = d.title
-    if (typeof d.templateKey === 'string') draft.templateKey = d.templateKey
     if (typeof d.why === 'string') draft.why = d.why
     if (typeof d.targetDate === 'string') draft.targetDate = d.targetDate
     if (isNiche(d.area)) draft.area = d.area
     if (typeof d.criteria === 'string') draft.criteria = d.criteria
+    // Tipo, descripción libre y sugerencia: validados contra el catálogo.
+    Object.assign(draft, parseTypeDraft(d))
     if (d.aiPlan != null) draft.aiPlan = parseGoalPlan(d.aiPlan, 0)
     if (Array.isArray(d.aiAnswers)) {
       draft.aiAnswers = (d.aiAnswers as unknown[]).filter(
@@ -151,17 +170,15 @@ export function Wizard() {
   // Título con el que ya autodetectamos plantilla/área. Evita pisar una elección
   // manual del paso 1 al volver al paso 0 y avanzar sin cambiar el título.
   const [detectedFromTitle, setDetectedFromTitle] = useState(draft.title ?? '')
-  // Nicho que filtra las plantillas del paso 1: el del título si hubo señal, si no
-  // el del perfil. Se fija al detectar, así la lista no se reordena al elegir.
-  const [templateNiche, setTemplateNiche] = useState<NicheId>(() =>
-    draft.templateKey && draft.templateKey !== 'personalizada'
-      ? getTemplate(draft.templateKey).defaultArea
-      : (profile.primaryNiche ?? 'otra'),
-  )
-  // Sin señal clara del título, "Personalizada (la armo yo)" va primero.
-  const [customFirst, setCustomFirst] = useState(
-    () => !draft.templateKey || draft.templateKey === 'personalizada',
-  )
+  // Paso del tipo: sugerencia (palabras clave → IA), elección manual y "Otra: …".
+  const [typeNote, setTypeNote] = useState(draft.typeNote ?? '')
+  const [typePicked, setTypePicked] = useState(draft.typePicked ?? false)
+  const [typeSuggestion, setTypeSuggestion] = useState<TypeSuggestionDraft | null>(draft.typeSuggestion ?? null)
+  // Título que la IA está leyendo (null = nada en curso).
+  const [typeReading, setTypeReading] = useState<string | null>(null)
+  // Lo lee la respuesta asíncrona de la IA: si ya eligió a mano, no se pisa.
+  const typePickedRef = useRef(typePicked)
+  const typeRequest = useRef(0)
 
   const [blocks, setBlocks] = useState<CommitmentBlockDraft[]>(draft.blocks ?? [])
   // Las etapas arrancan vacías: la plantilla y la IA solo SUGIEREN (se agregan con un clic).
@@ -176,7 +193,8 @@ export function Wizard() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const typeLabel = getTemplate(templateKey || 'personalizada').label
+  // Con "Otra: …" el coach sabe de qué va la meta aunque no encaje en un tipo.
+  const typeLabel = typeLabelFor(templateKey, typeNote)
   const weeklyMinutes = weeklyTotal(blocks).minutes || null
   const chatContext = useCallback(
     (): ChatContext => ({
@@ -255,12 +273,74 @@ export function Wizard() {
           aiPlan,
           aiAnswers,
           chat: chat.messages,
+          typeNote,
+          typePicked,
+          typeSuggestion,
         }),
       )
     } catch {
       /* ignore */
     }
-  }, [step, title, templateKey, why, targetDate, area, criteria, blocks, milestones, aiPlan, aiAnswers, chat.messages])
+  }, [step, title, templateKey, why, targetDate, area, criteria, blocks, milestones, aiPlan, aiAnswers, chat.messages, typeNote, typePicked, typeSuggestion])
+
+  /**
+   * Pide a la IA el tipo de meta. Mientras tanto queda la detección por
+   * palabras; si falla, se queda esa en silencio. La respuesta solo cambia la
+   * elección si la persona no eligió a mano entretanto.
+   */
+  const askType = useCallback((forTitle: string, forWhy: string) => {
+    const id = ++typeRequest.current
+    setTypeReading(forTitle)
+    requestGoalType(forTitle, forWhy)
+      .then((raw) => {
+        const s = aiSuggestion(raw)
+        if (id !== typeRequest.current || !s || typePickedRef.current) return
+        setTypeSuggestion(s)
+        setTemplateKey(s.key)
+        setArea(getTemplate(s.key).defaultArea)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (id === typeRequest.current) setTypeReading(null)
+      })
+  }, [])
+
+  // Al salir del asistente, la respuesta pendiente de la IA ya no aplica.
+  // (requestGoalType no acepta AbortSignal: se descarta en vez de cortarse.)
+  useEffect(
+    () => () => {
+      typeRequest.current++
+    },
+    [],
+  )
+
+  // Recarga en el paso del tipo sin respuesta de la IA todavía: se pide una vez.
+  const askedOnLoad = useRef(false)
+  useEffect(() => {
+    if (askedOnLoad.current) return
+    askedOnLoad.current = true
+    if (step === 1 && title.trim() && typeSuggestion?.source !== 'ai' && !typePicked) askType(title, why)
+    // Solo al montar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function pickType(key: string) {
+    // Elegir a mano descarta la lectura en curso: la IA no cambia lo que la
+    // persona tiene bajo el dedo y el aviso de "leyendo" desaparece.
+    typeRequest.current++
+    setTypeReading(null)
+    typePickedRef.current = true
+    setTypePicked(true)
+    setTemplateKey(key)
+    setArea(getTemplate(key).defaultArea)
+    // Elegir un tipo de la lista reemplaza la descripción libre.
+    if (key !== 'personalizada') setTypeNote('')
+  }
+
+  function changeTypeNote(note: string) {
+    setTypeNote(note)
+    if (note.trim()) pickType('personalizada')
+  }
 
   function goBack() {
     if (step === 0) {
@@ -278,12 +358,18 @@ export function Wizard() {
       setTemplateKey(detected.key)
       setArea(detected.defaultArea)
       setDetectedFromTitle(title)
-      setTemplateNiche(
-        detected.key !== 'personalizada' ? detected.defaultArea : (profile.primaryNiche ?? 'otra'),
-      )
-      setCustomFirst(detected.key === 'personalizada')
+      setTypeSuggestion(keywordSuggestion(detected.key))
+      setTypeNote('')
+      typePickedRef.current = false
+      setTypePicked(false)
+      askType(title, why)
     }
     // Si cambió la meta, el plan, las respuestas y las opciones de la IA ya no aplican.
+    // Continuar con la sugerencia a la vista es elegirla: la IA ya no la cambia.
+    if (step === 1) {
+      typePickedRef.current = true
+      setTypePicked(true)
+    }
     if (step === 0 && title !== detectedFromTitle) {
       setAiPlan(null)
       setAiAnswers(null)
@@ -315,7 +401,9 @@ export function Wizard() {
       await createMilestones(userId, goal.id, milestones.map((m, position) => ({ ...m, position })))
       const createdBlocks = await createScheduleBlocks(userId, goal.id, blocks)
       // Memoria del coach: si falla (p. ej. sin migración 0018) la meta igual se crea.
-      await saveGoalAi(goal.id, { plan: aiPlan, answers: aiAnswers ?? [] })
+      // La descripción libre del tipo viaja como una respuesta más (no va en
+      // aiAnswers: el coach solo pregunta solo cuando aiAnswers es null).
+      await saveGoalAi(goal.id, { plan: aiPlan, answers: answersWithTypeNote(aiAnswers ?? [], templateKey, typeNote) })
       await addCoachMessages(
         userId,
         goal.id,
@@ -336,16 +424,6 @@ export function Wizard() {
     }
   }
 
-  // Lista del paso 1, estable mientras el paso está abierto.
-  const stepTemplates = (() => {
-    const list = templatesForNiche(templateNiche)
-    if (!customFirst) return list
-    return [
-      ...list.filter((t) => t.key === 'personalizada'),
-      ...list.filter((t) => t.key !== 'personalizada'),
-    ]
-  })()
-
   // Sugerencias del coach que la persona aún no agregó (por título).
   const milestoneTitles = milestones.map((m) => m.title)
   const pendingSuggestions: GoalPlanStage[] = (aiPlan?.stages ?? []).filter(
@@ -365,39 +443,40 @@ export function Wizard() {
   }
 
   const commitmentError = validateCommitment(blocks)
-  const canContinue =
-    step === 0
-      ? title.trim().length > 0
-      : step === 2
-        ? commitmentError === null
-        : step === 3
-          ? milestones.length > 0 && milestones.every((m) => m.title.trim().length > 0)
-          : true
+  const canContinue = canContinueFrom(step, { title, commitmentError, milestones })
   const isLast = step === STEPS - 1
+  let ctaLabel = 'Continuar'
+  if (isLast) ctaLabel = saving ? 'Creando…' : 'Crear meta'
 
   return (
-    <div className={`screen screen--full flow-screen${step === 3 ? ' flow-screen--camino' : ''}`}>
-      <div className="row" style={{ marginBottom: 'var(--s4)' }}>
-        <button className="iconbtn" onClick={goBack} aria-label="Volver">
-          <IconBack />
+    // El color del área de la meta tiñe todo el asistente (días, etapas, resumen);
+    // el azul queda para actuar y para el coach.
+    <main
+      className={`screen screen--full flow-screen wizard${step === 1 ? ' flow-screen--tipo' : ''}${step === 3 ? ' flow-screen--camino' : ''}`}
+      style={nicheAccent(area)}
+    >
+      <div className="row wizard__top">
+        <button type="button" className="back-link" onClick={goBack}>
+          <IconChevronLeft size={18} />
+          Atrás
         </button>
         <div className="stepper spacer" aria-hidden="true">
           {Array.from({ length: STEPS }, (_, i) => (
             <span
               key={i}
-              className={`stepper__dot ${i < step ? 'stepper__dot--done' : i === step ? 'stepper__dot--active' : ''}`}
+              className={`stepper__dot ${stepDotClass(i, step)}`}
             />
           ))}
         </div>
         {/* Orientación explícita: los puntos solos no dicen cuánto falta. */}
-        <span className="faint tiny" style={{ flex: 'none' }}>
+        <span className="tiny wizard__count">
           Paso {step + 1} de {STEPS}
         </span>
       </div>
 
       <div className="stack stack--lg" style={{ flex: 1 }}>
         {step === 0 && (
-          <Question title="¿Qué quieres lograr?" hint={'Una frase clara. Ej: "Aprender inglés" o "Bajar 5 kg".'}>
+          <Question title="¿Qué quieres lograr?" hint={`Una frase clara. Ej: “Aprender inglés” o “Bajar 5${NBSP}kg”.`}>
             <input
               className="input"
               autoFocus
@@ -428,23 +507,16 @@ export function Wizard() {
         {step === 1 && (
           <Question
             title="¿Qué tipo de meta es?"
-            hint="Elegimos un tipo por las palabras de tu meta. Cámbialo si no encaja."
+            hint="Te sugerimos uno por lo que escribiste. Cámbialo si no encaja."
           >
-            <div className="stack stack--sm">
-              {stepTemplates.map((t) => (
-                <OptionRow
-                  key={t.key}
-                  icon={<NicheIcon area={t.defaultArea} size={20} />}
-                  label={t.label}
-                  desc={t.description}
-                  selected={templateKey === t.key}
-                  onClick={() => {
-                    setTemplateKey(t.key)
-                    setArea(t.defaultArea)
-                  }}
-                />
-              ))}
-            </div>
+            <TypeStep
+              templateKey={templateKey}
+              suggestion={typeSuggestion}
+              reading={typeReading === title}
+              typeNote={typeNote}
+              onPick={pickType}
+              onTypeNote={changeTypeNote}
+            />
           </Question>
         )}
 
@@ -571,14 +643,14 @@ export function Wizard() {
           >
             <ReviewCard
               title={title}
-              templateLabel={getTemplate(templateKey || 'personalizada').label}
+              templateLabel={typeLabel}
               area={area}
               targetDate={targetDate}
               why={why}
               criteria={criteria}
             />
             {blocks.length > 0 ? (
-              <div className="alert">{formatCommitmentSummary(blocks)}</div>
+              <div className="alert">Tu compromiso: {formatCommitmentSummary(blocks)}</div>
             ) : (
               <div className="alert">Sin agenda: la verás arriba en Hoy y podrás agregarle días cuando quieras.</div>
             )}
@@ -596,9 +668,8 @@ export function Wizard() {
             disabled={!canContinue || saving}
             onClick={isLast ? submit : next}
           >
-            {isLast ? (saving ? 'Creando…' : 'Crear meta') : 'Continuar'}
+            {ctaLabel}
           </button>
-          {step === 3 && !isDesktop && <CoachButton onClick={() => setChatOpen(true)} />}
         </div>
       </div>
 
@@ -634,8 +705,26 @@ export function Wizard() {
           )}
         </Sheet>
       )}
-    </div>
+    </main>
   )
+}
+
+/** Punto del indicador de pasos: cumplido, actual o pendiente. */
+function stepDotClass(i: number, current: number): string {
+  if (i < current) return 'stepper__dot--done'
+  if (i === current) return 'stepper__dot--active'
+  return ''
+}
+
+/** ¿Se puede avanzar desde este paso? Los pasos sin requisito siempre dejan. */
+function canContinueFrom(
+  step: number,
+  { title, commitmentError, milestones }: { title: string; commitmentError: string | null; milestones: MilestoneDraft[] },
+): boolean {
+  if (step === 0) return title.trim().length > 0
+  if (step === 2) return commitmentError === null
+  if (step === 3) return milestones.length > 0 && milestones.every((m) => m.title.trim().length > 0)
+  return true
 }
 
 function Question({
@@ -680,14 +769,14 @@ function ReviewCard({
     ? `${formatLongDate(targetDate)}${relativeDeadline(targetDate) ? ` · ${relativeDeadline(targetDate)}` : ''}`
     : null
   return (
-    <div className="card card--tight stack stack--sm" style={{ marginTop: 'var(--s4)' }}>
-      <span className="kicker">Tu meta</span>
-      <strong style={{ fontWeight: 600, fontSize: 'var(--fs-xl)' }}>
-        {title || '—'}
-      </strong>
-      <div className="row wrap">
+    <div className="fc-card wizard-review" style={nicheAccent(area)}>
+      <div className="row" style={{ alignItems: 'center', gap: 'var(--s3)' }}>
+        <NicheGlyph area={area} size="md" />
+        <span className="wizard-review__kicker">Tu meta · {getNiche(area).label}</span>
+      </div>
+      <strong className="fc-card__title wizard-review__title">{title || '—'}</strong>
+      <div className="row wrap" style={{ gap: 'var(--s2)' }}>
         <span className="tag">{templateLabel}</span>
-        <span className="tag">{getNiche(area).label}</span>
         {dateLabel && (
           <span className="tag">
             <IconCalendar size={11} /> {dateLabel}
@@ -695,15 +784,15 @@ function ReviewCard({
         )}
       </div>
       {cleanWhy && (
-        <div className="stack stack--sm">
-          <span className="kicker">Tu porqué</span>
-          <p className="small">{cleanWhy}</p>
+        <div className="wizard-review__block">
+          <span className="wizard-review__kicker">Tu porqué</span>
+          <p className="fc-card__meta">{cleanWhy}</p>
         </div>
       )}
       {cleanCriteria && (
-        <div className="stack stack--sm">
-          <span className="kicker">Lo logras cuando</span>
-          <p className="small">{cleanCriteria}</p>
+        <div className="wizard-review__block">
+          <span className="wizard-review__kicker">Lo logras cuando</span>
+          <p className="fc-card__meta">{cleanCriteria}</p>
         </div>
       )}
     </div>

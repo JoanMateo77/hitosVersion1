@@ -6,7 +6,6 @@
 
 .session-plan {
   width: 100%;
-  max-width: 400px;
   margin-top: var(--s5);
   padding-top: var(--s4);
   border-top: 1px solid var(--border-soft);
@@ -25,19 +24,10 @@
   gap: var(--s2);
 }
 
-/* Entrada en cascada sutil (mismo patrón que Aprender, más corto). */
 .session-plan__item {
   display: flex;
   align-items: flex-start;
   gap: var(--s3);
-  animation: session-plan-rise var(--dur-state) var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 32ms);
-}
-@keyframes session-plan-rise {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
 }
 
 /* Check circular: vacío = aro; hecho = disco verde con ✓. */
@@ -65,9 +55,9 @@
   transform: scale(0.9);
 }
 .session-plan__check--done {
-  background: var(--success-fill);
-  border-color: var(--success-fill);
-  color: #fff;
+  background: var(--state-ok);
+  border-color: var(--state-ok);
+  color: var(--state-ok-ink);
 }
 .session-plan__check:disabled {
   cursor: default;
@@ -121,4 +111,90 @@
 .session-plan__add-time {
   flex: none;
   width: 106px;
+}
+
+/* ==== Cabecera, anillo y cierre de la sesión (full color, spec 2026-11-02) ==
+   Pantalla de enfoque: el color del área identifica la meta (píldora y anillo);
+   el azul queda para Comenzar / Terminé; verde y ámbar, para el cierre. */
+
+.session-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s2);
+  max-width: 100%;
+}
+/* Es el h1 de la pantalla (el nombre de la meta), con aspecto de píldora. */
+.session-head__goal {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  max-width: 100%;
+  margin: 0;
+  padding: 5px 16px 5px 5px;
+  border-radius: var(--radius-pill);
+  background: var(--vivid);
+  color: var(--vivid-ink);
+  font-family: inherit;
+  font-size: var(--fs-sm, 14px);
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: normal;
+}
+.session-head__goal .glyph {
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--vivid-ink) 20%, transparent);
+  color: var(--vivid-ink);
+}
+.session-head__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.session-head__meta {
+  font-size: var(--fs-sm, 14px);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Una sola columna de lectura: píldora, anillo, botones y plan alineados. */
+.flow-screen--session .session-body {
+  width: 100%;
+  max-width: 420px;
+  margin-inline: auto;
+}
+
+/* Anillo: la pista ya se lee en el color del área (aun en 0) y la barra es el
+   área sólida; sin área, el azul de acción. Cumplido, en verde de estado. */
+.flow-screen--session .ring__track {
+  stroke: color-mix(in srgb, var(--vivid, var(--action)) 38%, var(--surface-2));
+  stroke-width: 14;
+}
+.flow-screen--session .ring__bar {
+  stroke: var(--vivid, var(--action));
+  stroke-width: 14;
+}
+.flow-screen--session .ring--reached .ring__bar {
+  stroke: var(--state-ok);
+}
+.session-ring__celebrate {
+  color: var(--success);
+}
+
+/* Cierre: disco de estado que entra con un pop (logro, no adorno). */
+.session-done__badge {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--state-ok);
+  color: var(--state-ok-ink);
+  animation: check-pop var(--dur-layout) var(--ease-spring);
+}
+.session-done__badge--partial {
+  background: var(--state-late);
+  color: var(--state-late-ink);
 }

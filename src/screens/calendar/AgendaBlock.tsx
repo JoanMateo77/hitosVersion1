@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import type { DayBlock } from '@/domain/agenda'
-import type { NicheId } from '@/lib/types'
 import { formatTime12 } from '@/lib/date'
-import { nicheAccent } from '@/lib/nicheAccent'
 import { IconChevronRight, IconPlus } from '@/components/icons'
 import { AgendaRow, TimeColumn, type AgendaRowHandlers } from '@/screens/calendar/AgendaRow'
-import { rowArea, rowTitle, type AgendaRowItem } from '@/screens/calendar/agendaItems'
+import { rowAccent, rowAccentKey } from '@/screens/calendar/rowAccent'
+import { rowTitle, type AgendaRowItem } from '@/screens/calendar/agendaItems'
 
 /**
  * Bloque de tiempo con dos o más cosas a la vez. Cerrado: rango, títulos en
@@ -35,17 +34,17 @@ export function AgendaBlock({
   const first = items.find((i) => i.kind === 'session') ?? items[0]
   const titles = items.map(rowTitle).join(' · ')
   const meta = `${items.length} cosas${sessions > 0 ? ` · ${sessions} ${sessions === 1 ? 'sesión' : 'sesiones'}` : ''}`
-  // Un punto por ÁREA distinta, no por ítem: dos cosas de la misma meta/hábito no duplican el punto.
-  const areas: NicheId[] = []
+  // Un punto por COLOR distinto (área de la meta o color del hábito), no por ítem.
+  const dots = new Map<string, AgendaRowItem>()
   for (const it of items) {
-    const area = rowArea(it)
-    if (!areas.includes(area)) areas.push(area)
+    const key = rowAccentKey(it)
+    if (!dots.has(key)) dots.set(key, it)
   }
   const bodyId = `blk-${day}-${block.key}`
   return (
     <div
       className={`blk${open ? ' blk--open' : ''}${sessions > 0 ? ' blk--session' : ''}${past ? ' ag-row--past' : ''}`}
-      style={nicheAccent(rowArea(first))}
+      style={rowAccent(first)}
     >
       <button
         type="button"
@@ -64,8 +63,8 @@ export function AgendaBlock({
           <span className="blk__meta">
             {meta}
             <span className="blk__dots" aria-hidden="true">
-              {areas.map((area) => (
-                <span key={area} className="blk__dot" style={nicheAccent(area)} />
+              {[...dots].map(([key, it]) => (
+                <span key={key} className="blk__dot" style={rowAccent(it)} />
               ))}
             </span>
           </span>

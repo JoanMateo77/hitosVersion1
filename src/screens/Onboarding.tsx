@@ -5,9 +5,8 @@ import { completeOnboarding } from '@/services/profile'
 import { NICHES, NICHE_QUESTIONS, getNiche, scoreNiche } from '@/domain/niches'
 import type { NicheId, PreferredMoment } from '@/lib/types'
 import {
-  IconBack,
+  IconChevronLeft,
   IconClock,
-  IconHito,
   IconMoon,
   IconProgress,
   IconRoute,
@@ -17,6 +16,7 @@ import {
 } from '@/components/icons'
 import { NicheIcon } from '@/components/NicheGlyph'
 import { OptionRow } from '@/components/OptionRow'
+import { PathIllustration } from '@/components/PathIllustration'
 
 type Step = 'promise' | 'niche' | 'time' | 'moment'
 const STEPS: Step[] = ['promise', 'niche', 'time', 'moment']
@@ -83,13 +83,13 @@ export function Onboarding() {
   const stepIndex = STEPS.indexOf(step)
 
   return (
-    <div className="screen screen--full flow-screen">
+    <main className="screen screen--full flow-screen">
       <div className="row" style={{ marginTop: 'var(--s2)', alignItems: 'center', gap: 'var(--s3)' }}>
-        <div className="stepper" aria-hidden="true">
+        <div className="stepper spacer" aria-hidden="true">
           {STEPS.map((s, i) => (
             <span
               key={s}
-              className={`stepper__dot ${i < stepIndex ? 'stepper__dot--done' : i === stepIndex ? 'stepper__dot--active' : ''}`}
+              className={`stepper__dot ${stepDotClass(i, stepIndex)}`}
             />
           ))}
         </div>
@@ -102,8 +102,8 @@ export function Onboarding() {
       {/* ----- 1 · La promesa ----- */}
       {step === 'promise' && (
         <section className="stack stack--lg" style={{ marginTop: 'var(--s8)', flex: 1 }}>
-          <header className="center stack stack--sm" style={{ alignItems: 'center' }}>
-            <IconHito size={64} />
+          <header className="center stack stack--sm onb-hero" style={{ alignItems: 'center' }}>
+            <PathIllustration width={200} />
             <h1 className="screen__title">Lógralo</h1>
             <p className="screen__subtitle center">Tu meta, con un compromiso real.</p>
           </header>
@@ -113,7 +113,7 @@ export function Onboarding() {
               { Icon: IconTimer, label: 'Sesiones comprometidas', desc: 'Eliges días y tiempos; el cronómetro te acompaña en cada una.' },
               { Icon: IconProgress, label: 'Progreso que no se inventa', desc: 'Todo se calcula de lo que realmente haces. Sin humo.' },
             ].map(({ Icon, label, desc }) => (
-              <div key={label} className="card card--tight row" style={{ alignItems: 'flex-start', gap: 'var(--s3)' }}>
+              <div key={label} className="card card--tight row onb-feature" style={{ alignItems: 'flex-start', gap: 'var(--s3)' }}>
                 <span className="option__icon" aria-hidden="true">
                   <Icon size={20} />
                 </span>
@@ -143,9 +143,7 @@ export function Onboarding() {
       {/* ----- 2 · Qué cambiar primero ----- */}
       {step === 'niche' && !interview && (
         <section className="stack stack--lg" style={{ marginTop: 'var(--s5)' }}>
-          <button className="iconbtn" onClick={() => setStep('promise')} aria-label="Volver">
-            <IconBack />
-          </button>
+          <BackButton onClick={() => setStep('promise')} />
           <header>
             <h1 className="screen__title">¿Qué quieres cambiar primero?</h1>
             <p className="screen__subtitle">El área donde quieres avanzar ahora. Después puedes sumar otras.</p>
@@ -163,6 +161,7 @@ export function Onboarding() {
               <OptionRow
                 key={n.id}
                 icon={<NicheIcon area={n.id} size={20} />}
+                area={n.id}
                 label={n.label}
                 desc={n.blurb}
                 selected={niche === n.id}
@@ -202,9 +201,7 @@ export function Onboarding() {
       {/* ----- 3 · Dedicación (sin techo) ----- */}
       {step === 'time' && (
         <section className="stack stack--lg" style={{ marginTop: 'var(--s5)' }}>
-          <button className="iconbtn" onClick={() => setStep('niche')} aria-label="Volver">
-            <IconBack />
-          </button>
+          <BackButton onClick={() => setStep('niche')} />
           <header>
             <h1 className="screen__title">¿Cuánto tiempo puedes dedicarle a tu meta?</h1>
             <p className="screen__subtitle">
@@ -257,9 +254,7 @@ export function Onboarding() {
       {/* ----- 4 · Tu momento ----- */}
       {step === 'moment' && (
         <section className="stack stack--lg" style={{ marginTop: 'var(--s5)' }}>
-          <button className="iconbtn" onClick={() => setStep('time')} aria-label="Volver">
-            <IconBack />
-          </button>
+          <BackButton onClick={() => setStep('time')} />
           <header>
             <h1 className="screen__title">¿Cuándo te es más fácil cumplir?</h1>
             <p className="screen__subtitle">Sugiere la hora de tus sesiones. Siempre puedes cambiarla.</p>
@@ -278,8 +273,25 @@ export function Onboarding() {
           </button>
         </section>
       )}
-    </div>
+    </main>
   )
+}
+
+/** Atrás del onboarding: vuelve al paso anterior con el patrón único de la app. */
+function BackButton({ onClick }: Readonly<{ onClick: () => void }>) {
+  return (
+    <button type="button" className="back-link" style={{ alignSelf: 'flex-start' }} onClick={onClick}>
+      <IconChevronLeft size={18} />
+      Atrás
+    </button>
+  )
+}
+
+/** Punto del indicador de pasos: cumplido, actual o pendiente. */
+function stepDotClass(i: number, current: number): string {
+  if (i < current) return 'stepper__dot--done'
+  if (i === current) return 'stepper__dot--active'
+  return ''
 }
 
 function Interview({
@@ -294,9 +306,7 @@ function Interview({
   const question = NICHE_QUESTIONS[index]
   return (
     <section className="stack stack--lg" style={{ marginTop: 'var(--s5)' }}>
-      <button className="iconbtn" onClick={onCancel} aria-label="Volver">
-        <IconBack />
-      </button>
+      <BackButton onClick={onCancel} />
       <header>
         <p className="faint small">
           Pregunta {index + 1} de {NICHE_QUESTIONS.length}
