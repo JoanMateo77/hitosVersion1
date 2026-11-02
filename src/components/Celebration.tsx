@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { IconCelebrate } from '@/components/icons'
+import { PathIllustration } from '@/components/PathIllustration'
 import { successHaptic } from '@/lib/haptics'
 
 interface CelebrationProps {
@@ -31,9 +31,15 @@ export function Celebration({ title, onDone }: CelebrationProps) {
         if (e.animationName === 'won-out' && e.target === e.currentTarget) onDone()
       }}
     >
-      <span className="celebrate-pop won__icon">
-        <IconCelebrate size={64} />
-      </span>
+      {/* El camino completo con su banderín: la ilustración del logro. Las
+          etapas toman el color del área cuando hay una meta en contexto
+          (--vivid heredado); si no, quedan neutras. */}
+      <PathIllustration
+        width={180}
+        done={3}
+        stopColor="var(--vivid, var(--text-muted))"
+        className="celebrate-pop won__art"
+      />
       <strong className="won__title">{title}</strong>
     </div>
   )

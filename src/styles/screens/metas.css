@@ -1,0 +1,524 @@
+/* Full color — pantallas del grupo "metas" (spec 2026-11-02-full-color-design.md).
+   Solo estilos de estas pantallas; las piezas comunes viven en fullcolor.css.
+   Gramática: azul = actuar · color del área (--vivid + --vivid-ink) = de qué
+   meta se habla · verde/ámbar (.chip-state) = estado. Relieve solo en lo que se
+   toca; movimiento solo como respuesta o logro. */
+
+/* =============================================================================
+   /metas — lista de metas
+   ========================================================================== */
+
+/* Grilla: una columna en móvil, dos en tableta, tres en escritorio. */
+.goals-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s3);
+}
+@media (min-width: 640px) {
+  .goals-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s4);
+  }
+}
+@media (min-width: 1024px) {
+  .goals-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* La tarjeta (botón) y la estrella (otro botón) son hermanos: nada de un
+   control dentro de otro. La estrella se posa sobre la esquina de la tarjeta. */
+.goal-card-wrap {
+  position: relative;
+  height: 100%;
+}
+/* El hundido al tocar viene de button.fc-card:active (fullcolor.css). */
+.goal-card.fc-card {
+  width: 100%;
+  height: calc(100% - var(--lip));
+  justify-content: flex-start;
+  cursor: pointer;
+  gap: var(--s2);
+  /* El patrón ocupa la banda superior, entre el ícono y la estrella. */
+  background-position: right 60px top 22px;
+  background-size: auto 34px;
+}
+.goal-card.fc-card .goal-card__top {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  margin-bottom: var(--s1);
+}
+.goal-card.fc-card .glyph--md {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+}
+.goal-card.fc-card .goal-card__title {
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+.goal-card__meta {
+  margin-bottom: var(--s2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+}
+.goal-card__prog {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+/* La barra es la .progress canónica (tinta del área dentro de .fc-card). */
+.goal-card__prog .progress {
+  flex: 1;
+}
+.goal-card__pct {
+  min-width: 40px;
+  text-align: right;
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--vivid-ink, var(--text));
+}
+
+/* Estrella de prioridad: 44 px tocables, tinta del área. */
+.goal-card-wrap .goal-card__star {
+  position: absolute;
+  top: 17px;
+  right: 10px;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--vivid-ink, var(--text-muted));
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .goal-card-wrap .goal-card__star:hover {
+    background: color-mix(in srgb, var(--vivid-ink, var(--text)) 16%, transparent);
+  }
+}
+.goal-card-wrap .goal-card__star--on {
+  color: var(--vivid-ink, var(--primary));
+}
+.goal-card-wrap .goal-card__star:focus-visible {
+  outline-color: var(--vivid-ink, var(--primary));
+  outline-offset: -2px;
+  border-radius: var(--radius-pill);
+}
+
+/* Metas cerradas (logradas/archivadas): claramente secundarias. Superficie
+   neutra y sin relieve; el color queda solo en el ícono. Sin opacidad en texto. */
+.goal-card-wrap--closed .goal-card.fc-card {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-soft);
+  box-shadow: none;
+}
+.goal-card-wrap--closed .fc-card .glyph {
+  background: var(--vivid);
+  color: var(--vivid-ink);
+}
+.goal-card-wrap--closed .fc-card__meta {
+  color: var(--text-muted);
+}
+.goal-card-wrap--closed .goal-card__star {
+  color: var(--text-muted);
+}
+
+/* Estado vacío: la ilustración del camino en lugar del ícono. */
+.goals-empty__art {
+  display: block;
+  margin: 0 auto var(--s4);
+}
+
+/* Peek (Blendy): la tarjeta de color agrandada. */
+.goal-peek.fc-card {
+  width: min(440px, 100%);
+  padding: var(--s5);
+  gap: var(--s4);
+}
+.goal-peek .goal-card__top {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+}
+.goal-peek .goal-card__title {
+  font-size: 22px;
+  align-self: center;
+}
+.goal-peek .goal-peek__close {
+  align-self: center;
+  color: var(--vivid-ink, var(--text));
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.goal-peek .goal-peek__close:focus-visible {
+  outline-color: var(--vivid-ink, var(--primary));
+}
+
+/* =============================================================================
+   /metas/:goalId — detalle
+   ========================================================================== */
+
+/* Cabecera full color. En móvil sangra hasta los bordes y cuelga de la barra
+   superior; desde tableta es un bloque redondeado dentro de la columna. */
+.goal-hero {
+  /* El patrón va junto al ícono grande, lejos del título y las etiquetas. */
+  background-position: right 20px top 76px;
+  background-size: auto 52px;
+  display: grid;
+  justify-items: start;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4) var(--s6);
+  margin: calc(var(--s4) * -1) calc(var(--s4) * -1) var(--s5);
+}
+/* El detalle trae su propia cabecera (sin TopBar, AppShell.tsx): el área
+   segura la paga la pantalla, y en móvil el hero de color sangra hasta arriba. */
+@media (max-width: 1023px) {
+  .shell .screen.goal-detail {
+    padding-top: calc(var(--safe-top) + var(--s4));
+  }
+}
+@media (max-width: 767px) {
+  .goal-hero {
+    margin-top: calc(-1 * (var(--safe-top) + var(--s4)));
+    padding-top: calc(var(--safe-top) + var(--s3));
+  }
+}
+@media (min-width: 768px) {
+  .goal-hero {
+    margin: 0 0 var(--s6);
+    padding: var(--s4) var(--s6) var(--s6);
+    border-radius: 28px;
+  }
+}
+.goal-hero__bar {
+  justify-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--s1);
+}
+.goal-hero__edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: color-mix(in srgb, var(--vivid-ink, var(--text)) 20%, transparent);
+  color: var(--vivid-ink, var(--text));
+  transition: transform var(--dur-tap) var(--ease-out), background var(--dur-tap) var(--ease-out);
+  min-height: 44px;
+  padding: 0 var(--s4);
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+}
+@media (hover: hover) {
+  .goal-hero__edit:hover {
+    background: color-mix(in srgb, var(--vivid-ink, var(--text)) 30%, transparent);
+  }
+}
+.goal-hero__edit:active {
+  transform: scale(0.94);
+}
+.goal-hero :focus-visible {
+  outline-color: var(--vivid-ink, var(--primary));
+}
+.glyph--xl {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+}
+.goal-hero__title {
+  margin: 0;
+  max-width: 22ch;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--vivid-ink, var(--text));
+  overflow-wrap: anywhere;
+}
+@media (min-width: 1024px) {
+  .goal-hero__title {
+    font-size: 36px;
+  }
+}
+.goal-hero__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+.goal-hero .tag {
+  border: 0;
+  padding: 4px 10px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--vivid-ink, var(--text)) 18%, transparent);
+  color: var(--vivid-ink, var(--text));
+}
+
+/* Tarjeta "Ahora": neutra (no se toca), con el color del área en la etiqueta,
+   los pasos, los segmentos y el botón de cumplir. */
+.goal-detail .now-card {
+  border: 2px solid var(--border-soft);
+  border-radius: 22px;
+}
+.goal-detail .now-card::after {
+  background: radial-gradient(
+    90% 70% at 0% 0%,
+    color-mix(in srgb, var(--vivid) 14%, transparent),
+    transparent 60%
+  );
+}
+/* Texto del color del área sobre superficie neutra: mezclado con el color de
+   texto del tema para que se lea en claro y oscuro. */
+.goal-detail .now-card__kicker {
+  font-weight: 800;
+  color: color-mix(in oklch, var(--vivid) 62%, var(--text));
+}
+.goal-detail .now-card__actions li::before {
+  width: 8px;
+  height: 8px;
+  margin-top: 0.4em;
+  background: var(--vivid);
+}
+/* Los segmentos son la .segbar canónica (coach.css). */
+/* "Marcar esta etapa como cumplida": botón del color del área con relieve. */
+.goal-detail .now-card__done {
+  width: 100%;
+  margin-bottom: var(--lip);
+  border: 0;
+  border-radius: 14px;
+  background: var(--vivid);
+  color: var(--vivid-ink);
+  /* 15 px: el texto completo cabe en una línea desde 390 px de ancho. */
+  font-size: 15px;
+  font-weight: 800;
+  padding-inline: var(--s3);
+}
+/* En los teléfonos más angostos el check sobra (el texto ya lo dice) y
+   dejarlo partiría el texto en dos líneas. */
+@media (max-width: 379px) {
+  .goal-detail .now-card__done svg {
+    display: none;
+  }
+}
+.goal-detail .now-card__done:active:not(:disabled) {
+  transform: translateY(var(--lip));
+}
+.goal-detail .now-card__done:focus-visible {
+  outline-color: var(--text);
+}
+@media (min-width: 1024px) {
+  .goal-detail .now-card__done {
+    width: auto;
+    justify-self: start;
+    padding-inline: var(--s6);
+  }
+}
+
+/* Hábito vinculado: el nombre es un enlace a Hábitos, no un campo. */
+.goal-detail__habit {
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Checklist del camino: la fecha bajo el título, no a su lado. */
+.mstone__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.mstone__text .mstone__title {
+  width: 100%;
+}
+.mstone__text .mstone__date {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: -4px;
+  padding-bottom: var(--s2);
+  color: var(--text-muted);
+}
+
+/* =============================================================================
+   /meta/creada/:goalId — ¡Meta creada!
+   ========================================================================== */
+.goal-created__head {
+  display: grid;
+  justify-items: center;
+  gap: var(--s2);
+  margin-top: var(--s4);
+  text-align: center;
+}
+.goal-created__art {
+  display: block;
+  margin-bottom: var(--s2);
+}
+/* La meta en su color, sin relieve: aquí no se toca. */
+.goal-created__card.fc-card {
+  box-shadow: none;
+  margin-bottom: 0;
+  gap: var(--s2);
+  background-position: right 20px top 22px;
+  background-size: auto 40px;
+}
+.goal-created__card .goal-card__top {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+.goal-created__card .glyph--md {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+}
+/* El foco se mueve al título solo para anunciarlo: sin anillo, no es un control. */
+.goal-created__head h1:focus {
+  outline: none;
+}
+.goal-created__actions {
+  margin-top: var(--s6);
+}
+.goal-created__why {
+  font-weight: 500;
+}
+
+/* El camino de la meta en el color de su área (no en azul: azul = actuar).
+   El halo de la etapa actual queda quieto: nada se mueve solo. */
+.goal-created .roadmap__path--done {
+  stroke: var(--vivid);
+  stroke-width: 3;
+  filter: none;
+}
+/* Etapa cumplida = verde de estado (igual que el check del detalle). */
+.goal-created .roadmap__svg-step--done .roadmap__circle {
+  fill: var(--state-ok);
+  stroke: var(--state-ok);
+}
+.goal-created .roadmap__svg-step--current .roadmap__circle {
+  stroke: var(--vivid);
+  stroke-width: 3;
+}
+.goal-created .roadmap__halo {
+  fill: var(--vivid);
+  opacity: 0.22;
+  animation: none;
+}
+.goal-created .roadmap__tick {
+  stroke: var(--state-ok-ink);
+}
+
+/* =============================================================================
+   Celebración: meta lograda
+   ========================================================================== */
+.won__art {
+  display: block;
+  margin: 0 auto var(--s2);
+}
+.won__title {
+  font-size: var(--fs-2xl, 28px);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+/* =============================================================================
+   /ideas — ideas para empezar
+   ========================================================================== */
+.ideas__area {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: var(--s2);
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--vivid);
+  color: var(--vivid-ink);
+  font-size: var(--fs-xs, 12px);
+  font-weight: 800;
+}
+.ideas-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ideas-list > li {
+  display: flex;
+}
+/* Idea: tarjeta neutra que se toca para adoptarla. Superficie neutra =
+   relieve neutro (--neutral-lip, vía .fc-press); el color del área va solo en
+   el ícono, que dice de qué área es la idea. */
+.idea-card {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  margin-bottom: var(--lip);
+  padding: var(--s4);
+  border: 2px solid var(--border-soft);
+  border-radius: 22px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.idea-card.fc-press {
+  box-shadow: 0 var(--lip) 0 var(--neutral-lip);
+}
+.idea-card:disabled {
+  cursor: default;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  box-shadow: none;
+  transform: translateY(var(--lip));
+}
+@media (hover: hover) {
+  .idea-card:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--vivid) 45%, var(--border-soft));
+  }
+}
+.idea-card .glyph--lg {
+  border-radius: 14px;
+}
+.idea-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.idea-card__title {
+  font-weight: 800;
+  line-height: 1.25;
+}
+.idea-card__desc {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.idea-card__go {
+  flex: none;
+  color: var(--text-muted);
+}

@@ -67,7 +67,7 @@ export function SheetStepIdentity({
       </div>
 
       <section className="hsheet-group">
-        <span className="hab-kicker">Icono</span>
+        <span className="section-title">Icono</span>
         <div className="hsheet-grid">
           {quick.map((icon) => (
             <button
@@ -108,7 +108,7 @@ export function SheetStepIdentity({
           </div>
         )}
 
-        <span className="hab-kicker hsheet-kicker--gap">Color</span>
+        <span className="section-title hsheet-kicker--gap">Color</span>
         <div className="hsheet-grid">
           {HABIT_COLORS.map((color) => (
             <button
@@ -125,7 +125,7 @@ export function SheetStepIdentity({
       </section>
 
       <section className="hsheet-group">
-        <span className="hab-kicker">Sugerencias</span>
+        <span className="section-title">Sugerencias</span>
         <div className="hsheet-chips">
           {CHIP_SUGGESTIONS.map((s) => (
             <button

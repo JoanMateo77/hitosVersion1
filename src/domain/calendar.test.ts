@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  WEEKDAY_LABELS,
   compareEvents,
   groupByDate,
   inSameMonth,
@@ -8,6 +7,7 @@ import {
   weekDays,
 } from '@/domain/calendar'
 import type { CalendarEvent } from '@/lib/types'
+import { WEEKDAY_ABBR } from '@/domain/weekdays'
 
 function ev(partial: Partial<CalendarEvent>): CalendarEvent {
   return {
@@ -63,8 +63,8 @@ describe('calendar', () => {
     expect(map.get('2026-05-26')).toHaveLength(1)
   })
 
-  it('WEEKDAY_LABELS arranca en Lun y tiene 7', () => {
-    expect(WEEKDAY_LABELS[0]).toBe('Lun')
-    expect(WEEKDAY_LABELS).toHaveLength(7)
+  it('WEEKDAY_ABBR arranca en Lun y tiene 7', () => {
+    expect(WEEKDAY_ABBR[0]).toBe('Lun')
+    expect(WEEKDAY_ABBR).toHaveLength(7)
   })
 })

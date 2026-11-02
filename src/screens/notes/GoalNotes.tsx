@@ -49,7 +49,7 @@ export function GoalNotes({ goalId }: Readonly<{ goalId: string }>) {
   return (
     <div>
       <div className="section-head">
-        <h2 style={{ fontSize: 'var(--fs-lg)' }}>Notas</h2>
+        <h2 className="section-title">Notas</h2>
         <button type="button" className="btn btn--ghost btn--sm" onClick={() => setOpen(null)}>
           <IconPlus size={16} /> Nota
         </button>

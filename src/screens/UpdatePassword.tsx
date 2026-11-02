@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { updatePassword } from '@/services/auth'
-import { IconHito } from '@/components/icons'
+import { PathIllustration } from '@/components/PathIllustration'
 
 /**
  * El enlace de "olvidé mi contraseña" inicia sesión pero no la cambia: esta
@@ -33,16 +33,14 @@ export function UpdatePassword({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <div className="screen screen--full flow-screen" style={{ justifyContent: 'center' }}>
+    <main className="screen screen--full flow-screen account-flow" style={{ justifyContent: 'center' }}>
       <form
         className="stack stack--lg"
         style={{ width: 'min(380px, 100%)', margin: '0 auto' }}
         onSubmit={handleSubmit}
       >
         <header className="center stack stack--sm" style={{ alignItems: 'center' }}>
-          <span className="brand__mark" style={{ color: 'var(--primary)' }}>
-            <IconHito size={56} />
-          </span>
+          <PathIllustration width={150} done={2} />
           <h1 className="screen__title">Define tu contraseña nueva</h1>
           <p className="muted small center">
             Entraste con el enlace de recuperación. Elige la contraseña que usarás de ahora en más.
@@ -103,6 +101,6 @@ export function UpdatePassword({ onDone }: { onDone: () => void }) {
           Ahora no
         </button>
       </form>
-    </div>
+    </main>
   )
 }

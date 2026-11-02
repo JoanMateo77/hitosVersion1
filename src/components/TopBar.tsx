@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { useSession } from '@/app/session'
-import { fetchCurrentStreak } from '@/services/profile'
-import { frameForStreak } from '@/domain/frames'
-import { useCachedData } from '@/hooks/useCachedData'
+import { useStreakFrame } from '@/hooks/useStreakFrame'
 import { IconHito } from '@/components/icons'
+import { UserAvatar } from '@/components/UserAvatar'
 
 /** Barra superior fina (solo móvil/tablet): la marca + acceso a Perfil.
  *  Perfil vive aquí (avatar) para que la barra inferior quede en 5 pestañas
@@ -13,18 +11,9 @@ import { IconHito } from '@/components/icons'
  *  Se esconde al scrollear hacia abajo y reaparece al subir o al llegar arriba
  *  (patrón iOS/Instagram): el contenido manda, la marca no estorba. */
 export function TopBar() {
-  const { userId, email, profile } = useSession()
-  const initial = (email.charAt(0) || '·').toUpperCase()
   const [hidden, setHidden] = useState(false)
-
-  // Marco por racha: misma métrica y misma clave de cache que Perfil, así solo
-  // se calcula una vez por sesión. Si falla, simplemente no hay anillo.
-  const { data: streak } = useCachedData(
-    `streak:${userId}`,
-    () => fetchCurrentStreak(userId).catch(() => 0),
-    [userId],
-  )
-  const frame = frameForStreak(streak ?? 0)
+  // Marco por racha: misma métrica y misma cache que Perfil y la barra lateral.
+  const { frame } = useStreakFrame()
 
   useEffect(() => {
     let last = window.scrollY
@@ -58,23 +47,9 @@ export function TopBar() {
       <NavLink
         to="/perfil"
         aria-label="Tu perfil"
-        className={({ isActive }) => `topbar__avatar${isActive ? ' topbar__avatar--active' : ''}`}
-        style={{
-          overflow: 'hidden',
-          // Anillo del marco ganado con la racha (ver src/domain/frames.ts), o
-          // --primary por defecto si aún no hay marco (igual que en Hoy).
-          boxShadow: `0 0 0 3px ${frame?.color ?? 'var(--primary)'}`,
-        }}
+        className="avatar-link topbar__avatar"
       >
-        {profile.avatarUrl ? (
-          <img
-            src={profile.avatarUrl}
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
-          />
-        ) : (
-          initial
-        )}
+        <UserAvatar frame={frame} />
       </NavLink>
     </header>
   )

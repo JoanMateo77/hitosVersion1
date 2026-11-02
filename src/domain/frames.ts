@@ -15,7 +15,11 @@ export interface Frame {
   label: string
   /** Días de racha (comprometidos cumplidos) necesarios para ganarlo. */
   minStreak: number
-  /** Color del anillo. Fijos que funcionan en claro y oscuro; Leyenda usa el token de marca. */
+  /**
+   * Color del anillo (y del punto que lo representa). Nunca es color de texto:
+   * Plata y Oro no llegan a 4.5:1 sobre blanco; la etiqueta va en --text.
+   * Leyenda usa --text (negro en claro, blanco en oscuro): el azul es de acción.
+   */
   color: string
 }
 
@@ -24,7 +28,7 @@ export const FRAMES: Frame[] = [
   { id: 'bronce', label: 'Bronce', minStreak: 3, color: '#b0793a' },
   { id: 'plata', label: 'Plata', minStreak: 7, color: '#9aa5b1' },
   { id: 'oro', label: 'Oro', minStreak: 21, color: '#d9a514' },
-  { id: 'leyenda', label: 'Leyenda', minStreak: 50, color: 'var(--primary)' },
+  { id: 'leyenda', label: 'Leyenda', minStreak: 50, color: 'var(--text)' },
 ]
 
 /** El marco ganado más alto para una racha dada, o null si aún no gana ninguno. */

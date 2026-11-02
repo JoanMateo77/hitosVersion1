@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import type { CalendarEvent, Goal, Habit, HabitCheck, HabitSkip, ScheduleBlock, Session, Task } from '@/lib/types'
@@ -47,6 +47,7 @@ import {
   globalStreak,
   isTimeReached,
   neutralDatesOf,
+  type DayState,
 } from '@/domain/sessions'
 import { PinnedGoals } from '@/screens/today/PinnedGoals'
 import { goalsInView } from '@/domain/goals'
@@ -58,14 +59,14 @@ import {
   formatHeaderDate,
   frameCaption,
   greeting,
-  initialsFrom,
   laterTodayItems,
   nextPendingSession,
   progressLine,
   SHORT_NICHE_LABELS,
   type LaterItem,
 } from '@/domain/today'
-import { WEEKDAY_LABELS } from '@/domain/commitment'
+import { WEEKDAY_SHORT } from '@/domain/weekdays'
+import { UserAvatar } from '@/components/UserAvatar'
 import { addDays, dayOfMonth, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
 import { friendlyError } from '@/lib/errors'
 import { Disclosure } from '@/components/Disclosure'
@@ -82,13 +83,16 @@ import {
   IconClock,
   IconFlame,
   IconLightbulb,
+  IconMinus,
   IconPlay,
   IconPlus,
   IconQuote,
   IconSprout,
   IconStop,
 } from '@/components/icons'
-import { NicheIcon } from '@/components/NicheGlyph'
+import { NicheGlyph, NicheIcon } from '@/components/NicheGlyph'
+import { PathIllustration } from '@/components/PathIllustration'
+import { nicheAccent } from '@/lib/nicheAccent'
 import { useCheer } from '@/hooks/useCheer'
 import { useNovedades } from '@/hooks/useNovedades'
 import { useToast } from '@/app/toast'
@@ -99,11 +103,6 @@ import { sessionCache } from '@/lib/sessionCache'
 import { useCacheMirror } from '@/hooks/useCacheMirror'
 import '@/styles/today.css'
 import '@/styles/habits.css'
-
-/** Índice de cascada para la entrada escalonada de bloques (ver today.css). */
-function enter(i: number): CSSProperties {
-  return { '--i': i } as CSSProperties
-}
 
 /** Progreso de hitos por meta (etapa X de Y en el héroe). */
 type MilestoneProgress = Map<string, { done: number; total: number; nextTitle: string | null }>
@@ -126,8 +125,25 @@ type TodaySnapshot = {
 /** Máximo de segmentos de una barra: más allá se dibuja una barra proporcional. */
 const MAX_SEGMENTS = 12
 
+/** Estado de un día de la tira semanal, dicho en palabras (aria-label). */
+const WEEK_STATE_TEXT: Record<DayState, string> = {
+  done: 'cumplido',
+  partial: 'a medias',
+  missed: 'sin hacer',
+  future: 'pendiente',
+  free: 'sin compromiso',
+}
+
+/** Glifo de estado del día: el color nunca lo dice solo. */
+function weekMark(state: DayState) {
+  if (state === 'done') return <IconCheck size={12} />
+  if (state === 'partial') return <span className="today-week__dot" />
+  if (state === 'missed') return <IconMinus size={12} />
+  return null
+}
+
 export function Today() {
-  const { userId, email, displayName, profile } = useSession()
+  const { userId, displayName, profile } = useSession()
   const navigate = useNavigate()
   const today = todayISO()
 
@@ -135,8 +151,6 @@ export function Today() {
   // detrás (sin skeleton). La clave incluye la fecha: un día nuevo carga en frío.
   const cacheKey = `today:${userId}:${today}`
   const cached = sessionCache.get<TodaySnapshot>(cacheKey)
-  // Solo la carga fría (sin caché) hace la cascada de entrada; al volver, todo ya está tibio.
-  const warm = useRef(cached !== undefined).current
 
   const [goals, setGoals] = useState<Goal[]>(cached?.goals ?? [])
   const [blocks, setBlocks] = useState<ScheduleBlock[]>(cached?.blocks ?? [])
@@ -336,6 +350,16 @@ export function Today() {
     () => globalStreak(goals, blocks, [...history, ...sessions], today),
     [goals, history, sessions, blocks, today],
   )
+
+  // La racha sube: la llama late y el número entra desde abajo (.fc-bump), SOLO
+  // cuando el valor sube con la pantalla abierta. La carga inicial no cuenta
+  // como cambio: se toma como punto de partida el primer valor ya cargado.
+  const [streakSeen, setStreakSeen] = useState<number | null>(loading ? null : streak)
+  const [streakBumps, setStreakBumps] = useState(0)
+  if (!loading && streak !== streakSeen) {
+    if (streakSeen !== null && streak > streakSeen) setStreakBumps((n) => n + 1)
+    setStreakSeen(streak)
+  }
 
   // Racha recién rota: veníamos con racha (≥2) y el último día comprometido quedó
   // sin cumplir. El chip desaparecía sin explicación — el silencio es peor.
@@ -700,18 +724,31 @@ export function Today() {
     // El hábito muestra su propio azulejo de identidad (icono + color); el resto
     // sigue con el glifo genérico gris de la fila.
     const habit = item.kind === 'habit' ? todayHabits.find((x) => x.id === item.id) : undefined
+    // La sesión es de una meta: su glifo lleva el color del área.
+    const sessionGoal = session ? goalById.get(session.goalId) : undefined
+    let glyph: ReactNode
+    if (habit) {
+      glyph = <HabitIcon habit={habit} size="sm" />
+    } else if (sessionGoal) {
+      glyph = (
+        <span
+          className="today-item__glyph today-item__glyph--goal"
+          style={nicheAccent(sessionGoal.area)}
+          aria-hidden="true"
+        >
+          <NicheIcon area={sessionGoal.area} size={16} />
+        </span>
+      )
+    } else {
+      glyph = (
+        <span className="today-item__glyph" aria-hidden="true">
+          {laterGlyph(item.kind)}
+        </span>
+      )
+    }
     return (
       <li key={`${item.kind}:${item.id}`} className={`today-item${item.done ? ' today-item--done' : ''}`}>
-        {habit ? (
-          <HabitIcon habit={habit} size="sm" />
-        ) : (
-          <span
-            className={`today-item__glyph${item.kind === 'session' ? ' today-item__glyph--session' : ''}`}
-            aria-hidden="true"
-          >
-            {laterGlyph(item.kind)}
-          </span>
-        )}
+        {glyph}
         <span className="today-item__text">
           <span className="today-item__title">{item.title}</span>
           <span className="today-item__sub">{item.subtitle}</span>
@@ -779,7 +816,7 @@ export function Today() {
               ? 'forgotten'
               : null
 
-  const ringColor = frameForStreak(streak)?.color ?? 'var(--primary)'
+  const frame = frameForStreak(streak)
   const heroGoal = heroRunning
     ? goalById.get(heroRunning.goalId)
     : heroPending
@@ -788,20 +825,22 @@ export function Today() {
 
   /** Barra segmentada de las tarjetas de resumen (proporcional si hay demasiados). */
   function segmentedBar(done: number, total: number) {
-    if (total === 0) return <span className="today-bar__seg" />
     if (total > MAX_SEGMENTS) {
       return (
-        <span className="today-bar__track">
-          <span
-            className="today-bar__fill"
-            style={{ width: `${Math.round((done / total) * 100)}%` }}
-          />
+        <span className="progress" aria-hidden="true">
+          <span className="progress__bar" style={{ width: `${Math.round((done / total) * 100)}%` }} />
         </span>
       )
     }
-    return Array.from({ length: total }, (_, i) => (
-      <span key={i} className={`today-bar__seg${i < done ? ' today-bar__seg--on' : ''}`} />
-    ))
+    return (
+      <div className="segbar" aria-hidden="true">
+        {total === 0 ? (
+          <span />
+        ) : (
+          Array.from({ length: total }, (_, i) => <span key={i} className={i < done ? 'done' : undefined} />)
+        )}
+      </div>
+    )
   }
 
   /** Botón (o selector de meta) para sumar una sesión espontánea al día. */
@@ -822,8 +861,8 @@ export function Today() {
     return (
       <div className="row wrap">
         {activeGoals.map((g) => (
-          <button key={g.id} type="button" className="chip" onClick={() => addSpontaneous(g)}>
-            <NicheIcon area={g.area} size={13} /> {g.title}
+          <button key={g.id} type="button" className="chip today-spont" onClick={() => addSpontaneous(g)}>
+            <NicheGlyph area={g.area} size="sm" /> {g.title}
           </button>
         ))}
       </div>
@@ -831,52 +870,44 @@ export function Today() {
   }
 
   return (
-    <div className="screen today" data-warm={warm ? '' : undefined}>
-      <header className="today-head today-enter" style={enter(0)}>
+    <div className="screen today">
+      <header className="today-head">
         <div className="today-head__text">
           <h1 className="today-head__greet">{headline}</h1>
           <span className="today-head__date">{formatHeaderDate(today)}</span>
         </div>
-        <Link
-          to="/perfil"
-          aria-label="Tu perfil"
-          className="today-avatar"
-          style={{ '--ring': ringColor } as CSSProperties}
-        >
-          {profile.avatarUrl ? (
-            <img className="today-avatar__img" src={profile.avatarUrl} alt="" />
-          ) : (
-            initialsFrom(displayName, email)
-          )}
+        {/* El marco sale de la racha que Hoy ya calcula con sus propios datos. */}
+        <Link to="/perfil" aria-label="Tu perfil" className="avatar-link">
+          <UserAvatar frame={frame} />
         </Link>
       </header>
 
-      <div className="today-stats today-enter" style={enter(1)}>
+      <div className="today-stats">
         <div className="today-stat">
           <span className="today-stat__label">Sesiones</span>
           <span className="today-stat__value">
             {doneCount}
             <span className="today-stat__total"> / {todaySessions.length}</span>
           </span>
-          <div className="today-bar" aria-hidden="true">
-            {segmentedBar(doneCount, todaySessions.length)}
-          </div>
+          {segmentedBar(doneCount, todaySessions.length)}
         </div>
         <div className="today-stat">
           <span className="today-stat__label">Hábitos</span>
-          <span className={`today-stat__value${habitDone > 0 ? ' today-stat__value--ok' : ''}`}>
+          <span className={`today-stat__value${habitTotal > 0 && habitDone === habitTotal ? ' today-stat__value--ok' : ''}`}>
             {habitDone}
             <span className="today-stat__total"> / {habitTotal}</span>
           </span>
-          <div className="today-bar" aria-hidden="true">
-            {segmentedBar(habitDone, habitTotal)}
-          </div>
+          {segmentedBar(habitDone, habitTotal)}
         </div>
         <div className="today-stat">
           <span className="today-stat__label">Racha</span>
-          <span className="today-stat__value today-stat__value--streak">
+          {/* key: cada subida remonta el valor y la animación vuelve a correr. */}
+          <span
+            key={streakBumps}
+            className={`today-stat__value today-stat__value--streak${streakBumps > 0 ? ' fc-bump' : ''}`}
+          >
             <IconFlame size={16} className="today-stat__flame" />
-            {streak}
+            <span className="fc-bump__n">{streak}</span>
           </span>
           <span className="today-stat__caption">{frameCaption(streak)}</span>
         </div>
@@ -884,11 +915,12 @@ export function Today() {
 
       <PinnedGoals goals={pinnedGoals} onOpen={(id) => navigate(`/metas/${id}`)} />
 
-      <div className="today-week today-enter" role="group" aria-label="Tu semana" style={enter(2)}>
+      <fieldset className="today-week fieldset--plain" aria-label="Tu semana">
         {Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(today), i)).map((d, i) => {
           const st = stripState(d)
           const isToday = d === today
           const dayName = formatWeekday(d)
+          const stateText = WEEK_STATE_TEXT[st]
           return (
             <button
               key={d}
@@ -897,45 +929,53 @@ export function Today() {
               disabled={isToday}
               aria-label={
                 isToday
-                  ? `${WEEKDAY_LABELS[i]} ${d.slice(8)}: hoy`
-                  : `Ver ${dayName.charAt(0).toLowerCase()}${dayName.slice(1)} en la agenda`
+                  ? `${WEEKDAY_SHORT[i]} ${d.slice(8)}: hoy, ${stateText}`
+                  : `Ver ${dayName.charAt(0).toLowerCase()}${dayName.slice(1)} en la agenda: ${stateText}`
               }
               // Pasado: la agenda de ese día muestra qué hiciste. Futuro: ahí se
               // planifica. Hoy no navega: ya estás en Hoy. La ruta de la Agenda
               // es /calendario (el nombre visible "Agenda" no es la URL).
               onClick={() => navigate(`/calendario?d=${d}`)}
             >
-              <span className="today-week__label">{WEEKDAY_LABELS[i]}</span>
+              <span className="today-week__label">{WEEKDAY_SHORT[i]}</span>
               <span className="today-week__num">{dayOfMonth(d)}</span>
+              <span className="today-week__mark" aria-hidden="true">
+                {weekMark(st)}
+              </span>
             </button>
           )
         })}
-      </div>
+      </fieldset>
 
-      <section className="today-section today-enter" aria-label="Tu siguiente paso" style={enter(3)}>
-        <span className="kicker today-kicker">Tu siguiente paso</span>
+      <section className="today-section" aria-label="Tu siguiente paso">
+        <span className="section-title">Tu siguiente paso</span>
 
         {heroRunning && heroGoal ? (
-          <div className="today-hero">
-            <div className="today-hero__top">
-              <span className="today-hero__state">
-                <span className="today-hero__dot" aria-hidden="true" />
-                {heroRunning.pausedAt ? 'Sesión en pausa' : 'Sesión en curso'}
-              </span>
-              <span className="today-hero__meta">
-                {SHORT_NICHE_LABELS[heroGoal.area]}
-                {(() => {
-                  const ms = milestones.get(heroGoal.id)
-                  if (!ms || ms.total === 0) return ''
-                  return ` · Etapa ${Math.min(ms.done + 1, ms.total)} de ${ms.total}`
-                })()}
-              </span>
+          // La sesión es de una meta: la franja superior lleva el color de su área
+          // (de qué se habla); el botón azul, la acción.
+          <div className="today-hero today-hero--goal" style={nicheAccent(heroGoal.area)}>
+            <div className="today-hero__band">
+              <div className="today-hero__top">
+                <span className="today-hero__state">
+                  <span className="today-hero__dot" aria-hidden="true" />
+                  {heroRunning.pausedAt ? 'Sesión en pausa' : 'Sesión en curso'}
+                </span>
+                <span className="today-hero__meta">
+                  {SHORT_NICHE_LABELS[heroGoal.area]}
+                  {(() => {
+                    const ms = milestones.get(heroGoal.id)
+                    if (!ms || ms.total === 0) return ''
+                    return ` · Etapa ${Math.min(ms.done + 1, ms.total)} de ${ms.total}`
+                  })()}
+                </span>
+              </div>
+              <div className="today-hero__head">
+                <NicheGlyph area={heroGoal.area} size="md" />
+                <span className="today-hero__title">{heroGoal.title}</span>
+              </div>
             </div>
             <div className="today-hero__body">
-              <span className="today-hero__text">
-                <span className="today-hero__title">{heroGoal.title}</span>
-                <span className="today-hero__sub">{progressLine(heroRunning, nowTick)}</span>
-              </span>
+              <span className="today-hero__sub">{progressLine(heroRunning, nowTick)}</span>
               <span className="today-hero__clock">
                 {heroRunning.targetKind === 'time'
                   ? formatElapsed(elapsedSeconds(heroRunning, nowTick))
@@ -945,7 +985,7 @@ export function Today() {
             <div className="today-hero__actions">
               <button
                 type="button"
-                className="today-hero__cta"
+                className="btn btn--primary today-hero__cta"
                 onClick={() => continueSession(heroRunning)}
               >
                 <IconPlay size={16} /> Continuar sesión
@@ -961,36 +1001,39 @@ export function Today() {
             </div>
           </div>
         ) : heroPending && heroGoal ? (
-          <div className="today-hero">
-            <div className="today-hero__top">
-              <span className="today-hero__state">
-                <span className="today-hero__dot" aria-hidden="true" />Siguiente sesión
-              </span>
-              <span className="today-hero__meta">
-                {(() => {
-                  const span = sessionSpan(
-                    heroPending.plannedTime,
-                    heroPending.targetKind,
-                    heroPending.targetValue,
-                  )
-                  return span.start ? rangeLabel(span.start, span.end) : 'Sin hora'
-                })()}
-              </span>
+          <div className="today-hero today-hero--goal" style={nicheAccent(heroGoal.area)}>
+            <div className="today-hero__band">
+              <div className="today-hero__top">
+                <span className="today-hero__state">
+                  <span className="today-hero__dot" aria-hidden="true" />Siguiente sesión
+                </span>
+                <span className="today-hero__meta">
+                  {(() => {
+                    const span = sessionSpan(
+                      heroPending.plannedTime,
+                      heroPending.targetKind,
+                      heroPending.targetValue,
+                    )
+                    return span.start ? rangeLabel(span.start, span.end) : 'Sin hora'
+                  })()}
+                </span>
+              </div>
+              <div className="today-hero__head">
+                <NicheGlyph area={heroGoal.area} size="md" />
+                <span className="today-hero__title">{heroGoal.title}</span>
+              </div>
             </div>
             <div className="today-hero__body">
-              <span className="today-hero__text">
-                <span className="today-hero__title">{heroGoal.title}</span>
-                <span className="today-hero__sub">
-                  {heroPending.targetKind === 'time'
-                    ? `${formatCommitted(heroPending)} comprometidos`
-                    : formatCommitted(heroPending)}
-                </span>
+              <span className="today-hero__sub">
+                {heroPending.targetKind === 'time'
+                  ? `${formatCommitted(heroPending)} comprometidos`
+                  : formatCommitted(heroPending)}
               </span>
             </div>
             <div className="today-hero__actions">
               <button
                 type="button"
-                className="today-hero__cta"
+                className="btn btn--primary today-hero__cta"
                 onClick={() => navigate(`/sesion/${heroPending.id}?start=1`)}
               >
                 <IconPlay size={16} /> Empezar sesión
@@ -1000,8 +1043,12 @@ export function Today() {
         ) : allResolved ? (
           <div className="today-hero">
             <div className="today-hero__top">
-              <span className="today-hero__state">
-                <span className="today-hero__dot" aria-hidden="true" />Compromiso de hoy
+              {/* Estado del día: verde si se cumplió todo; neutro si no (sin culpa). */}
+              <span
+                className={`chip-state${doneCount === todaySessions.length ? ' chip-state--ok' : ''}`}
+              >
+                {doneCount === todaySessions.length && <IconCheck size={12} />}
+                Compromiso de hoy
               </span>
             </div>
             <span className="today-hero__title">
@@ -1024,15 +1071,14 @@ export function Today() {
             {renderSpontaneous()}
           </div>
         ) : (
-          <div className="today-hero">
+          <div className="today-hero today-hero--empty">
+            <PathIllustration width={180} done={1} className="today-hero__art" />
             <div className="today-hero__top">
-              <span className="today-hero__state">
-                <span className="today-hero__dot" aria-hidden="true" />Empieza aquí
-              </span>
+              <span className="today-hero__state">Empieza aquí</span>
             </div>
             <span className="today-hero__title">Tu día se arma alrededor de una meta.</span>
             <div className="today-hero__actions">
-              <button type="button" className="today-hero__cta" onClick={() => navigate('/ideas')}>
+              <button type="button" className="btn btn--primary today-hero__cta" onClick={() => navigate('/ideas')}>
                 Ver ideas para empezar
               </button>
             </div>
@@ -1073,7 +1119,7 @@ export function Today() {
       </section>
 
       {voice === 'novedades' && novedad && (
-        <div className="today-row today-enter" role="status" style={enter(4)}>
+        <output className="today-row">
           <span className="today-row__glyph" aria-hidden="true">
             <IconLightbulb size={16} />
           </span>
@@ -1084,7 +1130,7 @@ export function Today() {
           <button className="btn--link today-row__action" onClick={cerrarNovedades}>
             Entendido
           </button>
-        </div>
+        </output>
       )}
 
       {voice === 'cheer' && cheerMessage && (
@@ -1103,7 +1149,7 @@ export function Today() {
       )}
 
       {voice === 'streak' && streakBroken && (
-        <div className="today-row today-enter" role="status" style={enter(4)}>
+        <output className="today-row">
           <span className="today-row__glyph" aria-hidden="true">
             <IconFlame size={16} />
           </span>
@@ -1116,14 +1162,14 @@ export function Today() {
           <button className="btn--link today-row__action" onClick={dismissStreakNotice}>
             Entendido
           </button>
-        </div>
+        </output>
       )}
 
       {voice === 'resolve' && toResolve && (
         <button
           type="button"
-          className="today-row today-row--link today-enter"
-          style={enter(4)}
+          className="today-row today-row--link"
+         
           onClick={() => navigate(`/sesion/${toResolve.id}`)}
         >
           <span className="today-row__glyph" aria-hidden="true">
@@ -1142,8 +1188,8 @@ export function Today() {
       {voice === 'review' && (
         <button
           type="button"
-          className="today-row today-row--link today-enter"
-          style={enter(4)}
+          className="today-row today-row--link"
+         
           onClick={() => navigate('/revision')}
         >
           <span className="today-row__glyph" aria-hidden="true">
@@ -1160,7 +1206,7 @@ export function Today() {
       )}
 
       {voice === 'forgotten' && forgotten && (
-        <div className="today-row today-row--stack today-enter" style={enter(4)}>
+        <div className="today-row today-row--stack">
           <span className="today-row__glyph" aria-hidden="true">
             <IconSprout size={16} />
           </span>
@@ -1184,9 +1230,9 @@ export function Today() {
         </div>
       )}
 
-      <section className="today-section today-enter" aria-label="Más tarde hoy" style={enter(5)}>
+      <section className="today-section" aria-label="Más tarde hoy">
         <div className="today-later__head">
-          <span className="kicker today-kicker">Más tarde hoy</span>
+          <span className="section-title">Más tarde hoy</span>
           <button
             type="button"
             className="today-later__add"

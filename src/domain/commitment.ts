@@ -8,9 +8,6 @@ import { formatDuration, formatTime12, parseISO } from '@/lib/date'
  * Funciones puras, sin I/O.
  */
 
-/** Etiquetas cortas de día, indexadas con lunes=0. */
-export const WEEKDAY_LABELS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do'] as const
-
 /** Nombres completos en plural para mensajes ("Los lunes…"). */
 export const WEEKDAY_PLURALS = [
   'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados', 'domingos',
@@ -196,8 +193,8 @@ export function weeklyTotal(blocks: CommitmentBlockDraft[]): { sessions: number;
 export function formatCommitmentSummary(blocks: CommitmentBlockDraft[]): string {
   const { sessions, minutes } = weeklyTotal(blocks)
   const sessionsLabel = sessions === 1 ? '1 sesión' : `${sessions} sesiones`
-  if (minutes === 0) return `Tu compromiso: ${sessionsLabel} por semana`
-  return `Tu compromiso: ${sessionsLabel} · ${formatDuration(minutes)} por semana`
+  if (minutes === 0) return `${sessionsLabel} por semana`
+  return `${sessionsLabel} · ${formatDuration(minutes)} por semana`
 }
 
 /**

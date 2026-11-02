@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import type { Goal, Milestone, Session } from '@/lib/types'
 import { listGoals, markGoalReviewed, setGoalStatus } from '@/services/goals'
@@ -11,8 +11,11 @@ import { LoadingScreen } from '@/components/LoadingScreen'
 import { Celebration } from '@/components/Celebration'
 import { useToast } from '@/app/toast'
 import { Disclosure } from '@/components/Disclosure'
-import { IconCelebrate, IconCheck, IconSprout } from '@/components/icons'
+import { IconCheck, IconChevronLeft, IconSprout } from '@/components/icons'
+import { PathIllustration } from '@/components/PathIllustration'
 import { NicheGlyph } from '@/components/NicheGlyph'
+import { nicheAccent } from '@/lib/nicheAccent'
+import { getNiche } from '@/domain/niches'
 
 /**
  * Revisión semanal guiada (Sección 6): recorre tus metas activas una por una y
@@ -24,6 +27,13 @@ import { NicheGlyph } from '@/components/NicheGlyph'
  * tarea más de la app, no un flujo aparte que flota en el vacío.
  */
 type TallyKey = 'kept' | 'advanced' | 'achieved' | 'paused'
+
+/** Tramo de la barra de etapas: cumplido, el actual o pendiente. */
+function segClass(i: number, stage: number): string {
+  if (i < stage) return 'done'
+  if (i === stage) return 'current'
+  return ''
+}
 
 export function Review() {
   const { userId } = useSession()
@@ -98,14 +108,12 @@ export function Review() {
 
   if (total === 0) {
     return (
-      <div className="screen review-focus">
+      <main className="screen review-focus">
         <header className="screen__header">
           <h1 className="screen__title">Revisión guiada</h1>
         </header>
         <div className="empty">
-          <span className="empty__icon">
-            <IconSprout size={32} />
-          </span>
+          <PathIllustration width={180} done={2} className="review-illus" />
           <p className="empty__title">Nada para revisar por ahora</p>
           <p className="muted" style={{ marginBottom: 'var(--s4)' }}>
             Cuando una de tus metas toque revisión, la repasamos aquí.
@@ -114,7 +122,7 @@ export function Review() {
             Volver a hoy
           </button>
         </div>
-      </div>
+      </main>
     )
   }
 
@@ -133,13 +141,13 @@ export function Review() {
     const reviewedAny = reviewedCount > 0
 
     return (
-      <div className="screen review-focus">
+      <main className="screen review-focus">
         {/* Primero en el árbol a propósito: lograr la última meta pasa a este
             resumen en el mismo tick, y así la celebración no se remonta. */}
         {won && <Celebration title={won} onDone={() => setWon(null)} />}
         <div className="empty">
           {reviewedAny ? (
-            <IconCelebrate size={56} style={{ color: 'var(--primary)' }} />
+            <PathIllustration width={200} done={3} className="review-illus" />
           ) : (
             <IconSprout size={56} style={{ color: 'var(--text-muted)' }} />
           )}
@@ -175,7 +183,7 @@ export function Review() {
             </button>
           </div>
         </div>
-      </div>
+      </main>
     )
   }
 
@@ -193,6 +201,48 @@ export function Review() {
   )
   const weekCount = goalDone.filter((s) => s.date >= startOfWeek(todayISO())).length
 
+  /**
+   * Qué hace el botón de avance según el camino: cumplir la etapa actual,
+   * cumplir la última (y lograr la meta) o, con el camino ya completo, cerrarla.
+   */
+  function advanceAction(): { label: string; tally: TallyKey; run: () => Promise<void> } {
+    if (!canAdvance || !firstPending) {
+      return {
+        label: 'Marcar como lograda',
+        tally: 'achieved',
+        run: async () => {
+          // Camino ya completo pero la meta seguía activa: cerramos el ciclo.
+          await setGoalStatus(goal.id, 'done')
+          setWon('¡Meta lograda!')
+          toast('¡Meta lograda!', 'success')
+        },
+      }
+    }
+    const pending = firstPending
+    if (stage + 1 >= milestones.length) {
+      return {
+        label: 'Logré la meta',
+        tally: 'achieved',
+        run: async () => {
+          // Completar la última etapa cierra el ciclo: camino completo + meta lograda.
+          await markPendingDone(pending)
+          await setGoalStatus(goal.id, 'done')
+          setWon('¡Meta lograda!')
+          toast('¡Meta lograda! Recorriste todo el camino.', 'success')
+        },
+      }
+    }
+    return {
+      label: `Cumplí la etapa “${pending.title}”`,
+      tally: 'advanced',
+      run: async () => {
+        await markPendingDone(pending)
+        await markGoalReviewed(goal.id)
+        toast(`Etapa cumplida: ${pending.title}`, 'success')
+      },
+    }
+  }
+
   function markPendingDone(m: Milestone) {
     return setMilestoneDone(m.id, true).then((updated) => {
       setMilestonesByGoal((prev) => {
@@ -206,51 +256,56 @@ export function Review() {
     })
   }
 
-  return (
-    <div className="screen review-focus">
-      {won && <Celebration title={won} onDone={() => setWon(null)} />}
-      <button
-        type="button"
-        className="btn--link"
-        style={{ alignSelf: 'flex-start' }}
-        onClick={() => navigate('/')}
-      >
-        ← Tu día
-      </button>
-      <header className="screen__header">
-        <p className="muted small">
-          Revisión guiada · Meta {index + 1} de {total}
-        </p>
-        <h1 className="screen__title row" style={{ alignItems: 'center', gap: 'var(--s3)' }}>
-          <NicheGlyph area={goal.area} size="md" /> {goal.title}
-        </h1>
-        {goal.why && (
-          <Disclosure summary="Tu porqué">
-            <p className="small muted" style={{ margin: 0 }}>{goal.why}</p>
-          </Disclosure>
-        )}
-      </header>
+  const advance = advanceAction()
 
-      <div className="card stack">
-        <span className="faint tiny">
-          {stage >= milestones.length
-            ? 'CAMINO COMPLETO'
-            : `ETAPA ${stage + 1} DE ${milestones.length}`}
-        </span>
-        {milestones.length > 0 && stage < milestones.length && (
-          <p style={{ margin: 0 }}>
-            <strong>{milestones[stage]}</strong>
-            {milestones[stage + 1] && (
-              <span className="muted"> → {milestones[stage + 1]}</span>
-            )}
-          </p>
+  return (
+    <main className="screen review-focus">
+      {won && <Celebration title={won} onDone={() => setWon(null)} />}
+      <Link to="/" className="back-link" style={{ alignSelf: 'flex-start' }}>
+        <IconChevronLeft size={18} />
+        Tu día
+      </Link>
+      <p className="muted small review-count">
+        Revisión guiada · Meta {index + 1} de {total}
+      </p>
+      {/* La meta que se revisa, pintada con el color de su área. No se toca: sin relieve. */}
+      <section className="fc-card review-goal" style={nicheAccent(goal.area)} aria-labelledby="review-goal-title">
+        <div className="row" style={{ alignItems: 'center', gap: 'var(--s3)' }}>
+          <NicheGlyph area={goal.area} size="md" />
+          <span className="review-goal__kicker">{getNiche(goal.area).label}</span>
+        </div>
+        <h1 id="review-goal-title" className="fc-card__title review-goal__title">
+          {goal.title}
+        </h1>
+        {milestones.length > 0 && (
+          <div className="segbar" aria-hidden="true">
+            {milestones.map((m, i) => (
+              <span key={`${i}-${m}`} className={segClass(i, stage)} />
+            ))}
+          </div>
         )}
-        <span className="faint tiny">
+        <div className="stack" style={{ gap: 4 }}>
+          <span className="review-goal__kicker">
+            {stage >= milestones.length ? 'Camino completo' : `Etapa ${stage + 1} de ${milestones.length}`}
+          </span>
+          {milestones.length > 0 && stage < milestones.length && (
+            <p className="review-goal__stage">
+              <strong>{milestones[stage]}</strong>
+              {milestones[stage + 1] && <span> → {milestones[stage + 1]}</span>}
+            </p>
+          )}
+        </div>
+        <span className="fc-card__meta">
           {weekCount > 0
             ? `${weekCount} ${weekCount === 1 ? 'sesión cumplida' : 'sesiones cumplidas'} esta semana`
             : 'Sin sesiones esta semana'}
         </span>
-      </div>
+      </section>
+      {goal.why && (
+        <Disclosure summary="Tu porqué">
+          <p className="small muted" style={{ margin: 0 }}>{goal.why}</p>
+        </Disclosure>
+      )}
 
       {error && (
         <div className="alert alert--error" role="alert" style={{ marginTop: 'var(--s4)' }}>
@@ -271,56 +326,17 @@ export function Review() {
         >
           <IconCheck size={18} /> Sigo con esto
         </button>
-        {canAdvance && firstPending ? (
-          stage + 1 >= milestones.length ? (
-            <button
-              className="btn btn--ghost btn--block"
-              disabled={working}
-              onClick={() =>
-                act(async () => {
-                  // Completar la última etapa cierra el ciclo: camino completo + meta lograda.
-                  await markPendingDone(firstPending)
-                  await setGoalStatus(goal.id, 'done')
-                  setWon('¡Meta lograda!')
-                  toast('¡Meta lograda! Recorriste todo el camino.', 'success')
-                }, 'achieved')
-              }
-            >
-              Logré la meta
-            </button>
-          ) : (
-            <button
-              className="btn btn--ghost btn--block"
-              disabled={working}
-              onClick={() =>
-                act(async () => {
-                  await markPendingDone(firstPending)
-                  await markGoalReviewed(goal.id)
-                  toast(`Etapa cumplida: ${firstPending.title}`, 'success')
-                }, 'advanced')
-              }
-            >
-              Cumplí la etapa “{firstPending.title}”
-            </button>
-          )
-        ) : (
-          <button
-            className="btn btn--ghost btn--block"
-            disabled={working}
-            onClick={() =>
-              act(async () => {
-                // Camino ya completo pero la meta seguía activa: cerramos el ciclo.
-                await setGoalStatus(goal.id, 'done')
-                setWon('¡Meta lograda!')
-                toast('¡Meta lograda!', 'success')
-              }, 'achieved')
-            }
-          >
-            Marcar como lograda
-          </button>
-        )}
+        {/* Avanzar y pausar son secundarios (mismo estilo, sin relieve): el
+            azul con relieve queda solo para "Sigo con esto". */}
         <button
-          className="btn btn--subtle btn--block"
+          className="btn btn--secondary btn--block"
+          disabled={working}
+          onClick={() => act(advance.run, advance.tally)}
+        >
+          {advance.label}
+        </button>
+        <button
+          className="btn btn--secondary btn--block"
           disabled={working}
           onClick={() =>
             act(async () => {
@@ -344,6 +360,6 @@ export function Review() {
           Saltar por ahora
         </button>
       </div>
-    </div>
+    </main>
   )
 }

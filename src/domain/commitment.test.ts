@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  WEEKDAY_LABELS,
   blockEndTime,
   blockTimeLabel,
   buildMilestonesFromTemplate,
@@ -24,6 +23,7 @@ import {
 import type { ScheduleBlock } from '@/lib/types'
 import { formatDuration } from '@/lib/date'
 import { getTemplate } from '@/domain/templates'
+import { WEEKDAY_SHORT } from '@/domain/weekdays'
 
 const time = (weekday: number, minutes: number, startTime: string | null = null): CommitmentBlockDraft => ({
   weekday,
@@ -58,14 +58,14 @@ describe('formatCommitmentSummary', () => {
   it('resume sesiones y tiempo semanal', () => {
     // El formato del tiempo lo define formatDuration (lib/date): no lo duplicamos.
     expect(formatCommitmentSummary([time(0, 25), time(2, 25), time(4, 45)])).toBe(
-      `Tu compromiso: 3 sesiones · ${formatDuration(95)} por semana`,
+      `3 sesiones · ${formatDuration(95)} por semana`,
     )
   })
   it('sin minutos (solo cantidad) omite el tiempo', () => {
     const blocks: CommitmentBlockDraft[] = [
       { weekday: 0, targetKind: 'count', targetValue: 10, unit: 'páginas', startTime: null },
     ]
-    expect(formatCommitmentSummary(blocks)).toBe('Tu compromiso: 1 sesión por semana')
+    expect(formatCommitmentSummary(blocks)).toBe('1 sesión por semana')
   })
 })
 
@@ -141,10 +141,10 @@ describe('weekdaysForCadence', () => {
   })
 })
 
-describe('WEEKDAY_LABELS', () => {
+describe('WEEKDAY_SHORT', () => {
   it('arranca en lunes', () => {
-    expect(WEEKDAY_LABELS[0]).toBe('Lu')
-    expect(WEEKDAY_LABELS[6]).toBe('Do')
+    expect(WEEKDAY_SHORT[0]).toBe('Lu')
+    expect(WEEKDAY_SHORT[6]).toBe('Do')
   })
 })
 

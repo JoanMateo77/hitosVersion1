@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lógralo · Arma tu camino (mockup v2)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Tokens copiados de src/styles/tokens.css (misma fuente de verdad visual). */
+:root{
+  --radius-sm:10px;--radius:14px;--radius-lg:16px;--radius-xl:24px;--radius-pill:999px;
+  --font:'Archivo',-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',system-ui,sans-serif;
+  --ease-out:cubic-bezier(.25,1,.5,1);--ease-spring:cubic-bezier(.34,1.56,.64,1);--ease-ios:cubic-bezier(.32,.72,.18,1);
+  --dur-tap:120ms;--dur-state:220ms;--dur-layout:320ms;--dur-focal:560ms;
+  --gradient-brand:linear-gradient(180deg,#8f9cff 0%,#6a7bff 100%);
+  --niche-finanzas:#e0992f;
+  --bg:#f2f2f7;--surface:#fff;--surface-2:#e5e5ea;--surface-3:#d1d1d6;--border:#d1d1d6;--border-soft:#e5e5ea;
+  --text:#1c1c1e;--text-muted:#6e6e73;--text-faint:#aeaeb2;
+  --primary:#5b6cff;--primary-soft:rgba(91,108,255,.12);--on-primary:#fff;
+  --success:#1f9d55;--success-fill:#34c77b;
+  --warning:#b8730f;--warning-soft:rgba(184,115,15,.1);--warning-dot:#f0a11c;
+  --shadow-primary:0 8px 24px rgba(106,123,255,.35);
+  --canvas:#dcdce3;
+}
+[data-theme='oscuro']{
+  color-scheme:dark;
+  --bg:#000;--surface:#1c1c1e;--surface-2:#2c2c2e;--surface-3:#3a3a3c;--border:#3a3a3c;--border-soft:#2c2c2e;
+  --text:#fff;--text-muted:#8e8e93;--text-faint:#5a5a5f;
+  --primary:#7d8cff;--primary-soft:rgba(125,140,255,.16);
+  --success:#4cd383;--warning:#e6b84c;--warning-soft:rgba(230,184,76,.12);
+  --canvas:#121214;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--font);background:var(--canvas);color:var(--text);font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+
+/* ===== Lienzo del mockup (no es parte de la app) ===== */
+.doc{max-width:1360px;margin:0 auto;padding:32px 16px 96px}
+.doc__top{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:flex-end;margin-bottom:8px}
+.doc__top h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.025em}
+.doc__top p{margin:4px 0 0;color:var(--text-muted);max-width:660px}
+.doc__nav{display:flex;flex-wrap:wrap;gap:8px}
+.doc__nav a,.doc__nav button{font-size:13px;font-weight:600;text-decoration:none;color:var(--text);background:var(--surface);border:1px solid var(--border-soft);padding:7px 12px;border-radius:var(--radius-pill)}
+.changes{margin:16px 0 0;padding:14px 18px;background:var(--surface);border-radius:var(--radius);font-size:14px;max-width:900px}
+.changes ul{margin:6px 0 0;padding-left:18px}
+.scene{margin-top:56px}
+.scene__head{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline;margin-bottom:16px}
+.scene__head h2{margin:0;font-size:22px;font-weight:800;letter-spacing:-.02em}
+.scene__head p{margin:0;color:var(--text-muted);font-size:14px;max-width:720px}
+.scene__row{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start}
+.why{margin-top:12px;font-size:13px;color:var(--text-muted);max-width:760px}
+.why b{color:var(--text)}
+.ctrl{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.ctrl button{font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--surface);padding:5px 10px;border-radius:var(--radius-pill)}
+.ctrl button[aria-pressed='true']{background:var(--text);color:var(--surface);border-color:var(--text)}
+.frame-label{font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:10px}
+
+/* ===== Marcos ===== */
+.frame-desk{width:100%;max-width:1280px;height:800px;background:var(--bg);border-radius:14px;overflow:hidden;box-shadow:0 0 0 1px var(--border-soft),0 30px 60px -30px rgba(0,0,0,.25);display:flex;position:relative}
+.frame-tab{width:768px;max-width:100%;height:900px;background:var(--bg);border-radius:28px;overflow:hidden;box-shadow:0 0 0 10px #1c1c1e;position:relative;display:flex;flex-direction:column}
+.phone{width:390px;height:820px;background:var(--bg);border-radius:48px;overflow:hidden;position:relative;box-shadow:0 0 0 10px #1c1c1e;display:flex;flex-direction:column;flex-shrink:0}
+.phone__status{height:44px;flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:8px 30px 0;font-size:15px;font-weight:600}
+.phone__scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 16px 120px;scrollbar-width:none}
+
+/* ===== Cromo ===== */
+.sidenav{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border-soft);padding:20px 14px;display:flex;flex-direction:column;gap:4px}
+.brand{font-weight:800;font-size:20px;letter-spacing:-.02em;padding:4px 10px 18px}
+.navi{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--radius-sm);font-size:15px;color:var(--text-muted);font-weight:500}
+.navi--on{background:var(--primary-soft);color:var(--primary);font-weight:600}
+.navi i{width:18px;height:18px;border-radius:6px;background:currentColor;opacity:.35}
+.wiz{flex:1;display:flex;flex-direction:column;min-width:0}
+.wiz__bar{display:flex;align-items:center;gap:16px;padding:16px 32px;border-bottom:1px solid var(--border-soft)}
+.wiz__close{width:32px;height:32px;border-radius:50%;border:0;background:var(--surface-2);display:grid;place-items:center;flex-shrink:0}
+.steps{display:flex;gap:4px;flex:1;max-width:360px}
+.steps span{height:4px;flex:1;border-radius:2px;background:var(--surface-3)}
+.steps span.on{background:var(--primary)}
+.wiz__count{font-size:13px;color:var(--text-muted)}
+.wiz__body{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:32px;padding:28px 32px 0;overflow:hidden}
+.wiz__main{overflow-y:auto;padding-bottom:40px;scrollbar-width:thin}
+.goalchip{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--text-muted);background:var(--surface);border-radius:var(--radius-pill);padding:5px 12px 5px 6px;margin-bottom:12px}
+.goalchip b{width:20px;height:20px;border-radius:50%;background:var(--niche-finanzas)}
+.h-step{margin:0;font-size:30px;font-weight:800;letter-spacing:-.025em;line-height:1.1}
+.sub{margin:6px 0 0;color:var(--text-muted);max-width:52ch}
+
+/* ===== El camino: la espina ===== */
+.path{position:relative;margin:24px 0 0;padding:0;list-style:none}
+.path::before,.path::after{content:'';position:absolute;left:19px;top:20px;bottom:64px;width:2px;border-radius:1px}
+.path::before{background:var(--surface-3)}
+/* Pulso que recorre la espina mientras la IA piensa. */
+.path::after{opacity:0;background:linear-gradient(180deg,transparent 0%,var(--primary) 45%,transparent 90%) 0 -120px/2px 120px no-repeat;transition:opacity var(--dur-state)}
+.thinking .path::after{opacity:1;animation:spine 1.1s var(--ease-ios) infinite}
+@keyframes spine{to{background-position:0 calc(100% + 120px)}}
+.stage{position:relative;display:grid;grid-template-columns:40px 1fr;gap:14px;align-items:start;padding:6px 0}
+.node{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:15px;background:var(--surface);box-shadow:0 0 0 1px var(--border);position:relative;z-index:1;transition:background var(--dur-state),box-shadow var(--dur-state),color var(--dur-state)}
+.card{background:var(--surface);border-radius:var(--radius);padding:12px 14px 12px 16px;display:flex;gap:12px;align-items:center;min-height:52px;transition:box-shadow var(--dur-state),background var(--dur-state)}
+.card__t{flex:1;min-width:0;font-weight:600}
+.card__m{font-size:13px;color:var(--text-muted);font-weight:400;display:block;margin-top:2px}
+.more{border:0;background:transparent;width:32px;height:32px;border-radius:8px;color:var(--text-faint);font-size:20px;line-height:1;opacity:0;transition:opacity var(--dur-tap)}
+.stage:hover .more,.more:focus-visible{opacity:1}
+@media (hover:none){.more{opacity:1}}
+.stage.ref .card{box-shadow:0 0 0 2px var(--primary)}
+.stage.ref .node{box-shadow:0 0 0 2px var(--primary);color:var(--primary)}
+.addrow{display:grid;grid-template-columns:40px 1fr;gap:14px;align-items:center;padding:6px 0}
+.addrow .node{background:transparent;border:1.5px dashed var(--surface-3);box-shadow:none;color:var(--text-faint)}
+.addrow input{width:100%;font:inherit;border:0;background:var(--surface);border-radius:var(--radius);padding:14px 16px;color:var(--text)}
+.addrow input::placeholder{color:var(--text-faint)}
+
+/* Sugerencia fantasma: brota desde la espina */
+.ghost{display:grid;grid-template-rows:1fr;transition:grid-template-rows var(--dur-layout) var(--ease-ios),opacity var(--dur-state)}
+.ghost>.stage{overflow:hidden;min-height:0;transition:transform var(--dur-layout) var(--ease-out)}
+.ghost .node{background:var(--bg);box-shadow:none;border:1.5px dashed var(--primary);color:var(--primary);font-size:18px;transition:transform var(--dur-layout) var(--ease-spring),background var(--dur-state),color var(--dur-state)}
+.ghost .card{background:transparent;border:1.5px dashed color-mix(in srgb,var(--primary) 55%,transparent);flex-wrap:wrap}
+.ghost .reason{flex-basis:100%;font-size:13px;color:var(--text-muted);margin-top:-4px}
+.ghost__actions{display:flex;gap:6px;align-items:center}
+.btn-add{border:0;background:var(--primary);color:var(--on-primary);font-weight:600;font-size:13px;padding:7px 12px;border-radius:var(--radius-pill);white-space:nowrap;transition:transform var(--dur-tap) var(--ease-out)}
+.btn-add:active{transform:scale(.96)}
+.btn-x{border:0;background:transparent;color:var(--text-muted);font-size:13px;padding:7px 8px;border-radius:var(--radius-pill)}
+.ghost.pre{grid-template-rows:0fr;opacity:0}
+.ghost.pre>.stage{transform:translateY(8px)}
+.ghost.pre .node{transform:scale(.4)}
+.ghost.accepted .node{border:0;background:var(--surface);box-shadow:0 0 0 1px var(--border);color:var(--text);font-size:15px}
+.ghost.accepted .card{background:var(--surface);border-color:transparent;animation:landed var(--dur-focal) var(--ease-out)}
+.ghost.accepted .reason,.ghost.accepted .ghost__actions{display:none}
+@keyframes landed{0%{box-shadow:0 0 0 2px var(--primary)}100%{box-shadow:0 0 0 0 transparent}}
+.ghost.gone{grid-template-rows:0fr;opacity:0}
+
+/* ===== Coach (tarjeta) ===== */
+.side{display:flex;flex-direction:column;gap:12px;overflow-y:auto;padding-bottom:20px;scrollbar-width:none}
+.side>*{flex-shrink:0}
+.coach{background:var(--surface);border-radius:var(--radius-lg);padding:16px;display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}
+.coach::before{content:'';position:absolute;inset:0 0 auto 0;height:3px;background:var(--gradient-brand);transform:scaleX(0);transform-origin:left}
+.thinking .coach::before{animation:bar 1.4s var(--ease-ios) infinite}
+@keyframes bar{0%{transform:scaleX(0);transform-origin:left}50%{transform:scaleX(1);transform-origin:left}50.1%{transform-origin:right}100%{transform:scaleX(0);transform-origin:right}}
+.coach__head{display:flex;gap:12px;align-items:center}
+.orb{width:36px;height:36px;border-radius:50%;background:var(--gradient-brand);flex-shrink:0;display:grid;place-items:center;color:#fff;box-shadow:var(--shadow-primary)}
+.thinking .orb{animation:breathe 1.6s ease-in-out infinite}
+@keyframes breathe{50%{transform:scale(1.08);box-shadow:0 0 0 8px var(--primary-soft),var(--shadow-primary)}}
+.coach__name{font-weight:700;display:block}
+.coach__state{font-size:13px;color:var(--text-muted);display:block}
+.coach p{margin:0}
+.status-swap{display:inline-block;animation:swap var(--dur-state) var(--ease-out)}
+@keyframes swap{from{opacity:0;transform:translateY(4px)}}
+.notes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.notes li{font-size:14px;padding:10px 12px;border-radius:var(--radius-sm);background:var(--bg);transition:background var(--dur-tap)}
+.notes li[data-ref]:hover,.notes li[data-ref]:focus-visible{background:var(--primary-soft)}
+.notes li small{display:block;color:var(--primary);font-weight:600;font-size:12px;margin-top:4px}
+.pending{display:flex;justify-content:space-between;align-items:center;font-size:14px;gap:8px}
+.link{border:0;background:none;color:var(--primary);font-weight:600;padding:4px 0;font-size:14px;white-space:nowrap}
+.link--muted{color:var(--text-muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--border);background:var(--surface);border-radius:var(--radius-pill);padding:7px 12px;font-size:13px;font-weight:500;transition:transform var(--dur-tap) var(--ease-spring),background var(--dur-tap),border-color var(--dur-tap),color var(--dur-tap)}
+.chip:active{transform:scale(.94)}
+.chip[aria-pressed='true']{background:var(--primary);border-color:var(--primary);color:#fff;animation:pick var(--dur-layout) var(--ease-spring)}
+@keyframes pick{40%{transform:scale(1.06)}}
+.chip--quiet{border-style:dashed;color:var(--text-muted)}
+/* Caja de chat: SIEMPRE visible, es la vía más fácil de explicarse. */
+.composer{display:flex;gap:6px;align-items:center;background:var(--bg);border-radius:var(--radius-pill);padding:4px 4px 4px 14px;border:1.5px solid transparent;transition:border-color var(--dur-tap)}
+.composer:focus-within{border-color:var(--primary)}
+.composer input{flex:1;min-width:0;font:inherit;font-size:15px;border:0;background:transparent;color:var(--text);padding:8px 0;outline:none}
+.composer input::placeholder{color:var(--text-muted)}
+.composer button{width:36px;height:36px;border-radius:50%;border:0;background:var(--primary);color:#fff;display:grid;place-items:center;flex-shrink:0;transition:transform var(--dur-tap) var(--ease-spring)}
+.composer button:active{transform:scale(.9)}
+.composer__hint{font-size:13px;color:var(--text-muted);margin-top:-4px}
+.btn{border:0;border-radius:var(--radius-pill);font-weight:600;padding:12px 18px;font-size:15px}
+.btn--primary{background:var(--gradient-brand);color:#fff;box-shadow:var(--shadow-primary)}
+.btn--ghost{background:var(--surface-2);color:var(--text)}
+.btn:active{transform:scale(.98)}
+.skel{height:12px;border-radius:6px;background:linear-gradient(90deg,var(--surface-2) 0%,var(--bg) 50%,var(--surface-2) 100%) 0 0/200% 100%;animation:shimmer 1.2s linear infinite}
+@keyframes shimmer{to{background-position:-200% 0}}
+.think-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;font-size:14px;color:var(--text-muted)}
+.think-steps li{display:flex;gap:8px;align-items:center;opacity:.35;transition:opacity var(--dur-state)}
+.think-steps li.on{opacity:1;color:var(--text)}
+.think-steps li.done{opacity:1}
+.think-steps li::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--surface-3);flex-shrink:0;transition:background var(--dur-state)}
+.think-steps li.on::before{background:var(--primary);animation:breathe 1.2s ease-in-out infinite}
+.think-steps li.done::before{background:var(--success-fill)}
+.qa-done{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:8px 10px;border-radius:var(--radius-sm);background:var(--bg);margin-bottom:6px;animation:swap var(--dur-state) var(--ease-out)}
+.qa-done span{color:var(--text-muted)}
+.qa-done b{font-weight:600;text-align:right}
+.q-inline{display:flex;flex-direction:column;gap:10px;animation:rise var(--dur-layout) var(--ease-out)}
+.q-inline h3{margin:0;font-size:17px;font-weight:700;line-height:1.25}
+.q__why{font-size:13px;color:var(--text-muted)}
+.q-count{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--text-muted)}
+.dots{display:flex;gap:4px}
+.dots i{width:16px;height:4px;border-radius:2px;background:var(--surface-3);transition:background var(--dur-state)}
+.dots i.on{background:var(--primary)}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+
+/* Hilo de chat (dentro del coach en PC, en hoja o cajón en el resto) */
+.thread{display:flex;flex-direction:column;gap:10px}
+.thread:empty{display:none}
+.msg{max-width:88%;padding:10px 14px;border-radius:18px;font-size:14px;animation:rise var(--dur-layout) var(--ease-out)}
+.msg--ai{background:var(--bg);border-bottom-left-radius:6px;align-self:flex-start}
+.msg--me{background:var(--primary);color:#fff;align-self:flex-end;border-bottom-right-radius:6px}
+.typing{display:inline-flex;gap:4px;padding:13px 14px}
+.typing i{width:6px;height:6px;border-radius:50%;background:var(--text-muted);animation:dot 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes dot{0%,60%,100%{opacity:.3;transform:none}30%{opacity:1;transform:translateY(-3px)}}
+.proposal{align-self:stretch;border:1.5px dashed color-mix(in srgb,var(--primary) 60%,transparent);border-radius:var(--radius);padding:12px;display:flex;flex-direction:column;gap:8px;font-size:14px;animation:rise var(--dur-layout) var(--ease-out)}
+.proposal b{font-weight:600}
+.proposal__actions{display:flex;gap:6px;justify-content:flex-end}
+.proposal.applied{border-style:solid;border-color:var(--success-fill)}
+.proposal.applied .proposal__actions{display:none}
+
+/* Pie del plan + continuar (PC) */
+.fit{background:var(--surface);border-radius:var(--radius-lg);padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.fit__row{display:flex;justify-content:space-between;font-size:14px}
+.fit__row span{color:var(--text-muted)}
+.fit__row b{font-weight:600}
+.meter{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.meter i{display:block;height:100%;width:72%;background:var(--success-fill);border-radius:3px}
+.fit__actions{display:flex;gap:8px}
+.fit__actions .btn--primary{flex:1}
+
+/* Tablet */
+.tab-foot{padding:16px 32px 24px;display:flex;gap:10px;align-items:center;background:linear-gradient(180deg,transparent,var(--bg) 30%)}
+.tab-foot .btn--primary{flex:1}
+
+/* ===== Móvil ===== */
+.m-head{display:flex;align-items:center;gap:12px;padding:6px 0 14px}
+.m-head .steps{max-width:none}
+.m-h{font-size:28px;font-weight:800;letter-spacing:-.025em;margin:0;line-height:1.1}
+.m-foot{position:absolute;left:0;right:0;bottom:0;padding:12px 16px 28px;background:linear-gradient(180deg,transparent,var(--bg) 28%);display:flex;gap:10px;align-items:center;z-index:2}
+.m-foot .btn--primary{flex:1}
+.phone .path::before,.phone .path::after{left:15px}
+.phone .stage,.phone .addrow{grid-template-columns:32px 1fr;gap:10px}
+.phone .node{width:32px;height:32px;font-size:14px}
+.phone .card{padding:10px 12px}
+/* Sugerencia en móvil/tablet: título a lo ancho, botones abajo (antes se apretaba). */
+.phone .ghost .card,.frame-tab .ghost .card{flex-direction:column;align-items:stretch;gap:6px}
+.phone .ghost .reason,.frame-tab .ghost .reason{order:1;margin:0}
+.phone .ghost .ghost__actions,.frame-tab .ghost .ghost__actions{order:2;justify-content:flex-end}
+
+/* Botón de IA (✦): junto a Continuar en el asistente, flotante en el resto */
+.ai-btn{width:52px;height:52px;border-radius:50%;border:0;background:var(--gradient-brand);color:#fff;font-size:20px;display:grid;place-items:center;box-shadow:var(--shadow-primary);flex-shrink:0;position:relative;transition:transform var(--dur-tap) var(--ease-spring)}
+.ai-btn:active{transform:scale(.9)}
+.fab{position:absolute;right:16px;bottom:28px;width:56px;height:56px;z-index:3;animation:fabIn var(--dur-focal) var(--ease-spring) both}
+@keyframes fabIn{from{transform:scale(.3);opacity:0}}
+.fab__dot{position:absolute;top:1px;right:1px;width:14px;height:14px;border-radius:50%;background:var(--warning-dot);border:2px solid var(--bg)}
+.bubble{position:absolute;right:16px;bottom:96px;width:240px;background:var(--surface);color:var(--text);border-radius:16px 16px 4px 16px;padding:12px 14px;font-size:14px;box-shadow:0 12px 30px -10px rgba(0,0,0,.3);z-index:3;animation:rise var(--dur-layout) var(--ease-out) .5s both;text-align:left;border:0}
+.bubble small{display:block;color:var(--primary);font-weight:600;margin-top:4px}
+.bubble.hidden{display:none}
+
+/* Hoja inferior de chat (móvil) */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.32);opacity:0;pointer-events:none;transition:opacity var(--dur-layout) var(--ease-ios);z-index:4}
+.sheet{position:absolute;left:0;right:0;bottom:0;max-height:82%;background:var(--surface);border-radius:24px 24px 0 0;padding:8px 16px 26px;z-index:5;transform:translateY(105%);transition:transform 420ms var(--ease-ios);display:flex;flex-direction:column;gap:12px}
+.sheet-open .scrim{opacity:1;pointer-events:auto}
+.sheet-open .sheet{transform:none}
+.grab{width:36px;height:5px;border-radius:3px;background:var(--surface-3);margin:0 auto 2px}
+.sheet .thread{flex:1;overflow-y:auto;min-height:180px}
+.sheet .thread:empty{display:flex}
+
+/* ===== Criterio de éxito ===== */
+.crit{display:flex;flex-direction:column;gap:10px}
+.crit-list{display:flex;flex-direction:column;gap:10px}
+.crit-opt{display:flex;gap:12px;align-items:flex-start;text-align:left;border:1.5px solid var(--border-soft);background:var(--surface);border-radius:var(--radius);padding:14px;transition:border-color var(--dur-tap),background var(--dur-tap);animation:rise var(--dur-layout) var(--ease-out) both}
+.crit-opt[aria-pressed='true']{border-color:var(--primary);background:var(--primary-soft)}
+.crit-opt .radio{width:20px;height:20px;border-radius:50%;border:2px solid var(--surface-3);flex-shrink:0;margin-top:1px;transition:border var(--dur-tap) var(--ease-spring)}
+.crit-opt[aria-pressed='true'] .radio{border:6px solid var(--primary)}
+.crit-opt b{display:block;font-weight:600}
+.crit-opt small{font-size:13px;color:var(--text-muted)}
+.crit-skel{border-radius:var(--radius);background:var(--surface);padding:16px;display:flex;flex-direction:column;gap:8px}
+.crit-ask{background:var(--surface);border-radius:var(--radius);padding:12px;display:flex;flex-direction:column;gap:10px}
+.crit-ask>span{font-size:14px;font-weight:600}
+.editable{border:1.5px solid var(--primary);background:var(--surface);border-radius:var(--radius);padding:12px 14px;font:inherit;width:100%;color:var(--text);resize:none}
+
+/* ===== Detalle de meta ===== */
+.det{flex:1;overflow-y:auto;padding:28px 40px 100px}
+.det__grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:28px;max-width:1040px}
+.det__title{display:flex;align-items:flex-start;gap:16px;justify-content:space-between;margin-bottom:20px}
+.det__title h1{margin:4px 0 0;font-size:30px;font-weight:800;letter-spacing:-.025em;line-height:1.1}
+.tags{display:flex;gap:6px;flex-wrap:wrap;font-size:13px;color:var(--text-muted)}
+.tag{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border-radius:var(--radius-pill);padding:4px 10px 4px 6px}
+.tag b{width:14px;height:14px;border-radius:50%;background:var(--niche-finanzas)}
+.now{background:var(--surface);border-radius:var(--radius-xl);padding:22px;display:flex;flex-direction:column;gap:16px;position:relative;overflow:hidden}
+.now::after{content:'';position:absolute;inset:0;background:radial-gradient(90% 70% at 0% 0%,var(--primary-soft),transparent 60%);pointer-events:none}
+.now>*{position:relative;z-index:1}
+.now__k{font-size:13px;font-weight:600;color:var(--primary)}
+.now__stage{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:2px 0 0;line-height:1.15}
+.task{display:flex;gap:12px;align-items:center;background:var(--bg);border-radius:var(--radius);padding:12px 14px}
+.check{width:26px;height:26px;border-radius:50%;border:2px solid var(--surface-3);flex-shrink:0;background:transparent;display:grid;place-items:center;padding:0;transition:background var(--dur-state),border-color var(--dur-state),transform var(--dur-tap) var(--ease-spring)}
+.check:active{transform:scale(.88)}
+.check svg{opacity:0;transform:scale(.4);transition:opacity var(--dur-tap),transform var(--dur-state) var(--ease-spring)}
+.task.done .check{background:var(--success-fill);border-color:var(--success-fill)}
+.task.done .check svg{opacity:1;transform:none}
+.task.done .task__t{color:var(--text-muted);text-decoration:line-through}
+.task__t{flex:1;font-weight:500}
+.task__m{font-size:13px;color:var(--text-muted)}
+.segs{display:flex;gap:4px}
+.segs span{flex:1;height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.segs span i{display:block;height:100%;background:var(--success-fill);border-radius:4px}
+.progress-line{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;color:var(--text-muted)}
+.progress-line b{font-size:22px;color:var(--text);font-weight:800;letter-spacing:-.02em;margin-right:4px}
+.commit{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text-muted);padding:12px 16px;background:var(--surface);border-radius:var(--radius);margin-top:12px}
+.commit b{color:var(--text);font-weight:600}
+.commit .link{margin-left:auto}
+.sec-h{font-size:18px;font-weight:700;margin:28px 0 10px;letter-spacing:-.01em}
+.road{list-style:none;margin:0;padding:0;background:var(--surface);border-radius:var(--radius-lg);overflow:hidden}
+.road>li+li{border-top:1px solid var(--border-soft)}
+.road summary{list-style:none;display:flex;gap:12px;align-items:center;padding:14px 16px;cursor:pointer}
+.road summary::-webkit-details-marker{display:none}
+.road .n{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;background:var(--surface-2);flex-shrink:0}
+.road .n.done{background:var(--success-fill);color:#000}
+.road .n.cur{background:var(--primary);color:#fff}
+.road .t{flex:1;font-weight:600}
+.road .w{font-size:13px;color:var(--text-muted)}
+.road .chev{transition:transform var(--dur-state) var(--ease-out);color:var(--text-faint)}
+.road details[open] .chev{transform:rotate(90deg)}
+.road__body{padding:0 16px 16px 56px;display:flex;flex-direction:column;gap:10px;font-size:14px}
+.road__body dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 14px}
+.road__body dt{color:var(--text-muted)}
+.road__body dd{margin:0}
+.road__body ul{margin:0;padding-left:18px}
+.side-card{background:var(--surface);border-radius:var(--radius-lg);padding:16px;display:flex;flex-direction:column;gap:10px}
+.side-card h3{margin:0;font-size:16px;font-weight:700}
+.drawer{position:absolute;top:0;right:0;bottom:0;width:400px;background:var(--surface);box-shadow:-20px 0 40px -20px rgba(0,0,0,.25);transform:translateX(105%);transition:transform 420ms var(--ease-ios);z-index:6;display:flex;flex-direction:column}
+.drawer-open .drawer{transform:none}
+.drawer-open .fab{transform:scale(0);opacity:0;transition:transform var(--dur-state),opacity var(--dur-state)}
+.drawer__head{display:flex;gap:12px;align-items:center;padding:18px 18px 14px;border-bottom:1px solid var(--border-soft)}
+.drawer .thread{flex:1;overflow-y:auto;padding:16px 18px}
+.drawer .thread:empty{display:flex}
+.drawer__foot{padding:12px 18px 18px;display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--border-soft)}
+.fineprint{font-size:12px;color:var(--text-muted)}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important}
+  .thinking .path::after{opacity:.6}
+}
+@media (max-width:900px){
+  .frame-desk{height:auto;min-height:800px}
+  .wiz__body,.det__grid{grid-template-columns:1fr}
+  .sidenav{display:none}
+}
+</style>
+</head>
+<body>
+<div class="doc">
+  <header class="doc__top">
+    <div>
+      <h1>Arma tu camino, con el coach a tu lado</h1>
+      <p>Mockup local e interactivo, versión 2. Responde las preguntas, escríbele al coach y toca ✦. Los datos son de ejemplo.</p>
+    </div>
+    <nav class="doc__nav" aria-label="Escenas">
+      <a href="#pc">PC</a><a href="#tablet">Tablet</a><a href="#movil">Móvil</a><a href="#criterio">Criterio de éxito</a><a href="#detalle">Detalle de meta</a>
+      <button type="button" id="theme">Modo oscuro</button>
+    </nav>
+  </header>
+  <div class="changes"><b>Cambios de esta versión</b>
+    <ul>
+      <li>Las preguntas aparecen de una vez arriba, sin botón previo y sin hoja inferior (variante B).</li>
+      <li>El chat ya no se esconde: hay una caja "Cuéntale con tus palabras" siempre visible y un botón ✦ en cada pantalla.</li>
+      <li>En el criterio de éxito, la persona puede pedirle a la IA otras opciones.</li>
+      <li>En el detalle de meta, botón flotante de IA abajo a la derecha, con un globo cuando el coach tiene algo que decir.</li>
+      <li>Las sugerencias en móvil ya no aprietan el título: los botones van abajo.</li>
+    </ul>
+  </div>
+
+  <!-- =================== 1. PC =================== -->
+  <section class="scene" id="pc">
+    <div class="scene__head">
+      <h2>1. PC: el camino a la izquierda, el coach fijo a la derecha</h2>
+      <p>Al entrar al paso, la primera pregunta ya está a la vista. La caja de chat nunca se va.</p>
+    </div>
+    <div class="ctrl" role="group" aria-label="Estado del coach (PC)">
+      <button type="button" data-pc="ask" aria-pressed="true">Al entrar (preguntas a la vista)</button>
+      <button type="button" data-pc="done" aria-pressed="false">Con sugerencias</button>
+      <button type="button" data-pc="chat" aria-pressed="false">Probar el chat</button>
+    </div>
+    <div class="frame-desk" id="desk">
+      <nav class="sidenav" aria-label="Navegación de la app">
+        <div class="brand">Lógralo</div>
+        <span class="navi"><i></i>Hoy</span><span class="navi navi--on"><i></i>Metas</span><span class="navi"><i></i>Hábitos</span><span class="navi"><i></i>Agenda</span>
+      </nav>
+      <div class="wiz">
+        <div class="wiz__bar">
+          <button class="wiz__close" type="button" aria-label="Cerrar">✕</button>
+          <div class="steps" aria-hidden="true"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span></div>
+          <span class="wiz__count">Paso 4 de 6</span>
+        </div>
+        <div class="wiz__body">
+          <div class="wiz__main">
+            <span class="goalchip"><b></b>Comprar mi primera moto</span>
+            <h2 class="h-step">Arma tu camino</h2>
+            <p class="sub">Escribe las etapas como las ves. El coach las revisa y te dice qué falta y dónde va.</p>
+            <ol class="path" id="deskPath"></ol>
+          </div>
+          <aside class="side" aria-label="Coach de tu meta">
+            <div class="coach">
+              <div class="coach__head"><span class="orb" aria-hidden="true">✦</span><div><span class="coach__name">Coach de tu meta</span><span class="coach__state" data-state></span></div></div>
+              <div data-stage></div>
+              <div class="thread" data-thread></div>
+              <form class="composer" data-compose><input aria-label="Escríbele al coach" placeholder="Cuéntale con tus palabras…"><button type="submit" aria-label="Enviar">↑</button></form>
+              <span class="composer__hint">Ej.: "ya tengo la licencia" o "solo puedo los sábados"</span>
+            </div>
+            <div class="fit">
+              <div class="fit__row"><span>Etapas</span><b id="fitStages">4</b></div>
+              <div class="fit__row"><span>Tiempo estimado</span><b id="fitWeeks">19 semanas, hasta marzo</b></div>
+              <div class="fit__row"><span>Cabe en tus 90 min por semana</span><b>Sí</b></div>
+              <div class="meter" aria-hidden="true"><i></i></div>
+              <div class="fit__actions"><button class="btn btn--ghost" type="button">Atrás</button><button class="btn btn--primary" type="button">Continuar</button></div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+    <p class="why"><b>Por qué así:</b> en PC hay ancho de sobra, así que preguntas, sugerencias y chat viven juntos en la columna del coach y nada empuja el camino. Responder es opcional: puedes saltar las preguntas o escribir directo. Si el coach propone un cambio por chat, se aplica solo con tu "Aplicar".</p>
+  </section>
+
+  <!-- =================== 2. TABLET =================== -->
+  <section class="scene" id="tablet">
+    <div class="scene__head">
+      <h2>2. Tablet: una columna, coach arriba</h2>
+      <p>Igual que en móvil, con más aire.</p>
+    </div>
+    <div class="frame-tab">
+      <div style="flex:1;overflow-y:auto;padding:28px 32px 0">
+        <div class="steps" aria-hidden="true" style="max-width:none"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span></div>
+        <h2 class="h-step" style="margin-top:20px">Arma tu camino</h2>
+        <div class="coach" style="margin-top:16px">
+          <div class="coach__head"><span class="orb" aria-hidden="true">✦</span><div><span class="coach__name">Coach de tu meta</span><span class="coach__state">Revisé tu camino</span></div></div>
+          <p style="font-size:15px"><b>2 sugerencias</b> marcadas con + abajo. Las etapas 2 y 3 pueden ir en paralelo.</p>
+          <form class="composer" onsubmit="return false"><input aria-label="Escríbele al coach" placeholder="Cuéntale con tus palabras…"><button type="submit" aria-label="Enviar">↑</button></form>
+        </div>
+        <ol class="path" id="tabPath"></ol>
+      </div>
+      <div class="tab-foot"><button class="btn btn--ghost" type="button">Atrás</button><button class="btn btn--primary" type="button">Continuar</button><button class="ai-btn" type="button" aria-label="Hablar con el coach">✦</button></div>
+    </div>
+  </section>
+
+  <!-- =================== 3. MÓVIL =================== -->
+  <section class="scene" id="movil">
+    <div class="scene__head">
+      <h2>3. Móvil: preguntas arriba, chat a un toque</h2>
+      <p>Izquierda: responde las 3 preguntas. Derecha: escribe en la caja o toca ✦ para hablar con el coach.</p>
+    </div>
+    <div class="scene__row">
+      <div><div class="frame-label">Al entrar al paso</div><div class="phone" id="phoneQ"></div></div>
+      <div><div class="frame-label">Hablando con el coach</div><div class="phone" id="phoneC"></div></div>
+    </div>
+    <p class="why"><b>Por qué así:</b> la primera pregunta se ve sin tocar nada, con "1 de 3", "No sé todavía" y "Saltar preguntas". Debajo, la caja de chat queda fija: es lo más fácil para quien prefiere explicarse con sus palabras. El ✦ junto a "Continuar" abre el chat completo aunque el coach ya haya quedado arriba del scroll. La hoja inferior solo se usa para el chat, no para las preguntas.</p>
+  </section>
+
+  <!-- =================== 4. CRITERIO =================== -->
+  <section class="scene" id="criterio">
+    <div class="scene__head">
+      <h2>4. "¿Cómo sabrás que lo lograste?": pídele otras opciones</h2>
+      <p>Toca un atajo o escribe lo que buscas: el coach te da 3 opciones nuevas.</p>
+    </div>
+    <div class="scene__row">
+      <div class="phone">
+        <div class="phone__status"><span>9:41</span><span>●●●</span></div>
+        <div class="phone__scroll">
+          <div class="m-head"><button class="wiz__close" type="button" aria-label="Atrás">‹</button><div class="steps" aria-hidden="true"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span></span></div></div>
+          <h2 class="m-h">¿Cómo sabrás que lo lograste?</h2>
+          <p class="sub" style="margin-bottom:16px">Algo que puedas ver o medir. Elige una y cámbiala a tu gusto.</p>
+          <div class="crit">
+            <div class="crit-list" id="critList"></div>
+            <div class="crit-ask">
+              <span>¿Ninguna te convence? Pídele otras</span>
+              <div class="chips"><button class="chip" type="button" data-crit="medible">Más medible</button><button class="chip" type="button" data-crit="pronto">Que vea avance pronto</button><button class="chip" type="button" data-crit="yo">Que dependa solo de mí</button></div>
+              <form class="composer" id="critAsk"><input aria-label="Qué buscas en tu criterio" placeholder="Ej.: algo sobre no endeudarme"><button type="submit" aria-label="Pedir opciones">↑</button></form>
+            </div>
+            <label style="font-size:13px;color:var(--text-muted);margin-top:6px" for="critEdit">Tu criterio (puedes editarlo)</label>
+            <textarea class="editable" id="critEdit" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="m-foot"><button class="btn btn--primary" type="button">Continuar</button></div>
+      </div>
+      <p class="why" style="max-width:420px;margin-top:0"><b>Por qué así:</b> la IA propone y la persona manda. Si ninguna opción encaja, no hay que empezar de cero: un atajo o una frase propia trae 3 opciones nuevas, que aparecen en cascada. Lo elegido siempre se puede editar.</p>
+    </div>
+  </section>
+
+  <!-- =================== 5. DETALLE =================== -->
+  <section class="scene" id="detalle">
+    <div class="scene__head">
+      <h2>5. Detalle de meta, con botón de IA flotante</h2>
+      <p>El ✦ abajo a la derecha es la misma puerta al coach en todas las pantallas. Si el coach tiene algo que decir, aparece un globo.</p>
+    </div>
+    <div class="frame-desk" id="detDesk">
+      <nav class="sidenav" aria-label="Navegación de la app">
+        <div class="brand">Lógralo</div>
+        <span class="navi"><i></i>Hoy</span><span class="navi navi--on"><i></i>Metas</span><span class="navi"><i></i>Hábitos</span><span class="navi"><i></i>Agenda</span>
+      </nav>
+      <div class="det">
+        <div class="det__title">
+          <div><div class="tags"><span class="tag"><b></b>Finanzas</span><span class="tag" style="padding-left:10px">Hasta marzo 2027</span></div><h1>Comprar mi primera moto</h1></div>
+          <button class="btn btn--ghost" type="button" style="padding:9px 14px;font-size:14px">Editar</button>
+        </div>
+        <div class="det__grid">
+          <div>
+            <article class="now" aria-label="Ahora">
+              <div><span class="now__k">Ahora: etapa 2 de 4</span><h2 class="now__stage">Ahorrar la cuota inicial</h2></div>
+              <div class="task"><button class="check" type="button" aria-label="Marcar como hecha"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></button><span class="task__t">Abrir una cuenta solo para el ahorro de la moto</span><span class="task__m">10 min</span></div>
+              <div class="progress-line"><span><b>38%</b>del camino</span><span>Semana 7 de 19</span></div>
+              <div class="segs" aria-hidden="true"><span><i style="width:100%"></i></span><span><i style="width:55%"></i></span><span></span><span></span></div>
+            </article>
+            <div class="commit"><span>Tu compromiso: <b>90 min por semana</b>, martes y sábados</span><button class="link" type="button">Cambiar</button></div>
+            <h3 class="sec-h">El camino</h3>
+            <ol class="road">
+              <li><details><summary><span class="n done">✓</span><span class="t">Definir el modelo y el presupuesto</span><span class="w">2 sem</span><span class="chev">›</span></summary><div class="road__body"><dl><dt>Objetivo</dt><dd>Elegir modelo y precio tope.</dd><dt>Sabrás que está</dt><dd>Tienes 2 cotizaciones por escrito.</dd></dl></div></details></li>
+              <li><details open><summary><span class="n cur">2</span><span class="t">Ahorrar la cuota inicial</span><span class="w">10 sem</span><span class="chev">›</span></summary><div class="road__body"><dl><dt>Objetivo</dt><dd>Juntar el 30 % del precio sin tocar gastos fijos.</dd><dt>Sabrás que está</dt><dd>La cuenta del ahorro llega a la meta.</dd><dt>Primeras acciones</dt><dd><ul><li>Abrir una cuenta solo para esto</li><li>Programar una transferencia automática el día de pago</li></ul></dd></dl></div></details></li>
+              <li><details><summary><span class="n">3</span><span class="t">Sacar la licencia de conducción</span><span class="w">4 sem</span><span class="chev">›</span></summary><div class="road__body"><dl><dt>Sabrás que está</dt><dd>Tienes la licencia en la mano.</dd></dl></div></details></li>
+              <li><details><summary><span class="n">4</span><span class="t">Comprar la moto</span><span class="w">3 sem</span><span class="chev">›</span></summary><div class="road__body"><dl><dt>Objetivo</dt><dd>Moto a tu nombre, con SOAT y seguro.</dd></dl></div></details></li>
+            </ol>
+          </div>
+          <aside style="display:flex;flex-direction:column;gap:12px">
+            <div class="side-card"><h3>Por qué la quieres</h3><p style="margin:0;font-size:15px">Dejar de depender del bus y llegar a tiempo a la universidad.</p></div>
+            <div class="side-card"><h3>Así sabrás que lo lograste</h3><p style="margin:0;font-size:15px">Tengo la moto a mi nombre y la licencia vigente.</p></div>
+          </aside>
+        </div>
+      </div>
+      <button class="bubble" type="button" data-open-chat>Llevas 2 semanas por debajo de tu ritmo. ¿Lo revisamos?<small>Hablar con el coach</small></button>
+      <button class="ai-btn fab" type="button" aria-label="Hablar con el coach" data-open-chat>✦<span class="fab__dot"></span></button>
+      <div class="drawer" role="dialog" aria-label="Hablar con la meta">
+        <div class="drawer__head"><span class="orb" aria-hidden="true">✦</span><div style="flex:1"><span class="coach__name">Comprar mi primera moto</span><span class="coach__state">Etapa 2 de 4, semana 7</span></div><button class="wiz__close" type="button" data-close-chat aria-label="Cerrar">✕</button></div>
+        <div class="thread" data-thread></div>
+        <div class="drawer__foot"><div class="chips" data-chips></div><form class="composer" data-compose><input aria-label="Escríbele al coach" placeholder="Cuéntale qué pasó…"><button type="submit" aria-label="Enviar">↑</button></form><span class="fineprint">El coach propone; ningún cambio se aplica sin tu sí.</span></div>
+      </div>
+    </div>
+    <div class="scene__row" style="margin-top:32px">
+      <div class="phone" id="phoneDet">
+        <div class="phone__status"><span>9:41</span><span>●●●</span></div>
+        <div class="phone__scroll">
+          <div class="m-head"><button class="wiz__close" type="button" aria-label="Atrás">‹</button><span style="flex:1"></span><button class="link" type="button">Editar</button></div>
+          <div class="tags"><span class="tag"><b></b>Finanzas</span><span class="tag" style="padding-left:10px">Hasta marzo 2027</span></div>
+          <h2 class="m-h" style="margin:8px 0 16px">Comprar mi primera moto</h2>
+          <article class="now" aria-label="Ahora" style="padding:18px">
+            <div><span class="now__k">Ahora: etapa 2 de 4</span><h3 class="now__stage" style="font-size:21px">Ahorrar la cuota inicial</h3></div>
+            <div class="task"><button class="check" type="button" aria-label="Marcar como hecha"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></button><span class="task__t">Abrir una cuenta solo para el ahorro</span></div>
+            <div class="progress-line"><span><b>38%</b>del camino</span><span>Semana 7 de 19</span></div>
+            <div class="segs" aria-hidden="true"><span><i style="width:100%"></i></span><span><i style="width:55%"></i></span><span></span><span></span></div>
+          </article>
+          <div class="commit"><span><b>90 min</b> por semana, martes y sábados</span><button class="link" type="button">Cambiar</button></div>
+          <h3 class="sec-h">El camino</h3>
+          <ol class="road">
+            <li><details><summary><span class="n done">✓</span><span class="t">Definir el modelo y el presupuesto</span><span class="chev">›</span></summary><div class="road__body" style="padding-left:16px"><dl><dt>Sabrás que está</dt><dd>Tienes 2 cotizaciones.</dd></dl></div></details></li>
+            <li><details><summary><span class="n cur">2</span><span class="t">Ahorrar la cuota inicial</span><span class="chev">›</span></summary><div class="road__body" style="padding-left:16px"><dl><dt>Sabrás que está</dt><dd>La cuenta llega a la meta.</dd></dl></div></details></li>
+            <li><details><summary><span class="n">3</span><span class="t">Sacar la licencia de conducción</span><span class="chev">›</span></summary><div class="road__body" style="padding-left:16px"><dl><dt>Sabrás que está</dt><dd>Licencia en la mano.</dd></dl></div></details></li>
+            <li><details><summary><span class="n">4</span><span class="t">Comprar la moto</span><span class="chev">›</span></summary><div class="road__body" style="padding-left:16px"><dl><dt>Objetivo</dt><dd>Moto a tu nombre, con SOAT.</dd></dl></div></details></li>
+          </ol>
+          <h3 class="sec-h">Por qué la quieres</h3>
+          <p style="margin:0;color:var(--text-muted)">Dejar de depender del bus y llegar a tiempo a la universidad.</p>
+        </div>
+        <button class="bubble" type="button" data-open-chat>Llevas 2 semanas por debajo de tu ritmo. ¿Lo revisamos?<small>Hablar con el coach</small></button>
+        <button class="ai-btn fab" type="button" aria-label="Hablar con el coach" data-open-chat>✦<span class="fab__dot"></span></button>
+        <div class="scrim" data-close-chat></div>
+        <div class="sheet" role="dialog" aria-label="Hablar con el coach">
+          <div class="grab"></div>
+          <div class="coach__head"><span class="orb" aria-hidden="true">✦</span><div style="flex:1"><span class="coach__name">Comprar mi primera moto</span><span class="coach__state">Etapa 2 de 4, semana 7</span></div><button class="wiz__close" type="button" data-close-chat aria-label="Cerrar">✕</button></div>
+          <div class="thread" data-thread></div>
+          <div class="chips" data-chips></div>
+          <form class="composer" data-compose><input aria-label="Escríbele al coach" placeholder="Cuéntale qué pasó…"><button type="submit" aria-label="Enviar">↑</button></form>
+        </div>
+      </div>
+      <p class="why" style="max-width:440px;margin-top:0"><b>Por qué el botón flotante:</b> antes la franja del coach se perdía entre tarjetas. El ✦ está siempre en el mismo lugar, al alcance del pulgar, y el punto ámbar con su globo avisa cuando hay algo que revisar (sin culpa; el globo se cierra al abrir el chat). <b>Costo:</b> tapa un poco del contenido al final del scroll, por eso la pantalla lleva margen inferior. En PC se ve igual, por consistencia en toda la app.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+const STAGES = [
+  { t: 'Definir el modelo y el presupuesto', m: '2 semanas' },
+  { t: 'Ahorrar la cuota inicial', m: '10 semanas' },
+  { t: 'Sacar la licencia de conducción', m: '4 semanas' },
+  { t: 'Comprar la moto', m: '3 semanas' },
+]
+const SUGGESTIONS = [
+  { after: 2, t: 'Separar un fondo para imprevistos', r: 'Sin colchón, el primer gasto inesperado frena el ahorro de la cuota.' },
+  { after: 3, t: 'Cotizar el SOAT y el seguro', r: 'Suelen sumar un 10 % al precio y aparecen justo al comprar.' },
+]
+const QUESTIONS = [
+  { q: '¿Ya tienes algo ahorrado para la moto?', why: 'Así no te propongo ahorrar desde cero si ya vas adelantado.', o: ['Nada todavía', 'Menos de la mitad', 'Más de la mitad'] },
+  { q: '¿Lo intentaste antes? ¿Qué te frenó?', why: 'Para cuidar justo ese punto en el camino.', o: ['Es la primera vez', 'Se me fue la plata en otras cosas', 'Perdí la motivación'] },
+  { q: '¿Cuánto podrías apartar por mes?', why: 'Un rango basta. Solo lo uso para que las semanas cuadren.', o: ['Hasta 200 mil', 'Entre 200 y 500 mil', 'Más de 500 mil'] },
+]
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
+const wait = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms))
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+
+/* ---------- Camino ---------- */
+function stageHTML(s, n) {
+  return `<li class="stage" data-n="${n}"><span class="node">${n}</span><div class="card"><span class="card__t">${s.t}<span class="card__m">${s.m}</span></span><button class="more" type="button" aria-label="Opciones de la etapa">⋯</button></div></li>`
+}
+function ghostHTML(g) {
+  return `<li class="ghost pre"><div class="stage"><span class="node">+</span><div class="card"><span class="card__t">${g.t}</span><span class="ghost__actions"><button class="btn-x" type="button" data-dismiss>Descartar</button><button class="btn-add" type="button" data-accept>Agregar aquí</button></span><span class="reason">${g.r}</span></div></div></li>`
+}
+function renderPath(el, withGhosts) {
+  let html = ''
+  STAGES.forEach((s, i) => {
+    html += stageHTML(s, i + 1)
+    if (withGhosts) SUGGESTIONS.filter((g) => g.after === i + 1).forEach((g) => (html += ghostHTML(g)))
+  })
+  el.innerHTML = html + `<li class="addrow"><span class="node">+</span><input aria-label="Nueva etapa" placeholder="Escribe una etapa y presiona Enter"></li>`
+}
+function renumber(path) {
+  let n = 0
+  path.querySelectorAll('.stage').forEach((st) => {
+    const ghost = st.closest('.ghost')
+    if (ghost && !ghost.classList.contains('accepted')) return
+    n += 1
+    st.dataset.n = n
+    st.querySelector('.node').textContent = n
+  })
+  return n
+}
+async function revealGhosts(path) {
+  for (const g of path.querySelectorAll('.ghost.pre')) {
+    await wait(140)
+    g.classList.remove('pre')
+  }
+}
+// Quitar una etapa con colapso suave (lo usa el chat al aplicar un cambio).
+function removeStage(path, text) {
+  const li = [...path.querySelectorAll(':scope > .stage')].find((s) => s.textContent.includes(text))
+  if (!li) return
+  const anim = li.animate(
+    [{ opacity: 1, height: li.offsetHeight + 'px' }, { opacity: 0, height: '0px', paddingTop: '0px', paddingBottom: '0px' }],
+    { duration: reduced ? 1 : 320, easing: 'cubic-bezier(.32,.72,.18,1)' },
+  )
+  anim.onfinish = () => { li.remove(); renumber(path) }
+}
+document.addEventListener('click', (e) => {
+  const acc = e.target.closest('[data-accept]')
+  const dis = e.target.closest('[data-dismiss]')
+  if (!acc && !dis) return
+  const ghost = e.target.closest('.ghost')
+  const path = ghost.closest('.path')
+  if (acc) {
+    ghost.classList.add('accepted')
+    const n = renumber(path)
+    if (path.id === 'deskPath') document.getElementById('fitStages').textContent = n
+  } else {
+    ghost.classList.add('gone')
+    setTimeout(() => ghost.remove(), 400)
+  }
+})
+document.addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip[aria-pressed]')
+  if (!chip) return
+  chip.parentElement.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', 'false'))
+  chip.setAttribute('aria-pressed', 'true')
+})
+
+/* ---------- Preguntas en línea (una a la vez, sin botón previo) ---------- */
+function mountQuestions(box, setState, onDone) {
+  let i = 0
+  const answers = []
+  const done = () => answers.map((a, k) => `<div class="qa-done"><span>${QUESTIONS[k].q}</span><b>${esc(a)}</b></div>`).join('')
+  const render = () => {
+    const x = QUESTIONS[i]
+    box.innerHTML = done() + `<div class="q-inline">
+      <span class="q-count">${i + 1} de 3 <span class="dots" aria-hidden="true">${[0, 1, 2].map((k) => `<i class="${k <= i ? 'on' : ''}"></i>`).join('')}</span></span>
+      <h3>${x.q}</h3><span class="q__why">${x.why}</span>
+      <div class="chips">${x.o.map((o) => `<button class="chip" type="button" data-a>${o}</button>`).join('')}<button class="chip chip--quiet" type="button" data-a>No sé todavía</button></div>
+      <button class="link link--muted" type="button" data-skipq style="align-self:flex-start">Saltar preguntas</button></div>`
+    setState('Antes de revisar tu camino')
+  }
+  box.onclick = (e) => {
+    if (e.target.closest('[data-skipq]')) { box.innerHTML = done(); return onDone() }
+    const a = e.target.closest('[data-a]')
+    if (!a) return
+    a.setAttribute('aria-pressed', 'true')
+    setTimeout(() => {
+      answers.push(a.textContent)
+      i += 1
+      if (i < 3) render()
+      else { box.innerHTML = done(); onDone() }
+    }, reduced ? 0 : 240)
+  }
+  render()
+}
+
+/* ---------- Chat genérico ---------- */
+function mountChat({ thread, form, chips, replies, onOpen }) {
+  let turn = 0
+  const add = (html) => {
+    thread.insertAdjacentHTML('beforeend', html)
+    thread.scrollTop = thread.scrollHeight
+    return thread.lastElementChild
+  }
+  async function send(text) {
+    onOpen?.()
+    if (chips) chips.innerHTML = ''
+    add(`<div class="msg msg--me">${esc(text)}</div>`)
+    const typing = add('<div class="msg msg--ai typing" aria-label="El coach está escribiendo"><i></i><i></i><i></i></div>')
+    await wait(1100)
+    typing.remove()
+    const r = replies(text, turn++)
+    add(`<div class="msg msg--ai">${r.text}</div>`)
+    if (r.proposal) {
+      const card = add(`<div class="proposal"><span>${r.proposal.text}</span><div class="proposal__actions"><button class="btn-x" type="button" data-no>Ahora no</button><button class="btn-add" type="button" data-yes>${r.proposal.label}</button></div></div>`)
+      card.querySelector('[data-yes]').onclick = () => {
+        card.classList.add('applied')
+        card.insertAdjacentHTML('beforeend', '<small style="color:var(--success);font-weight:600">Aplicado</small>')
+        r.proposal.apply?.()
+      }
+      card.querySelector('[data-no]').onclick = () => card.remove()
+    }
+  }
+  form.addEventListener('submit', (e) => {
+    e.preventDefault()
+    const input = form.querySelector('input')
+    const text = input.value.trim()
+    if (!text) return
+    input.value = ''
+    send(text)
+  })
+  chips?.addEventListener('click', (e) => { const c = e.target.closest('.chip'); if (c) send(c.textContent) })
+  return { send }
+}
+const wizardReplies = (path, after) => () => ({
+  text: 'Perfecto, eso cambia el camino. Si ya tienes la licencia, esa etapa sobra y llegas antes.',
+  proposal: {
+    text: 'Quitar <b>"Sacar la licencia de conducción"</b>. Tu camino queda en 3 etapas y unas 15 semanas.',
+    label: 'Aplicar',
+    apply: () => { removeStage(path, 'licencia'); after?.() },
+  },
+})
+
+/* ---------- PC ---------- */
+const desk = document.getElementById('desk')
+const deskPath = document.getElementById('deskPath')
+const deskStage = desk.querySelector('[data-stage]')
+const deskState = desk.querySelector('[data-state]')
+const setDeskState = (t) => (deskState.innerHTML = `<span class="status-swap">${t}</span>`)
+const THINK = ['Leyendo tus 4 etapas', 'Comparando con tus 90 min por semana', 'Buscando qué falta y dónde va']
+const deskDoneHTML = `<p style="font-size:15px">Va bien encaminado. Te faltan dos cosas que suelen frenar este tipo de meta.</p>
+  <ul class="notes" style="margin-top:10px">
+    <li tabindex="0" data-ref="2,3">Las etapas 2 y 3 pueden ir en paralelo: la licencia no depende del ahorro.<small>Ganas unas 4 semanas</small></li>
+    <li tabindex="0">10 semanas de ahorro con 90 min por semana es realista.</li>
+  </ul>
+  <div class="pending" style="margin-top:10px"><span>2 sugerencias marcadas con + en tu camino</span><button class="link" type="button" data-all>Agregar todas</button></div>
+  <div class="chips" style="margin-top:10px"><button class="chip" type="button" aria-pressed="false">Más suave</button><button class="chip" type="button" aria-pressed="false">Más ambicioso</button><button class="chip" type="button" aria-pressed="false">Solo fines de semana</button><button class="chip" type="button" aria-pressed="false">Menos etapas</button></div>`
+async function deskFinish() {
+  desk.classList.add('thinking')
+  setDeskState('Revisando tu camino…')
+  deskStage.insertAdjacentHTML('beforeend', `<ul class="think-steps">${THINK.map((t) => `<li>${t}</li>`).join('')}</ul>`)
+  for (const li of deskStage.querySelectorAll('.think-steps li')) {
+    li.classList.add('on')
+    await wait(600)
+    li.classList.replace('on', 'done')
+  }
+  desk.classList.remove('thinking')
+  setDeskState('Revisé tu camino')
+  deskStage.innerHTML = deskDoneHTML
+  renderPath(deskPath, true)
+  await revealGhosts(deskPath)
+}
+function setCtrl(v) {
+  document.querySelectorAll('[data-pc]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pc === v)))
+}
+function deskAsk() {
+  setCtrl('ask')
+  desk.querySelector('[data-thread]').innerHTML = ''
+  renderPath(deskPath, false)
+  document.getElementById('fitStages').textContent = 4
+  document.getElementById('fitWeeks').textContent = '19 semanas, hasta marzo'
+  mountQuestions(deskStage, setDeskState, deskFinish)
+}
+function deskDone() {
+  setCtrl('done')
+  setDeskState('Revisé tu camino')
+  deskStage.innerHTML = deskDoneHTML
+  renderPath(deskPath, true)
+  deskPath.querySelectorAll('.ghost').forEach((g) => g.classList.remove('pre'))
+}
+const deskChat = mountChat({
+  thread: desk.querySelector('[data-thread]'),
+  form: desk.querySelector('[data-compose]'),
+  replies: wizardReplies(deskPath, () => {
+    document.getElementById('fitStages').textContent = 3
+    document.getElementById('fitWeeks').textContent = '15 semanas, hasta febrero'
+  }),
+})
+document.querySelectorAll('[data-pc]').forEach((b) =>
+  b.addEventListener('click', () => {
+    if (b.dataset.pc === 'ask') deskAsk()
+    if (b.dataset.pc === 'done') deskDone()
+    if (b.dataset.pc === 'chat') { deskDone(); setCtrl('chat'); deskChat.send('Ya tengo la licencia y solo puedo los sábados') }
+  }),
+)
+deskStage.addEventListener('click', (e) => {
+  if (e.target.closest('[data-all]')) deskPath.querySelectorAll('.ghost:not(.accepted) [data-accept]').forEach((b, i) => setTimeout(() => b.click(), i * 120))
+})
+const highlight = (li) => {
+  deskPath.querySelectorAll('.stage.ref').forEach((s) => s.classList.remove('ref'))
+  li?.dataset.ref.split(',').forEach((n) => deskPath.querySelector(`.stage[data-n="${n}"]`)?.classList.add('ref'))
+}
+deskStage.addEventListener('mouseover', (e) => highlight(e.target.closest('[data-ref]')))
+deskStage.addEventListener('focusin', (e) => highlight(e.target.closest('[data-ref]')))
+deskStage.addEventListener('mouseout', () => highlight(null))
+deskStage.addEventListener('focusout', () => highlight(null))
+deskAsk()
+
+/* ---------- Tablet ---------- */
+const tabPath = document.getElementById('tabPath')
+renderPath(tabPath, true)
+tabPath.querySelectorAll('.ghost').forEach((g) => g.classList.remove('pre'))
+
+/* ---------- Móvil: asistente ---------- */
+function buildWizardPhone(ph) {
+  ph.innerHTML = `
+    <div class="phone__status"><span>9:41</span><span>●●●</span></div>
+    <div class="phone__scroll">
+      <div class="m-head"><button class="wiz__close" type="button" aria-label="Atrás">‹</button><div class="steps" aria-hidden="true"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span></div></div>
+      <h2 class="m-h">Arma tu camino</h2>
+      <div class="coach" style="margin-top:14px">
+        <div class="coach__head"><span class="orb" aria-hidden="true">✦</span><div><span class="coach__name">Coach de tu meta</span><span class="coach__state" data-state></span></div></div>
+        <div data-stage></div>
+        <form class="composer" data-inline-compose><input aria-label="Escríbele al coach" placeholder="O cuéntale con tus palabras…"><button type="submit" aria-label="Enviar">↑</button></form>
+      </div>
+      <ol class="path" data-path></ol>
+    </div>
+    <div class="m-foot"><button class="btn btn--primary" type="button">Continuar</button><button class="ai-btn" type="button" aria-label="Hablar con el coach" data-open-chat>✦</button></div>
+    <div class="scrim" data-close-chat></div>
+    <div class="sheet" role="dialog" aria-label="Hablar con el coach">
+      <div class="grab"></div>
+      <div class="coach__head"><span class="orb" aria-hidden="true">✦</span><div style="flex:1"><span class="coach__name">Coach de tu meta</span><span class="coach__state">Conoce tu camino y tus respuestas</span></div><button class="wiz__close" type="button" data-close-chat aria-label="Cerrar">✕</button></div>
+      <div class="thread" data-thread></div>
+      <div class="chips" data-chips><button class="chip" type="button">Ya tengo la licencia</button><button class="chip" type="button">Solo puedo los sábados</button><button class="chip" type="button">¿Por qué esa etapa?</button></div>
+      <form class="composer" data-compose><input aria-label="Escríbele al coach" placeholder="Cuéntale con tus palabras…"><button type="submit" aria-label="Enviar">↑</button></form>
+    </div>`
+  const path = ph.querySelector('[data-path]')
+  const stage = ph.querySelector('[data-stage]')
+  const state = ph.querySelector('[data-state]')
+  const setState = (t) => (state.innerHTML = `<span class="status-swap">${t}</span>`)
+  renderPath(path, false)
+  mountQuestions(stage, setState, async () => {
+    ph.classList.add('thinking')
+    setState('Revisando tu camino…')
+    stage.insertAdjacentHTML('beforeend', '<div class="skel" style="width:90%;margin-top:10px"></div><div class="skel" style="width:65%;margin-top:8px"></div>')
+    await wait(1800)
+    ph.classList.remove('thinking')
+    setState('Revisé tu camino')
+    stage.innerHTML = '<p class="q-inline" style="font-size:15px"><b>2 sugerencias</b> marcadas con + abajo. Las etapas 2 y 3 pueden ir en paralelo.</p>'
+    renderPath(path, true)
+    await revealGhosts(path)
+  })
+  const open = () => ph.classList.add('sheet-open')
+  const chat = mountChat({ thread: ph.querySelector('[data-thread]'), form: ph.querySelector('[data-compose]'), chips: ph.querySelector('[data-chips]'), replies: wizardReplies(path), onOpen: open })
+  ph.addEventListener('click', (e) => {
+    if (e.target.closest('[data-open-chat]')) open()
+    if (e.target.closest('[data-close-chat]')) ph.classList.remove('sheet-open')
+  })
+  ph.querySelector('[data-inline-compose]').addEventListener('submit', (e) => {
+    e.preventDefault()
+    const input = e.target.querySelector('input')
+    if (!input.value.trim()) return
+    chat.send(input.value.trim())
+    input.value = ''
+  })
+  return chat
+}
+buildWizardPhone(document.getElementById('phoneQ'))
+buildWizardPhone(document.getElementById('phoneC')).send('Ya tengo la licencia y solo puedo los sábados')
+
+/* ---------- Criterio ---------- */
+const CRIT = {
+  base: [
+    ['Tengo la moto a mi nombre y la licencia vigente', 'El resultado final, tal cual'],
+    ['Pagué la cuota inicial sin endeudarme más de 12 meses', 'Pone el foco en cómo la compras'],
+    ['Llevo un mes yendo al trabajo en moto', 'Mide el uso, no solo la compra'],
+  ],
+  medible: [
+    ['Junté 4,5 millones en la cuenta de la moto', 'Un número que revisas cuando quieras'],
+    ['Pago la cuota sin pasar del 15 % de mi sueldo', 'Mide si la compra es sostenible'],
+    ['Tengo la moto antes del 31 de marzo', 'Una fecha clara para saber si llegaste'],
+  ],
+  pronto: [
+    ['Junté la primera mitad de la cuota en 5 semanas', 'Ves avance a mitad del camino'],
+    ['Tengo cita para el examen de la licencia', 'Un logro en las próximas semanas'],
+    ['Elegí modelo y tengo 2 cotizaciones', 'Lo puedes cumplir este mes'],
+  ],
+  yo: [
+    ['Aparté dinero 10 de 10 semanas', 'No depende del precio ni del banco'],
+    ['Practiqué manejo 6 sábados seguidos', 'Depende solo de tu constancia'],
+    ['Revisé mi ahorro cada domingo', 'Un hábito que controlas tú'],
+  ],
+  libre: [
+    ['Compré la moto sin pedir un crédito nuevo', 'Lo que pediste: sin deudas nuevas'],
+    ['Mi deuda total no subió en todo el proceso', 'Cuida tus finanzas mientras avanzas'],
+    ['Pagué la moto con máximo 6 cuotas', 'Si necesitas crédito, que sea corto'],
+  ],
+}
+const critList = document.getElementById('critList')
+const critEdit = document.getElementById('critEdit')
+function renderCrit(key) {
+  critList.innerHTML = CRIT[key].map(([t, s], i) => `<button class="crit-opt" type="button" aria-pressed="${i === 0}" style="animation-delay:${i * 70}ms"><span class="radio"></span><span><b>${t}</b><small>${s}</small></span></button>`).join('')
+  critEdit.value = CRIT[key][0][0] + '.'
+}
+async function askCrit(key) {
+  critList.innerHTML = [0, 1, 2].map(() => '<div class="crit-skel"><div class="skel" style="width:80%"></div><div class="skel" style="width:45%;height:10px"></div></div>').join('')
+  await wait(900)
+  renderCrit(key)
+}
+critList.addEventListener('click', (e) => {
+  const opt = e.target.closest('.crit-opt')
+  if (!opt) return
+  critList.querySelectorAll('.crit-opt').forEach((o) => o.setAttribute('aria-pressed', String(o === opt)))
+  critEdit.value = opt.querySelector('b').textContent + '.'
+})
+document.querySelectorAll('[data-crit]').forEach((c) => c.addEventListener('click', () => askCrit(c.dataset.crit)))
+document.getElementById('critAsk').addEventListener('submit', (e) => {
+  e.preventDefault()
+  const input = e.target.querySelector('input')
+  if (!input.value.trim()) return
+  input.value = ''
+  askCrit('libre')
+})
+renderCrit('base')
+
+/* ---------- Detalle: FAB + chat ---------- */
+function mountGoalChat(root, openClass) {
+  const thread = root.querySelector('[data-thread]')
+  const chips = root.querySelector('[data-chips]')
+  let started = false
+  const open = () => {
+    if (!started) {
+      started = true
+      thread.innerHTML = '<div class="msg msg--ai">Vi que en las últimas 2 semanas ahorraste menos de lo planeado. Pasa mucho en esta etapa. ¿Qué cambió?</div>'
+      chips.innerHTML = '<button class="chip" type="button">Tuve un gasto imprevisto</button><button class="chip" type="button">Me cuesta acordarme</button><button class="chip" type="button">El monto era muy alto</button><button class="chip chip--quiet" type="button">Prefiero no decir</button>'
+    }
+    root.classList.add(openClass)
+    root.querySelectorAll('.bubble').forEach((b) => b.classList.add('hidden'))
+    root.querySelector('.fab__dot')?.remove()
+  }
+  mountChat({
+    thread, form: root.querySelector('[data-compose]'), chips, onOpen: open,
+    replies: () => ({
+      text: 'Gracias por contarlo. Ajustemos sin perder el rumbo.',
+      proposal: { text: 'Bajar el ahorro de <b>50 a 35 mil por semana</b> durante 3 semanas. La fecha se mueve a <b>mediados de abril</b>.', label: 'Aplicar' },
+    }),
+  })
+  root.addEventListener('click', (e) => {
+    if (e.target.closest('[data-open-chat]')) open()
+    if (e.target.closest('[data-close-chat]')) root.classList.remove(openClass)
+  })
+  root.querySelectorAll('.task .check').forEach((c) => c.addEventListener('click', () => c.closest('.task').classList.toggle('done')))
+  return open
+}
+const openDeskChat = mountGoalChat(document.getElementById('detDesk'), 'drawer-open')
+mountGoalChat(document.getElementById('phoneDet'), 'sheet-open')
+
+/* ---------- Demo para capturas: ?demo ---------- */
+if (new URLSearchParams(location.search).has('demo')) {
+  document.querySelector('[data-pc="chat"]').click()
+  openDeskChat()
+}
+
+/* ---------- Tema ---------- */
+document.getElementById('theme').addEventListener('click', (e) => {
+  const dark = document.documentElement.dataset.theme !== 'oscuro'
+  document.documentElement.dataset.theme = dark ? 'oscuro' : 'claro'
+  e.target.textContent = dark ? 'Modo claro' : 'Modo oscuro'
+})
+</script>
+</body>
+</html>

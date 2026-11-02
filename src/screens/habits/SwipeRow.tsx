@@ -167,7 +167,7 @@ export function SwipeRow({
   }
 
   return (
-    <div className="hab-swipe" ref={rootRef}>
+    <div className={`hab-swipe${dx === 0 ? ' is-resting' : ''}`} ref={rootRef}>
       {onComplete && (
         <div className="hab-swipe__done" aria-hidden="true">
           <IconCheck size={22} />

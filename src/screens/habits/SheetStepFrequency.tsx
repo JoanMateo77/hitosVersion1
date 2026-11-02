@@ -1,13 +1,13 @@
 import { useRef, useState } from 'react'
 import { WEEKDAY_PLURALS } from '@/domain/commitment'
+import { WEEKDAY_SHORT } from '@/domain/weekdays'
 import { remindersLabel } from '@/domain/habits'
 import { getNiche } from '@/domain/niches'
 import { HabitIcon } from '@/components/HabitIcon'
 import { IconChevronRight, IconMinus, IconPlus, IconTrash } from '@/components/icons'
 import type { HabitDraft } from '@/screens/habits/habitDraft'
 
-/** Iniciales de los círculos de días (lunes = 0), como en el mockup. */
-const DAY_INITIALS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+/** Índices de los días (lunes = 0). */
 const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6]
 
 /** Límites del stepper "Veces al día". */
@@ -97,11 +97,11 @@ export function SheetStepFrequency({
       </div>
 
       <section className="hsheet-group">
-        <span className="hab-kicker">Frecuencia</span>
-        <div className="hsheet-seg">
+        <span className="section-title">Frecuencia</span>
+        <div className="seg hsheet-seg">
           <button
             type="button"
-            className="hsheet-seg__btn"
+            className={`seg__btn${multi ? '' : ' seg__btn--active'}`}
             aria-pressed={!multi}
             onClick={() => patch({ timesPerDay: 1 })}
           >
@@ -109,7 +109,7 @@ export function SheetStepFrequency({
           </button>
           <button
             type="button"
-            className="hsheet-seg__btn"
+            className={`seg__btn${multi ? ' seg__btn--active' : ''}`}
             aria-pressed={multi}
             onClick={() => patch({ timesPerDay: Math.max(MIN_TIMES, draft.timesPerDay) })}
           >
@@ -166,9 +166,9 @@ export function SheetStepFrequency({
       </section>
 
       <section className="hsheet-group">
-        <span className="hab-kicker">Días</span>
+        <span className="section-title">Días</span>
         <div className="hsheet-days">
-          {DAY_INITIALS.map((letter, day) => (
+          {WEEKDAY_SHORT.map((letter, day) => (
             <button
               key={letter}
               type="button"

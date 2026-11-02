@@ -1,0 +1,708 @@
+/* Full color — pantallas del grupo "agenda-progreso" (spec 2026-11-02-full-color-design.md).
+   Solo estilos de estas pantallas; las piezas comunes viven en fullcolor.css.
+   Se carga después de components.css: aquí se sobrescriben las reglas viejas de
+   agenda (.ag*, .blk*, .wk-day*, .cal-*) y de Progreso (.timeline en .prog-path).
+
+   Decisión de la agenda: un día tiene muchos bloques. Pintarlos todos sólidos
+   grita y se vuelve una pared de color, así que:
+   - SESIÓN de una meta (lo que el día "es") = bloque sólido del color del área,
+     tinta --vivid-ink y relieve (se toca para abrirla).
+   - Hábitos, eventos y bloques plegados = borde izquierdo fuerte del área +
+     relleno teñido; texto en --text (contraste de texto normal sobre casi-superficie).
+   - Hecho = vuelve a teñido y tachado: lo cumplido se calla.
+   - "Ahora" y hoy = tinta máxima (--text sobre --bg), no azul: el azul es solo
+     para actuar y el verde/ámbar solo para estados. */
+
+/* ==== Tokens locales ======================================================= */
+.ag,
+.cal-month,
+.cal-week {
+  /* Cuánto color del área lleva el relleno teñido de una fila. Alto a
+     propósito: con menos, frambuesa (relaciones) y magenta (creatividad) se
+     confunden; el canto sólido (--ag-edge) remata la diferencia. */
+  --ag-tint: 24%;
+  --ag-edge: 6px;
+  /* Texto secundario sobre el teñido: --text-muted cae a ~4.1:1 sobre los tonos
+     más intensos; este paso intermedio pasa 4.5:1 en claro y oscuro. */
+  --ag-muted: color-mix(in srgb, var(--text) 78%, var(--surface));
+  --ag-time-col: 54px;
+  --ag-gap-col: 10px;
+  /* Donde empieza la superficie del bloque (después de la columna de hora). */
+  --ag-block-left: calc(var(--ag-time-col) + var(--ag-gap-col));
+}
+[data-theme='oscuro'] .ag,
+[data-theme='oscuro'] .cal-month,
+[data-theme='oscuro'] .cal-week {
+  --ag-tint: 34%;
+}
+
+/* ==== Navegación + vista ====================================================
+   La fila (‹ Hoy › + Día/Semana/Mes) no cabe a 320 px: el control de vista
+   baja a su propia línea en vez de desbordar o cortar las etiquetas. */
+.ag-nav {
+  flex-wrap: wrap;
+  row-gap: var(--s2);
+}
+.ag-views {
+  margin-left: auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+@media (max-width: 359px) {
+  .ag-views {
+    width: 100%;
+  }
+}
+
+/* ==== Filas del día como bloques de color ================================== */
+.ag .ag-row,
+.ag .blk {
+  border-top: 0;
+}
+.ag .ag-row {
+  position: relative;
+  isolation: isolate;
+  min-height: 58px;
+  padding: 10px 8px 10px 0;
+}
+/* Superficie del bloque: pseudo-elemento detrás de cuerpo + acción, a la derecha
+   de la columna de hora. Así la hora queda fuera y alineada como en un calendario. */
+.ag .ag-row::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 3px 0 3px var(--ag-block-left);
+  border-radius: 14px;
+  background: color-mix(in oklch, var(--vivid, var(--surface-3)) var(--ag-tint), var(--surface));
+  box-shadow: inset var(--ag-edge) 0 0 var(--vivid, var(--surface-3));
+}
+.ag .ag-row__main {
+  border-left: 0;
+  padding-left: 16px;
+}
+.ag .ag-row__open {
+  align-self: stretch;
+}
+.ag .ag-row__sub,
+.ag .blk__meta {
+  color: var(--ag-muted);
+}
+
+/* Sesión pendiente: bloque sólido + relieve (se toca). */
+.ag .ag-row--session:not(.ag-row--done) {
+  padding-bottom: calc(10px + var(--lip));
+}
+.ag .ag-row--session:not(.ag-row--done)::before {
+  bottom: calc(3px + var(--lip));
+  background: var(--vivid, var(--surface-3));
+  box-shadow: 0 var(--lip) 0 var(--vivid-lip, var(--neutral-lip));
+  transition:
+    transform var(--dur-tap) var(--ease-out),
+    box-shadow var(--dur-tap) var(--ease-out);
+}
+.ag .ag-row--session:not(.ag-row--done) :is(.ag-row__title, .ag-row__sub, .ag-chev) {
+  color: var(--vivid-ink, var(--text));
+}
+.ag .ag-row--session:not(.ag-row--done) .ag-row__sub {
+  font-weight: 600;
+}
+.ag .ag-row--session:not(.ag-row--done) :is(.ag-row__main, .ag-row__aside) {
+  transition: transform var(--dur-tap) var(--ease-out);
+}
+.ag button.ag-row--session:not(.ag-row--done):active {
+  opacity: 1;
+}
+.ag button.ag-row--session:not(.ag-row--done):active::before {
+  transform: translateY(var(--lip));
+  box-shadow: 0 0 0 transparent;
+}
+.ag button.ag-row--session:not(.ag-row--done):active :is(.ag-row__main, .ag-row__aside) {
+  transform: translateY(var(--lip));
+}
+/* ▶ de la sesión de hoy: disco de tinta sobre el color del área. */
+.ag .ag-play {
+  background: var(--vivid-ink, var(--text));
+  color: var(--vivid, var(--surface));
+  box-shadow: none;
+}
+
+/* Hecho: tachado y en tono secundario, sobre el teñido. */
+.ag .ag-row--done .ag-row__title {
+  color: var(--ag-muted);
+}
+/* Pasado (solo hoy): se atenúa, pero sin desaparecer. */
+.ag .ag-row--past {
+  opacity: 0.55;
+}
+
+/* Foco visible dentro del bloque (la superficie es el ::before). */
+.ag .ag-row:focus-visible,
+.ag .ag-row__open:focus-visible,
+.ag .blk__head:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 0;
+  border-radius: 14px;
+}
+
+/* ==== Bloque plegado con varias cosas ====================================== */
+.ag .blk__head {
+  position: relative;
+  isolation: isolate;
+  min-height: 58px;
+  padding: 10px 8px 10px 0;
+  grid-template-columns: var(--ag-time-col) minmax(0, 1fr) 24px;
+  border-radius: 0;
+}
+.ag .blk__head::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 3px 0 3px var(--ag-block-left);
+  border-radius: 14px;
+  background: color-mix(in oklch, var(--vivid, var(--surface-3)) var(--ag-tint), var(--surface));
+  box-shadow: inset var(--ag-edge) 0 0 var(--vivid, var(--surface-3));
+}
+.ag .blk__head:active {
+  background: none;
+}
+.ag .blk__sum,
+.ag .blk--session .blk__sum {
+  border-left: 0;
+  padding-left: 16px;
+}
+.ag .blk__dot {
+  width: 9px;
+  height: 9px;
+  background: var(--vivid, var(--text-faint));
+  box-shadow: 0 0 0 1.5px var(--surface);
+}
+.ag .blk__body {
+  padding: 0 4px 6px;
+}
+.ag .blk__body .ag-row {
+  border-top: 0;
+  min-height: 52px;
+}
+/* Las cosas del bloque abierto se ven "dentro": sangría a la derecha de la hora. */
+.ag .blk__body .ag-row::before {
+  left: calc(var(--ag-block-left) + 12px);
+}
+.ag .blk__body .ag-row__main {
+  padding-left: 28px;
+}
+.ag .blk__add {
+  padding-left: calc(var(--ag-block-left) + 14px);
+  color: var(--action-text);
+}
+
+/* ==== Línea "Ahora": tinta máxima, inconfundible ============================ */
+.ag .ag-now {
+  gap: 0;
+  margin: 8px 0;
+  color: var(--text);
+  letter-spacing: 0;
+}
+.ag .ag-now::before {
+  display: none;
+}
+.ag .ag-now__pill {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--text);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+.ag .ag-now::after {
+  height: 2px;
+  opacity: 1;
+  background: var(--text);
+  border-radius: 1px;
+}
+
+/* Check de hábito/evento: aro visible sobre el teñido (en oscuro se perdía). */
+.ag .check:not(.check--done) {
+  border-color: color-mix(in srgb, var(--text) 40%, transparent);
+}
+
+/* ==== Huecos libres y franjas ============================================== */
+.ag .ag-gap {
+  padding-left: var(--ag-block-left);
+}
+/* Franjas del día (Mañana, Tarde…): sentence case, nada en MAYÚSCULAS. */
+.ag .ag__kicker {
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+}
+
+/* ==== Todo el día: fecha objetivo = chip del color de la meta =============== */
+.ag .ag-chip--goal {
+  background: var(--vivid, var(--surface));
+  color: var(--vivid-ink, var(--text));
+  border-color: transparent;
+  font-weight: 700;
+  box-shadow: none;
+}
+.ag .ag-chip--goal .ag-chip__flag {
+  color: inherit;
+}
+
+/* ==== Mes ================================================================== */
+/* minmax(0, 1fr): los puntos no deben ensanchar la columna y empujar la grilla
+   debajo del panel del día. */
+.cal-month .cal-grid {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.cal-month .cal-cell {
+  border: 2px solid transparent;
+  gap: 5px;
+  padding-top: 6px;
+}
+.cal-month .cal-cell__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  border-radius: var(--radius-pill);
+  font-variant-numeric: tabular-nums;
+}
+/* Hoy: número en disco de tinta (como el círculo de hoy de un calendario). */
+.cal-month .cal-cell--today {
+  color: var(--text);
+  border-color: transparent;
+}
+.cal-month .cal-cell--today .cal-cell__num {
+  background: var(--text);
+  color: var(--bg);
+  font-weight: 800;
+}
+/* Seleccionado: marco de tinta (forma distinta del disco de hoy). */
+.cal-month .cal-cell--selected {
+  background: var(--surface);
+  border-color: var(--text);
+}
+.cal-month .cal-cell--out.cal-cell--selected {
+  background: var(--surface);
+}
+.cal-month .cal-cell__dots {
+  gap: 3px;
+  min-height: 7px;
+  justify-content: center;
+  padding-inline: 2px;
+}
+/* Sesiones: puntos neutros (cuánta carga tiene el día). */
+.cal-month .cal-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--text-muted);
+}
+/* Fecha objetivo: anillo del color de la meta, el único acento de la grilla
+   (forma distinta: no depende solo del color). */
+.cal-month .cal-dot--goal {
+  width: 9px;
+  height: 9px;
+  background: transparent;
+  box-shadow: inset 0 0 0 2.5px var(--vivid, var(--text));
+}
+
+.cal-month .cal-day__label--today {
+  color: var(--text);
+}
+.ag-today {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--text);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 800;
+  vertical-align: 2px;
+}
+
+/* Escritorio: el panel del día pide aire (las filas de la agenda se cortaban).
+   A 1280 la pantalla de mes usa más ancho y el panel crece; la grilla sigue
+   legible con celdas de ~70 px. */
+@media (min-width: 1024px) {
+  .cal-month {
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 1fr);
+    gap: var(--s6);
+  }
+}
+@media (min-width: 1280px) {
+  .shell__content:has(.cal-month) {
+    max-width: 1080px;
+  }
+  .cal-month {
+    grid-template-columns: minmax(0, 1fr) minmax(400px, 0.85fr);
+  }
+}
+
+/* ==== Semana =============================================================== */
+.cal-week .wk-day__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-pill);
+}
+.cal-week .wk-day--today .wk-day__dow {
+  color: var(--text);
+}
+.cal-week .wk-day--today .wk-day__num {
+  color: var(--bg);
+  background: var(--text);
+  font-weight: 700;
+}
+.cal-week .wk-day--selected .wk-day__num {
+  text-decoration: none;
+  box-shadow: 0 0 0 2px var(--text);
+}
+.cal-week .wk-day--today.wk-day--selected .wk-day__num {
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 4px var(--text);
+}
+.cal-week .wk-day__dot {
+  width: 8px;
+  height: 8px;
+  background: var(--vivid, var(--text-faint));
+}
+.cal-week .wk-day__body {
+  padding-left: 0;
+}
+@media (min-width: 1024px) {
+  .cal-week .wk-day--today {
+    box-shadow: inset 0 0 0 2px var(--text);
+  }
+}
+
+/* ==== Progreso ============================================================= */
+/* Tu semana: anillo de cumplimiento + siete días. */
+.prog-week {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+.prog-streak {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.prog-week__body {
+  display: flex;
+  align-items: center;
+  gap: var(--s5);
+}
+
+@property --prog-ring {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+.prog-ring {
+  flex: none;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(var(--state-ok) var(--prog-ring), var(--surface-2) 0deg);
+  /* Se llena una vez al entrar (logro), no en bucle. */
+  animation: prog-ring-fill 900ms var(--ease-ios) both;
+}
+@keyframes prog-ring-fill {
+  from {
+    --prog-ring: 0deg;
+  }
+}
+.prog-ring__hole {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+}
+.prog-ring__n {
+  font-size: var(--fs-lg);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.prog-ring__lbl {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.prog-days {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.prog-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.prog-day__box {
+  width: 100%;
+  max-width: 40px;
+  height: 30px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Estados (verde = cumplido, ámbar = a medias) con forma además de color. */
+.prog-day__box--done {
+  background: var(--state-ok);
+  color: var(--state-ok-ink);
+}
+.prog-day__box--partial {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--state-late) 0 5px,
+    color-mix(in srgb, var(--state-late) 45%, var(--surface)) 5px 10px
+  );
+}
+.prog-day__box--missed {
+  background: var(--surface-3);
+  color: var(--text-muted);
+}
+.prog-day__box--future {
+  border: 1.5px dashed var(--border);
+}
+.prog-day__box--free {
+  border: 1px solid var(--border-soft);
+}
+.prog-day__lbl {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.prog-day--today .prog-day__lbl {
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--text);
+  color: var(--bg);
+  font-weight: 800;
+}
+
+/* Tus metas: barras horizontales, una por meta, en el color de su área.
+   El nombre, el % y "N de M etapas" van en texto: no depende del color. */
+.prog-goals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+.prog-goals__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.prog-goal {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 8px;
+  margin-inline: -8px;
+  width: calc(100% + 16px);
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
+  text-align: left;
+  color: var(--text);
+  transition: background-color var(--dur-tap) var(--ease-out);
+}
+@media (hover: hover) {
+  .prog-goal:hover {
+    background: var(--surface-2);
+  }
+}
+.prog-goal:active {
+  background: var(--surface-2);
+}
+.prog-goal__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.prog-goal__title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prog-goal__pct {
+  flex: none;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.prog-goal .prog-goal__bar {
+  display: flex;
+  width: 100%;
+  height: 12px;
+}
+.prog-goal .progress__bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--vivid, var(--state-ok));
+}
+.prog-goal__meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Escritorio: Tus metas ocupa la columna derecha (fija al scrollear); a la
+   izquierda se apilan semana, hábitos, 8 semanas y Tu camino, así no queda un
+   hueco bajo la columna corta. La última fila absorbe el sobrante. */
+@media (min-width: 1024px) {
+  .progress-grid {
+    grid-template-rows: auto auto auto 1fr;
+  }
+  .progress-grid > :not(.prog-goals) {
+    grid-column: 1;
+  }
+  .progress-grid > .prog-goals {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    position: sticky;
+    top: var(--s6);
+  }
+  /* Sin metas activas no hay columna derecha: una sola columna. */
+  .progress-grid:not(:has(> .prog-goals)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* Tu camino: el título lleva su margen inferior (section-head). */
+.prog-path-sec {
+  min-width: 0;
+}
+@media (max-width: 1023px) {
+  .prog-path-sec {
+    margin-top: var(--s2);
+  }
+}
+
+.prog-habits {
+  align-items: center;
+}
+/* "Ver hábitos" al tamaño de su fila (.small), como los demás enlaces de acción. */
+.prog-habits .btn--link {
+  font-size: var(--fs-sm);
+}
+
+/* Últimas 8 semanas: columnas con % encima y semana debajo. */
+.prog-weeks {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.prog-weeks__col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.prog-weeks__val {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.prog-weeks__track {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  height: 72px;
+}
+.prog-weeks__bar {
+  width: 100%;
+  border-radius: 6px 6px 2px 2px;
+  background: color-mix(in oklch, var(--state-ok) 55%, var(--surface));
+  transform-origin: bottom;
+  animation: prog-grow 700ms var(--ease-ios) both;
+}
+.prog-weeks__col--now .prog-weeks__bar {
+  background: var(--state-ok);
+}
+.prog-weeks__bar--empty {
+  background: transparent;
+  border: 1px dashed var(--border);
+}
+.prog-weeks__lbl {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.prog-weeks__col--now :is(.prog-weeks__val, .prog-weeks__lbl) {
+  color: var(--text);
+  font-weight: 800;
+}
+@keyframes prog-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+/* Tu camino: cada paso lleva el color de su meta (punto + filo). */
+.prog-path .timeline__dot {
+  width: 12px;
+  height: 12px;
+  background: var(--vivid, var(--surface));
+  border-color: var(--surface);
+  box-shadow: 0 0 0 1px var(--vivid, var(--border));
+}
+.prog-path .timeline__card {
+  border: 0;
+  box-shadow: inset 5px 0 0 var(--vivid, var(--border));
+  padding-left: calc(var(--s4) + 5px);
+}
+.prog-path__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s2);
+}
+.prog-path__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font-weight: 600;
+}
+.prog-path__check {
+  flex: none;
+  color: var(--success);
+}
+.prog-path .tag,
+.prog-path .chip-state {
+  flex: none;
+}

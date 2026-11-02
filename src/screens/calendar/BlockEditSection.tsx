@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { ScheduleBlock } from '@/lib/types'
-import { WEEKDAY_LABELS, WEEKDAY_PLURALS, durationStep } from '@/domain/commitment'
+import { WEEKDAY_PLURALS, durationStep } from '@/domain/commitment'
 import type { EditScope } from '@/domain/scheduleEdit'
 import { formatDuration, todayISO } from '@/lib/date'
 import { canSkip, goalWeekdays, type SessionState } from '@/screens/calendar/agendaItems'
+import { WEEKDAY_SHORT } from '@/domain/weekdays'
 
 /**
  * Guardar un cambio de valor u hora desde un bloque. Si la meta tiene más de
@@ -122,7 +123,7 @@ export function BlockEditSection({
       <span className="kicker">Editar</span>
 
       <fieldset className="row wrap" aria-label="Días de esta meta">
-        {WEEKDAY_LABELS.map((label, weekday) => (
+        {WEEKDAY_SHORT.map((label, weekday) => (
           <button
             key={label}
             type="button"

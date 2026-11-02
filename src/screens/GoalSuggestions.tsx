@@ -6,9 +6,9 @@ import { NICHES, getNiche } from '@/domain/niches'
 import { buildMilestonesFromTemplate } from '@/domain/commitment'
 import { seedWizardDraft } from '@/lib/wizardDraft'
 import type { NicheId } from '@/lib/types'
-import { OptionRow } from '@/components/OptionRow'
-import { IconBack, IconPencil } from '@/components/icons'
-import { NicheIcon } from '@/components/NicheGlyph'
+import { nicheAccent } from '@/lib/nicheAccent'
+import { IconChevronLeft, IconChevronRight, IconPencil } from '@/components/icons'
+import { NicheGlyph } from '@/components/NicheGlyph'
 
 /**
  * Recomendación al inicio (doc 5.1): cuando el usuario no sabe qué meta poner,
@@ -56,11 +56,17 @@ export function GoalSuggestions() {
 
   return (
     <div className="screen screen--full flow-screen flow-screen--wide">
-      <button className="iconbtn" onClick={goBack} aria-label="Volver">
-        <IconBack />
+      <button type="button" className="back-link" style={{ alignSelf: 'flex-start' }} onClick={goBack}>
+        <IconChevronLeft size={18} />
+        Atrás
       </button>
 
-      <header className="screen__header" style={{ marginTop: 'var(--s4)' }}>
+      <header className="screen__header" style={{ marginTop: 'var(--s2)' }}>
+        {niche !== 'otra' && (
+          <span className="ideas__area" style={nicheAccent(niche)}>
+            {nicheInfo.label}
+          </span>
+        )}
         <h1 className="screen__title">Ideas para ti</h1>
         <p className="screen__subtitle">
           {niche === 'otra'
@@ -69,20 +75,31 @@ export function GoalSuggestions() {
         </p>
       </header>
 
-      <div className="stack stack--sm suggestions-grid" style={{ flex: 1 }}>
+      <ul className="stack stack--sm suggestions-grid ideas-list" style={{ flex: 1 }}>
         {suggestions.map((seed) => {
           const template = getTemplate(seed.templateKey)
+          // Cada idea va en el color del área en que quedará la meta (en "otra"
+          // las ideas son de varias áreas: manda la de su plantilla).
+          const area: NicheId = niche === 'otra' ? template.defaultArea : niche
           return (
-            <OptionRow
-              key={seed.title}
-              icon={<NicheIcon area={niche} size={20} />}
-              label={seed.title}
-              desc={template.label}
-              onClick={() => adopt(seed)}
-            />
+            <li key={seed.title}>
+              <button
+                type="button"
+                className="idea-card fc-press"
+                style={nicheAccent(area)}
+                onClick={() => adopt(seed)}
+              >
+                <NicheGlyph area={area} size="lg" />
+                <span className="idea-card__body">
+                  <span className="idea-card__title">{seed.title}</span>
+                  <span className="idea-card__desc">{template.label}</span>
+                </span>
+                <IconChevronRight size={18} className="idea-card__go" />
+              </button>
+            </li>
           )
         })}
-      </div>
+      </ul>
 
       <button
         className="btn btn--ghost btn--block"

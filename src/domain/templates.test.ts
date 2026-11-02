@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { TEMPLATES, detectTemplate, getTemplate, templatesForNiche } from '@/domain/templates'
+import { detectTemplate, getTemplate } from '@/domain/templates'
 
 describe('detectTemplate', () => {
   it('detecta por palabras clave del título', () => {
@@ -32,13 +32,5 @@ describe('detectTemplate', () => {
 describe('getTemplate', () => {
   it('cae en personalizada para clave desconocida', () => {
     expect(getTemplate('no-existe').key).toBe('personalizada')
-  })
-})
-
-describe('templatesForNiche', () => {
-  it('pone las del nicho primero y no pierde ninguna', () => {
-    const list = templatesForNiche('finanzas')
-    expect(list).toHaveLength(TEMPLATES.length)
-    expect(list[0].defaultArea).toBe('finanzas')
   })
 })

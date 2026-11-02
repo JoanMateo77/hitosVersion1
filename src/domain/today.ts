@@ -53,20 +53,6 @@ export function displayNameFrom(
   return nameFromEmail(email)
 }
 
-/**
- * Iniciales para el avatar (dos letras mayúsculas): de las dos primeras
- * palabras del nombre, o las dos primeras letras si el nombre es una sola
- * palabra; sin nombre, las dos primeras letras del email; si nada alcanza, '·'.
- */
-export function initialsFrom(name: string, email: string): string {
-  const words = name.trim().split(/\s+/).filter((w) => w !== '')
-  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase()
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
-  const trimmedEmail = email.trim()
-  if (trimmedEmail.length > 0) return trimmedEmail.slice(0, 2).toUpperCase()
-  return '·'
-}
-
 const HEADER_DATE = new Intl.DateTimeFormat('es', {
   weekday: 'long',
   day: 'numeric',

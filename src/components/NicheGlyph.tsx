@@ -35,6 +35,9 @@ export function NicheIcon({ area, size = 18, className }: { area: NicheId } & Ni
   return <Icon size={size} className={className} />
 }
 
+/** Tamaño del ícono dentro de cada disco. */
+const GLYPH_ICON_PX = { sm: 14, md: 19, lg: 24, xl: 28 } as const
+
 /**
  * Token de área: disco redondeado teñido con el color del nicho y su ícono.
  * Es el ancla visual de tarjetas de meta, cabeceras y listas (ex goal-card__emoji).
@@ -44,12 +47,12 @@ export function NicheGlyph({
   size = 'md',
 }: {
   area: NicheId
-  size?: 'sm' | 'md' | 'lg'
+  /** xl: cabecera full color del detalle (56 px). */
+  size?: 'sm' | 'md' | 'lg' | 'xl'
 }) {
-  const px = size === 'sm' ? 14 : size === 'md' ? 19 : 24
   return (
     <span className={`glyph glyph--${size}`} style={nicheAccent(area)} aria-hidden="true">
-      <NicheIcon area={area} size={px} />
+      <NicheIcon area={area} size={GLYPH_ICON_PX[size]} />
     </span>
   )
 }

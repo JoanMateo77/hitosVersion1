@@ -5,6 +5,10 @@ on:
   push:
     branches: [master]
 
+# El token del job solo lee el repo: el CI no publica nada.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -14,8 +18,9 @@ jobs:
     name: Verificar (tipos, lint, RLS, tests, build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # Fijadas por SHA (cadena de suministro); el comentario dice la versión.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -27,6 +32,8 @@ jobs:
         run: npm run lint
       - name: RLS en todas las tablas
         run: npm run check:rls
+      - name: Contraste del sistema de color
+        run: npm run check:contrast
       - name: Funciones de Vercel cargan en Node
         run: npm run check:api
       - name: Tests

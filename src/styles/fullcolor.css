@@ -1,0 +1,294 @@
+/* =============================================================================
+   Full color — piezas base (spec docs/superpowers/specs/2026-11-02-full-color-design.md)
+   Gramática: azul = actuar · color del área = de qué meta se habla ·
+   verde/naranja = estado. Relieve solo en lo que se toca. Movimiento solo como
+   respuesta o logro (la regla global de reduced-motion de base.css lo apaga).
+   Se carga DESPUÉS de components.css: lo que aquí se redefine gana por orden.
+   ========================================================================== */
+
+
+/* ---- Botón principal con relieve (definición única) ----------------------- */
+.btn--primary {
+  background: var(--action);
+  color: var(--action-ink);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  border-color: transparent;
+  box-shadow: 0 var(--lip) 0 var(--action-lip);
+  transform: translateY(calc(var(--lip) * -1));
+  margin-top: var(--lip);
+  transition:
+    transform var(--dur-tap) var(--ease-out),
+    box-shadow var(--dur-tap) var(--ease-out),
+    filter var(--dur-tap) var(--ease-out);
+}
+@media (hover: hover) {
+  .btn--primary:hover {
+    filter: brightness(1.06);
+  }
+}
+.btn--primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 0 0 var(--action-lip);
+  filter: none;
+}
+/* Deshabilitado: apagado, sin relieve ni azul (igual que .btn:disabled). */
+.btn--primary:disabled {
+  background: var(--surface-2);
+  color: var(--text-faint);
+  box-shadow: none;
+  transform: none;
+  filter: none;
+}
+/* El anillo azul se perdería sobre el azul del botón: va en su tinta, por dentro. */
+.btn--primary:focus-visible {
+  outline-color: var(--action-ink);
+  outline-offset: -4px;
+}
+
+/* Relieve genérico para lo que se toca y lleva color de área. */
+.fc-press {
+  box-shadow: 0 var(--lip) 0 var(--vivid-lip, var(--action-lip));
+  transition: transform var(--dur-tap) var(--ease-out), box-shadow var(--dur-tap) var(--ease-out);
+}
+.fc-press:active:not(:disabled) {
+  transform: translateY(var(--lip));
+  box-shadow: 0 0 0 transparent;
+}
+
+/* ---- Ícono de área: disco sólido del color del área ----------------------- */
+.glyph,
+[data-theme='oscuro'] .glyph {
+  background: var(--vivid, var(--surface-2));
+  border-color: transparent;
+  color: var(--vivid-ink, var(--text));
+}
+
+/* ---- Barra de progreso (definición única) ----------------------------------
+   Gruesa, del color del área (verde de estado si no hay área) y se llena al
+   entrar, una vez. Dentro de una superficie de color (.fc-card / .fc-hero)
+   la pista y la barra son la tinta del área (currentColor = --vivid-ink):
+   translúcida la pista, sólida la barra. Así se ve igual en todas las áreas. */
+.progress {
+  display: block;
+  height: 10px;
+  background: var(--surface-2);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+.progress__bar {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--vivid, var(--state-ok));
+  transition: width var(--dur-layout) var(--ease-out);
+  animation: fc-fill 900ms var(--ease-ios) both;
+}
+@keyframes fc-fill {
+  from {
+    width: 0;
+  }
+}
+
+/* ---- Tarjeta full color --------------------------------------------------- */
+.fc-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: 18px;
+  border: 0;
+  border-radius: 22px;
+  text-align: left;
+  color: var(--vivid-ink, var(--text));
+  background:
+    var(--pat, none) right 14px top 14px / auto 44px no-repeat,
+    var(--vivid, var(--surface));
+  box-shadow: 0 var(--lip) 0 var(--vivid-lip, var(--neutral-lip));
+  margin-bottom: var(--lip);
+  transition: transform var(--dur-tap) var(--ease-out), box-shadow var(--dur-tap) var(--ease-out);
+}
+button.fc-card:active,
+a.fc-card:active {
+  transform: translateY(var(--lip));
+  box-shadow: 0 0 0 transparent;
+}
+.fc-card .glyph,
+.fc-hero .glyph {
+  background: color-mix(in srgb, var(--vivid-ink, var(--text)) 20%, transparent);
+  color: var(--vivid-ink, var(--text));
+}
+.fc-card__title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+/* Texto secundario sobre color: misma tinta (no opacidad: bajaría el contraste). */
+.fc-card__meta {
+  font-size: var(--fs-sm, 14px);
+  font-weight: 600;
+  color: var(--vivid-ink, var(--text));
+}
+.fc-card .progress,
+.fc-hero .progress {
+  height: 12px;
+  background: color-mix(in srgb, var(--vivid-ink, var(--text)) 25%, transparent);
+}
+.fc-card .progress__bar,
+.fc-hero .progress__bar {
+  background: var(--vivid-ink, var(--text));
+}
+/* Tarjeta full color SIN área (neutra, p. ej. colecciones de Aprender): la
+   tinta sería --text (barra negra). Ahí el avance es estado cumplido: barra
+   --state-ok sobre pista --surface-2, como la .progress fuera de color. */
+.fc-card--neutral .progress {
+  background: var(--surface-2);
+}
+.fc-card--neutral .progress__bar {
+  background: var(--state-ok);
+}
+.fc-card .tag,
+.fc-card .chip-state,
+.fc-hero .tag,
+.fc-hero .chip-state {
+  background: color-mix(in srgb, var(--vivid-ink, var(--text)) 18%, transparent);
+  color: var(--vivid-ink, var(--text));
+}
+/* El estado conserva su verde/ámbar también sobre una superficie de color, y
+   un aro de tinta lo separa cuando el área es del mismo tono (verde sobre
+   Salud, ámbar sobre Finanzas). */
+.fc-card .chip-state--ok,
+.fc-hero .chip-state--ok {
+  background: var(--state-ok);
+  color: var(--state-ok-ink);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--vivid-ink, var(--text)) 30%, transparent);
+}
+.fc-card .chip-state--late,
+.fc-hero .chip-state--late {
+  background: var(--state-late);
+  color: var(--state-late-ink);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--vivid-ink, var(--text)) 30%, transparent);
+}
+/* Foco DENTRO de una superficie de color: el azul se perdería, va en su tinta. */
+.fc-card :focus-visible,
+.fc-hero :focus-visible {
+  outline-color: var(--vivid-ink, var(--focus-ring));
+}
+/* La tarjeta misma: el anillo cae sobre el fondo de la página, no sobre el
+   color; va en texto (máximo contraste en ambos temas) y más grueso. */
+.fc-card:focus-visible {
+  outline: 3px solid var(--text);
+  outline-offset: 3px;
+}
+
+/* ---- Cabecera full color (detalle de meta, hábito, etc.) ------------------- */
+.fc-hero {
+  position: relative;
+  color: var(--vivid-ink, var(--text));
+  background:
+    var(--pat, none) right 20px bottom 18px / auto 64px no-repeat,
+    var(--vivid, var(--surface));
+  border-radius: 0 0 28px 28px;
+}
+
+/* ---- Estados: verde = cumplido/al día · ámbar = atrasado ------------------ */
+.chip-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs, 12px);
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.chip-state--ok {
+  background: var(--state-ok);
+  color: var(--state-ok-ink);
+}
+.chip-state--late {
+  background: var(--state-late);
+  color: var(--state-late-ink);
+}
+
+/* ---- Momentos de logro ---------------------------------------------------- */
+/* Destello al cumplir una etapa: <span class="fc-spark" /> sobre el segmento. */
+.fc-spark {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 3px solid var(--vivid, var(--action));
+  pointer-events: none;
+  animation: fc-burst 600ms var(--ease-out) both;
+}
+@keyframes fc-burst {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+/* Segmento que se acaba de cumplir: se llena de izquierda a derecha. */
+.fc-seg-fill {
+  transform-origin: left center;
+  animation: fc-seg 520ms var(--ease-ios) both;
+}
+@keyframes fc-seg {
+  from {
+    transform: scaleX(0);
+  }
+}
+/* La racha sube: la llama late y el número entra desde abajo (clase .fc-bump
+   puesta solo cuando el valor cambia). */
+.fc-bump svg {
+  animation: fc-flame 560ms var(--ease-spring);
+}
+.fc-bump .fc-bump__n {
+  display: inline-block;
+  animation: fc-count 320ms var(--ease-ios);
+}
+@keyframes fc-flame {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.28) rotate(-6deg);
+  }
+  70% {
+    transform: scale(0.96);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes fc-count {
+  from {
+    transform: translateY(60%);
+    opacity: 0;
+  }
+}
+
+/* ---- Racha (definición única): chip neutro; solo la llama va en --streak -- */
+.streak-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.streak-chip svg {
+  flex: none;
+  color: var(--streak);
+}

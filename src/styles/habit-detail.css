@@ -20,6 +20,28 @@
   padding-top: calc(var(--safe-top) + 14px);
 }
 
+/* ---- Cabecera full color ------------------------------------------------
+   Navegación + héroe sobre el color de identidad del hábito (el papel que el
+   color de área cumple en una meta). Usa .fc-hero (fullcolor.css) alimentado
+   con --hab-a/--hab-ink. En móvil sangra hasta los bordes y el área segura;
+   desde 600px, donde la pantalla ya es una columna centrada, es una tarjeta. */
+.hdet-top {
+  --vivid: var(--hab-a);
+  --vivid-ink: var(--hab-ink);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: calc(-1 * (var(--safe-top) + 14px)) -20px 4px;
+  padding: calc(var(--safe-top) + 14px) 20px 24px;
+}
+@media (min-width: 600px) {
+  .hdet-top {
+    margin: 0 0 4px;
+    padding: 16px 24px 24px;
+    border-radius: 28px;
+  }
+}
+
 /* ---- Cabecera "‹ Hábitos / Editar" -------------------------------------- */
 .hdet-nav {
   display: flex;
@@ -28,23 +50,16 @@
   gap: 12px;
   min-height: 32px;
 }
-.hdet-nav__back {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  /* El chevron pega al borde del texto: el tirón óptico lo compensa el gap. */
-  margin-left: -2px;
-  font-size: 17px;
-  color: var(--primary);
-  text-decoration: none;
-}
 .hdet-nav__edit {
-  background: none;
+  min-height: 36px;
+  padding: 0 16px;
   border: 0;
-  padding: 0;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--vivid-ink, var(--text)) 12%, transparent);
   font-family: inherit;
-  font-size: 17px;
-  color: var(--primary);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--vivid-ink, var(--primary));
   cursor: pointer;
 }
 
@@ -55,6 +70,12 @@
   gap: 14px;
   padding: 2px 0 2px;
 }
+/* El azulejo descansa en una placa clara translúcida: sobre su propio color
+   el degradado se perdería. */
+.hdet-top .hab-icon {
+  background: color-mix(in srgb, var(--ink-light) 42%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ink-light) 55%, transparent);
+}
 .hdet-hero__text {
   min-width: 0;
   display: flex;
@@ -64,15 +85,17 @@
 .hdet-hero__title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.1;
 }
+/* Texto secundario sobre color: la misma tinta (opacidad bajaría el contraste). */
 .hdet-hero__sub {
   margin: 0;
   font-size: 14px;
-  color: var(--text-muted);
+  font-weight: 600;
+  color: var(--vivid-ink, var(--text-muted));
 }
 
 /* Chips de estado ("Pausado hasta 30 sept", "Archivado"). */
@@ -87,10 +110,10 @@
   align-items: center;
   padding: 3px 9px;
   border-radius: var(--radius-pill);
-  background: var(--surface-2);
+  background: color-mix(in srgb, var(--vivid-ink, var(--text)) 14%, transparent);
   font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted);
+  font-weight: 700;
+  color: var(--vivid-ink, var(--text-muted));
 }
 
 /* ---- Tres tarjetas de estadística --------------------------------------- */
@@ -109,28 +132,31 @@
   background: var(--surface);
 }
 .hdet-stat__label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   color: var(--text-muted);
 }
+/* La llama es lo único en --streak; el número sigue en --text como los demás. */
+.hdet-stat__flame {
+  flex: none;
+  color: var(--streak);
+}
 .hdet-stat__value {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 5px;
   font-family: var(--font-display);
   font-size: 22px;
   font-weight: 800;
   line-height: 1.1;
 }
-/* La racha se tiñe del color del hábito (llama incluida: hereda currentColor). */
-.hdet-stat__value--accent {
-  color: var(--hab-a, var(--primary));
-}
 .hdet-stat__unit {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-muted);
 }
-
 /* ---- Tarjeta del mes ----------------------------------------------------- */
 .hdet-month {
   display: flex;
@@ -200,29 +226,78 @@
   gap: 5px;
 }
 
-/* Celda de un día. El estado lo pinta data-state; el hueco previo al día 1 se
-   queda vacío (ocupa sitio para que la semana empiece en lunes). */
+/* Celda de un día: número del día + estado con FORMA además de color
+   (hecho = relleno, a medias = franja abajo que no pisa el número, saltado = rayado, no tocaba =
+   sin fondo, hoy = anillo). El hueco previo al día 1 queda vacío. */
 .hdet-cell {
-  height: 26px;
-  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  border-radius: 7px;
   background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 .hdet-cell[data-state='done'] {
-  background: var(--hab-a, var(--primary));
+  background: var(--hab-a, var(--action));
+  color: var(--habit-ink);
+  font-weight: 800;
 }
 .hdet-cell[data-state='partial'] {
-  background: color-mix(in srgb, var(--hab-a, var(--primary)) 40%, transparent);
+  background: linear-gradient(
+    to top,
+    var(--hab-a, var(--action)) 30%,
+    var(--surface-2) 30%
+  );
+  color: var(--text);
 }
 .hdet-cell[data-state='skipped'] {
-  background: none;
-  border: 1.5px dashed var(--surface-3);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--surface-2) 0 4px,
+    transparent 4px 8px
+  );
+  color: var(--text-muted);
+  text-decoration: line-through;
 }
+.hdet-cell[data-state='free'],
 .hdet-cell[data-state='future'] {
   background: none;
-  border: 1.5px solid var(--surface-2);
+  color: var(--text-faint);
+}
+.hdet-cell[data-state='future'] {
+  box-shadow: inset 0 0 0 1.5px var(--surface-2);
 }
 .hdet-cell[data-state='blank'] {
   background: none;
+}
+/* Hoy: anillo en tinta (no en azul: el azul es "actuar"). */
+.hdet-cell.is-today {
+  box-shadow: inset 0 0 0 2px var(--text);
+}
+
+.hdet-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.hdet-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.hdet-legend__swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
 }
 
 /* ---- Tarjeta de acciones ------------------------------------------------- */

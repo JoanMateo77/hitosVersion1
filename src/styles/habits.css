@@ -5,49 +5,61 @@
    Todo sale de tokens (tokens.css): aquí no hay colores sueltos. */
 
 /* ---- Acento por color de identidad -------------------------------------
-   La regla es por atributo, así que vale igual en el azulejo (.hab-icon), en
-   un contenedor neutro (.hab-color) y en una fila entera (.hab-row): quien
-   lleve data-color hereda --hab-a (sólido) y el par del degradado, y con eso
-   se tiñen anillos, barras, números y sombras sin JS. */
-[data-color='cyan'] {
+   La regla es por atributo pero acotada a las piezas de hábitos (azulejo,
+   fila, detalle, hoja, vista previa y muestra de color): un data-color de
+   otra pantalla no hereda nada. Quien lo lleve hereda --hab-a (sólido) y el
+   par del degradado, y con eso se tiñen anillos, barras, números y sombras
+   sin JS. :where() no suma especificidad: pesa lo mismo que [data-color]. */
+:where(.hab-icon, .hab-row, .hdet, .hsheet-frame, .hsheet-preview, .hsheet-dot)[data-color='cyan'] {
   --hab-a: var(--habit-cyan);
   --hab-g1: var(--habit-cyan-g1);
   --hab-g2: var(--habit-cyan-g2);
 }
-[data-color='green'] {
+:where(.hab-icon, .hab-row, .hdet, .hsheet-frame, .hsheet-preview, .hsheet-dot)[data-color='green'] {
   --hab-a: var(--habit-green);
   --hab-g1: var(--habit-green-g1);
   --hab-g2: var(--habit-green-g2);
 }
-[data-color='blue'] {
+:where(.hab-icon, .hab-row, .hdet, .hsheet-frame, .hsheet-preview, .hsheet-dot)[data-color='blue'] {
   --hab-a: var(--habit-blue);
   --hab-g1: var(--habit-blue-g1);
   --hab-g2: var(--habit-blue-g2);
 }
-[data-color='purple'] {
+:where(.hab-icon, .hab-row, .hdet, .hsheet-frame, .hsheet-preview, .hsheet-dot)[data-color='purple'] {
   --hab-a: var(--habit-purple);
   --hab-g1: var(--habit-purple-g1);
   --hab-g2: var(--habit-purple-g2);
 }
-[data-color='orange'] {
+:where(.hab-icon, .hab-row, .hdet, .hsheet-frame, .hsheet-preview, .hsheet-dot)[data-color='orange'] {
   --hab-a: var(--habit-orange);
   --hab-g1: var(--habit-orange-g1);
   --hab-g2: var(--habit-orange-g2);
 }
-[data-color='yellow'] {
+:where(.hab-icon, .hab-row, .hdet, .hsheet-frame, .hsheet-preview, .hsheet-dot)[data-color='yellow'] {
   --hab-a: var(--habit-yellow);
   --hab-g1: var(--habit-yellow-g1);
   --hab-g2: var(--habit-yellow-g2);
 }
-[data-color='pink'] {
+:where(.hab-icon, .hab-row, .hdet, .hsheet-frame, .hsheet-preview, .hsheet-dot)[data-color='pink'] {
   --hab-a: var(--habit-pink);
   --hab-g1: var(--habit-pink-g1);
   --hab-g2: var(--habit-pink-g2);
 }
-[data-color='gray'] {
+:where(.hab-icon, .hab-row, .hdet, .hsheet-frame, .hsheet-preview, .hsheet-dot)[data-color='gray'] {
   --hab-a: var(--habit-gray);
   --hab-g1: var(--habit-gray-g1);
   --hab-g2: var(--habit-gray-g2);
+}
+
+/* Full color (spec 2026-11-02-full-color-design.md): el color de identidad del
+   hábito juega el papel del color de área de una meta. Sobre su sólido el
+   texto va en tinta oscura: los 8 sólidos --habit-* dan ≥ 5.3:1 con --ink-dark
+   y < 3.3:1 con blanco (verificado con la fórmula de check-contrast.mjs).
+   --hab-lip es el borde inferior del relieve: el mismo tono hundido. */
+:where(.hab-icon, .hab-row, .hdet, .hsheet-frame, .hsheet-preview, .hsheet-dot)[data-color],
+:where(.hab-icon) {
+  --hab-ink: var(--habit-ink);
+  --hab-lip: color-mix(in srgb, var(--hab-a) 62%, #000);
 }
 
 /* ---- Solo lectores de pantalla -------------------------------------------
@@ -115,14 +127,11 @@
 
 /* ---- Primitivos compartidos --------------------------------------------- */
 
-/* Rótulo de sección: "POR HACER · 4", "SUGERENCIAS", el área en Todos. */
-.hab-kicker {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  padding: 0 4px;
+/* Rótulo de sección ("Por hacer · 4", "Sugerencias", el área en Todos): la
+   .section-title canónica, alineada con el texto de las tarjetas. */
+.hab-section > .section-title,
+.hsheet-group > .section-title {
+  padding-inline: 4px;
 }
 
 /* Tarjeta que agrupa filas (la lista de Hoy, un área en Todos, archivados). */
@@ -274,67 +283,46 @@
   font-size: 15px;
   color: var(--text-muted);
 }
-/* La fracción de hechos es lo único verde de la cabecera. */
+/* La fracción de hechos: texto neutro (el verde es solo estado cumplido). En
+   0 va apagada; en cuanto hay algo hecho sube a texto pleno. */
 .hab-head__count {
-  color: var(--success);
+  color: var(--text-muted);
   font-weight: 700;
 }
-.hab-head__add {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border: 0;
-  border-radius: 50%;
-  background: var(--primary);
-  color: var(--on-primary);
+.hab-head__count.is-started {
+  color: var(--text);
 }
-
-/* ---- Control segmentado (Hoy · Todos · Archivados) ----------------------- */
-.hab-seg {
+/* ---- Control segmentado (Hoy · Todos · Archivados) -----------------------
+   Es la .seg canónica a todo el ancho; el <fieldset> pierde su marco propio. */
+.hab-tabs {
   display: flex;
-  padding: 3px;
-  border-radius: 12px;
-  background: var(--surface);
-  /* Es un <fieldset> (agrupa botones-control): sin el marco/margen que trae
-     el navegador por defecto, para que se vea igual que el <div> anterior. */
-  border: 0;
+  width: 100%;
   margin: 0;
-  min-width: 0;
 }
-.hab-seg__opt {
-  flex: 1;
-  padding: 7px 0;
-  border: 0;
-  border-radius: 9px;
-  background: none;
-  color: var(--text-muted);
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  text-align: center;
-}
-.hab-seg__opt.is-on {
-  background: var(--primary);
-  color: var(--on-primary);
-  font-weight: 600;
+.hab-tabs .seg__btn {
+  flex: 1 1 0;
 }
 
 /* ---- Aviso de primera vez ("desliza una fila…") -------------------------- */
+/* Pista de deslizar: solo con puntero táctil (en escritorio no hay gesto). */
 .hab-hint {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
   border-radius: 14px;
-  background: var(--primary-soft);
-  color: var(--primary-strong);
+  background: var(--surface);
+  color: var(--text);
+}
+@media (hover: none) and (pointer: coarse) {
+  .hab-hint {
+    display: flex;
+  }
 }
 .hab-hint__icon {
   flex: none;
   display: inline-flex;
+  color: var(--text-muted);
 }
 .hab-hint__text {
   flex: 1;
@@ -357,7 +345,7 @@
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 6px;
-  padding: 0 4px;
+  padding-inline: 4px;
 }
 .hab-week__day {
   display: flex;
@@ -370,7 +358,8 @@
   color: var(--text-faint);
 }
 .hab-week__label.is-today {
-  color: var(--text-muted);
+  color: var(--text);
+  font-weight: 800;
 }
 /* Anillo lleno: el sector verde es el avance del día y el disco interior lo
    vacía por dentro. El porcentaje llega en --hab-ratio (única var dinámica). */
@@ -378,25 +367,26 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
+  /* Verde = cumplido: el avance del día es un estado, no una identidad. */
   background: conic-gradient(
-    var(--success-fill) 0 var(--hab-ratio, 0%),
+    var(--state-ok) 0 var(--hab-ratio, 0%),
     var(--surface-2) var(--hab-ratio, 0%) 100%
   );
 }
 .hab-ring::after {
   content: '';
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--bg);
 }
 /* Días que aún no llegan: solo el aro apagado. */
 .hab-ring--future {
   background: none;
-  border: 2px solid var(--surface-2);
+  border: 3px solid var(--surface-2);
 }
 .hab-ring--future::after {
   display: none;
@@ -480,29 +470,26 @@
   color: var(--text-faint);
 }
 
-/* ---- Barra segmentada de las filas de varias veces ----------------------- */
+/* ---- Barra segmentada de las filas de varias veces -----------------------
+   La .segbar canónica (coach.css) en el color de identidad del hábito, que
+   aquí juega el papel del color de área; más fina para caber en la fila. */
 .hab-progress {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.hab-progress__bar {
+.hab-progress .segbar {
+  --vivid: var(--hab-a);
   flex: 1;
-  display: flex;
   gap: 3px;
 }
-.hab-progress__seg {
-  flex: 1;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--surface-2);
-}
-.hab-progress__seg.is-on {
-  background: var(--hab-a, var(--primary));
+.hab-progress .segbar span {
+  height: 8px;
+  border-radius: 4px;
 }
 /* Último tramo del día cumplido: un brillo corto del propio color. */
-.hab-progress__seg.is-last {
-  box-shadow: 0 0 10px var(--hab-a, var(--primary));
+.hab-progress .segbar span.is-last {
+  box-shadow: 0 0 10px var(--hab-a);
 }
 .hab-progress__label {
   flex: none;
@@ -510,56 +497,87 @@
   color: var(--text-muted);
 }
 .hab-progress__label.is-complete {
-  color: var(--hab-a, var(--primary));
-  font-weight: 600;
+  /* El color de identidad como texto sobre blanco no llega a 4.5:1: tinta. */
+  color: var(--text);
+  font-weight: 700;
 }
 
 /* ---- Control de la derecha (marcar / desmarcar) -------------------------- */
+/* El botón diario es lo que más se toca de la app: grueso, con relieve del
+   color del hábito y hundimiento al presionar. Pendiente = teñido de su color
+   con borde; hecho = verde de estado con ✓ (verde = cumplido, nunca identidad). */
 .hab-control {
+  position: relative;
   flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
+  margin-bottom: var(--lip);
   padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: none;
-  color: inherit;
+  border: 2.5px solid var(--hab-a, var(--action));
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--hab-a, var(--action)) 16%, var(--surface));
+  color: var(--text);
+  box-shadow: 0 var(--lip) 0 var(--hab-lip, var(--action-lip));
+  transition:
+    transform var(--dur-tap) var(--ease-out),
+    box-shadow var(--dur-tap) var(--ease-out),
+    background-color var(--dur-state) var(--ease-out),
+    border-color var(--dur-state) var(--ease-out);
 }
-/* Pendiente de una vez: solo el aro del color del hábito. */
+.hab-control:active {
+  transform: translateY(var(--lip));
+  box-shadow: 0 0 0 transparent;
+}
+/* Pendiente de una vez: solo el azulejo teñido (sin glifo). */
 .hab-control--ring {
-  border: 2px solid var(--hab-a, var(--primary));
-  opacity: 0.7;
+  color: var(--text);
 }
-/* Pendiente de varias veces: "+" teñido sobre su color al 18 %. */
+/* Pendiente de varias veces: "+" en tinta sobre el teñido. */
 .hab-control--add {
-  background: color-mix(in srgb, var(--hab-a, var(--primary)) 18%, transparent);
-  color: var(--hab-a, var(--primary));
+  color: var(--text);
 }
 .hab-control--done {
-  background: var(--success-fill);
-  color: var(--success-ink);
+  border-color: var(--state-ok);
+  background: var(--state-ok);
+  color: var(--state-ok-ink);
+  box-shadow: 0 var(--lip) 0 var(--state-ok-lip);
 }
-/* Halo de "día cumplido": ~1,2 s y se va sola. */
+/* Festejo al cumplir el día del hábito (una vez, ~1,2 s): el botón da un
+   salto y suelta un aro verde. reduced-motion lo apaga (regla de base.css). */
 .hab-control.is-celebrating {
-  animation: hab-halo 1.2s var(--ease-out, ease-out) both;
+  animation: hab-pop 460ms var(--ease-spring) both;
 }
-@keyframes hab-halo {
+.hab-control.is-celebrating::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 3px solid var(--state-ok);
+  border-radius: 18px;
+  pointer-events: none;
+  animation: hab-burst 700ms var(--ease-out) both;
+}
+@keyframes hab-pop {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success-fill) 25%, transparent);
-    transform: scale(1);
+    transform: translateY(var(--lip)) scale(0.92);
   }
-  35% {
-    box-shadow:
-      0 0 0 6px color-mix(in srgb, var(--success-fill) 25%, transparent),
-      0 0 24px color-mix(in srgb, var(--success-fill) 50%, transparent);
-    transform: scale(1.08);
+  55% {
+    transform: translateY(-2px) scale(1.12);
   }
   100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success-fill) 0%, transparent);
-    transform: scale(1);
+    transform: none;
+  }
+}
+@keyframes hab-burst {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.4);
   }
 }
 
@@ -600,8 +618,8 @@
   align-items: center;
   gap: 8px;
   padding-left: 22px;
-  background: var(--success-fill);
-  color: var(--success-ink);
+  background: var(--state-ok);
+  color: var(--state-ok-ink);
   font-size: 14px;
   font-weight: 700;
 }
@@ -629,7 +647,7 @@
 }
 .hab-swipe__action--danger {
   background: var(--danger);
-  color: var(--on-primary);
+  color: var(--on-danger);
 }
 /* La fila en sí: se mueve con --hab-dx y descansa sobre el fondo de tarjeta. */
 .hab-swipe__front {
@@ -637,6 +655,14 @@
   background: var(--surface);
   touch-action: pan-y;
   transform: translateX(var(--hab-dx, 0px));
+}
+/* En reposo las capas de debajo se ocultan: si no, el rojo/verde asoma por el
+   antialias de las esquinas redondeadas. Se ocultan con retraso igual al
+   asentamiento (la fila vuelve tapándolas) y reaparecen al instante al arrastrar. */
+.hab-swipe.is-resting > .hab-swipe__done,
+.hab-swipe.is-resting > .hab-swipe__actions {
+  visibility: hidden;
+  transition: visibility 0s linear var(--dur-state, 180ms);
 }
 .hab-swipe__front.is-settling {
   transition: transform var(--dur-state, 180ms) var(--ease-out, ease-out);
@@ -699,7 +725,7 @@
 }
 /* Nota al pie de Archivados. */
 .hab-note {
-  padding: 0 4px;
+  padding-inline: 4px;
   font-size: 13px;
   line-height: 1.4;
   color: var(--text-muted);
@@ -798,8 +824,8 @@
   width: 52px;
   height: 52px;
   border-radius: 14px;
-  background: var(--success-fill);
-  color: var(--success-ink);
+  background: var(--state-ok);
+  color: var(--state-ok-ink);
 }
 .hab-toast__text {
   flex: 1;

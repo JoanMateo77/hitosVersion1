@@ -86,44 +86,141 @@
      reconoce por su tono, y el verde deja de hacer TODOS los trabajos. salud usa
      el verde de marca (se adapta al tema); el resto son tonos medios que se leen
      bien en claro y oscuro. Se aplican vía --niche (helper nicheAccent). */
-  --niche-salud: #16a777;
-  --niche-finanzas: #e0992f;
-  --niche-carrera: #4a8ee6;
-  --niche-aprendizaje: #7b6cf0;
-  --niche-relaciones: #ec5f8f;
-  --niche-creatividad: #c75ad6;
-  --niche-bienestar: #19b3c4;
+  --niche-salud: #86c232;
+  --niche-finanzas: #f2b81f;
+  --niche-carrera: #147f77;
+  --niche-aprendizaje: #9645e8;
+  --niche-relaciones: #db1f55;
+  --niche-creatividad: #c8259f;
+  --niche-bienestar: #26a8e6;
   --niche-otra: #98a0ab;
 
   /* Color de IDENTIDAD de un hábito: el azulejo (emoji sobre degradado 145°)
      con el que se reconoce cada hábito de un vistazo. Es el mismo en claro y
      oscuro a propósito: la identidad no cambia con el tema. `--habit-<clave>`
      es el sólido (anillos, barras, números) y `-g1`/`-g2` el degradado.
-     Se aplican con [data-color] (ver habits.css), que además setea --hab-a. */
+     Se aplican con [data-color] (ver habits.css), que además setea --hab-a.
+     Los tonos quedan a ≥ 25° OKLCH de --action y de los estados (lo comprueba
+     scripts/check-contrast.mjs): "blue" es celeste, "green" verde hoja,
+     "orange" coral. Las claves guardadas en BD no cambian. */
   --habit-cyan: #40c8dc;
   --habit-cyan-g1: #4fd6ea;
   --habit-cyan-g2: #22a9c2;
-  --habit-green: #34c77b;
-  --habit-green-g1: #8ad49a;
-  --habit-green-g2: #4fb56a;
-  --habit-blue: #7d8cff;
-  --habit-blue-g1: #93a0ff;
-  --habit-blue-g2: #5b6cff;
-  --habit-purple: #b98cff;
-  --habit-purple-g1: #c9a4ff;
-  --habit-purple-g2: #9b6dff;
-  --habit-orange: #ff8a5e;
-  --habit-orange-g1: #ff9d78;
-  --habit-orange-g2: #ff6a3d;
+  --habit-green: #86bf3c;
+  --habit-green-g1: #9ace5e;
+  --habit-green-g2: #74ac23;
+  --habit-blue: #37a8ec;
+  --habit-blue-g1: #59b8f5;
+  --habit-blue-g2: #1a95d8;
+  --habit-purple: #bf8bf7;
+  --habit-purple-g1: #cc9fff;
+  --habit-purple-g2: #ac78e3;
+  --habit-orange: #f97770;
+  --habit-orange-g1: #fe9088;
+  --habit-orange-g2: #e3645e;
   --habit-yellow: #f5b731;
   --habit-yellow-g1: #ffc94d;
   --habit-yellow-g2: #f0a11c;
-  --habit-pink: #ff6b8a;
-  --habit-pink-g1: #ff8fa8;
-  --habit-pink-g2: #ff5c7f;
+  --habit-pink: #f272b0;
+  --habit-pink-g1: #fd88be;
+  --habit-pink-g2: #dd5f9d;
   --habit-gray: #8e8e93;
   --habit-gray-g1: #a1a1a6;
   --habit-gray-g2: #6e6e73;
+
+  /* ===== Full color (spec 2026-11-02-full-color-design.md) =====================
+     Superficies pintadas con el color del área. Los tonos base se eligieron para
+     que su tinta (blanca u oscura) pase 4.5:1 YA mezclados a --intensity; lo
+     verifica `npm run check:contrast`. Iguales en claro y oscuro: la identidad
+     de un área no cambia con el tema. Se aplican vía nicheAccent (--vivid,
+     --vivid-ink, --vivid-lip, --pat). */
+  /* 92 %: el color se mezcla 8 % con gris neutro — baja la saturación sin
+     oscurecer. Único punto para subir o bajar lo vivo de toda la app. */
+  --intensity: 92%;
+  /* Relieve de lo que se toca: borde inferior que se hunde al presionar. */
+  --lip: 4px;
+
+  /* Azul de acción sólido para FONDOS de botón (blanco encima: 4.93:1). Como
+     texto se usa --action-text, que cambia por tema. */
+  --action: #4d5ef7;
+  --action-lip: color-mix(in srgb, var(--action) 68%, #000);
+  --action-ink: #ffffff;
+  /* Relieve de tarjetas neutras (sin color de área). */
+  --neutral-lip: var(--surface-3);
+  /* Racha: solo el ícono de la llama. Ningún tono queda a ≥ 25° OKLCH a la vez
+     del naranja de "atrasado" (53°), de --danger (18° claro / 10° oscuro) y de
+     las áreas (relaciones 13°, finanzas 85°, salud 130°, creatividad 341°…):
+     los huecos libres miden < 50°. El rojo anterior (#ff5a1f, 38°) quedaba a
+     15° de "atrasado". Por eso la llama va en --text: se distingue por su forma
+     y nunca se confunde con un estado. Se resuelve en <html>, donde vive el tema. */
+  --streak: var(--text);
+
+  --ink-dark: #1a1a1c;
+  --ink-light: #ffffff;
+
+  --vivid-base-salud: #86c232;
+  --vivid-base-finanzas: #f2b81f;
+  --vivid-base-bienestar: #26a8e6;
+  --vivid-base-carrera: #147f77;
+  --vivid-base-aprendizaje: #9645e8;
+  --vivid-base-relaciones: #db1f55;
+  --vivid-base-creatividad: #c8259f;
+  --vivid-base-otra: #6b7385;
+
+  --vivid-salud: color-mix(in oklch, var(--vivid-base-salud) var(--intensity), #8c8c8c);
+  --vivid-finanzas: color-mix(in oklch, var(--vivid-base-finanzas) var(--intensity), #8c8c8c);
+  --vivid-bienestar: color-mix(in oklch, var(--vivid-base-bienestar) var(--intensity), #8c8c8c);
+  --vivid-carrera: color-mix(in oklch, var(--vivid-base-carrera) var(--intensity), #8c8c8c);
+  --vivid-aprendizaje: color-mix(in oklch, var(--vivid-base-aprendizaje) var(--intensity), #8c8c8c);
+  --vivid-relaciones: color-mix(in oklch, var(--vivid-base-relaciones) var(--intensity), #8c8c8c);
+  --vivid-creatividad: color-mix(in oklch, var(--vivid-base-creatividad) var(--intensity), #8c8c8c);
+  --vivid-otra: color-mix(in oklch, var(--vivid-base-otra) var(--intensity), #8c8c8c);
+
+
+  /* Relieve por área: el mismo tono hundido (68 % con negro). */
+  --vivid-lip-salud: color-mix(in srgb, var(--vivid-salud) 68%, #000);
+  --vivid-lip-finanzas: color-mix(in srgb, var(--vivid-finanzas) 68%, #000);
+  --vivid-lip-bienestar: color-mix(in srgb, var(--vivid-bienestar) 68%, #000);
+  --vivid-lip-carrera: color-mix(in srgb, var(--vivid-carrera) 68%, #000);
+  --vivid-lip-aprendizaje: color-mix(in srgb, var(--vivid-aprendizaje) 68%, #000);
+  --vivid-lip-relaciones: color-mix(in srgb, var(--vivid-relaciones) 68%, #000);
+  --vivid-lip-creatividad: color-mix(in srgb, var(--vivid-creatividad) 68%, #000);
+  --vivid-lip-otra: color-mix(in srgb, var(--vivid-otra) 68%, #000);
+
+  /* Tinta por área: oscura en los tonos claros, blanca en los profundos. */
+  --vivid-ink-salud: var(--ink-dark);
+  --vivid-ink-finanzas: var(--ink-dark);
+  --vivid-ink-bienestar: var(--ink-dark);
+  --vivid-ink-carrera: var(--ink-light);
+  --vivid-ink-aprendizaje: var(--ink-light);
+  --vivid-ink-relaciones: var(--ink-light);
+  --vivid-ink-creatividad: var(--ink-light);
+  --vivid-ink-otra: var(--ink-light);
+
+  /* Estados en full color: verde = cumplido/al día, naranja = atrasado. */
+  /* Estados con tono propio (ningún área los usa): verde esmeralda y naranja. */
+  --state-base-ok: #22b573;
+  --state-base-late: #f57c0a;
+  --state-ok: color-mix(in oklch, var(--state-base-ok) var(--intensity), #8c8c8c);
+  --state-ok-ink: var(--ink-dark);
+  --state-late: color-mix(in oklch, var(--state-base-late) var(--intensity), #8c8c8c);
+  --state-late-ink: var(--ink-dark);
+  /* Relieve de lo que se toca y está pintado de estado (día cumplido, hábito hecho). */
+  --state-ok-lip: color-mix(in srgb, var(--state-ok) 68%, #000);
+  --state-late-lip: color-mix(in srgb, var(--state-late) 68%, #000);
+
+  /* Patrón propio por área (trazo blanco translúcido, decorativo). */
+  --pat-salud: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60'%3E%3Cpath d='M0 34h40l8-16 10 32 10-40 10 30 6-6h76' fill='none' stroke='white' stroke-opacity='.55' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --pat-finanzas: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60' fill='none' stroke='white' stroke-opacity='.6' stroke-width='2.5'%3E%3Cellipse cx='110' cy='46' rx='22' ry='7'/%3E%3Cellipse cx='110' cy='36' rx='22' ry='7'/%3E%3Cellipse cx='110' cy='26' rx='22' ry='7'/%3E%3Cellipse cx='146' cy='40' rx='16' ry='5'/%3E%3Cellipse cx='146' cy='32' rx='16' ry='5'/%3E%3C/svg%3E");
+  --pat-aprendizaje: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60' fill='white' fill-opacity='.45'%3E%3Ccircle cx='80' cy='12' r='3'/%3E%3Ccircle cx='96' cy='12' r='3'/%3E%3Ccircle cx='112' cy='12' r='3'/%3E%3Ccircle cx='128' cy='12' r='3'/%3E%3Ccircle cx='144' cy='12' r='3'/%3E%3Ccircle cx='96' cy='28' r='3'/%3E%3Ccircle cx='112' cy='28' r='3'/%3E%3Ccircle cx='128' cy='28' r='3'/%3E%3Ccircle cx='144' cy='28' r='3'/%3E%3Ccircle cx='112' cy='44' r='3'/%3E%3Ccircle cx='128' cy='44' r='3'/%3E%3Ccircle cx='144' cy='44' r='3'/%3E%3C/svg%3E");
+  --pat-relaciones: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60' fill='none' stroke='white' stroke-opacity='.5' stroke-width='2.5'%3E%3Ccircle cx='104' cy='30' r='20'/%3E%3Ccircle cx='132' cy='30' r='20'/%3E%3C/svg%3E");
+  --pat-creatividad: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60' fill='none' stroke='white' stroke-opacity='.55' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M86 44l10-14M104 18l14 6M124 44l8-18M140 14l10 10M100 50l16-2M146 46l6-10'/%3E%3C/svg%3E");
+  --pat-bienestar: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60' fill='none' stroke='white' stroke-opacity='.55' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M70 22q10-8 20 0t20 0 20 0 20 0M70 36q10-8 20 0t20 0 20 0 20 0M70 50q10-8 20 0t20 0 20 0 20 0'/%3E%3C/svg%3E");
+  --pat-carrera: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60' fill='none' stroke='white' stroke-opacity='.5' stroke-width='2.5' stroke-linejoin='round'%3E%3Cpath d='M84 54h18V42h18V30h18V18h18'/%3E%3C/svg%3E");
+  --pat-otra: none;
+
+  /* Tinta sobre el color de identidad de un hábito (los 8 son claros: oscura). */
+  --habit-ink: var(--ink-dark);
 }
 
 /* ===== Variante CLARA (default) ==========================================
@@ -142,8 +239,12 @@
   --border-soft: #e5e5ea;
 
   --text: #1c1c1e;
-  --text-muted: #6e6e73;
-  --text-faint: #aeaeb2;
+  --text-muted: #5e5e63;
+  /* Legible (≥ 4.5:1 sobre --bg): ya no se usa para texto decorativo ilegible. */
+  --text-faint: #6c6c71;
+  /* Texto y anillo de foco de acción (enlaces, "Ver todos"): ≥ 4.5:1 en este tema. */
+  --action-text: #3d4ee0;
+  --focus-ring: #3d4ee0;
 
   /* ACCIÓN: azul índigo (CTA, racha, foco). */
   --primary: #5b6cff;
@@ -166,6 +267,12 @@
      temas, porque --success-fill es el mismo color en ambos. */
   --success-ink: #000000;
   --danger: #d63b4f;
+  /* Texto sobre fondo --danger (botón de swipe, confirmaciones). */
+  --on-danger: #ffffff;
+  /* Texto rojo sobre --bg/--surface (--danger da 4.09 sobre --bg): 5.52 / 6.16. */
+  --danger-text: #b8283c;
+  /* Borde de campos: --border no llega a 3:1 contra el fondo. 3.73 / 4.16. */
+  --input-border: #7c7c80;
   --danger-soft: rgba(214, 59, 79, 0.1);
   --warning: #b8730f;
   --warning-soft: rgba(184, 115, 15, 0.1);
@@ -175,7 +282,6 @@
   --shadow-sm: none;
   --shadow: none;
   --shadow-primary: 0 8px 24px rgba(106, 123, 255, 0.35);
-  --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(91, 108, 255, 0.1), transparent 60%);
 }
 
 /* ===== Variante OSCURA (negro puro) =======================================
@@ -194,8 +300,10 @@
   --border-soft: #2c2c2e;
 
   --text: #ffffff;
-  --text-muted: #8e8e93;
-  --text-faint: #5a5a5f;
+  --text-muted: #a1a1a6;
+  --text-faint: #86868b;
+  --action-text: #8c99ff;
+  --focus-ring: #8c99ff;
 
   --primary: #7d8cff;
   --primary-strong: #aeb7ff;
@@ -211,6 +319,9 @@
   --success-soft: rgba(52, 199, 123, 0.16);
   --success-ink: #000000;
   --danger: #f4708a;
+  --on-danger: #1c1c1e;
+  --danger-text: var(--danger);
+  --input-border: #76767b;
   --danger-soft: rgba(244, 112, 138, 0.12);
   --warning: #e6b84c;
   --warning-soft: rgba(230, 184, 76, 0.12);
@@ -218,15 +329,14 @@
   --shadow-sm: none;
   --shadow: none;
   --shadow-primary: 0 8px 24px rgba(106, 123, 255, 0.35);
-  --gradient-focus: radial-gradient(120% 80% at 0% 0%, rgba(125, 140, 255, 0.1), transparent 60%);
 
   /* Nichos recalibrados para fondo oscuro (un paso más de luz y menos carga). */
-  --niche-salud: #2dc78b;
-  --niche-finanzas: #eead4e;
-  --niche-carrera: #6ba5f5;
-  --niche-aprendizaje: #998cf5;
-  --niche-relaciones: #f278a2;
-  --niche-creatividad: #d878e3;
-  --niche-bienestar: #38c4d3;
+  --niche-salud: #86c232;
+  --niche-finanzas: #f2b81f;
+  --niche-carrera: #147f77;
+  --niche-aprendizaje: #9645e8;
+  --niche-relaciones: #db1f55;
+  --niche-creatividad: #c8259f;
+  --niche-bienestar: #26a8e6;
   --niche-otra: #a7afba;
 }

@@ -31,13 +31,14 @@ import { getNiche } from '@/domain/niches'
 import {
   addDays,
   addMonths,
-  formatLongDate,
   formatMonthYear,
   parseISO,
   startOfMonth,
   todayISO,
 } from '@/lib/date'
 import { friendlyError } from '@/lib/errors'
+import { formatPercent } from '@/lib/format'
+import { WEEKDAY_SHORT } from '@/domain/weekdays'
 import type { Goal, Habit, HabitCheck, HabitSkip } from '@/lib/types'
 import { HabitIcon } from '@/components/HabitIcon'
 import { LoadingScreen } from '@/components/LoadingScreen'
@@ -65,6 +66,13 @@ const STREAK_DAYS = 365
 
 const DAY_MONTH = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short' })
 const MONTH_ONLY = new Intl.DateTimeFormat('es', { month: 'long' })
+const DAY_MONTH_LONG = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'long' })
+
+/** Nombre accesible de una celda del mes: "3 de noviembre: hecho" (+ ", hoy"). */
+function cellLabel(dateISO: string, state: HabitCellState, isToday: boolean): string {
+  const base = `${DAY_MONTH_LONG.format(parseISO(dateISO))}: ${CELL_LABEL[state]}`
+  return isToday ? `${base}, hoy` : base
+}
 
 /** "30 sept" — para el chip de pausa y los textos de acción. */
 function shortDate(dateISO: string): string {
@@ -386,6 +394,10 @@ export function HabitDetail() {
   const monthNow = habitMonthStats(habit, checks, skipSet, startOfMonth(today), today)
   const stats = habitMonthStats(habit, checks, skipSet, month, today)
   const grid = habitMonthGrid(habit, checks, skipSet, month, today)
+  const monthDays = grid.flatMap((cell) => (cell.date ? [{ date: cell.date, state: cell.state }] : []))
+  // Huecos previos al día 1: se identifican por la fecha (ISO) del mes anterior que ocupan.
+  const blankCount = grid.length - monthDays.length
+  const padDates = Array.from({ length: blankCount }, (_, k) => addDays(month, k - blankCount))
   const monthTitle = monthTitleOf(month, today)
 
   const firstMonth = startOfMonth(addMonths(today, -MONTHS_BACK))
@@ -408,49 +420,58 @@ export function HabitDetail() {
 
   return (
     <div className="screen hdet" data-color={habitColor(habit)}>
-      <header className="hdet-nav">
-        <Link className="hdet-nav__back" to={backTo}>
-          <IconChevronLeft size={18} />
-          Hábitos
-        </Link>
-        <button type="button" className="hdet-nav__edit" onClick={() => openSheet(1)}>
-          Editar
-        </button>
-      </header>
-
-      <div className="hdet-hero">
-        <HabitIcon habit={habit} size="lg" />
-        <div className="hdet-hero__text">
-          <h1 className="hdet-hero__title">{habit.title}</h1>
-          <p className="hdet-hero__sub">{subtitle}</p>
-          {(paused || !active) && (
-            <p className="hdet-chips">
-              {paused && habit.pausedUntil && (
-                <span className="hdet-chip">Pausado hasta {shortDate(habit.pausedUntil)}</span>
-              )}
-              {!active && <span className="hdet-chip">Archivado</span>}
-            </p>
-          )}
+      {/* Cabecera full color: pintada con el color de identidad del hábito
+          (lo hereda de data-color en .hdet), con tinta oscura encima. */}
+      <header className="hdet-top fc-hero">
+        <div className="hdet-nav">
+          <Link className="back-link" to={backTo}>
+            <IconChevronLeft size={18} />
+            Hábitos
+          </Link>
+          <button type="button" className="hdet-nav__edit" onClick={() => openSheet(1)}>
+            Editar
+          </button>
         </div>
-      </div>
+
+        <div className="hdet-hero">
+          <HabitIcon habit={habit} size="lg" />
+          <div className="hdet-hero__text">
+            <h1 className="hdet-hero__title">{habit.title}</h1>
+            <p className="hdet-hero__sub">{subtitle}</p>
+            {(paused || !active) && (
+              <p className="hdet-chips">
+                {paused && habit.pausedUntil && (
+                  <span className="hdet-chip">Pausado hasta {shortDate(habit.pausedUntil)}</span>
+                )}
+                {!active && <span className="hdet-chip">Archivado</span>}
+              </p>
+            )}
+          </div>
+        </div>
+      </header>
 
       <div className="hdet-stats">
         <div className="hdet-stat">
-          <span className="hdet-stat__label">Racha</span>
-          <span className="hdet-stat__value hdet-stat__value--accent">
-            <IconFlame size={16} />
+          <span className="hdet-stat__label">
+            <IconFlame size={14} className="hdet-stat__flame" />
+            Racha
+          </span>
+          <span className="hdet-stat__value">
             {streak}
+            <span className="hdet-stat__unit">{streak === 1 ? 'día' : 'días'}</span>
           </span>
         </div>
         <div className="hdet-stat">
           <span className="hdet-stat__label">Mejor racha</span>
-          <span className="hdet-stat__value">{best}</span>
+          <span className="hdet-stat__value">
+            {best}
+            <span className="hdet-stat__unit">{best === 1 ? 'día' : 'días'}</span>
+          </span>
         </div>
         <div className="hdet-stat">
           <span className="hdet-stat__label">Este mes</span>
           <span className="hdet-stat__value">
-            {Math.round(monthNow.ratio * 100)}
-            <span className="hdet-stat__unit"> %</span>
+            {formatPercent(monthNow.ratio * 100)}
           </span>
         </div>
       </div>
@@ -483,24 +504,47 @@ export function HabitDetail() {
           </span>
         </div>
         <div className="hdet-month__dow" aria-hidden="true">
-          {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d, i) => (
-            <span key={`${d}-${i}`}>{d}</span>
+          {WEEKDAY_SHORT.map((d) => (
+            <span key={d}>{d}</span>
           ))}
         </div>
-        <div
-          className="hdet-month__grid"
-          role="img"
+        <fieldset
+          className="hdet-month__grid fieldset--plain"
           aria-label={`${monthTitle}: ${stats.done} de ${stats.applicable} días hechos.`}
         >
-          {grid.map((cell, i) => (
-            <span
-              key={cell.date ?? `hueco-${i}`}
-              className="hdet-cell"
-              data-state={cell.state}
-              title={cell.date ? `${formatLongDate(cell.date)} · ${CELL_LABEL[cell.state]}` : undefined}
-            />
+          {padDates.map((iso) => (
+            <span key={`hueco-${iso}`} className="hdet-cell" data-state="blank" aria-hidden="true" />
           ))}
-        </div>
+          {monthDays.map((cell) => (
+            <span
+              key={cell.date}
+              role="img"
+              className={`hdet-cell${cell.date === today ? ' is-today' : ''}`}
+              data-state={cell.state}
+              aria-label={cellLabel(cell.date, cell.state, cell.date === today)}
+            >
+              {Number(cell.date.slice(8, 10))}
+            </span>
+          ))}
+        </fieldset>
+        <ul className="hdet-legend" aria-hidden="true">
+          <li>
+            <span className="hdet-legend__swatch hdet-cell" data-state="done" />{' '}
+            Hecho
+          </li>
+          <li>
+            <span className="hdet-legend__swatch hdet-cell" data-state="partial" />{' '}
+            A medias
+          </li>
+          <li>
+            <span className="hdet-legend__swatch hdet-cell" data-state="skipped" />{' '}
+            Saltado
+          </li>
+          <li>
+            <span className="hdet-legend__swatch hdet-cell is-today" data-state="missed" />{' '}
+            Hoy
+          </li>
+        </ul>
       </section>
 
       <div className="hab-settings">

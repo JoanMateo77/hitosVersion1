@@ -22,7 +22,7 @@ import {
   updateEvent,
   type EventInput,
 } from '@/services/events'
-import { WEEKDAY_LABELS, groupByDate, inSameMonth, monthGrid, weekDays } from '@/domain/calendar'
+import { groupByDate, inSameMonth, monthGrid, weekDays } from '@/domain/calendar'
 import {
   WEEKDAY_PLURALS,
   minutesToTime,
@@ -46,7 +46,7 @@ import { DayAgenda } from '@/screens/calendar/DayAgenda'
 import { WeekDay } from '@/screens/calendar/WeekDay'
 import { AddSheet } from '@/screens/calendar/AddSheet'
 import { BlockEditSection, ScopeSave } from '@/screens/calendar/BlockEditSection'
-import type { DayHabitRowItem } from '@/screens/calendar/agendaItems'
+import { monthDots, type DayHabitRowItem } from '@/screens/calendar/agendaItems'
 import { dueBlocksForDate } from '@/domain/sessions'
 import { applyScheduleChange, listScheduleForGoal, listScheduleForUser } from '@/services/schedule'
 import {
@@ -88,6 +88,7 @@ import { NicheIcon } from '@/components/NicheGlyph'
 import { useToast } from '@/app/toast'
 import { sessionCache } from '@/lib/sessionCache'
 import { useCacheMirror } from '@/hooks/useCacheMirror'
+import { WEEKDAY_ABBR } from '@/domain/weekdays'
 
 type View = 'day' | 'week' | 'month'
 
@@ -104,6 +105,9 @@ type CalSnapshot = {
 }
 
 /** Mensaje al guardar la hora de una sesión (o de su bloque recurrente). */
+/** Etiquetas del control de vista (cortas: el control comparte fila con la navegación). */
+const VIEW_LABELS = { day: 'Día', week: 'Semana', month: 'Mes' } as const
+
 function timeSavedMessage(time: string | null, block: ScheduleBlock | null, allDays: boolean): string {
   if (!time) return 'Hora quitada.'
   if (!block) return `Hora fijada: ${formatTime12(time)}.`
@@ -697,7 +701,6 @@ export function Calendar() {
     <div
       className={`alert${selected > today ? ' faint' : ''}`}
       role="status"
-      style={selected < today ? { background: 'var(--primary-soft)' } : undefined}
     >
       {selected < today
         ? 'Estás viendo un día pasado: esto fue lo que hiciste.'
@@ -749,13 +752,18 @@ export function Calendar() {
               <IconPencil size={16} />
             </button>
           )}
-          <button className="iconbtn iconbtn--sm" onClick={() => setAdding(selected)} aria-label="Agregar">
-            <IconPlus size={18} />
+          <button
+            type="button"
+            className="btn btn--primary btn--sm screen__add"
+            onClick={() => setAdding(selected)}
+            aria-label="Agregar a la agenda"
+          >
+            <IconPlus size={18} /> Agregar
           </button>
         </div>
       </header>
 
-      <div className="row row--between" style={{ marginBottom: 'var(--s4)' }}>
+      <div className="row row--between ag-nav" style={{ marginBottom: 'var(--s4)' }}>
         <div className="row row--sm">
           <button className="iconbtn" onClick={() => shift(-1)} aria-label="Anterior">
             <IconBack />
@@ -767,7 +775,7 @@ export function Calendar() {
             <IconChevronRight size={24} />
           </button>
         </div>
-        <div className="seg" role="group" aria-label="Vista del calendario">
+        <fieldset className="seg ag-views" aria-label="Vista del calendario">
           {(['day', 'week', 'month'] as const).map((v) => (
             <button
               key={v}
@@ -775,10 +783,10 @@ export function Calendar() {
               aria-pressed={view === v}
               onClick={() => changeView(v)}
             >
-              {v === 'day' ? 'Día' : v === 'week' ? 'Semana' : 'Mes'}
+              {VIEW_LABELS[v]}
             </button>
           ))}
-        </div>
+        </fieldset>
       </div>
 
       {ready && error && (
@@ -793,7 +801,7 @@ export function Calendar() {
         <div className="cal-month">
           <div className="cal-month__grid">
             <div className="cal-grid" style={{ marginBottom: 'var(--s2)' }}>
-              {WEEKDAY_LABELS.map((w) => (
+              {WEEKDAY_ABBR.map((w) => (
                 <div key={w} className="cal-dow">
                   {w}
                 </div>
@@ -806,19 +814,30 @@ export function Calendar() {
                 if (!inSameMonth(day, anchor)) cls.push('cal-cell--out')
                 if (isToday(day)) cls.push('cal-cell--today')
                 if (day === selected) cls.push('cal-cell--selected')
+                const deadlines = deadlinesByDate.get(day) ?? []
+                const sessionCount = daySessions(day).length
+                const hasOther = evs.length > 0 || habitsDueOn(habits, day, habitSkipSet).length > 0
+                const dots = monthDots({ sessions: sessionCount, deadline: deadlines[0]?.area ?? null })
                 return (
-                  <button key={day} className={cls.join(' ')} onClick={() => selectDay(day)}>
-                    <span>{dayOfMonth(day)}</span>
-                    <span className="cal-cell__dots">
-                      {daySessions(day).length > 0 && <span className="cal-dot cal-dot--session" />}
-                      {habitsDueOn(habits, day, habitSkipSet).length > 0 && (
-                        <span className="cal-dot cal-dot--habit" />
-                      )}
-                      {evs.slice(0, 3).map((e) => (
-                        <span key={e.id} className="cal-dot" />
+                  <button
+                    key={day}
+                    className={cls.join(' ')}
+                    onClick={() => selectDay(day)}
+                    aria-pressed={day === selected}
+                    aria-current={isToday(day) ? 'date' : undefined}
+                    aria-label={`${formatWeekday(day)}${isToday(day) ? ', hoy' : ''}${
+                      deadlines.length > 0 ? ', fecha objetivo' : ''
+                    }${sessionCount > 0 || hasOther ? ', con cosas agendadas' : ''}`}
+                  >
+                    <span className="cal-cell__num">{dayOfMonth(day)}</span>
+                    <span className="cal-cell__dots" aria-hidden="true">
+                      {dots.map((d) => (
+                        <span
+                          key={d.key}
+                          className={`cal-dot cal-dot--${d.kind}`}
+                          style={d.area ? nicheAccent(d.area) : undefined}
+                        />
                       ))}
-                      {evs.length > 3 && <span className="cal-cell__more">+{evs.length - 3}</span>}
-                      {deadlinesByDate.has(day) && <span className="cal-dot cal-dot--goal" />}
                     </span>
                   </button>
                 )
@@ -829,6 +848,7 @@ export function Calendar() {
             {dayContextBanner}
             <p className={`cal-day__label${isToday(selected) ? ' cal-day__label--today' : ''}`}>
               {formatWeekday(selected)}
+              {isToday(selected) && <span className="ag-today">Hoy</span>}
             </p>
             <DayAgenda {...dayProps(selected)} />
           </div>

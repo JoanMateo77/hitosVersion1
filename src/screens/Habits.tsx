@@ -39,7 +39,8 @@ import {
   type HabitWeekRing,
 } from '@/domain/habits'
 import { NICHES } from '@/domain/niches'
-import { WEEKDAY_LABELS } from '@/domain/commitment'
+import { WEEKDAY_SHORT } from '@/domain/weekdays'
+import { formatPercent } from '@/lib/format'
 import { addDays, dayOfMonth, endOfWeek, parseISO, startOfWeek, todayISO } from '@/lib/date'
 import { friendlyError } from '@/lib/errors'
 import { tapHaptic } from '@/lib/haptics'
@@ -88,14 +89,13 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'archivados', label: 'Archivados' },
 ]
 
-/** Iniciales de la franja semanal, lunes primero (la X es el miércoles). */
-const WEEK_LETTERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
-
 /** Días de checks que pedimos: alcanza para rachas largas y mejores rachas. */
 const CHECK_HISTORY_DAYS = 365
 
 /** Cuánto dura el festejo de "última repetición" (coincide con hab-halo). */
 const CELEBRATE_MS = 1200
+/** Lo que dura el latido de la racha (.fc-bump: la llama, 560 ms) y un margen. */
+const BUMP_MS = 700
 
 /** Cuánto se queda la tarjeta "Día completo" antes de irse sola. */
 const DAY_DONE_MS = 6000
@@ -168,7 +168,7 @@ function habitsSubtitle(
     return (
       <>
         {dayLabel(today)} ·{' '}
-        <span className="hab-head__count">
+        <span className={`hab-head__count${headline.done > 0 ? ' is-started' : ''}`}>
           {headline.done} de {headline.total}
         </span>{' '}
         hechos
@@ -191,14 +191,14 @@ function HabitsTabControl({
   onSelect,
 }: Readonly<{ tab: Tab; onSelect: (next: Tab) => void }>) {
   return (
-    <fieldset className="hab-seg">
+    <fieldset className="seg hab-tabs">
       <legend className="sr-only">Vista de hábitos</legend>
       {TABS.map((option) => (
         <button
           key={option.id}
           type="button"
           aria-pressed={tab === option.id}
-          className={`hab-seg__opt${tab === option.id ? ' is-on' : ''}`}
+          className={`seg__btn${tab === option.id ? ' seg__btn--active' : ''}`}
           onClick={() => onSelect(option.id)}
         >
           {option.label}
@@ -211,7 +211,7 @@ function HabitsTabControl({
 /** Texto accesible de un día de la franja semanal ("Lunes: 40 % de tus hábitos"). */
 function weekRingCaption(ring: HabitWeekRing, weekdayLabel: string): string {
   if (ring.phase === 'future') return `${weekdayLabel}: todavía no llega`
-  return `${weekdayLabel}: ${Math.round(ring.ratio * 100)} % de tus hábitos`
+  return `${weekdayLabel}: ${formatPercent(ring.ratio * 100)} de tus hábitos`
 }
 
 /**
@@ -228,14 +228,14 @@ function HabitsWeekStrip({ rings }: Readonly<{ rings: HabitWeekRing[] }>) {
             className={`hab-week__label${ring.phase === 'today' ? ' is-today' : ''}`}
             aria-hidden="true"
           >
-            {WEEK_LETTERS[i]}
+            {WEEKDAY_SHORT[i]}
           </span>
           <span
             className={`hab-ring${ring.phase === 'future' ? ' hab-ring--future' : ''}`}
             style={{ '--hab-ratio': `${Math.round(ring.ratio * 100)}%` } as CSSProperties}
             aria-hidden="true"
           />
-          <span className="sr-only">{weekRingCaption(ring, WEEKDAY_LABELS[i])}</span>
+          <span className="sr-only">{weekRingCaption(ring, WEEKDAY_SHORT[i])}</span>
         </div>
       ))}
     </div>
@@ -269,7 +269,7 @@ function HabitsFirstRun({
         </p>
       </div>
       <section className="hab-section" aria-label="Sugerencias">
-        <span className="hab-kicker">Sugerencias</span>
+        <span className="section-title">Sugerencias</span>
         <ul className="hab-list">
           {FIRST_SUGGESTIONS.map((suggestion: HabitSuggestion) => (
             <li key={suggestion.title} className="hab-list__item">
@@ -466,11 +466,22 @@ export function Habits() {
   const celebrateTimer = useRef<number | null>(null)
   useEffect(() => () => window.clearTimeout(celebrateTimer.current ?? undefined), [])
 
+  // Al terminar el festejo la fila pasa a "Hechos" y su racha recién subida
+  // late una vez. Se limpia al acabar la animación: si quedara puesto, la
+  // fila volvería a latir cada vez que se remonta (cambio de pestaña, etc.).
+  const [bumpId, setBumpId] = useState<string | null>(null)
+  useEffect(() => {
+    if (bumpId === null) return
+    const timer = window.setTimeout(() => setBumpId(null), BUMP_MS)
+    return () => window.clearTimeout(timer)
+  }, [bumpId])
+
   function celebrate(habitId: string) {
     setCelebrateId(habitId)
     window.clearTimeout(celebrateTimer.current ?? undefined)
     celebrateTimer.current = window.setTimeout(() => {
       setCelebrateId(null)
+      setBumpId(habitId)
       celebrateTimer.current = null
     }, CELEBRATE_MS)
   }
@@ -533,8 +544,8 @@ export function Habits() {
     if (plan.add) {
       tapHaptic()
       const target = habitTarget(habit)
-      // El festejo es el de "completaste las repeticiones del día".
-      if (target > 1 && habitDoneCount(own, habit.id, today) + 1 >= target) celebrate(habit.id)
+      // El festejo es el de "completaste el hábito hoy" (una o varias veces).
+      if (habitDoneCount(own, habit.id, today) + 1 >= target) celebrate(habit.id)
     }
     try {
       await setHabitCheck(userId, habit.id, today, plan.add, plan.slot)
@@ -640,11 +651,11 @@ export function Habits() {
         </div>
         <button
           type="button"
-          className="hab-head__add"
+          className="btn btn--primary btn--sm screen__add"
           aria-label="Nuevo hábito"
           onClick={() => openSheet(emptyDraft())}
         >
-          <IconPlus size={20} />
+          <IconPlus size={18} /> Hábito
         </button>
       </header>
 
@@ -687,7 +698,7 @@ export function Habits() {
 
           {pending.length > 0 && (
             <section className="hab-section" aria-label="Por hacer">
-              <span className="hab-kicker">Por hacer · {pending.length}</span>
+              <span className="section-title">Por hacer · {pending.length}</span>
               <ul className="hab-list">
                 {pending.map((habit) => (
                   <li key={habit.id} className="hab-list__item">
@@ -729,7 +740,7 @@ export function Habits() {
 
           {doneToday.length > 0 && (
             <section className="hab-section" aria-label="Hechos">
-              <span className="hab-kicker">Hechos · {doneToday.length}</span>
+              <span className="section-title">Hechos · {doneToday.length}</span>
               <ul className="hab-list">
                 {doneToday.map((habit) => (
                   <li key={habit.id} className="hab-list__item">
@@ -740,6 +751,7 @@ export function Habits() {
                       streak={streakOf(habit)}
                       lastAt={lastCheckAt(habit)}
                       celebrating={false}
+                      bump={bumpId === habit.id}
                       onToggle={() => void toggleHabit(habit)}
                     />
                   </li>
@@ -750,7 +762,7 @@ export function Habits() {
 
           {skippedToday.length > 0 && (
             <section className="hab-section" aria-label="Saltados hoy">
-              <span className="hab-kicker">Saltados hoy · {skippedToday.length}</span>
+              <span className="section-title">Saltados hoy · {skippedToday.length}</span>
               <ul className="hab-list">
                 {skippedToday.map((habit) => (
                   <li key={habit.id} className="hab-list__item">
@@ -779,7 +791,7 @@ export function Habits() {
       {habits !== null && !firstRun && tab === 'todos' &&
         groups.map((group) => (
           <section key={group.area} className="hab-section" aria-label={group.label}>
-            <span className="hab-kicker">{group.label}</span>
+            <span className="section-title">{group.label}</span>
             <ul className="hab-list">
               {group.habits.map((habit) => (
                 <li key={habit.id} className="hab-list__item">

@@ -77,9 +77,13 @@ export async function requestCriteria(ctx: ChatContext, hint = ''): Promise<Crit
   return data.options ?? []
 }
 
-/** Qué tipo de meta es según su título (una clave de las plantillas). */
-export async function requestGoalType(title: string, why: string): Promise<GoalTypeSuggestion> {
-  const data = await callCoach({ title, why: why || null, action: 'type' })
+/**
+ * Qué tipo de meta es según su título (una clave de las plantillas). Solo el
+ * título: el porqué se pide más adelante, en el paso 4, así que aquí el
+ * servidor recibe why: null.
+ */
+export async function requestGoalType(title: string): Promise<GoalTypeSuggestion> {
+  const data = await callCoach({ title, why: null, action: 'type' })
   if (!data.type) throw new Error(FALLBACK)
   return data.type
 }

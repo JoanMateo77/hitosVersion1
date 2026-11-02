@@ -128,7 +128,7 @@ export function MilestonesStep({ milestones, onChange, ghosts = [], onAcceptGhos
         ...ghostsAt(index),
         <li key={index}>
           <div className="mstone">
-            <span className="tag" aria-hidden="true" style={{ flex: 'none', minWidth: 28, justifyContent: 'center' }}>
+            <span className="mstone__num" aria-hidden="true">
               {index + 1}
             </span>
             {editingIndex === index ? (

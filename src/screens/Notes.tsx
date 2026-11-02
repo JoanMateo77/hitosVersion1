@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import type { Goal, Note } from '@/lib/types'
+import type { Goal, NicheId, Note } from '@/lib/types'
 import { listNotes } from '@/services/notes'
 import { listGoals } from '@/services/goals'
 import { visibleNotes, type NoteView } from '@/domain/notes'
 import { SkeletonList } from '@/components/Skeleton'
-import { IconNote, IconPlus } from '@/components/icons'
+import { IconArchive, IconNote, IconPlus } from '@/components/icons'
+import { NicheIcon } from '@/components/NicheGlyph'
+import { nicheAccent } from '@/lib/nicheAccent'
 import { NoteSheet } from '@/screens/notes/NoteSheet'
 import { NoteCard } from '@/screens/notes/NoteCard'
-import { noteErrorMessage } from '@/screens/notes/noteUi'
+import { noteArea, noteErrorMessage, notePlaceLabel } from '@/screens/notes/noteUi'
 import '@/styles/notes.css'
 
 /**
@@ -18,25 +20,68 @@ import '@/styles/notes.css'
  * Desde la hoja de una nota se mueve, se archiva o se convierte en acción.
  */
 
-const VIEWS: { id: NoteView; label: string }[] = [
+/** Vistas del segmentado. Archivadas va aparte (botón junto al buscador):
+ * cinco opciones no caben a 320 px sin cortar palabras. */
+const TABS: { id: Exclude<NoteView, 'archived'>; label: string }[] = [
   { id: 'inbox', label: 'Bandeja' },
   { id: 'goals', label: 'Metas' },
   { id: 'areas', label: 'Áreas' },
   { id: 'ideas', label: 'Ideas' },
-  { id: 'archived', label: 'Archivadas' },
 ]
+const VIEW_IDS: ReadonlySet<string> = new Set<NoteView>([...TABS.map((t) => t.id), 'archived'])
 
-const EMPTY_TEXT: Record<NoteView, string> = {
-  inbox: 'Aquí cae todo lo que anotas. Ordénalo cuando quieras.',
-  goals: 'Las notas que muevas a una meta aparecen aquí.',
-  areas: 'Las notas que muevas a un área aparecen aquí.',
-  ideas: 'Guarda aquí lo que algún día quieras hacer.',
-  archived: 'Nada archivado. Las notas que conviertas en acción quedan aquí.',
+const EMPTY: Record<NoteView, { title: string; text: string }> = {
+  inbox: {
+    title: 'Tu bandeja está vacía',
+    text: 'Anota lo que tengas en mente. Aquí cae todo y lo ordenas cuando quieras.',
+  },
+  goals: {
+    title: 'Ninguna nota en tus metas',
+    text: 'Abre una nota y elige «Mover a…» una meta. Aquí se agrupan por meta.',
+  },
+  areas: {
+    title: 'Ninguna nota en tus áreas',
+    text: 'Abre una nota y elige «Mover a…» un área. Aquí se agrupan por área.',
+  },
+  ideas: {
+    title: 'Sin ideas guardadas',
+    text: 'Mueve aquí lo que algún día quieras hacer, para que no ocupe la bandeja.',
+  },
+  archived: {
+    title: 'Nada archivado',
+    text: 'Las notas que archives o conviertas en acción quedan aquí.',
+  },
+}
+
+/** Grupo de la vista Metas / Áreas: una meta o un área con sus notas. */
+interface NoteGroup {
+  key: string
+  label: string
+  area: NicheId | null
+  notes: Note[]
+}
+
+/** Agrupa por meta o por área conservando el orden (fijadas y recientes primero). */
+function groupNotes(list: Note[], goals: Goal[]): NoteGroup[] {
+  const groups = new Map<string, NoteGroup>()
+  for (const note of list) {
+    const key = note.goalId ?? note.area ?? 'sin-lugar'
+    const group = groups.get(key)
+    if (group) group.notes.push(note)
+    else
+      groups.set(key, {
+        key,
+        label: notePlaceLabel(note, goals),
+        area: noteArea(note, goals),
+        notes: [note],
+      })
+  }
+  return [...groups.values()]
 }
 
 /** La vista vive en ?vista= para sobrevivir a ir y volver. */
 function readView(value: string | null): NoteView {
-  return VIEWS.some((v) => v.id === value) ? (value as NoteView) : 'inbox'
+  return value !== null && VIEW_IDS.has(value) ? (value as NoteView) : 'inbox'
 }
 
 /** Hoja abierta: una nota existente o una nueva (null). */
@@ -92,21 +137,57 @@ export function Notes() {
     setNotes((prev) => (prev ?? []).filter((n) => n.id !== id))
   }
 
-  const renderList = (list: Note[]) => (
+  const grouped = view === 'goals' || view === 'areas'
+  const searching = query.trim() !== ''
+  const empty = EMPTY[view]
+
+  const renderList = (list: Note[], withPlace = true) => (
     <ul className="notes-list">
       {list.map((note) => (
         <li key={note.id}>
-          <NoteCard note={note} goals={goals} onOpen={() => setSheet({ note })} />
+          <NoteCard
+            note={note}
+            goals={goals}
+            withPlace={withPlace}
+            onOpen={() => setSheet({ note })}
+          />
         </li>
       ))}
     </ul>
   )
 
+  /** Acción del estado vacío: lo que sirve hacer desde aquí. */
+  function emptyAction() {
+    if (searching)
+      return (
+        <button type="button" className="btn btn--ghost btn--sm" onClick={() => setQuery('')}>
+          Borrar búsqueda
+        </button>
+      )
+    if (view !== 'inbox' && inboxCount > 0)
+      return (
+        <button type="button" className="btn btn--ghost btn--sm" onClick={() => selectView('inbox')}>
+          Ordenar la bandeja ({inboxCount})
+        </button>
+      )
+    if (view === 'archived') return null
+    return (
+      <button type="button" className="btn btn--primary btn--sm" onClick={() => setSheet({ note: null })}>
+        <IconPlus size={18} /> Escribir una nota
+      </button>
+    )
+  }
+
   return (
     <div className="screen">
       <header className="row row--between screen__header">
         <h1 className="screen__title">Notas</h1>
-        <button className="btn btn--primary btn--sm" onClick={() => setSheet({ note: null })}>
+        <button
+          type="button"
+          className="btn btn--primary btn--sm screen__add"
+          aria-label="Nueva nota"
+          onClick={() => setSheet({ note: null })}
+        >
           <IconPlus size={18} /> Nota
         </button>
       </header>
@@ -115,7 +196,7 @@ export function Notes() {
 
       <div className="notes-bar">
         <fieldset className="seg notes-seg" aria-label="Vista de notas">
-          {VIEWS.map((v) => (
+          {TABS.map((v) => (
             <button
               key={v.id}
               type="button"
@@ -130,41 +211,67 @@ export function Notes() {
             </button>
           ))}
         </fieldset>
-        <input
-          type="search"
-          className="input"
-          placeholder="Buscar en tus notas"
-          aria-label="Buscar en tus notas"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+        <div className="notes-search">
+          <input
+            type="search"
+            className="input"
+            placeholder="Buscar notas"
+            aria-label="Buscar en tus notas"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <button
+            type="button"
+            className="notes-archived"
+            aria-pressed={view === 'archived'}
+            onClick={() => selectView(view === 'archived' ? 'inbox' : 'archived')}
+          >
+            <IconArchive size={18} />
+            Archivadas
+          </button>
+        </div>
       </div>
 
       {notes === null && !loadError && <SkeletonList rows={3} />}
 
       {notes !== null && shown.length === 0 && (
-        <div className="empty">
+        <div className="empty notes-empty">
           <span className="empty__icon">
             <IconNote size={32} />
           </span>
-          <p className="empty__title">
-            {query.trim() ? 'Sin resultados' : 'Nada por aquí'}
-          </p>
+          <p className="empty__title">{searching ? 'Sin resultados' : empty.title}</p>
           <p className="muted">
-            {query.trim() ? `Ninguna nota coincide con «${query.trim()}».` : EMPTY_TEXT[view]}
+            {searching ? `Ninguna nota coincide con «${query.trim()}».` : empty.text}
           </p>
+          {emptyAction()}
         </div>
       )}
 
-      {pinned.length > 0 && (
+      {grouped &&
+        groupNotes(shown, goals).map((group) => (
+          <section key={group.key} className="notes-section" aria-label={group.label}>
+            <div className="section-head notes-group">
+              {group.area && (
+                <span className="notes-group__glyph" style={nicheAccent(group.area)} aria-hidden="true">
+                  <NicheIcon area={group.area} size={16} />
+                </span>
+              )}
+              <h2 className="section-title notes-group__title">{group.label}</h2>
+              <span className="small muted">{group.notes.length}</span>
+            </div>
+            {renderList(group.notes, false)}
+          </section>
+        ))}
+
+      {!grouped && pinned.length > 0 && (
         <section className="notes-section" aria-label="Fijadas">
-          <span className="kicker">Fijadas</span>
+          <h2 className="section-title">Fijadas</h2>
           {renderList(pinned)}
         </section>
       )}
-      {others.length > 0 && (
+      {!grouped && others.length > 0 && (
         <section className="notes-section" aria-label="Notas">
-          {pinned.length > 0 && <span className="kicker">Otras</span>}
+          {pinned.length > 0 && <h2 className="section-title">Otras</h2>}
           {renderList(others)}
         </section>
       )}

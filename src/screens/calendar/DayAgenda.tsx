@@ -16,8 +16,9 @@ import {
   type DayPeriod,
 } from '@/domain/agenda'
 import { minutesToTime } from '@/domain/commitment'
-import { formatTime12, formatTimeShort, todayISO } from '@/lib/date'
+import { formatTime12, todayISO } from '@/lib/date'
 import { IconFlag } from '@/components/icons'
+import { nicheAccent } from '@/lib/nicheAccent'
 import { EventCheck } from '@/screens/calendar/EventCheck'
 import { AgendaRow, type AgendaRowHandlers } from '@/screens/calendar/AgendaRow'
 import { AgendaBlock } from '@/screens/calendar/AgendaBlock'
@@ -144,10 +145,10 @@ export function DayAgenda({
     return [gapButton, body]
   }
 
-  const nowLabel = nowMin !== null ? formatTimeShort(minutesToTime(nowMin)) : ''
+  const nowLabel = nowMin !== null ? formatTime12(minutesToTime(nowMin)) : ''
   const nowLine = (
     <div className="ag-now" aria-hidden="true">
-      Ahora · {nowLabel}
+      <span className="ag-now__pill">Ahora · {nowLabel}</span>
     </div>
   )
 
@@ -159,7 +160,8 @@ export function DayAgenda({
             <button
               key={`d-${g.id}`}
               type="button"
-              className="ag-chip"
+              className="ag-chip ag-chip--goal"
+              style={nicheAccent(g.area)}
               onClick={() => onGoal(g)}
               aria-label={`Meta ${g.title}, fecha objetivo`}
             >

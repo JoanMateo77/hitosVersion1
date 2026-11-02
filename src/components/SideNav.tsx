@@ -1,9 +1,7 @@
 import type { MouseEvent } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import { fetchCurrentStreak } from '@/services/profile'
-import { frameForStreak } from '@/domain/frames'
-import { useCachedData } from '@/hooks/useCachedData'
+import { useStreakFrame } from '@/hooks/useStreakFrame'
 import {
   IconCalendar,
   IconFlame,
@@ -16,6 +14,7 @@ import {
 } from '@/components/icons'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 import { withViewTransition } from '@/lib/viewTransition'
+import { UserAvatar } from '@/components/UserAvatar'
 
 const NAV = [
   { to: '/', label: 'Hoy', Icon: IconToday },
@@ -23,16 +22,18 @@ const NAV = [
   { to: '/metas', label: 'Metas', Icon: IconGoals },
   { to: '/calendario', label: 'Agenda', Icon: IconCalendar },
   { to: '/notas', label: 'Notas', Icon: IconNote },
-  { to: '/progreso', label: 'Crecer', Icon: IconProgress, alsoMatch: '/aprender' },
+  // Mismo nombre que el título de la pantalla; /aprender también la marca activa.
+  { to: '/progreso', label: 'Progreso', Icon: IconProgress, alsoMatch: '/aprender' },
   { to: '/perfil', label: 'Perfil', Icon: IconProfile },
 ] as const
 
 /** Barra lateral (solo escritorio): marca + identidad del usuario + navegación + tema. */
 export function SideNav() {
-  const { userId, email, profile } = useSession()
+  const { email, displayName, profile } = useSession()
   const { pathname } = useLocation()
   const navigate = useNavigate()
-  const initial = (email.charAt(0) || '·').toUpperCase()
+  // Se muestra el nombre; el email solo si no hay nombre.
+  const identity = displayName.trim() || email
   const days = daysSince(profile.createdAt)
   const activeIndex = NAV.findIndex((item) => {
     const alsoMatch = 'alsoMatch' in item ? item.alsoMatch : undefined
@@ -42,14 +43,8 @@ export function SideNav() {
           (alsoMatch !== undefined && pathname.startsWith(alsoMatch))
   })
 
-  // Foto y marco por racha, igual que en la TopBar móvil (misma clave de cache:
-  // un solo cálculo por sesión entre las tres superficies).
-  const { data: streak } = useCachedData(
-    `streak:${userId}`,
-    () => fetchCurrentStreak(userId).catch(() => 0),
-    [userId],
-  )
-  const frame = frameForStreak(streak ?? 0)
+  // Marco por racha, igual que en la TopBar móvil (misma cache).
+  const { streak, frame } = useStreakFrame()
 
   return (
     <aside className="sidenav" aria-label="Navegación principal">
@@ -61,30 +56,13 @@ export function SideNav() {
       </span>
 
       <div className="sidenav__identity">
-        <span
-          className="sidenav__avatar"
-          aria-hidden="true"
-          style={{
-            overflow: 'hidden',
-            // Anillo del marco ganado, o --primary por defecto (igual que en Hoy).
-            boxShadow: `0 0 0 3px ${frame?.color ?? 'var(--primary)'}`,
-          }}
-        >
-          {profile.avatarUrl ? (
-            <img
-              src={profile.avatarUrl}
-              alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
-            />
-          ) : (
-            initial
-          )}
-        </span>
+        {/* Decorativo: el nombre va escrito al lado. */}
+        <UserAvatar frame={frame} />
         <div className="sidenav__identity-text">
-          <span className="sidenav__email" title={email}>
-            {email}
+          <span className="sidenav__name" title={identity}>
+            {identity}
           </span>
-          <span className="kicker sidenav__day">
+          <span className="sidenav__day">
             {frame ? `${frame.label} · racha de ${streak}` : `Día ${days} en Lógralo`}
           </span>
         </div>

@@ -37,6 +37,10 @@
     overscroll-behavior: contain;
     scrollbar-width: thin;
   }
+  /* El scroll recorta lo que sobresale: el anillo de foco va por dentro. */
+  .camino__coach :focus-visible {
+    outline-offset: -2px;
+  }
 }
 
 /* ---- Tarjeta del coach ---- */
@@ -91,9 +95,9 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  color: #fff;
-  background: var(--gradient-brand);
-  box-shadow: var(--shadow-primary);
+  /* Azul de acción sólido (full color): el coach es la voz azul de la app. */
+  color: var(--action-ink);
+  background: var(--action);
 }
 .coach-orb--thinking {
   animation: coach-breathe 1.6s ease-in-out infinite;
@@ -101,7 +105,7 @@
 @keyframes coach-breathe {
   50% {
     transform: scale(1.08);
-    box-shadow: 0 0 0 8px var(--primary-soft), var(--shadow-primary);
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--action) 18%, transparent);
   }
 }
 
@@ -214,7 +218,7 @@
   transition: border-color var(--dur-tap) var(--ease-out);
 }
 .coach-composer:focus-within {
-  border-color: var(--primary);
+  border-color: var(--action);
 }
 .coach-composer input {
   flex: 1;
@@ -238,8 +242,8 @@
   height: 36px;
   border: 0;
   border-radius: 50%;
-  color: #fff;
-  background: var(--primary);
+  color: var(--action-ink);
+  background: var(--action);
   cursor: pointer;
   transition: transform var(--dur-tap) var(--ease-spring), opacity var(--dur-tap) var(--ease-out);
 }
@@ -278,8 +282,8 @@
 }
 .coach-msg--user {
   align-self: flex-end;
-  color: #fff;
-  background: var(--primary);
+  color: var(--action-ink);
+  background: var(--action);
   border-bottom-right-radius: 6px;
 }
 .coach-typing {
@@ -349,14 +353,17 @@
   height: 52px;
   border: 0;
   border-radius: 50%;
-  color: #fff;
-  background: var(--gradient-brand);
-  box-shadow: var(--shadow-primary);
+  color: var(--action-ink);
+  background: var(--action);
+  /* Se toca: relieve como el botón principal. */
+  box-shadow: 0 var(--lip, 4px) 0 var(--action-lip);
+  transform: translateY(calc(var(--lip, 4px) * -1));
   cursor: pointer;
-  transition: transform var(--dur-tap) var(--ease-spring);
+  transition: transform var(--dur-tap) var(--ease-out), box-shadow var(--dur-tap) var(--ease-out);
 }
 .coach-btn:active {
-  transform: scale(0.9);
+  transform: translateY(0);
+  box-shadow: 0 0 0 var(--action-lip);
 }
 .coach-btn--fab {
   position: fixed;
@@ -402,7 +409,7 @@
 .coach-bubble small {
   display: block;
   margin-top: 4px;
-  color: var(--primary);
+  color: var(--action-text);
   font-weight: 600;
 }
 /* El contenido del detalle deja aire para que el botón no tape lo último. */
@@ -463,8 +470,8 @@
   font-weight: 600;
 }
 .criteria-opt[aria-checked='true'] {
-  border-color: var(--primary);
-  background: var(--primary-soft);
+  border-color: var(--action);
+  background: color-mix(in srgb, var(--action) 10%, var(--surface));
 }
 .criteria-opt__radio {
   flex: none;
@@ -476,7 +483,7 @@
   transition: border var(--dur-tap) var(--ease-spring);
 }
 .criteria-opt[aria-checked='true'] .criteria-opt__radio {
-  border: 6px solid var(--primary);
+  border: 6px solid var(--action);
 }
 .criteria-skel {
   display: grid;
@@ -517,7 +524,7 @@
 .now-card__kicker {
   font-size: var(--fs-sm);
   font-weight: 600;
-  color: var(--primary);
+  color: var(--action-text);
 }
 .now-card__stage {
   margin: 2px 0 0;
@@ -564,23 +571,53 @@
   letter-spacing: -0.02em;
   color: var(--text);
 }
-/* Barra segmentada: un tramo por etapa, verde lo cumplido. */
+/* Barra segmentada canónica: un tramo por etapa en el color del área; la
+   etapa actual, el área al 30 %. Sobre una superficie de color (.fc-card,
+   .fc-hero) pasa a la tinta del área, igual que .progress.
+   Etapa recién cumplida: <i class="segbar__fill fc-seg-fill"> (se llena) y
+   <i class="fc-spark segbar__spark"> (destello) dentro del tramo. */
 .segbar {
   display: flex;
-  gap: 4px;
+  gap: 5px;
 }
 .segbar span {
+  position: relative;
   flex: 1;
-  height: 8px;
-  border-radius: 4px;
+  height: 12px;
+  border-radius: 6px;
   background: var(--surface-2);
   transition: background var(--dur-layout) var(--ease-out);
 }
 .segbar span.done {
-  background: var(--success-fill, var(--success));
+  background: var(--vivid, var(--state-ok));
 }
 .segbar span.current {
-  background: color-mix(in srgb, var(--primary) 35%, var(--surface-2));
+  background: color-mix(in srgb, var(--vivid, var(--state-ok)) 30%, var(--surface-2));
+}
+.segbar__fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--vivid, var(--state-ok));
+}
+.segbar__spark {
+  top: 50%;
+  right: -12px;
+  margin-top: -12px;
+}
+.fc-card .segbar span,
+.fc-hero .segbar span {
+  background: color-mix(in srgb, currentColor 25%, transparent);
+}
+.fc-card .segbar span.done,
+.fc-hero .segbar span.done,
+.fc-card .segbar__fill,
+.fc-hero .segbar__fill {
+  background: currentColor;
+}
+.fc-card .segbar span.current,
+.fc-hero .segbar span.current {
+  background: color-mix(in srgb, currentColor 55%, transparent);
 }
 .plan-details dl {
   margin: 0;

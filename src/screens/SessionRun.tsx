@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { CSSProperties, FormEvent } from 'react'
-import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import type { FormEvent } from 'react'
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import type { CalendarEvent, Goal, Milestone, Session } from '@/lib/types'
 import { getGoal } from '@/services/goals'
 import { listMilestones, setMilestoneDone } from '@/services/milestones'
@@ -22,9 +22,9 @@ import { SessionRing } from '@/components/SessionRing'
 import { Disclosure } from '@/components/Disclosure'
 import { Hint } from '@/components/Hint'
 import {
-  IconBack,
   IconCelebrate,
   IconCheck,
+  IconChevronLeft,
   IconLightbulb,
   IconPause,
   IconPlay,
@@ -424,33 +424,46 @@ export function SessionRun() {
     !session.pausedAt
 
   return (
-    <div className="screen screen--full flow-screen flow-screen--session" style={nicheAccent(goal.area)}>
+    <main className="screen screen--full flow-screen flow-screen--session" style={nicheAccent(goal.area)}>
       <div className="row" style={{ marginBottom: 'var(--s4)', minHeight: 34, alignItems: 'center' }}>
         {focusLocked ? (
           <span className="small faint" role="status">
             Modo enfoque — pausa el reloj para salir
           </span>
         ) : (
-          /* Con texto: en esta pantalla sin navegación, una flecha sola no orienta. */
-          <button className="btn btn--ghost btn--sm" onClick={() => navigate('/')} aria-label="Volver a tu día">
-            <IconBack size={16} /> Tu día
-          </button>
+          /* Con texto: en esta pantalla sin navegación, una flecha sola no orienta.
+             El Atrás canónico de la app (.back-link). */
+          <Link className="back-link" to="/" aria-label="Volver a tu día">
+            <IconChevronLeft size={18} />
+            Tu día
+          </Link>
         )}
       </div>
 
-      <div className="stack stack--lg center" style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <span className="kicker row row--sm" style={{ alignItems: 'center' }}>
-          <NicheGlyph area={goal.area} size="sm" />
-          {goal.title} · {targetLabel}
-          {milestones.length > 0 && currentMilestone && (
-            <> · Etapa {milestones.filter((m) => m.doneAt !== null).length + 1} de {milestones.length}</>
-          )}
-        </span>
+      <div className="stack stack--lg center session-body" style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        {/* De qué meta se habla: píldora del color del área; el resto, neutro. */}
+        <div className="session-head">
+          {/* El h1 de la pantalla es la meta, con aspecto de píldora del área. */}
+          <h1 className="session-head__goal">
+            <NicheGlyph area={goal.area} size="sm" />
+            <span className="session-head__title">{goal.title}</span>
+          </h1>
+          <span className="session-head__meta">
+            {targetLabel}
+            {milestones.length > 0 && currentMilestone && (
+              <> · Etapa {milestones.filter((m) => m.doneAt !== null).length + 1} de {milestones.length}</>
+            )}
+          </span>
+        </div>
 
         {finishedStatus ? (
           <div className="stack stack--sm center" style={{ width: '100%', alignItems: 'center' }}>
-            <span className="empty__icon" style={{ width: 56, height: 56 }}>
-              <IconCheck size={26} />
+            {/* Logro: disco de estado (verde = cumplido, ámbar = parcial) que entra con un pop. */}
+            <span
+              className={`session-done__badge${finishedStatus === 'partial' ? ' session-done__badge--partial' : ''}`}
+              aria-hidden="true"
+            >
+              <IconCheck size={28} />
             </span>
             <h2 style={{ fontSize: 'var(--fs-lg)', textAlign: 'center' }}>
               {finishedStatus === 'done' ? 'Sesión cumplida' : 'Parcial guardado'}
@@ -521,7 +534,7 @@ export function SessionRun() {
         {!needsResolution && reachedToday && (
           <>
             <SessionRing progress={1} reached>
-              <IconCelebrate size={34} style={{ color: 'var(--primary)' }} />
+              <IconCelebrate size={34} className="session-ring__celebrate" />
               <span className="small muted">{targetLabel} cumplidos</span>
             </SessionRing>
             <button
@@ -694,11 +707,11 @@ export function SessionRun() {
                 </div>
               )}
               <ul className="session-plan__list">
-                {planItems.map((e, i) => {
+                {planItems.map((e) => {
                   const done = e.doneAt !== null
                   const noteLine = e.notes?.split('\n')[0].trim() || null
                   return (
-                    <li key={e.id} className="session-plan__item" style={{ '--i': i } as CSSProperties}>
+                    <li key={e.id} className="session-plan__item">
                       <button
                         type="button"
                         className={`session-plan__check${done ? ' session-plan__check--done' : ''}`}
@@ -752,6 +765,6 @@ export function SessionRun() {
           </>
         )}
       </div>
-    </div>
+    </main>
   )
 }

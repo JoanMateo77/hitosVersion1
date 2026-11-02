@@ -3,10 +3,10 @@ import { IconHito } from '@/components/icons'
 /** Se muestra cuando faltan las claves de Supabase en el .env. */
 export function ConfigNeeded() {
   return (
-    <div className="screen screen--full">
+    <main className="screen screen--full account-flow">
       <div className="brand">
         <span className="brand__mark">
-          <IconHito />
+          <IconHito size={36} />
         </span>
         Lógralo
       </div>
@@ -52,6 +52,6 @@ export function ConfigNeeded() {
           Después reinicia <code>npm run dev</code> y recarga esta pantalla.
         </p>
       </div>
-    </div>
+    </main>
   )
 }
