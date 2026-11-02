@@ -3,7 +3,7 @@
  * las políticas RLS siguen aplicando (sin service_role). Si algo falla, el
  * coach sigue sin memoria en vez de romperse.
  */
-import { computeUserSignals, describeSignals } from '../domain/userSignals'
+import { computeUserSignals, describeSignals } from '../domain/userSignals.js'
 
 const WINDOW_DAYS = 60
 

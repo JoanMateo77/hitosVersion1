@@ -4,7 +4,7 @@
  * Sin imports con alias "@/": el middleware de Vite lo carga desde
  * vite.config.ts, donde el alias no existe todavía.
  */
-import { areaGuide } from './planningMethod'
+import { areaGuide } from './planningMethod.js'
 
 export interface GoalPlanStage {
   title: string

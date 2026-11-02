@@ -3,8 +3,8 @@
  * prompts, esquemas y validación (servidor) y la aplicación de cambios a las
  * etapas (cliente). Imports relativos: lo carga vite.config.ts (ver goalPlan.ts).
  */
-import { areaGuide } from './planningMethod'
-import type { GoalPlanInput } from './goalPlan'
+import { areaGuide } from './planningMethod.js'
+import type { GoalPlanInput } from './goalPlan.js'
 
 export interface ChatTurn {
   role: 'user' | 'coach'

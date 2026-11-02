@@ -2,9 +2,9 @@
  * Arma el handler con dependencias reales a partir de variables de entorno.
  * GEMINI_API_KEY no lleva prefijo VITE_: así Vite nunca la mete en el bundle.
  */
-import { createGeminiPlanner } from './geminiPlanner'
-import { createMemoryQuota, createSupabaseVerifier, handlePlanMeta } from './planMeta'
-import { createSignalsLoader } from './userSignalsLoader'
+import { createGeminiPlanner } from './geminiPlanner.js'
+import { createMemoryQuota, createSupabaseVerifier, handlePlanMeta } from './planMeta.js'
+import { createSignalsLoader } from './userSignalsLoader.js'
 
 export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite'
 
