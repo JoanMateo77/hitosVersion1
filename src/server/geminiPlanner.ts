@@ -36,7 +36,7 @@ export interface GoalPlanner {
   questions(input: GoalPlanInput, signals: string[]): Promise<ClarifyingQuestion[]>
   plan(input: GoalPlanInput, signals: string[]): Promise<GoalPlan>
   refine(input: GoalPlanInput, plan: GoalPlan, instruction: string, signals: string[]): Promise<GoalPlan>
-  /** Un turno de conversación; puede traer una propuesta de cambios a las etapas. */
+  /** Un turno de conversación; puede traer una propuesta (cambios a las etapas o un avance). */
   chat(ctx: ChatContext, history: ChatTurn[], message: string, signals: string[]): Promise<CoachReply>
   /** Formas de saber que la meta está lograda, opcionalmente guiadas por un pedido. */
   criteria(ctx: ChatContext, hint: string, signals: string[]): Promise<CriterionOption[]>
@@ -121,7 +121,7 @@ export function createGeminiPlanner(apiKey: string, model: string): GoalPlanner 
       planWithReview(buildRefinePrompt(input, plan, instruction, signals), input),
     chat: (ctx, history, message, signals) =>
       callWithRetry(buildChatPrompt(ctx, history, message, signals), CHAT_RESPONSE_SCHEMA, (raw) =>
-        parseCoachReply(raw, ctx.stages),
+        parseCoachReply(raw, ctx.stages, ctx.canLogProgress === true),
       ),
     criteria: (ctx, hint, signals) =>
       callWithRetry(buildCriteriaPrompt(ctx, hint, signals), CRITERIA_RESPONSE_SCHEMA, parseCriteria),

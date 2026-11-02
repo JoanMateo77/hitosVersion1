@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { parseGoalPlan, type GoalPlan, type QuestionAnswer } from '@/domain/goalPlan'
-import type { StageProposal } from '@/domain/coachChat'
+import { readStoredProposal, type StoredProposal } from '@/domain/coachChat'
 
 /**
  * Memoria del coach por meta: el plan que propuso la IA, las respuestas de la
@@ -8,13 +8,13 @@ import type { StageProposal } from '@/domain/coachChat'
  * migración aún no corrió: el coach sigue funcionando, solo no recuerda.
  */
 
-export type ProposalStatus = 'pending' | 'applied' | 'dismissed'
+export type { ProposalStatus } from '@/domain/coachChat'
 
 export interface CoachMessage {
   id: string
   role: 'user' | 'coach'
   text: string
-  proposal: (StageProposal & { status: ProposalStatus }) | null
+  proposal: StoredProposal | null
   createdAt: string
 }
 
@@ -43,20 +43,12 @@ function readAnswers(value: unknown): QuestionAnswer[] {
   )
 }
 
-function readProposal(value: unknown): CoachMessage['proposal'] {
-  if (value == null || typeof value !== 'object') return null
-  const p = value as Record<string, unknown>
-  if (typeof p.summary !== 'string' || !Array.isArray(p.changes)) return null
-  const status: ProposalStatus = p.status === 'applied' || p.status === 'dismissed' ? p.status : 'pending'
-  return { summary: p.summary, changes: p.changes as StageProposal['changes'], status }
-}
-
 function mapMessage(row: MessageRow): CoachMessage {
   return {
     id: row.id,
     role: row.role === 'coach' ? 'coach' : 'user',
     text: row.body,
-    proposal: readProposal(row.proposal),
+    proposal: readStoredProposal(row.proposal),
     createdAt: row.created_at,
   }
 }

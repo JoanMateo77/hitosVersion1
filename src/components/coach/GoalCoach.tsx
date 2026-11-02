@@ -32,6 +32,7 @@ export function GoalCoach({
   nudge,
   getContext,
   onApply,
+  onLogProgress,
 }: Readonly<{
   userId: string
   goalId: string
@@ -40,6 +41,8 @@ export function GoalCoach({
   nudge: string | null
   getContext: () => ChatContext
   onApply: (changes: StageChange[]) => Promise<void>
+  /** Guarda en "Tus avances" la nota que la persona aceptó registrar. */
+  onLogProgress: (note: string) => Promise<void>
 }>) {
   const isDesktop = useMediaQuery(DESKTOP_QUERY)
   const [open, setOpen] = useState(false)
@@ -53,7 +56,7 @@ export function GoalCoach({
   const persistStatus = useCallback((m: CoachMessage) => {
     if (m.proposal) void setProposalStatus(m.id, m.proposal)
   }, [])
-  const chat = useCoachChat({ getContext, onApply, persist, persistStatus })
+  const chat = useCoachChat({ getContext, onApply, onLogProgress, persist, persistStatus })
 
   async function openChat() {
     setOpen(true)
@@ -108,7 +111,7 @@ export function GoalCoach({
                 chat={chat}
                 empty={
                   <p className="small faint">
-                    Cuéntale cómo vas, qué te frena o qué cambió. Te propone ajustes y tú decides si se aplican.
+                    Cuéntale cómo vas, qué te frena o qué cambió. Te propone ajustes o registrar tus avances, y tú decides.
                   </p>
                 }
               />

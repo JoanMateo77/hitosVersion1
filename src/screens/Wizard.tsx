@@ -27,7 +27,7 @@ import { CommitmentStep } from '@/components/wizard/CommitmentStep'
 import { MilestonesStep } from '@/components/wizard/MilestonesStep'
 import { CoachPanel } from '@/components/wizard/CoachPanel'
 import { parseGoalPlan, resolveInsertIndex, type GoalPlan, type GoalPlanStage, type QuestionAnswer } from '@/domain/goalPlan'
-import { applyStageChanges, type ChatContext, type StageChange } from '@/domain/coachChat'
+import { applyStageChanges, readStoredProposal, type ChatContext, type StageChange } from '@/domain/coachChat'
 import { useCoachChat } from '@/hooks/useCoachChat'
 import { DESKTOP_QUERY, useMediaQuery } from '@/hooks/useMediaQuery'
 import { addCoachMessages, saveGoalAi, type CoachMessage } from '@/services/goalCoach'
@@ -122,7 +122,7 @@ function loadDraft(): Partial<WizardDraft> {
           typeof (m as Record<string, unknown>).id === 'string' &&
           typeof (m as Record<string, unknown>).text === 'string' &&
           ((m as Record<string, unknown>).role === 'user' || (m as Record<string, unknown>).role === 'coach'),
-      )
+      ).map((m) => ({ ...m, proposal: readStoredProposal(m.proposal) }))
     }
     if (Array.isArray(d.blocks)) {
       draft.blocks = (d.blocks as unknown[]).filter(
@@ -206,6 +206,8 @@ export function Wizard() {
       answers: aiAnswers ?? [],
       successCriteria: criteria,
       stages: milestones.map((m) => ({ title: m.title })),
+      // Todavía no hay meta donde guardar un avance: el coach no lo propone.
+      canLogProgress: false,
     }),
     [title, typeLabel, area, why, targetDate, weeklyMinutes, aiAnswers, criteria, milestones],
   )
