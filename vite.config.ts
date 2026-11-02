@@ -101,8 +101,10 @@ export default defineConfig({
       },
       workbox: {
         // La API de Supabase nunca se cachea; el shell de la app sí.
-        navigateFallbackDenylist: [/^\/api/],
+        // /e/ son páginas sueltas (encuestas) fuera de la app: ni fallback ni precache.
+        navigateFallbackDenylist: [/^\/api/, /^\/e\//],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globIgnores: ['e/**'],
         // Push: los handlers viven en un script aparte que convive con workbox.
         importScripts: ['push-sw.js'],
       },

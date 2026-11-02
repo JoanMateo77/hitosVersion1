@@ -1,4 +1,4 @@
-// Preguntas de la encuesta: las usan encuesta-disenos.html y resultados.html.
+// Preguntas de la encuesta: las usan encuesta.html y resultados.html.
 /*
  * PREGUNTAS DE LA ENCUESTA — edita solo esta lista.
  *

@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
 <title>Lógralo · Elige tu diseño</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -142,8 +143,8 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 <script>
 /* ------------------------------------------------------------------ */
 // Número que recibe las respuestas, con código de país y sin "+" ni espacios
-// (p. ej. '573001234567'). Vacío = WhatsApp deja elegir el chat.
-const WHATSAPP_DESTINO = ''
+// Vacío = WhatsApp deja elegir el chat.
+const WHATSAPP_DESTINO = '573236331370'
 const KEY = 'logralo-encuesta-disenos'
 const estado = cargar()
 function cargar() { try { return JSON.parse(localStorage.getItem(KEY)) || {} } catch { return {} } }
