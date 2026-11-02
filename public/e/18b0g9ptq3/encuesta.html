@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Lógralo · Elige tu diseño</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f2f2f7; --surface:#ffffff; --ink:#16161d; --muted:#4f5160; --line:#d9dae3;
+  --action:#4d5ef7; --action-ink:#ffffff; --action-soft:#eceefe; --focus:#1b2bd8;
+  --radius:18px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#0f1015; --surface:#1b1c23; --ink:#f3f3f7; --muted:#b4b6c4; --line:#33343f;
+    --action:#7d89ff; --action-ink:#0f1015; --action-soft:#24264a; --focus:#aab2ff; color-scheme:dark}
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Archivo,system-ui,-apple-system,sans-serif;line-height:1.5;font-size:16px}
+.wrap{max-width:1120px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:clamp(28px,6vw,40px);line-height:1.1;margin:8px 0 12px;font-weight:800;letter-spacing:-.02em}
+h2{font-size:22px;line-height:1.2;margin:0;font-weight:800}
+p{margin:0 0 12px}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700}
+.brand i{width:22px;height:22px;border-radius:6px;background:var(--action);display:inline-block}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin:16px 0 8px}
+.note b{display:block;margin-bottom:4px}
+.muted{color:var(--muted)}
+:focus-visible{outline:3px solid var(--focus);outline-offset:3px;border-radius:6px}
+
+/* ---- Comparaciones ---- */
+.q{margin-top:40px}
+.q__head{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px}
+.q__num{font-weight:800;color:var(--muted)}
+.q__hint{color:var(--muted);margin-bottom:14px}
+.row-label{font-weight:700;font-size:14px;color:var(--muted);margin:18px 0 8px;text-transform:uppercase;letter-spacing:.06em}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr))}
+@media (min-width:900px){ .grid{grid-template-columns:repeat(var(--cols,2),minmax(0,300px))} }
+@media (max-width:640px){ .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px} .opt{padding:8px} .opt__letter{font-size:28px} }
+.opt{background:var(--surface);border:2px solid var(--line);border-radius:var(--radius);padding:10px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.opt:has(input:checked){border-color:var(--action);box-shadow:0 0 0 3px var(--action-soft)}
+.opt__tag{display:flex;align-items:baseline;gap:8px;min-width:0}
+.opt__letter{font-size:32px;line-height:1;font-weight:800}
+.opt__name{font-weight:700;overflow-wrap:anywhere}
+.opt__desc{font-size:14px;line-height:1.4;color:var(--muted);margin:0;flex:1}
+.shot{display:block;width:100%;padding:0;border:0;background:none;cursor:zoom-in;position:relative;border-radius:12px;overflow:hidden;max-height:min(70vh,640px)}
+.shot img{display:block;width:100%;height:auto}
+.shot::after{content:"Toca para ampliar";position:absolute;left:0;right:0;bottom:0;padding:28px 8px 8px;font-size:13px;font-weight:600;color:#fff;text-align:center;background:linear-gradient(transparent,rgba(0,0,0,.72))}
+.pick{display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 10px;border-radius:12px;background:var(--bg);cursor:pointer;font-weight:600}
+.pick input{width:22px;height:22px;accent-color:var(--action);margin:0;flex-shrink:0}
+
+/* ---- Tu respuesta ---- */
+.answer{margin-top:48px;background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:20px 16px}
+.answer ol{padding-left:24px;margin:16px 0}
+.answer li{margin:0 0 16px}
+.answer li .qtitle{font-weight:700;display:block}
+.status{color:var(--muted)}
+.status b{color:var(--ink)}
+.status a{color:var(--ink);font-weight:600}
+.choices{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;border:0;padding:0}
+.choices legend{padding:0}
+.choices label{display:flex;align-items:center;gap:8px;min-height:44px;padding:6px 14px;border:2px solid var(--line);border-radius:999px;cursor:pointer;font-weight:600}
+.choices label:has(input:checked){border-color:var(--action);background:var(--action-soft)}
+.choices input{width:20px;height:20px;accent-color:var(--action);margin:0}
+textarea,input[type=text]{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:2px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:8px}
+textarea{min-height:88px;resize:vertical}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:12px 22px;border:0;border-radius:14px;background:var(--action);color:var(--action-ink);font:inherit;font-weight:700;font-size:17px;cursor:pointer;width:100%;max-width:420px}
+.btn:active{transform:translateY(1px)}
+.copied{display:block;margin-top:12px;font-weight:600;min-height:1.5em}
+.preview{font-size:14px;min-height:140px;margin-top:12px}
+.actions{display:grid;gap:10px;max-width:420px}
+.btn--alt{background:var(--bg);color:var(--ink);border:2px solid var(--line)}
+/* ---- Comprobante (solo se ve al guardar en PDF) ---- */
+#comprobante{display:none}
+@media print{
+  @page{margin:14mm}
+  body{background:#fff;color:#000}
+  body .wrap,body dialog{display:none}
+  #comprobante{display:block;font-size:12pt}
+  #comprobante h1{font-size:22pt;margin:0 0 4px}
+  .cp__meta{color:#444;margin-bottom:14px}
+  .cp__grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .cp__item{border:1px solid #bbb;border-radius:10px;padding:8px;break-inside:avoid}
+  .cp__item img{display:block;width:100%;max-height:300px;object-fit:cover;object-position:top;border-radius:6px;margin-top:6px}
+  .cp__q{font-weight:700;font-size:10pt;color:#444}
+  .cp__a{font-weight:800}
+  .cp__list{margin:14px 0 0;padding-left:18px}
+  .cp__code{margin-top:14px;font-size:9pt;color:#555;word-break:break-all}
+}
+label.fieldlabel{font-weight:700;display:block}
+
+/* ---- Dialog ---- */
+dialog{padding:0;border:0;border-radius:16px;background:var(--surface);color:var(--ink);max-width:min(480px,94vw);width:100%;max-height:92vh}
+dialog::backdrop{background:rgba(0,0,0,.75)}
+.dlg__bar{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;background:var(--surface);border-bottom:1px solid var(--line);z-index:1}
+.dlg__bar span{font-weight:700;overflow-wrap:anywhere}
+.dlg__close{min-height:44px;min-width:44px;padding:8px 14px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
+.dlg__img{display:block;width:100%;height:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><i aria-hidden="true"></i>Lógralo</div>
+  <h1>Ayúdanos a elegir el diseño</h1>
+  <p>Compara cada pantalla de la app y marca la que más te guste. Al final envía tu elección por <b>WhatsApp</b> o guárdala en <b>PDF</b>.</p>
+  <div class="note" role="note">
+    <b>Esto es un boceto.</b>
+    <span class="muted">Son capturas con datos de ejemplo (no son datos de nadie). Esta página no envía nada a ningún servidor: lo que marcas solo queda en tu teléfono o computador, y únicamente lo compartes si tú lo envías.</span>
+  </div>
+  <main id="comparaciones"></main>
+
+  <section class="answer" aria-labelledby="tu-respuesta">
+    <h2 id="tu-respuesta">Tu respuesta</h2>
+    <p class="muted" style="margin-top:6px">Revisa lo que marcaste, responde las últimas preguntas y envíanos tu elección.</p>
+    <ol id="resumen"></ol>
+    <label class="fieldlabel" for="nombre">Tu nombre (opcional)</label>
+    <input type="text" id="nombre" autocomplete="given-name" maxlength="60">
+    <div style="margin-top:20px">
+      <div class="actions">
+        <button type="button" class="btn" id="whatsapp">Enviar por WhatsApp</button>
+        <button type="button" class="btn btn--alt" id="pdf">Guardar en PDF</button>
+        <button type="button" class="btn btn--alt" id="copiar">Copiar el texto</button>
+      </div>
+      <output class="copied" id="copiado" aria-live="polite"></output>
+      <label class="fieldlabel" for="vista">Texto que se envía</label>
+      <textarea id="vista" class="preview" readonly></textarea>
+    </div>
+  </section>
+</div>
+
+<div id="comprobante" aria-hidden="true"></div>
+<dialog id="zoom" aria-labelledby="zoom-title">
+  <div class="dlg__bar"><span id="zoom-title"></span><button type="button" class="dlg__close" id="zoom-close">Cerrar</button></div>
+  <img class="dlg__img" id="zoom-img" alt="">
+</dialog>
+
+<script src="preguntas.js"></script>
+<script>
+/* ------------------------------------------------------------------ */
+// Número que recibe las respuestas, con código de país y sin "+" ni espacios
+// Vacío = WhatsApp deja elegir el chat.
+const WHATSAPP_DESTINO = '573236331370'
+const KEY = 'logralo-encuesta-disenos'
+const estado = cargar()
+function cargar() { try { return JSON.parse(localStorage.getItem(KEY)) || {} } catch { return {} } }
+function guardar() { try { localStorage.setItem(KEY, JSON.stringify(estado)) } catch { /* sin almacenamiento: no pasa nada */ } }
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+const etiqueta = (o) => o.letra === o.nombre ? o.nombre : `${o.letra} · ${o.nombre}`
+
+const marcado = (p, o) => (estado[p.id] === o.letra ? ' checked' : '')
+const radio = (p, o) => `<input type="radio" name="q-${p.id}" value="${esc(o.letra)}"${marcado(p, o)}>`
+
+function captura(img, alt, titulo) {
+  if (!img) return ''
+  const t = esc(titulo)
+  const a = esc(alt)
+  return `<button type="button" class="shot" data-src="${esc(img)}" data-title="${t}" data-alt="${a}" aria-label="Ampliar: ${t}"><img src="${esc(img)}" alt="${a}" loading="lazy" decoding="async"></button>`
+}
+
+function tarjeta(p, o, oscuro) {
+  const img = oscuro ? o.imgOscuro : o.img
+  const alt = (oscuro && o.altOscuro) || o.alt
+  const sufijo = oscuro ? ' (oscuro)' : ''
+  const desc = o.desc && !oscuro ? `<p class="opt__desc">${esc(o.desc)}</p>` : ''
+  const elegir = oscuro ? '' : `<label class="pick">${radio(p, o)} Prefiero ${esc(o.letra)}</label>`
+  return `<div class="opt">
+    <div class="opt__tag"><span class="opt__letter" aria-hidden="true">${esc(o.letra)}</span><span class="opt__name">${esc(o.nombre)}</span></div>
+    ${captura(img, alt, `${p.titulo} · ${etiqueta(o)}${sufijo}`)}
+    ${desc}
+    ${elegir}
+  </div>`
+}
+
+function resumenOpciones(p) {
+  const k = p.opciones.length
+  if (k <= 3) return p.opciones.map((o) => esc(etiqueta(o))).join(' / ')
+  return `${k} opciones, ${p.opciones[0].letra} a ${p.opciones[k - 1].letra}`
+}
+
+function filaTarjetas(p, oscuro) {
+  const cols = Math.min(p.opciones.length, 4)
+  const html = p.opciones.map((o) => tarjeta(p, o, oscuro)).join('')
+  return `<div class="grid" style="--cols:${cols}">${html}</div>`
+}
+
+function seccion(p, n) {
+  const conOscuro = p.opciones.some((o) => o.imgOscuro)
+  const ayuda = p.ayuda ? `<p class="q__hint">${esc(p.ayuda)}</p>` : ''
+  const oscuro = conOscuro ? `<p class="row-label">En tema oscuro</p>${filaTarjetas(p, true)}` : ''
+  return `<section class="q" id="sec-${p.id}" aria-labelledby="h-${p.id}">
+    <div class="q__head"><span class="q__num">${n}.</span><h2 id="h-${p.id}">${esc(p.titulo)} <span class="muted" style="font-weight:600">· ${resumenOpciones(p)}</span></h2></div>
+    ${ayuda}
+    <fieldset style="border:0;padding:0;margin:0"><legend class="row-label">${conOscuro ? 'Tema claro' : 'Elige una'}</legend>
+      ${filaTarjetas(p, false)}
+    </fieldset>
+    ${oscuro}
+  </section>`
+}
+
+function itemResumen(p) {
+  if (p.tipo === 'imagenes') {
+    return `<li><span class="qtitle">${esc(p.titulo)}</span><span class="status" data-status="${p.id}"></span></li>`
+  }
+  if (p.tipo === 'opciones') {
+    const botones = p.opciones.map((o) => `<label>${radio(p, o)} ${esc(o.nombre)}</label>`).join('')
+    return `<li><fieldset class="choices"><legend class="qtitle">${esc(p.titulo)}</legend>${botones}</fieldset></li>`
+  }
+  return `<li><label class="qtitle" for="q-${p.id}">${esc(p.titulo)}</label>
+    <textarea id="q-${p.id}" name="q-${p.id}" maxlength="400">${esc(estado[p.id] || '')}</textarea></li>`
+}
+
+function render() {
+  const secciones = PREGUNTAS.map((p, i) => (p.tipo === 'imagenes' ? seccion(p, i + 1) : ''))
+  document.getElementById('comparaciones').innerHTML = secciones.join('')
+  document.getElementById('resumen').innerHTML = PREGUNTAS.map(itemResumen).join('')
+  document.getElementById('nombre').value = estado._nombre || ''
+}
+
+function respuesta(p) {
+  const v = estado[p.id]
+  if (p.tipo === 'texto') return (v || '').trim()
+  const o = p.opciones.find((x) => x.letra === v)
+  if (!o) return ''
+  return p.tipo === 'imagenes' ? etiqueta(o) : o.nombre
+}
+
+// Línea compacta que resultados.html sabe contar: LG1 metas=F meta-detalle=D …
+// (las respuestas de texto libre van solo en el mensaje, no en el código).
+function codigo() {
+  const partes = PREGUNTAS.filter((p) => p.tipo !== 'texto' && estado[p.id]).map((p) => `${p.id}=${encodeURIComponent(estado[p.id])}`)
+  return ['LG1', ...partes].join(' ')
+}
+function texto() {
+  const lineas = ['Encuesta de diseño · Lógralo']
+  if ((estado._nombre || '').trim()) lineas.push(`De: ${estado._nombre.trim()}`)
+  PREGUNTAS.forEach((p, i) => lineas.push(`${i + 1}. ${p.titulo}: ${respuesta(p) || '(sin respuesta)'}`))
+  lineas.push('', `Código: ${codigo()}`)
+  return lineas.join('\n')
+}
+
+function actualizar() {
+  for (const p of PREGUNTAS) {
+    const el = document.querySelector(`[data-status="${p.id}"]`)
+    if (!el) continue
+    const r = respuesta(p)
+    el.innerHTML = r ? `Elegiste <b>${esc(r)}</b>` : `Sin marcar · <a href="#sec-${p.id}">ir a elegir</a>`
+  }
+  document.getElementById('vista').value = texto()
+}
+
+render()
+actualizar()
+
+document.addEventListener('change', (e) => {
+  const t = e.target
+  if (!t.name || !t.name.startsWith('q-')) return
+  estado[t.name.slice(2)] = t.value
+  guardar(); actualizar()
+})
+document.addEventListener('input', (e) => {
+  const t = e.target
+  if (t.id === 'nombre') estado._nombre = t.value
+  else if (t.tagName === 'TEXTAREA' && t.name && t.name.startsWith('q-')) estado[t.name.slice(2)] = t.value
+  else return
+  guardar(); actualizar()
+})
+
+// Ampliar imágenes con <dialog> nativo
+const dlg = document.getElementById('zoom')
+let origen = null
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('.shot')
+  if (!b) return
+  origen = b
+  const img = document.getElementById('zoom-img')
+  img.src = b.dataset.src; img.alt = b.dataset.alt
+  document.getElementById('zoom-title').textContent = b.dataset.title
+  dlg.showModal()
+  dlg.scrollTop = 0
+})
+document.getElementById('zoom-close').addEventListener('click', () => dlg.close())
+dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close() })
+dlg.addEventListener('close', () => { if (origen) origen.focus() })
+
+// WhatsApp: abre la app con el texto listo; la persona decide enviarlo.
+document.getElementById('whatsapp').addEventListener('click', () => {
+  const url = `https://wa.me/${WHATSAPP_DESTINO}?text=${encodeURIComponent(texto())}`
+  window.open(url, '_blank', 'noopener')
+})
+// PDF: arma un comprobante con la captura de cada elección y abre "Imprimir → Guardar como PDF".
+function comprobante() {
+  const nombre = (estado._nombre || '').trim()
+  const fecha = new Date().toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' })
+  const conImagen = PREGUNTAS.filter((p) => p.tipo === 'imagenes')
+  const resto = PREGUNTAS.filter((p) => p.tipo !== 'imagenes')
+  const item = (p) => {
+    const o = p.opciones.find((x) => x.letra === estado[p.id])
+    const elegida = o ? esc(etiqueta(o)) : 'Sin respuesta'
+    const img = o?.img ? `<img src="${esc(o.img)}" alt="">` : ''
+    return `<div class="cp__item"><div class="cp__q">${esc(p.titulo)}</div><div class="cp__a">${elegida}</div>${img}</div>`
+  }
+  const linea = (p) => `<li><b>${esc(p.titulo)}</b> ${esc(respuesta(p) || 'Sin respuesta')}</li>`
+  const quien = nombre ? esc(nombre) + ' · ' : ''
+  return `<h1>Mi elección de diseño · Lógralo</h1>
+    <p class="cp__meta">${quien}${esc(fecha)}</p>
+    <div class="cp__grid">${conImagen.map(item).join('')}</div>
+    <ul class="cp__list">${resto.map(linea).join('')}</ul>
+    <p class="cp__code">Código: ${esc(codigo())}</p>`
+}
+document.getElementById('pdf').addEventListener('click', async () => {
+  const cp = document.getElementById('comprobante')
+  cp.innerHTML = comprobante()
+  // Esperar a que carguen las capturas para que salgan en el PDF.
+  await Promise.all([...cp.querySelectorAll('img')].map((i) => i.decode().catch(() => {})))
+  document.getElementById('copiado').textContent = 'En la ventana de impresión elige “Guardar como PDF” y envíanos el archivo.'
+  window.print()
+})
+// Copiar al portapapeles (sin enviar nada)
+document.getElementById('copiar').addEventListener('click', async () => {
+  const t = texto()
+  const aviso = document.getElementById('copiado')
+  let ok = false
+  try { await navigator.clipboard.writeText(t); ok = true } catch {
+    const ta = document.getElementById('vista')
+    ta.focus(); ta.select()
+    try { ok = document.execCommand('copy') } catch { ok = false }
+  }
+  aviso.textContent = ok ? 'Listo: se copió. Pégalo en un mensaje para enviárnoslo.' : 'No se pudo copiar solo. Selecciona el texto de abajo y cópialo a mano.'
+})
+</script>
+</body>
+</html>

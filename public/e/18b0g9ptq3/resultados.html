@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Lógralo · Resultados de la encuesta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f2f2f7; --surface:#ffffff; --ink:#16161d; --muted:#4f5160; --line:#d9dae3;
+  --action:#4d5ef7; --action-ink:#ffffff; --action-soft:#eceefe; --focus:#1b2bd8;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#0f1015; --surface:#1b1c23; --ink:#f3f3f7; --muted:#b4b6c4; --line:#33343f;
+    --action:#7d89ff; --action-ink:#0f1015; --action-soft:#24264a; --focus:#aab2ff; color-scheme:dark}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Archivo,system-ui,-apple-system,sans-serif;line-height:1.5;font-size:16px}
+.wrap{max-width:960px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:clamp(26px,5vw,36px);line-height:1.1;margin:0 0 12px;font-weight:800;letter-spacing:-.02em}
+h2{font-size:20px;margin:0 0 4px;font-weight:800}
+p{margin:0 0 12px}
+.muted{color:var(--muted)}
+:focus-visible{outline:3px solid var(--focus);outline-offset:3px;border-radius:6px}
+textarea{width:100%;min-height:180px;font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:2px solid var(--line);border-radius:12px;padding:10px 12px;resize:vertical}
+.btns{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 0}
+.btn{min-height:48px;padding:10px 20px;border:0;border-radius:14px;background:var(--action);color:var(--action-ink);font:inherit;font-weight:700;cursor:pointer}
+.btn--alt{background:var(--surface);color:var(--ink);border:2px solid var(--line)}
+.total{display:block;font-size:18px;font-weight:700;margin:24px 0 0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:16px}
+.bar{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:12px;align-items:center;margin-top:12px}
+.bar img{width:56px;height:76px;object-fit:cover;object-position:top;border-radius:8px;border:1px solid var(--line)}
+.bar__name{font-weight:600;overflow-wrap:anywhere}
+.bar__track{height:10px;border-radius:99px;background:var(--bg);margin-top:6px;overflow:hidden}
+.bar__fill{height:100%;background:var(--action);border-radius:99px}
+.bar__n{font-weight:800;font-variant-numeric:tabular-nums;text-align:right;min-width:4ch}
+.bar--top .bar__name::after{content:" · la más elegida";color:var(--action);font-weight:700}
+.bar--plain{grid-template-columns:minmax(0,1fr) auto}
+.quotes{margin:8px 0 0;padding-left:20px}
+.quotes li{margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Resultados de la encuesta</h1>
+  <p class="muted">Pega aquí todos los mensajes que te llegaron por WhatsApp (puedes pegarlos juntos, uno debajo de otro). También sirve la línea “Código: LG1 …” que trae cada PDF. Nada sale de este computador.</p>
+  <label for="entrada" style="font-weight:700;display:block;margin-bottom:6px">Mensajes recibidos</label>
+  <textarea id="entrada" placeholder="Encuesta de diseño · Lógralo&#10;De: Ana&#10;1. Tus metas (lista): F · Full color · Tapa de color&#10;…&#10;Código: LG1 metas=F meta-detalle=D …"></textarea>
+  <div class="btns">
+    <button type="button" class="btn" id="contar">Contar</button>
+    <button type="button" class="btn btn--alt" id="limpiar">Borrar todo</button>
+  </div>
+  <output class="total" id="total" aria-live="polite"></output>
+  <div id="salida"></div>
+</div>
+<script src="preguntas.js"></script>
+<script>
+const KEY = 'logralo-encuesta-resultados'
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+const entrada = document.getElementById('entrada')
+try { entrada.value = localStorage.getItem(KEY) || '' } catch { /* sin almacenamiento */ }
+
+/** Lee "LG1 metas=F hoy=B …" a { metas: 'F', hoy: 'B' }; null si la línea no trae código. */
+function eleccionesDe(linea) {
+  const i = linea.indexOf('LG1')
+  if (i < 0) return null
+  const elecciones = {}
+  for (const par of linea.slice(i + 3).trim().split(/\s+/)) {
+    const [id, valor] = par.split('=')
+    if (!id || valor === undefined) continue
+    try { elecciones[id] = decodeURIComponent(valor) } catch { elecciones[id] = valor }
+  }
+  return elecciones
+}
+
+function nombreDe(bloque) {
+  const l = bloque.map((x) => x.trim()).find((x) => x.startsWith('De:'))
+  return l ? l.slice(3).trim() : ''
+}
+
+function textosLibresDe(bloque) {
+  const libres = {}
+  for (const p of PREGUNTAS.filter((q) => q.tipo === 'texto')) {
+    const marca = p.titulo + ':'
+    const l = bloque.find((x) => x.includes(marca))
+    const v = l ? l.slice(l.indexOf(marca) + marca.length).trim() : ''
+    if (v && v !== '(sin respuesta)') libres[p.id] = v
+  }
+  return libres
+}
+
+/** Separa el texto pegado en respuestas: cada una termina en su línea "Código: LG1 …". */
+function leer(texto) {
+  const respuestas = new Map()
+  let bloque = []
+  for (const linea of texto.split(/\r?\n/)) {
+    bloque.push(linea)
+    const elecciones = eleccionesDe(linea)
+    if (!elecciones) continue
+    const nombre = nombreDe(bloque)
+    const libres = textosLibresDe(bloque)
+    // La misma persona que envía dos veces cuenta una sola vez (vale la última).
+    const clave = nombre ? 'n:' + nombre.toLowerCase() : 'c:' + linea.trim() + JSON.stringify(libres)
+    respuestas.delete(clave)
+    respuestas.set(clave, { nombre, elecciones, libres })
+    bloque = []
+  }
+  return [...respuestas.values()]
+}
+
+function textoTotal(rs) {
+  if (!rs.length) return 'No encontré respuestas. Cada mensaje debe traer su línea “Código: LG1 …”.'
+  const palabra = rs.length === 1 ? 'respuesta' : 'respuestas'
+  const nombres = rs.filter((r) => r.nombre).map((r) => r.nombre)
+  const quienes = nombres.length ? ' · ' + nombres.join(', ') : ''
+  return `${rs.length} ${palabra}${quienes}`
+}
+
+function tarjetaTexto(p, n, rs) {
+  const frases = rs.filter((r) => r.libres[p.id])
+  if (!frases.length) return ''
+  const item = (r) => {
+    const autor = r.nombre ? ` <span class="muted">· ${esc(r.nombre)}</span>` : ''
+    return `<li>${esc(r.libres[p.id])}${autor}</li>`
+  }
+  return `<section class="card"><h2>${n}. ${esc(p.titulo)}</h2><ul class="quotes">${frases.map(item).join('')}</ul></section>`
+}
+
+function filaVoto({ o, n, votos, max }) {
+  const nombre = o.letra === o.nombre ? o.nombre : `${o.letra} · ${o.nombre}`
+  const pct = votos ? Math.round((n / votos) * 100) : 0
+  const clases = ['bar']
+  if (!o.img) clases.push('bar--plain')
+  if (n > 0 && n === max) clases.push('bar--top')
+  const img = o.img ? `<img src="${esc(o.img)}" alt="" loading="lazy">` : ''
+  return `<div class="${clases.join(' ')}">${img}
+    <div><div class="bar__name">${esc(nombre)}</div><div class="bar__track"><div class="bar__fill" style="width:${pct}%"></div></div></div>
+    <div class="bar__n">${n} <span class="muted" style="font-weight:600">(${pct}%)</span></div>
+  </div>`
+}
+
+function tarjetaVotos(p, n, rs) {
+  const votos = rs.filter((r) => r.elecciones[p.id]).length
+  const cuentas = p.opciones.map((o) => ({ o, n: rs.filter((r) => r.elecciones[p.id] === o.letra).length }))
+  const max = Math.max(0, ...cuentas.map((c) => c.n))
+  const filas = cuentas.sort((a, b) => b.n - a.n).map((c) => filaVoto({ ...c, votos, max })).join('')
+  return `<section class="card"><h2>${n}. ${esc(p.titulo)}</h2>
+    <p class="muted">${votos} de ${rs.length} respondieron</p>${filas}</section>`
+}
+
+function contar() {
+  try { localStorage.setItem(KEY, entrada.value) } catch { /* sin almacenamiento */ }
+  const rs = leer(entrada.value)
+  document.getElementById('total').textContent = textoTotal(rs)
+  const tarjeta = (p, i) => (p.tipo === 'texto' ? tarjetaTexto(p, i + 1, rs) : tarjetaVotos(p, i + 1, rs))
+  document.getElementById('salida').innerHTML = rs.length ? PREGUNTAS.map(tarjeta).join('') : ''
+}
+
+document.getElementById('contar').addEventListener('click', contar)
+document.getElementById('limpiar').addEventListener('click', () => { entrada.value = ''; contar() })
+if (entrada.value) contar()
+</script>
+</body>
+</html>
