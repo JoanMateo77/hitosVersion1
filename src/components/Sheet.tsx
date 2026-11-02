@@ -35,6 +35,7 @@ export function Sheet({
   as = 'div',
   style,
   onSubmit,
+  side = false,
   children,
 }: {
   onClose: () => void
@@ -45,6 +46,8 @@ export function Sheet({
   /** Estilos del panel (p. ej. el acento de nicho). */
   style?: CSSProperties
   onSubmit?: FormEventHandler<HTMLFormElement>
+  /** En escritorio entra como panel lateral derecho (chat del coach). */
+  side?: boolean
   /** Recibe `close()` para los botones propios de la hoja. */
   children: (close: () => void) => ReactNode
 }) {
@@ -112,7 +115,7 @@ export function Sheet({
   function onAnimationEnd(e: ReactAnimationEvent<HTMLElement>) {
     // Ignoramos las animaciones de los hijos que burbujean hasta el panel.
     if (!closing || e.target !== e.currentTarget) return
-    if (e.animationName !== 'sheet-down') return
+    if (e.animationName !== 'sheet-down' && e.animationName !== 'coach-side-out') return
     onCloseRef.current()
   }
 
@@ -135,7 +138,7 @@ export function Sheet({
 
   return (
     <div
-      className={`sheet${closing ? ' sheet--closing' : ''}`}
+      className={`sheet${side ? ' sheet--side' : ''}${closing ? ' sheet--closing' : ''}`}
       role="dialog"
       aria-modal="true"
       aria-label={label}

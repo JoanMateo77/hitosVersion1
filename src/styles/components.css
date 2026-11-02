@@ -2468,6 +2468,133 @@ select.input {
 .mstone__input {
   flex: 1;
 }
+/* Con mouse, el "⋯" solo aparece al pasar o enfocar la fila: la lista se lee
+   limpia y las acciones siguen a un gesto. En táctil queda siempre visible. */
+@media (hover: hover) {
+  .mstone__more {
+    opacity: 0;
+    transition: opacity var(--dur-tap) var(--ease-out);
+  }
+  .mstone:hover .mstone__more,
+  .mstone:focus-within .mstone__more,
+  .mstone__more[aria-expanded='true'] {
+    opacity: 1;
+  }
+}
+
+/* --- Coach de la meta (wizard): arriba del camino, siempre a la vista --- */
+.coach {
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s4);
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border-soft));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--primary) 10%, var(--surface)),
+    var(--surface)
+  );
+}
+.coach__head {
+  display: flex;
+  gap: var(--s3);
+  align-items: flex-start;
+}
+.coach__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.coach__cta {
+  justify-self: start;
+}
+.coach__loading {
+  color: var(--primary);
+}
+.coach__q {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s2);
+}
+.coach__notes {
+  margin: 0;
+  padding-left: 1.1em;
+  display: grid;
+  gap: var(--s1);
+}
+.coach__change {
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-sm);
+  background: var(--primary-soft);
+}
+
+/* Sugerencia dentro del camino: punteada, en la posición donde encaja. */
+.mstone-ghost {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  min-height: 48px;
+  margin: 2px 0;
+  padding: var(--s2) var(--s3) var(--s2) 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--primary) 55%, transparent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--dur-tap) var(--ease-out), border-color var(--dur-tap) var(--ease-out);
+}
+.mstone-ghost:hover,
+.mstone-ghost:focus-visible {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
+.mstone-ghost__plus {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  margin-left: var(--s2);
+  color: var(--primary);
+}
+.mstone-ghost__text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.mstone-ghost__title {
+  color: var(--primary);
+  font-weight: 600;
+}
+.mstone-ghost__cta {
+  flex: none;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--primary);
+}
+@media (max-width: 480px) {
+  .mstone-ghost__cta {
+    display: none;
+  }
+}
+
+.template-ideas {
+  margin-top: var(--s4);
+}
+.template-ideas summary {
+  cursor: pointer;
+}
 
 /* --- Mini-cadena de la semana (Hábitos): un punto por día --- */
 .weekstrip__dot {

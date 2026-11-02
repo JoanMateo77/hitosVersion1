@@ -1,17 +1,45 @@
 import { useState, type KeyboardEvent } from 'react'
 import { todayISO, formatLongDate } from '@/lib/date'
 import type { MilestoneDraft } from '@/domain/commitment'
+import type { GoalPlanStage } from '@/domain/goalPlan'
 import {
   IconArrowDown,
   IconArrowUp,
   IconCalendar,
   IconDots,
+  IconPlus,
   IconTrash,
 } from '@/components/icons'
+
+/** Sugerencia del coach ubicada en el camino: va antes de la etapa `index`. */
+export interface GhostStage {
+  stage: GoalPlanStage
+  index: number
+}
 
 interface MilestonesStepProps {
   milestones: MilestoneDraft[]
   onChange: (milestones: MilestoneDraft[]) => void
+  ghosts?: readonly GhostStage[]
+  onAcceptGhost?: (stage: GoalPlanStage) => void
+}
+
+/** Fila punteada de una sugerencia: se ve dónde encaja y se agrega ahí con un clic. */
+function GhostRow({ stage, onAccept }: Readonly<{ stage: GoalPlanStage; onAccept?: (s: GoalPlanStage) => void }>) {
+  return (
+    <li>
+      <button type="button" className="mstone-ghost" onClick={() => onAccept?.(stage)}>
+        <span className="mstone-ghost__plus" aria-hidden="true">
+          <IconPlus size={14} />
+        </span>
+        <span className="mstone-ghost__text">
+          <span className="mstone-ghost__title">{stage.title}</span>
+          {stage.reason && <span className="tiny faint">{stage.reason}</span>}
+        </span>
+        <span className="mstone-ghost__cta">Agregar aquí</span>
+      </button>
+    </li>
+  )
 }
 
 /** Reasigna `position` según el orden del array (la única fuente de orden). */
@@ -24,7 +52,10 @@ function renumber(list: MilestoneDraft[]): MilestoneDraft[] {
  * editable al tocar, y fecha/orden/quitar detrás de "⋯". Mismo lenguaje visual
  * que el checklist del detalle de meta.
  */
-export function MilestonesStep({ milestones, onChange }: MilestonesStepProps) {
+export function MilestonesStep({ milestones, onChange, ghosts = [], onAcceptGhost }: MilestonesStepProps) {
+  const ghostsAt = (i: number) =>
+    ghosts.filter((g) => g.index === i).map((g) => <GhostRow key={`g-${g.stage.title}`} stage={g.stage} onAccept={onAcceptGhost} />)
+
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [menuIndex, setMenuIndex] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
@@ -53,13 +84,28 @@ export function MilestonesStep({ milestones, onChange }: MilestonesStepProps) {
     if (title) patch(index, { title })
   }
 
-  function commitAdd(value: string) {
-    setAdding(false)
+  function commitAdd(value: string, keepAdding = false) {
+    setAdding(keepAdding)
     const title = value.trim()
     if (!title) return
     onChange(
       renumber([...milestones, { title, position: milestones.length, targetDate: null, done: false }]),
     )
+  }
+
+  // Enter agrega y deja el campo listo para la siguiente: armar el camino de
+  // cero es escribir una lista, no abrir un formulario por etapa.
+  function onAddKey(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      const value = e.currentTarget.value
+      e.currentTarget.value = ''
+      commitAdd(value, true)
+    }
+    if (e.key === 'Escape') {
+      e.currentTarget.value = ''
+      setAdding(false)
+    }
   }
 
   function onEditKey(e: KeyboardEvent<HTMLInputElement>) {
@@ -73,7 +119,8 @@ export function MilestonesStep({ milestones, onChange }: MilestonesStepProps) {
 
   return (
     <ul className="stack" style={{ gap: 0, listStyle: 'none', padding: 0, margin: 0 }}>
-      {milestones.map((m, index) => (
+      {milestones.map((m, index) => [
+        ...ghostsAt(index),
         <li key={index}>
           <div className="mstone">
             <span className="tag" aria-hidden="true" style={{ flex: 'none', minWidth: 28, justifyContent: 'center' }}>
@@ -106,7 +153,7 @@ export function MilestonesStep({ milestones, onChange }: MilestonesStepProps) {
             )}
             <button
               type="button"
-              className="iconbtn iconbtn--sm"
+              className="iconbtn iconbtn--sm mstone__more"
               aria-expanded={menuIndex === index}
               aria-label={`Opciones de la etapa ${index + 1}`}
               onClick={() => setMenuIndex(menuIndex === index ? null : index)}
@@ -153,19 +200,21 @@ export function MilestonesStep({ milestones, onChange }: MilestonesStepProps) {
               </button>
             </div>
           )}
-        </li>
-      ))}
+        </li>,
+      ])}
+      {ghostsAt(milestones.length)}
 
       <li style={{ marginTop: 'var(--s2)' }}>
-        {adding ? (
+        {/* Sin etapas, el campo ya está a la vista: arrancar de cero es escribir. */}
+        {adding || milestones.length === 0 ? (
           <input
             className="input"
-            autoFocus
-            placeholder="Describe la nueva etapa…"
+            autoFocus={adding}
+            placeholder={milestones.length === 0 ? 'Escribe tu primera etapa y presiona Enter…' : 'Siguiente etapa…'}
             maxLength={200}
             aria-label="Nueva etapa"
             onBlur={(e) => commitAdd(e.target.value)}
-            onKeyDown={onEditKey}
+            onKeyDown={onAddKey}
           />
         ) : (
           <button type="button" className="btn--link" onClick={() => setAdding(true)}>
@@ -173,12 +222,13 @@ export function MilestonesStep({ milestones, onChange }: MilestonesStepProps) {
           </button>
         )}
       </li>
-      <li>
-        <p className="faint tiny" style={{ marginTop: 'var(--s3)' }}>
-          Toca una etapa para editarla; con el menú de puntos le pones fecha, la ordenas o la
-          quitas.
-        </p>
-      </li>
+      {milestones.length > 0 && (
+        <li>
+          <p className="faint tiny" style={{ marginTop: 'var(--s3)' }}>
+            Toca una etapa para editarla. Con ⋯ le pones fecha, la ordenas o la quitas.
+          </p>
+        </li>
+      )}
     </ul>
   )
 }

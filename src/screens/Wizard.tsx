@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { createGoal, deleteGoal } from '@/services/goals'
@@ -11,8 +11,8 @@ import { NicheIcon } from '@/components/NicheGlyph'
 import { OptionRow } from '@/components/OptionRow'
 import { Hint } from '@/components/Hint'
 import {
-  buildMilestonesFromTemplate,
   formatCommitmentSummary,
+  weeklyTotal,
   preferredStartTime,
   validateCommitment,
   type CommitmentBlockDraft,
@@ -25,6 +25,16 @@ import { WIZARD_DRAFT_KEY } from '@/lib/wizardDraft'
 import { clearWizardIntent } from '@/app/onboardingIntent'
 import { CommitmentStep } from '@/components/wizard/CommitmentStep'
 import { MilestonesStep } from '@/components/wizard/MilestonesStep'
+import { CoachPanel } from '@/components/wizard/CoachPanel'
+import { parseGoalPlan, resolveInsertIndex, type GoalPlan, type GoalPlanStage, type QuestionAnswer } from '@/domain/goalPlan'
+import { applyStageChanges, type ChatContext, type StageChange } from '@/domain/coachChat'
+import { useCoachChat } from '@/hooks/useCoachChat'
+import { DESKTOP_QUERY, useMediaQuery } from '@/hooks/useMediaQuery'
+import { addCoachMessages, saveGoalAi, type CoachMessage } from '@/services/goalCoach'
+import { Sheet } from '@/components/Sheet'
+import { CoachButton, CoachComposer, CoachOrb, CoachThread } from '@/components/coach/CoachChatView'
+import { CriteriaSuggest } from '@/components/wizard/CriteriaSuggest'
+import type { CriterionOption } from '@/domain/coachChat'
 
 /** Pasos del wizard: título · tipo · compromiso · camino · ancla · resumen. */
 const STEPS = 6
@@ -41,10 +51,12 @@ interface WizardDraft {
   criteria: string
   blocks: CommitmentBlockDraft[]
   milestones: MilestoneDraft[]
-  /** Plantilla con la que se sembraron las etapas (para re-sembrar si cambia). */
-  seededFromTemplate: string
-  /** true si el usuario editó las etapas: nunca se pisan. */
-  milestonesTouched: boolean
+  /** Plan sugerido por la IA en el paso de etapas (se conserva al ir y volver). */
+  aiPlan: GoalPlan | null
+  /** Respuestas a las preguntas del coach (null = aún no preguntó). */
+  aiAnswers: QuestionAnswer[] | null
+  /** Conversación con el coach durante el asistente; se guarda con la meta. */
+  chat: CoachMessage[]
 }
 
 /** Type-guard: ¿el valor es un NicheId válido? Espejo de isTheme en theme.ts. */
@@ -74,8 +86,26 @@ function loadDraft(): Partial<WizardDraft> {
     if (typeof d.targetDate === 'string') draft.targetDate = d.targetDate
     if (isNiche(d.area)) draft.area = d.area
     if (typeof d.criteria === 'string') draft.criteria = d.criteria
-    if (typeof d.seededFromTemplate === 'string') draft.seededFromTemplate = d.seededFromTemplate
-    if (typeof d.milestonesTouched === 'boolean') draft.milestonesTouched = d.milestonesTouched
+    if (d.aiPlan != null) draft.aiPlan = parseGoalPlan(d.aiPlan, 0)
+    if (Array.isArray(d.aiAnswers)) {
+      draft.aiAnswers = (d.aiAnswers as unknown[]).filter(
+        (a): a is QuestionAnswer =>
+          a != null &&
+          typeof a === 'object' &&
+          typeof (a as Record<string, unknown>).question === 'string' &&
+          typeof (a as Record<string, unknown>).answer === 'string',
+      )
+    }
+    if (Array.isArray(d.chat)) {
+      draft.chat = (d.chat as unknown[]).filter(
+        (m): m is CoachMessage =>
+          m != null &&
+          typeof m === 'object' &&
+          typeof (m as Record<string, unknown>).id === 'string' &&
+          typeof (m as Record<string, unknown>).text === 'string' &&
+          ((m as Record<string, unknown>).role === 'user' || (m as Record<string, unknown>).role === 'coach'),
+      )
+    }
     if (Array.isArray(d.blocks)) {
       draft.blocks = (d.blocks as unknown[]).filter(
         (item): item is CommitmentBlockDraft =>
@@ -134,15 +164,50 @@ export function Wizard() {
   )
 
   const [blocks, setBlocks] = useState<CommitmentBlockDraft[]>(draft.blocks ?? [])
+  // Las etapas arrancan vacías: la plantilla y la IA solo SUGIEREN (se agregan con un clic).
   const [milestones, setMilestones] = useState<MilestoneDraft[]>(draft.milestones ?? [])
-  // Si el usuario cambia de plantilla sin haber editado las etapas, se re-siembran;
-  // si las tocó, se respetan siempre (espejo del patrón detectedFromTitle).
-  const [seededFromTemplate, setSeededFromTemplate] = useState(draft.seededFromTemplate ?? '')
-  const [milestonesTouched, setMilestonesTouched] = useState(draft.milestonesTouched ?? false)
+  const [aiPlan, setAiPlan] = useState<GoalPlan | null>(draft.aiPlan ?? null)
+  const [aiAnswers, setAiAnswers] = useState<QuestionAnswer[] | null>(draft.aiAnswers ?? null)
+  const [criteriaOptions, setCriteriaOptions] = useState<CriterionOption[] | null>(null)
+  const [chatOpen, setChatOpen] = useState(false)
+  const isDesktop = useMediaQuery(DESKTOP_QUERY)
   const [existingBlocks, setExistingBlocks] = useState<ScheduleBlock[]>([])
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const typeLabel = getTemplate(templateKey || 'personalizada').label
+  const weeklyMinutes = weeklyTotal(blocks).minutes || null
+  const chatContext = useCallback(
+    (): ChatContext => ({
+      title,
+      typeLabel,
+      area,
+      why,
+      targetDate,
+      weeklyMinutes,
+      answers: aiAnswers ?? [],
+      successCriteria: criteria,
+      stages: milestones.map((m) => ({ title: m.title })),
+    }),
+    [title, typeLabel, area, why, targetDate, weeklyMinutes, aiAnswers, criteria, milestones],
+  )
+  // Los cambios que la persona acepta en el chat se aplican al borrador del camino.
+  const applyChanges = useCallback((changes: StageChange[]) => {
+    setMilestones((current) => {
+      const byTitle = new Map(current.map((m) => [m.title.trim().toLowerCase(), m]))
+      const titles = applyStageChanges(
+        current.map((m) => m.title),
+        changes,
+      )
+      return renumberDrafts(
+        titles.map(
+          (t) => byTitle.get(t.trim().toLowerCase()) ?? { title: t, position: 0, targetDate: null, done: false },
+        ),
+      )
+    })
+  }, [])
+  const chat = useCoachChat({ getContext: chatContext, onApply: applyChanges, initial: draft.chat ?? [] })
 
   // Consumimos la intención del onboarding: si llegamos aquí venimos de "Crear
   // mi primera meta", y ya no queremos que el redirect de /onboarding reaparezca.
@@ -187,14 +252,15 @@ export function Wizard() {
           criteria,
           blocks,
           milestones,
-          seededFromTemplate,
-          milestonesTouched,
+          aiPlan,
+          aiAnswers,
+          chat: chat.messages,
         }),
       )
     } catch {
       /* ignore */
     }
-  }, [step, title, templateKey, why, targetDate, area, criteria, blocks, milestones, seededFromTemplate, milestonesTouched])
+  }, [step, title, templateKey, why, targetDate, area, criteria, blocks, milestones, aiPlan, aiAnswers, chat.messages])
 
   function goBack() {
     if (step === 0) {
@@ -217,15 +283,11 @@ export function Wizard() {
       )
       setCustomFirst(detected.key === 'personalizada')
     }
-    // Al salir del tipo elegido (paso 1 → 2), sembrar las etapas desde la
-    // plantilla. Se re-siembran si la plantilla cambió y el usuario no las editó;
-    // las etapas editadas a mano no se pisan nunca.
-    if (step === 1) {
-      const key = templateKey || 'personalizada'
-      if (milestones.length === 0 || (!milestonesTouched && key !== seededFromTemplate)) {
-        setMilestones(buildMilestonesFromTemplate(getTemplate(key), 0))
-        setSeededFromTemplate(key)
-      }
+    // Si cambió la meta, el plan, las respuestas y las opciones de la IA ya no aplican.
+    if (step === 0 && title !== detectedFromTitle) {
+      setAiPlan(null)
+      setAiAnswers(null)
+      setCriteriaOptions(null)
     }
     setStep((s) => s + 1)
   }
@@ -252,6 +314,13 @@ export function Wizard() {
       createdGoalId = goal.id
       await createMilestones(userId, goal.id, milestones.map((m, position) => ({ ...m, position })))
       const createdBlocks = await createScheduleBlocks(userId, goal.id, blocks)
+      // Memoria del coach: si falla (p. ej. sin migración 0018) la meta igual se crea.
+      await saveGoalAi(goal.id, { plan: aiPlan, answers: aiAnswers ?? [] })
+      await addCoachMessages(
+        userId,
+        goal.id,
+        chat.messages.map((m) => ({ role: m.role, text: m.text, proposal: m.proposal })),
+      )
       // Si hoy es día comprometido, la sesión aparece en Hoy al instante.
       await generateSessionsForDate(userId, todayISO(), createdBlocks).catch(() => {})
       // Le mostramos el camino + la primera acción: la app guía, no solo crea.
@@ -277,6 +346,24 @@ export function Wizard() {
     ]
   })()
 
+  // Sugerencias del coach que la persona aún no agregó (por título).
+  const milestoneTitles = milestones.map((m) => m.title)
+  const pendingSuggestions: GoalPlanStage[] = (aiPlan?.stages ?? []).filter(
+    (s) => !milestoneTitles.some((t) => t.trim().toLowerCase() === s.title.trim().toLowerCase()),
+  )
+
+  /** Inserta una sugerencia en la posición donde encaja según su ancla. */
+  function insertStage(current: MilestoneDraft[], stage: GoalPlanStage): MilestoneDraft[] {
+    const index = resolveInsertIndex(
+      stage.afterTitle,
+      current.map((m) => m.title),
+      pendingSuggestions,
+    )
+    const next = [...current]
+    next.splice(index, 0, { title: stage.title, position: 0, targetDate: null, done: false })
+    return renumberDrafts(next)
+  }
+
   const commitmentError = validateCommitment(blocks)
   const canContinue =
     step === 0
@@ -289,7 +376,7 @@ export function Wizard() {
   const isLast = step === STEPS - 1
 
   return (
-    <div className="screen screen--full flow-screen">
+    <div className={`screen screen--full flow-screen${step === 3 ? ' flow-screen--camino' : ''}`}>
       <div className="row" style={{ marginBottom: 'var(--s4)' }}>
         <button className="iconbtn" onClick={goBack} aria-label="Volver">
           <IconBack />
@@ -379,16 +466,55 @@ export function Wizard() {
 
         {step === 3 && (
           <Question
-            title="Estas son tus etapas"
-            hint="El camino típico de este tipo de meta, en orden. Edita, reordena o agrega las que necesites."
+            title="Arma tu camino"
+            hint="Las etapas de tu meta, en orden. Escríbelas tú; el coach las revisa y te dice qué falta y dónde va."
           >
-            <MilestonesStep
-              milestones={milestones}
-              onChange={(ms) => {
-                setMilestones(ms)
-                setMilestonesTouched(true)
-              }}
-            />
+            <div className="camino">
+              <aside className="camino__coach">
+                <CoachPanel
+                  input={{
+                    title,
+                    typeLabel,
+                    area,
+                    why,
+                    targetDate,
+                    // El horario del paso anterior es el tiempo real disponible.
+                    weeklyMinutes,
+                  }}
+                  stageTitles={milestoneTitles}
+                  plan={aiPlan}
+                  onPlan={setAiPlan}
+                  answers={aiAnswers}
+                  onAnswers={setAiAnswers}
+                  pendingCount={pendingSuggestions.length}
+                  onAddAll={() => setMilestones((current) => pendingSuggestions.reduce(insertStage, current))}
+                  chat={chat}
+                  inlineThread={isDesktop}
+                  onOpenChat={() => setChatOpen(true)}
+                />
+              </aside>
+              <div className="camino__main">
+                <MilestonesStep
+                  milestones={milestones}
+                  onChange={setMilestones}
+                  ghosts={pendingSuggestions.map((stage) => ({
+                    stage,
+                    index: resolveInsertIndex(stage.afterTitle, milestoneTitles, pendingSuggestions),
+                  }))}
+                  onAcceptGhost={(stage) => setMilestones((current) => insertStage(current, stage))}
+                />
+                <TemplateIdeas
+                  titles={getTemplate(templateKey || 'personalizada').milestones.filter(
+                    (t) => !milestoneTitles.some((m) => m.trim().toLowerCase() === t.trim().toLowerCase()),
+                  )}
+                  onAdd={(t) =>
+                    setMilestones((current) =>
+                      renumberDrafts([...current, { title: t, position: 0, targetDate: null, done: false }]),
+                    )
+                  }
+                />
+              </div>
+            </div>
           </Question>
         )}
 
@@ -424,17 +550,12 @@ export function Wizard() {
                 Quitar fecha
               </button>
             )}
-            <input
-              className="input"
-              aria-label="¿Cómo vas a saber que lo lograste?"
-              placeholder="Lo sabré cuando…"
+            <CriteriaSuggest
+              context={chatContext}
               value={criteria}
-              onChange={(e) => setCriteria(e.target.value)}
-              maxLength={200}
-              autoCapitalize="sentences"
-              autoCorrect="on"
-              enterKeyHint="done"
-              inputMode="text"
+              onChange={setCriteria}
+              options={criteriaOptions}
+              onOptions={setCriteriaOptions}
             />
           </Question>
         )}
@@ -469,14 +590,50 @@ export function Wizard() {
           vista — elegir una opción no debe obligar a scrollear hasta el fondo. */}
       <div className="wizard-cta">
         {error && <div className="alert alert--error" style={{ marginBottom: 'var(--s3)' }}>{error}</div>}
-        <button
-          className="btn btn--primary btn--block"
-          disabled={!canContinue || saving}
-          onClick={isLast ? submit : next}
-        >
-          {isLast ? (saving ? 'Creando…' : 'Crear meta') : 'Continuar'}
-        </button>
+        <div className="row" style={{ gap: 'var(--s3)', alignItems: 'center' }}>
+          <button
+            className="btn btn--primary btn--block"
+            disabled={!canContinue || saving}
+            onClick={isLast ? submit : next}
+          >
+            {isLast ? (saving ? 'Creando…' : 'Crear meta') : 'Continuar'}
+          </button>
+          {step === 3 && !isDesktop && <CoachButton onClick={() => setChatOpen(true)} />}
+        </div>
       </div>
+
+      {chatOpen && !isDesktop && (
+        <Sheet label="Hablar con el coach" panelClassName="stack coach-sheet" onClose={() => setChatOpen(false)}>
+          {(close) => (
+            <>
+              <div className="row" style={{ alignItems: 'center', gap: 'var(--s3)' }}>
+                <CoachOrb thinking={chat.pending} />
+                <div className="stack spacer" style={{ gap: 2 }}>
+                  <strong>Coach de tu meta</strong>
+                  <span className="small faint">Conoce tu camino y tus respuestas</span>
+                </div>
+                <button type="button" className="btn--link" onClick={close}>
+                  Listo
+                </button>
+              </div>
+              <CoachThread
+                chat={chat}
+                empty={<p className="small faint">Cuéntale qué ya hiciste, qué te frena o qué tiempo tienes de verdad. Él te propone cambios y tú decides.</p>}
+              />
+              {chat.messages.length === 0 && (
+                <div className="row wrap" style={{ gap: 'var(--s2)' }}>
+                  {['Ya tengo algo avanzado', 'Solo puedo los fines de semana', '¿Por qué en este orden?'].map((t) => (
+                    <button key={t} type="button" className="chip" onClick={() => void chat.send(t)}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <CoachComposer onSend={(t) => void chat.send(t)} disabled={chat.pending} autoFocus />
+            </>
+          )}
+        </Sheet>
+      )}
     </div>
   )
 }
@@ -550,5 +707,26 @@ function ReviewCard({
         </div>
       )}
     </div>
+  )
+}
+
+function renumberDrafts(list: MilestoneDraft[]): MilestoneDraft[] {
+  return list.map((m, position) => ({ ...m, position }))
+}
+
+/** Etapas típicas del tipo de meta, plegadas: están si se buscan, no estorban. */
+function TemplateIdeas({ titles, onAdd }: Readonly<{ titles: string[]; onAdd: (title: string) => void }>) {
+  if (titles.length === 0) return null
+  return (
+    <details className="template-ideas">
+      <summary className="small faint">Ver etapas típicas de este tipo de meta</summary>
+      <div className="row wrap" style={{ gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
+        {titles.map((t) => (
+          <button key={t} type="button" className="chip" onClick={() => onAdd(t)}>
+            + {t}
+          </button>
+        ))}
+      </div>
+    </details>
   )
 }

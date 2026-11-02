@@ -1,11 +1,50 @@
 import { fileURLToPath, URL } from 'node:url'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { createPlanMetaHandler } from './src/server/planMetaApp'
+
+/**
+ * En local monta POST /api/plan-meta con el mismo handler que la función de
+ * Vercel, así no hace falta `vercel dev`. Lee .env/.env.local SIN filtrar por
+ * prefijo (solo en este proceso de Node; el bundle sigue viendo solo VITE_*).
+ */
+function localApi(): Plugin {
+  return {
+    name: 'local-api',
+    apply: 'serve',
+    configureServer(server) {
+      const env = loadEnv(server.config.mode, process.cwd(), '')
+      const handler = createPlanMetaHandler(env)
+      server.middlewares.use('/api/plan-meta', (req, res) => {
+        const chunks: Buffer[] = []
+        req.on('data', (c: Buffer) => chunks.push(c))
+        req.on('end', () => {
+          const request = new Request(`http://localhost${req.originalUrl ?? '/api/plan-meta'}`, {
+            method: req.method,
+            headers: req.headers as Record<string, string>,
+            body: req.method === 'POST' ? Buffer.concat(chunks) : undefined,
+          })
+          handler(request)
+            .then(async (response) => {
+              res.statusCode = response.status
+              response.headers.forEach((value, key) => res.setHeader(key, value))
+              res.end(await response.text())
+            })
+            .catch(() => {
+              res.statusCode = 500
+              res.end()
+            })
+        })
+      })
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
+    localApi(),
     react(),
     VitePWA({
       registerType: 'autoUpdate',
