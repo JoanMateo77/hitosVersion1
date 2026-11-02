@@ -8,10 +8,13 @@
  * (Accept: application/vnd.pgrst.object+json) y escrituras que devuelven la fila.
  */
 import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import type { Page, Request, Route } from '@playwright/test'
 import { aiResponse } from './fixtures/ai'
 import type { Row, Tables } from './fixtures/data'
 import { MOCK_SUPABASE_URL, mockSession, mockUser } from './fixtures/session'
+import { ROOT } from './paths'
 
 /** Las respuestas cruzan de origen (localhost → mock.supabase.test): CORS abierto. */
 const CORS = {
@@ -20,6 +23,9 @@ const CORS = {
   'access-control-allow-methods': '*',
   'access-control-expose-headers': 'content-range',
 }
+
+/** Foto de portada de prueba (local): la misma para cualquier objeto del bucket. */
+const COVER_JPG = readFileSync(join(ROOT, 'e2e', 'fixtures', 'cover.jpg'))
 
 const RESERVED = new Set(['select', 'order', 'limit', 'offset', 'on_conflict', 'columns'])
 /** Tablas cuya PK no es `id` (no se les inventa uno al insertar). */
@@ -378,9 +384,24 @@ export async function installMocks(page: Page, tables: Tables, log: PageLog, opt
       if (endpoint.startsWith('logout')) return route.fulfill({ status: 204, headers: CORS, body: '' })
       return json(route, {})
     }
-    if (path.startsWith('/storage/v1/')) return json(route, {})
+    if (path.startsWith('/storage/v1/')) return storage(route, req.method(), path)
     return json(route, {})
   })
+}
+
+/**
+ * Storage falso: firmar una URL devuelve una ruta del propio mock y pedirla
+ * sirve la foto local. Subir y borrar responden OK sin guardar nada.
+ */
+function storage(route: Route, method: string, urlPath: string): Promise<void> {
+  const signPrefix = '/storage/v1/object/sign/'
+  if (urlPath.startsWith(signPrefix) && method === 'POST') {
+    return json(route, { signedURL: `/object/sign/${urlPath.slice(signPrefix.length)}?token=mock` })
+  }
+  if (urlPath.startsWith(signPrefix) && method === 'GET') {
+    return route.fulfill({ status: 200, headers: CORS, contentType: 'image/jpeg', body: COVER_JPG })
+  }
+  return json(route, {})
 }
 
 /** Engancha los listeners de consola/errores/peticiones fallidas. */

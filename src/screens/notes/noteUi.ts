@@ -2,6 +2,7 @@ import type { Goal, NicheId, Note } from '@/lib/types'
 import { notePlace } from '@/domain/notes'
 import { getNiche } from '@/domain/niches'
 import { friendlyError } from '@/lib/errors'
+import { goalTone } from '@/lib/goalAccent'
 
 /**
  * Mensaje de un fallo de Notas. El servicio ya escribe para el usuario el caso
@@ -30,4 +31,11 @@ export function noteArea(note: Note, goals: Goal[]): NicheId | null {
   if (place === 'goal') return goals.find((g) => g.id === note.goalId)?.area ?? null
   if (place === 'area') return note.area
   return null
+}
+
+/** Color de la nota: el de su meta (propio o del área), el de su área o ninguno. */
+export function noteTone(note: Note, goals: Goal[]): NicheId | null {
+  if (notePlace(note) !== 'goal') return noteArea(note, goals)
+  const goal = goals.find((g) => g.id === note.goalId)
+  return goal ? goalTone(goal) : null
 }

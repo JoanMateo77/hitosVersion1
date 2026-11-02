@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Goal, Session } from '@/lib/types'
-import { nicheAccent } from '@/lib/nicheAccent'
+import { goalAccent } from '@/lib/goalAccent'
 import { tapHaptic } from '@/lib/haptics'
 import { rangeLabel, sessionSpan } from '@/domain/agenda'
 import { formatTime12 } from '@/lib/date'
@@ -103,7 +103,7 @@ export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onRe
       )
     }
     return (
-      <div className={`session session--${session.status}`} style={nicheAccent(goal.area)}>
+      <div className={`session session--${session.status}`} style={goalAccent(goal)}>
         <div className="session__body">
           <span className="session__title row row--sm">
             <NicheIcon area={goal.area} size={16} className="session__icon" />
@@ -120,7 +120,7 @@ export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onRe
 
   const running = session.status === 'running' || session.status === 'unconfirmed'
   return (
-    <div className="session" style={nicheAccent(goal.area)}>
+    <div className="session" style={goalAccent(goal)}>
       <div className="session__body">
         <span className="session__title row row--sm">
           <NicheIcon area={goal.area} size={16} className="session__icon" />

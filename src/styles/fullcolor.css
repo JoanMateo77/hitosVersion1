@@ -192,6 +192,69 @@ a.fc-card:active {
   border-radius: 0 0 28px 28px;
 }
 
+/* ---- Portada con foto (tarjeta o cabecera de una meta) -------------------- */
+/* La foto va detrás del contenido con una capa negra degradada (≥ 4.5:1 con
+   texto blanco aun sobre una foto blanca: --cover-scrim-*, check:contrast).
+   La tinta pasa a blanco desde coverAccent(); el color de la meta queda en el
+   relieve (tarjeta), el canto inferior (cabecera) y la barra de progreso. */
+.fc-card.fc-cover,
+.fc-hero.fc-cover {
+  isolation: isolate;
+  background: var(--vivid, var(--surface));
+}
+.fc-cover > :not(.fc-cover__media) {
+  position: relative;
+  z-index: 1;
+}
+.fc-cover__media {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background: #000;
+  pointer-events: none;
+}
+.fc-hero.fc-cover .fc-cover__media {
+  /* Deja ver 6 px del color de la meta abajo: el canto. */
+  bottom: 6px;
+}
+.fc-cover__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.fc-cover__media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgb(0 0 0 / var(--cover-scrim-top)),
+    rgb(0 0 0 / var(--cover-scrim-bottom))
+  );
+}
+/* Sobre la foto, los fondos translúcidos van en negro (uno blanco aclararía
+   la capa y bajaría el contraste del texto blanco). */
+.fc-cover .tag,
+.fc-cover .chip-state:not(.chip-state--ok, .chip-state--late),
+.fc-cover .glyph,
+.fc-cover .goal-hero__edit {
+  background: rgb(0 0 0 / 0.35);
+}
+/* El disco del ícono publica la tinta de su tono; sobre la foto, blanca. */
+.fc-cover .glyph {
+  color: var(--ink-light);
+}
+.fc-cover .progress {
+  background: rgb(255 255 255 / 0.28);
+}
+.fc-cover .progress__bar {
+  background: var(--vivid);
+}
+
 /* ---- Estados: verde = cumplido/al día · ámbar = atrasado ------------------ */
 .chip-state {
   display: inline-flex;

@@ -6,7 +6,7 @@ import { milestoneProgressByGoal } from '@/services/milestones'
 import { isGoalClosed } from '@/domain/goals'
 import { daysUntil, relativeDeadline } from '@/lib/date'
 import { formatPercent } from '@/lib/format'
-import { nicheAccent } from '@/lib/nicheAccent'
+import { coverAccent, goalAccent, goalTone } from '@/lib/goalAccent'
 import { withViewTransition } from '@/lib/viewTransition'
 import type { Goal, GoalStatus } from '@/lib/types'
 import { useCachedData } from '@/hooks/useCachedData'
@@ -14,6 +14,8 @@ import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
 import { IconChevronRight, IconPlus, IconStar } from '@/components/icons'
 import { NicheGlyph } from '@/components/NicheGlyph'
+import { GoalCover } from '@/components/GoalCover'
+import { useCoverUrl } from '@/hooks/useCoverUrl'
 import { PathIllustration } from '@/components/PathIllustration'
 
 /** Orden de presentación por estado: lo activo primero. */
@@ -193,20 +195,24 @@ function GoalCard({
     .join(' · ')
 
   const stateClass = state && state.tone !== 'neutral' ? `chip-state chip-state--${state.tone}` : 'chip-state'
+  // Portada en la tarjeta solo si la persona lo pidió; la tinta pasa a blanco sobre la foto.
+  const coverUrl = useCoverUrl(goal.coverOnCard ? goal.coverPath : null)
+  const accent = coverUrl ? coverAccent(goal) : goalAccent(goal)
 
   return (
     <div className={`goal-card-wrap${closed ? ' goal-card-wrap--closed' : ''}`}>
       <button
         type="button"
-        className="fc-card goal-card"
+        className={`fc-card goal-card${coverUrl ? ' fc-cover' : ''}`}
         onClick={onClick}
-        style={nicheAccent(goal.area)}
+        style={accent}
       >
+        {coverUrl && <GoalCover url={coverUrl} />}
         {/* Banda superior: ícono a la izquierda, patrón del área al centro y la
             estrella (hermana, superpuesta) a la derecha. El título va debajo
             a todo el ancho, así nunca choca con el patrón. */}
         <span className="goal-card__top">
-          <NicheGlyph area={goal.area} size="md" />
+          <NicheGlyph area={goal.area} tone={goalTone(goal)} size="md" />
         </span>
         <span className="fc-card__title goal-card__title">{goal.title}</span>
         {(metaLine || state) && (
@@ -234,7 +240,7 @@ function GoalCard({
           aria-pressed={isPriority}
           aria-label={isPriority ? `Quitar prioridad: ${goal.title}` : `Marcar como prioritaria: ${goal.title}`}
           className={`goal-card__star${isPriority ? ' goal-card__star--on' : ''}`}
-          style={nicheAccent(goal.area)}
+          style={accent}
           onClick={onTogglePriority}
         >
           <IconStar size={18} style={isPriority ? { fill: 'currentColor' } : undefined} />

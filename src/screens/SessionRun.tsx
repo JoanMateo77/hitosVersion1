@@ -23,7 +23,7 @@ import {
 } from '@/domain/sessions'
 import { getTemplate } from '@/domain/templates'
 import { formatTime12, todayISO } from '@/lib/date'
-import { nicheAccent } from '@/lib/nicheAccent'
+import { goalAccent, goalTone } from '@/lib/goalAccent'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SessionRing } from '@/components/SessionRing'
 import { Disclosure } from '@/components/Disclosure'
@@ -434,7 +434,7 @@ export function SessionRun() {
     !session.pausedAt
 
   return (
-    <main className="screen screen--full flow-screen flow-screen--session" style={nicheAccent(goal.area)}>
+    <main className="screen screen--full flow-screen flow-screen--session" style={goalAccent(goal)}>
       <div className="row" style={{ marginBottom: 'var(--s4)', minHeight: 34, alignItems: 'center' }}>
         {focusLocked ? (
           <span className="small faint" role="status">
@@ -455,7 +455,7 @@ export function SessionRun() {
         <div className="session-head">
           {/* El h1 de la pantalla es la meta, con aspecto de píldora del área. */}
           <h1 className="session-head__goal">
-            <NicheGlyph area={goal.area} size="sm" />
+            <NicheGlyph area={goal.area} tone={goalTone(goal)} size="sm" />
             <span className="session-head__title">{goal.title}</span>
           </h1>
           <span className="session-head__meta">

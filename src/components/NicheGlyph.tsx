@@ -44,14 +44,17 @@ const GLYPH_ICON_PX = { sm: 14, md: 19, lg: 24, xl: 28 } as const
  */
 export function NicheGlyph({
   area,
+  tone,
   size = 'md',
-}: {
+}: Readonly<{
   area: NicheId
+  /** Color del disco si no es el del área (color propio de una meta: goalTone). */
+  tone?: NicheId
   /** xl: cabecera full color del detalle (56 px). */
   size?: 'sm' | 'md' | 'lg' | 'xl'
-}) {
+}>) {
   return (
-    <span className={`glyph glyph--${size}`} style={nicheAccent(area)} aria-hidden="true">
+    <span className={`glyph glyph--${size}`} style={nicheAccent(tone ?? area)} aria-hidden="true">
       <NicheIcon area={area} size={GLYPH_ICON_PX[size]} />
     </span>
   )

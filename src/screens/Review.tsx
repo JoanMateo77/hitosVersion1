@@ -14,7 +14,7 @@ import { Disclosure } from '@/components/Disclosure'
 import { IconCheck, IconChevronLeft, IconSprout } from '@/components/icons'
 import { PathIllustration } from '@/components/PathIllustration'
 import { NicheGlyph } from '@/components/NicheGlyph'
-import { nicheAccent } from '@/lib/nicheAccent'
+import { goalAccent, goalTone } from '@/lib/goalAccent'
 import { getNiche } from '@/domain/niches'
 
 /**
@@ -269,9 +269,9 @@ export function Review() {
         Revisión guiada · Meta {index + 1} de {total}
       </p>
       {/* La meta que se revisa, pintada con el color de su área. No se toca: sin relieve. */}
-      <section className="fc-card review-goal" style={nicheAccent(goal.area)} aria-labelledby="review-goal-title">
+      <section className="fc-card review-goal" style={goalAccent(goal)} aria-labelledby="review-goal-title">
         <div className="row" style={{ alignItems: 'center', gap: 'var(--s3)' }}>
-          <NicheGlyph area={goal.area} size="md" />
+          <NicheGlyph area={goal.area} tone={goalTone(goal)} size="md" />
           <span className="review-goal__kicker">{getNiche(goal.area).label}</span>
         </div>
         <h1 id="review-goal-title" className="fc-card__title review-goal__title">

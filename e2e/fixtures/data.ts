@@ -47,6 +47,10 @@ interface GoalSeed {
   targetInDays: number
   createdDaysAgo: number
   milestones: { title: string; done: boolean }[]
+  /** Color propio (clave de la paleta) distinto del área; sin él, el del área. */
+  color?: string
+  /** Portada en la cabecera y también en la tarjeta (imagen local servida por el mock). */
+  coverOnCard?: boolean
   /** Bloques: weekdays (lun=0), minutos, hora. */
   blocks: { weekdays: number[]; minutes: number; time: string; kind?: 'time' | 'count'; unit?: string }[]
 }
@@ -59,6 +63,7 @@ const GOALS: GoalSeed[] = [
     area: 'salud',
     template: 'salud_fisico',
     criteria: 'Terminar una carrera de 10 km sin caminar.',
+    coverOnCard: true,
     targetInDays: 70,
     createdDaysAgo: 40,
     milestones: [
@@ -75,6 +80,8 @@ const GOALS: GoalSeed[] = [
     title: 'Comprar una moto',
     why: 'Ahorrar dos horas diarias de transporte y ganar independencia.',
     area: 'finanzas',
+    // Petróleo en vez del amarillo de Finanzas: prueba el color propio.
+    color: 'carrera',
     template: 'finanzas',
     criteria: 'Tener la moto pagada de contado, sin deudas.',
     targetInDays: 210,
@@ -212,7 +219,15 @@ function goalRow(u: string, g: GoalSeed): Row {
     completed_at: null,
     ai_plan: null,
     ai_answers: [],
+    color: g.color ?? null,
+    cover_path: g.coverOnCard === undefined ? null : coverPathFor(u, g.key),
+    cover_on_card: g.coverOnCard ?? false,
   }
+}
+
+/** Ruta de la portada en el bucket (el mock sirve e2e/fixtures/cover.jpg para cualquiera). */
+function coverPathFor(u: string, key: GoalKey): string {
+  return `${u}/${GOAL_IDS[key]}-1730000000000.jpg`
 }
 
 function milestoneRows(u: string, g: GoalSeed, counters: Counters): Row[] {
