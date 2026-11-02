@@ -72,6 +72,25 @@ textarea{min-height:88px;resize:vertical}
 .btn:active{transform:translateY(1px)}
 .copied{margin-top:12px;font-weight:600;min-height:1.5em}
 .preview{font-size:14px;min-height:140px;margin-top:12px}
+.actions{display:grid;gap:10px;max-width:420px}
+.btn--alt{background:var(--bg);color:var(--ink);border:2px solid var(--line)}
+/* ---- Comprobante (solo se ve al guardar en PDF) ---- */
+#comprobante{display:none}
+@media print{
+  @page{margin:14mm}
+  body{background:#fff;color:#000}
+  .wrap,dialog{display:none !important}
+  #comprobante{display:block;font-size:12pt}
+  #comprobante h1{font-size:22pt;margin:0 0 4px}
+  .cp__meta{color:#444;margin-bottom:14px}
+  .cp__grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .cp__item{border:1px solid #bbb;border-radius:10px;padding:8px;break-inside:avoid}
+  .cp__item img{display:block;width:100%;max-height:300px;object-fit:cover;object-position:top;border-radius:6px;margin-top:6px}
+  .cp__q{font-weight:700;font-size:10pt;color:#444}
+  .cp__a{font-weight:800}
+  .cp__list{margin:14px 0 0;padding-left:18px}
+  .cp__code{margin-top:14px;font-size:9pt;color:#555;word-break:break-all}
+}
 label.fieldlabel{font-weight:700;display:block}
 
 /* ---- Dialog ---- */
@@ -87,134 +106,44 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 <div class="wrap">
   <div class="brand"><i aria-hidden="true"></i>Lógralo</div>
   <h1>Ayúdanos a elegir el diseño</h1>
-  <p>Compara cada pantalla de la app y marca la que más te guste. Al final toca <b>“Copiar mis respuestas”</b> y pégalas en un mensaje.</p>
+  <p>Compara cada pantalla de la app y marca la que más te guste. Al final envía tu elección por <b>WhatsApp</b> o guárdala en <b>PDF</b>.</p>
   <div class="note" role="note">
     <b>Esto es un boceto.</b>
-    <span class="muted">Son capturas con datos de ejemplo (no son datos de nadie). Esta página no envía nada a ningún servidor: lo que marcas solo queda en tu teléfono o computador, y únicamente lo compartes si tú pegas el texto.</span>
+    <span class="muted">Son capturas con datos de ejemplo (no son datos de nadie). Esta página no envía nada a ningún servidor: lo que marcas solo queda en tu teléfono o computador, y únicamente lo compartes si tú lo envías.</span>
   </div>
   <main id="comparaciones"></main>
 
   <section class="answer" aria-labelledby="tu-respuesta">
     <h2 id="tu-respuesta">Tu respuesta</h2>
-    <p class="muted" style="margin-top:6px">Revisa lo que marcaste, responde las últimas preguntas y copia el texto.</p>
+    <p class="muted" style="margin-top:6px">Revisa lo que marcaste, responde las últimas preguntas y envíanos tu elección.</p>
     <ol id="resumen"></ol>
     <label class="fieldlabel" for="nombre">Tu nombre (opcional)</label>
     <input type="text" id="nombre" autocomplete="given-name" maxlength="60">
     <div style="margin-top:20px">
-      <button type="button" class="btn" id="copiar">Copiar mis respuestas</button>
+      <div class="actions">
+        <button type="button" class="btn" id="whatsapp">Enviar por WhatsApp</button>
+        <button type="button" class="btn btn--alt" id="pdf">Guardar en PDF</button>
+        <button type="button" class="btn btn--alt" id="copiar">Copiar el texto</button>
+      </div>
       <p class="copied" id="copiado" role="status" aria-live="polite"></p>
-      <label class="fieldlabel" for="vista">Texto que se copia</label>
+      <label class="fieldlabel" for="vista">Texto que se envía</label>
       <textarea id="vista" class="preview" readonly></textarea>
     </div>
   </section>
 </div>
 
+<div id="comprobante" aria-hidden="true"></div>
 <dialog id="zoom" aria-labelledby="zoom-title">
   <div class="dlg__bar"><span id="zoom-title"></span><button type="button" class="dlg__close" id="zoom-close">Cerrar</button></div>
   <img class="dlg__img" id="zoom-img" alt="">
 </dialog>
 
+<script src="preguntas.js"></script>
 <script>
-/*
- * PREGUNTAS DE LA ENCUESTA — edita solo esta lista.
- *
- * Cada elemento es una pregunta y se numera en el orden en que aparece.
- *   id      texto corto único (sin espacios); se usa para guardar la respuesta.
- *   tipo    'imagenes' → comparación con capturas (sale como sección arriba y en el resumen).
- *           'opciones' → elegir una opción sin imagen (sale solo en "Tu respuesta").
- *           'texto'    → respuesta libre (sale solo en "Tu respuesta").
- *   titulo  la pregunta (también es la etiqueta del texto copiado).
- *   ayuda   frase opcional bajo el título.
- *   opciones (para 'imagenes' y 'opciones'): lista de
- *           { letra, nombre, desc?, img?, imgOscuro?, alt?, altOscuro? }
- *           img / imgOscuro son rutas relativas dentro de img/ (deja la imagen en esa carpeta).
- *           Si alguna opción trae imgOscuro, se agrega una fila "En tema oscuro".
- *
- * Para AGREGAR una opción a una pantalla (p. ej. una propuesta "C · Nuevo" en Hoy):
- *   1. Copia la captura a img/ (p. ej. img/hoy-nuevo.webp).
- *   2. Añade { letra: 'C', nombre: 'Nuevo', img: 'img/hoy-nuevo.webp', alt: 'Describe lo que se ve' }
- *      dentro de opciones de la pregunta 'hoy'. Las columnas se ajustan solas.
- * Para agregar una pregunta nueva, añade otro objeto a la lista con un id distinto.
- */
-const PREGUNTAS = [
-  { id: 'metas', tipo: 'imagenes', titulo: 'Tus metas (lista)', principal: true,
-    ayuda: 'La pregunta principal. Son bocetos del estudio de color (B a G), la lista como quedó en la app (H) y la de antes (A), solo como referencia. Todas se pueden elegir.',
-    opciones: [
-      { letra: 'A', nombre: 'Antes, como referencia', desc: 'Tarjetas blancas; el color solo en un ícono tenue.',
-        img: 'img/metas-antes.webp', imgOscuro: 'img/metas-antes-oscuro.webp',
-        alt: 'Lista de metas del diseño anterior: tarjetas blancas con ícono de color tenue y barra verde.' },
-      { letra: 'B', nombre: 'Sobria', desc: 'Ícono sólido, barra y borde del color del área; estados en verde/ámbar. Superficies iguales.',
-        img: 'img/lista-sobria.webp', imgOscuro: 'img/lista-sobria-oscuro.webp',
-        alt: 'Boceto Sobria: tarjetas neutras con ícono sólido de color, borde y barra del color de cada meta.' },
-      { letra: 'C', nombre: 'Viva', desc: 'Además una franja con patrón propio por área y la cabecera del detalle teñida.',
-        img: 'img/lista-viva.webp', imgOscuro: 'img/lista-viva-oscuro.webp',
-        alt: 'Boceto Viva: tarjetas blancas con una franja superior de color con patrón propio y el ícono superpuesto.' },
-      { letra: 'D', nombre: 'Full color · Tarjeta entera', desc: 'Cada meta es un bloque de su color. Máxima energía.',
-        img: 'img/lista-full-a.webp', imgOscuro: 'img/lista-full-a-oscuro.webp',
-        alt: 'Boceto Full color, tarjeta entera: cada tarjeta es un bloque de color plano con texto blanco.' },
-      { letra: 'E', nombre: 'Full color · Con profundidad', desc: 'Igual, con una luz suave arriba a la izquierda y el tono más hondo abajo. Menos plano, más “objeto”.',
-        img: 'img/lista-full-b.webp', imgOscuro: 'img/lista-full-b-oscuro.webp',
-        alt: 'Boceto Full color con profundidad: tarjetas de color con degradado de luz arriba y tono más oscuro abajo.' },
-      { letra: 'F', nombre: 'Full color · Tapa de color', desc: 'Solo la cabecera va pintada; datos y barra sobre fondo neutro. Se lee más fácil con muchas metas.',
-        img: 'img/lista-full-c.webp', imgOscuro: 'img/lista-full-c-oscuro.webp',
-        alt: 'Boceto Full color, tapa de color: solo la cabecera de cada tarjeta es de color; datos y barra sobre fondo neutro.' },
-      { letra: 'G', nombre: 'Full color · Acento con relieve', desc: 'Tarjeta neutra con relieve; el color va en el ícono, la barra gruesa y los estados. La más calmada.',
-        img: 'img/lista-full-d.webp', imgOscuro: 'img/lista-full-d-oscuro.webp',
-        alt: 'Boceto Full color, acento con relieve: tarjetas neutras con relieve; color en el ícono, la barra gruesa y los estados.' },
-      { letra: 'H', nombre: 'Así quedó en la app', desc: 'Cada meta con su propio color y, si quieres, foto de portada.',
-        img: 'img/metas-ahora.webp', imgOscuro: 'img/metas-ahora-oscuro.webp',
-        alt: 'Lista de metas en la app actual: cada meta es una tarjeta de su propio color y una tiene foto de portada.' },
-    ] },
-  { id: 'meta-detalle', tipo: 'imagenes', titulo: 'Detalle de una meta', ayuda: 'Lo que ves al abrir una meta. B, C y D son bocetos; E es como quedó en la app.',
-    opciones: [
-      { letra: 'A', nombre: 'Antes', desc: 'Cabecera clara, sin color propio.', img: 'img/meta-detalle-antes.webp',
-        alt: 'Detalle de meta, diseño anterior: cabecera clara con el título, etapa actual, compromiso, camino y notas.' },
-      { letra: 'B', nombre: 'Sobria', desc: 'Ícono sólido, barra y borde del color del área; estados en verde/ámbar. Superficies iguales.', img: 'img/detalle-sobria.webp',
-        alt: 'Boceto Sobria del detalle: cabecera neutra, ícono sólido verde y barra de etapas en verde.' },
-      { letra: 'C', nombre: 'Viva', desc: 'Además una franja con patrón propio por área y la cabecera del detalle teñida.', img: 'img/detalle-viva.webp',
-        alt: 'Boceto Viva del detalle: cabecera teñida de verde claro con patrón, etapa actual y semana.' },
-      { letra: 'D', nombre: 'Full color', desc: 'Tarjetas planas del color del área, saturado (no neón), texto blanco y botones con relieve que se hunden al tocarlos.', img: 'img/detalle-full.webp',
-        alt: 'Boceto Full color del detalle: cabecera verde plena con título blanco y botón verde con relieve.' },
-      { letra: 'E', nombre: 'Así quedó en la app', desc: 'Cabecera con la foto de portada y el color de la meta.', img: 'img/meta-detalle-ahora.webp',
-        alt: 'Detalle de meta en la app actual: cabecera con foto de portada y título en blanco; botones y barras en el verde de la meta.' },
-    ] },
-  { id: 'hoy', tipo: 'imagenes', titulo: 'Hoy', ayuda: 'La pantalla de inicio: tu día, tus metas y tu siguiente paso.',
-    opciones: [
-      { letra: 'A', nombre: 'Antes', img: 'img/hoy-antes.webp', imgOscuro: 'img/hoy-antes-oscuro.webp',
-        alt: 'Hoy, diseño anterior: tarjetas blancas, metas con un borde de color fino y la siguiente sesión en un recuadro azul claro.',
-        altOscuro: 'Hoy, diseño anterior en tema oscuro.' },
-      { letra: 'B', nombre: 'Ahora', desc: 'Cada meta con su color y foto de portada.', img: 'img/hoy-ahora.webp', imgOscuro: 'img/hoy-ahora-oscuro.webp',
-        alt: 'Hoy, diseño actual: las metas son tarjetas de color pleno (una con foto de portada) y la siguiente sesión lleva la cabecera del color de su meta.',
-        altOscuro: 'Hoy, diseño actual en tema oscuro, con las tarjetas de meta en color pleno.' },
-    ] },
-  { id: 'habitos', tipo: 'imagenes', titulo: 'Hábitos', ayuda: 'Tus hábitos del día y de la semana.',
-    opciones: [
-      { letra: 'A', nombre: 'Antes', img: 'img/habitos-antes.webp', alt: 'Hábitos, diseño anterior: lista de hábitos con su avance de la semana.' },
-      { letra: 'B', nombre: 'Ahora', img: 'img/habitos-ahora.webp', alt: 'Hábitos, diseño actual: lista de hábitos con su avance de la semana.' },
-    ] },
-  { id: 'notas', tipo: 'imagenes', titulo: 'Notas', ayuda: 'Tus notas sueltas y de cada meta.',
-    opciones: [
-      { letra: 'A', nombre: 'Antes', img: 'img/notas-antes.webp', alt: 'Notas, diseño anterior: pestañas Bandeja, Metas, Áreas e Ideas, buscador y una nota en la bandeja.' },
-      { letra: 'B', nombre: 'Ahora', img: 'img/notas-ahora.webp', alt: 'Notas, diseño actual: pestañas Bandeja, Metas, Áreas e Ideas, buscador y una nota con relieve; botón Nota en azul con relieve.' },
-    ] },
-  { id: 'agenda', tipo: 'imagenes', titulo: 'Agenda', ayuda: 'Tu semana por bloques de tiempo.',
-    opciones: [
-      { letra: 'A', nombre: 'Antes', img: 'img/agenda-antes.webp', alt: 'Agenda, diseño anterior: el día por bloques de mañana, tarde y noche.' },
-      { letra: 'B', nombre: 'Ahora', img: 'img/agenda-ahora.webp', alt: 'Agenda, diseño actual: el día por bloques de mañana, tarde y noche, cada bloque teñido con el color de su meta.' },
-    ] },
-  { id: 'perfil', tipo: 'imagenes', titulo: 'Perfil', ayuda: 'Tu cuenta y tus ajustes.',
-    opciones: [
-      { letra: 'A', nombre: 'Antes', img: 'img/perfil-antes.webp', alt: 'Perfil, diseño anterior: datos de la cuenta y ajustes.' },
-      { letra: 'B', nombre: 'Ahora', img: 'img/perfil-ahora.webp', alt: 'Perfil, diseño actual: datos de la cuenta y ajustes.' },
-    ] },
-  { id: 'portada', tipo: 'opciones', titulo: '¿Te gustaría poner una foto de portada a tus metas?',
-    opciones: [ { letra: 'Sí', nombre: 'Sí' }, { letra: 'No', nombre: 'No' }, { letra: '?', nombre: 'Me da igual' } ] },
-  { id: 'color-propio', tipo: 'opciones', titulo: '¿Te sirve que cada meta tenga su propio color?',
-    opciones: [ { letra: 'Sí', nombre: 'Sí, me ayuda a ubicarlas' }, { letra: 'No', nombre: 'No, prefiero algo más sobrio' }, { letra: '?', nombre: 'Me da igual' } ] },
-  { id: 'frase', tipo: 'texto', titulo: 'En una frase: ¿qué cambiarías o qué te gustó más?' },
-]
-
 /* ------------------------------------------------------------------ */
+// Número que recibe las respuestas, con código de país y sin "+" ni espacios
+// (p. ej. '573001234567'). Vacío = WhatsApp deja elegir el chat.
+const WHATSAPP_DESTINO = ''
 const KEY = 'logralo-encuesta-disenos'
 const estado = cargar()
 function cargar() { try { return JSON.parse(localStorage.getItem(KEY)) || {} } catch { return {} } }
@@ -275,10 +204,17 @@ function respuesta(p) {
   return o ? (p.tipo === 'imagenes' ? etiqueta(o) : o.nombre) : ''
 }
 
+// Línea compacta que resultados.html sabe contar: LG1 metas=F meta-detalle=D …
+// (las respuestas de texto libre van solo en el mensaje, no en el código).
+function codigo() {
+  const partes = PREGUNTAS.filter((p) => p.tipo !== 'texto' && estado[p.id]).map((p) => `${p.id}=${encodeURIComponent(estado[p.id])}`)
+  return ['LG1', ...partes].join(' ')
+}
 function texto() {
   const lineas = ['Encuesta de diseño · Lógralo']
   if ((estado._nombre || '').trim()) lineas.push(`De: ${estado._nombre.trim()}`)
   PREGUNTAS.forEach((p, i) => lineas.push(`${i + 1}. ${p.titulo}: ${respuesta(p) || '(sin respuesta)'}`))
+  lineas.push('', `Código: ${codigo()}`)
   return lineas.join('\n')
 }
 
@@ -326,6 +262,37 @@ document.getElementById('zoom-close').addEventListener('click', () => dlg.close(
 dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close() })
 dlg.addEventListener('close', () => { if (origen) origen.focus() })
 
+// WhatsApp: abre la app con el texto listo; la persona decide enviarlo.
+document.getElementById('whatsapp').addEventListener('click', () => {
+  const url = `https://wa.me/${WHATSAPP_DESTINO}?text=${encodeURIComponent(texto())}`
+  window.open(url, '_blank', 'noopener')
+})
+// PDF: arma un comprobante con la captura de cada elección y abre "Imprimir → Guardar como PDF".
+function comprobante() {
+  const nombre = (estado._nombre || '').trim()
+  const fecha = new Date().toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' })
+  const conImagen = PREGUNTAS.filter((p) => p.tipo === 'imagenes')
+  const resto = PREGUNTAS.filter((p) => p.tipo !== 'imagenes')
+  const item = (p) => {
+    const o = p.opciones.find((x) => x.letra === estado[p.id])
+    return `<div class="cp__item"><div class="cp__q">${esc(p.titulo)}</div>
+      <div class="cp__a">${o ? esc(etiqueta(o)) : 'Sin respuesta'}</div>
+      ${o && o.img ? `<img src="${esc(o.img)}" alt="">` : ''}</div>`
+  }
+  return `<h1>Mi elección de diseño · Lógralo</h1>
+    <p class="cp__meta">${nombre ? `${esc(nombre)} · ` : ''}${esc(fecha)}</p>
+    <div class="cp__grid">${conImagen.map(item).join('')}</div>
+    <ul class="cp__list">${resto.map((p) => `<li><b>${esc(p.titulo)}</b> ${esc(respuesta(p) || 'Sin respuesta')}</li>`).join('')}</ul>
+    <p class="cp__code">Código: ${esc(codigo())}</p>`
+}
+document.getElementById('pdf').addEventListener('click', async () => {
+  const cp = document.getElementById('comprobante')
+  cp.innerHTML = comprobante()
+  // Esperar a que carguen las capturas para que salgan en el PDF.
+  await Promise.all([...cp.querySelectorAll('img')].map((i) => i.decode().catch(() => {})))
+  document.getElementById('copiado').textContent = 'En la ventana de impresión elige “Guardar como PDF” y envíanos el archivo.'
+  window.print()
+})
 // Copiar al portapapeles (sin enviar nada)
 document.getElementById('copiar').addEventListener('click', async () => {
   const t = texto()
