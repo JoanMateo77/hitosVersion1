@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs'
 
 const css = readFileSync('src/styles/tokens.css', 'utf8') + readFileSync('src/styles/fullcolor.css', 'utf8')
 const token = (name) => {
-  const m = css.match(new RegExp(`--${name}:\\s*([^;]+);`))
+  const m = css.match(new RegExp(String.raw`--${name}:\s*([^;]+);`))
   if (!m) throw new Error(`Falta el token --${name}`)
   const v = m[1].trim()
   const ref = v.match(/^var\(--([\w-]+)\)$/)
@@ -63,8 +63,8 @@ const MIN = 4.5
 // Texto de interfaz por tema (bloques [data-theme] de tokens.css).
 const tokens = readFileSync('src/styles/tokens.css', 'utf8')
 const themeToken = (theme, name) => {
-  const block = tokens.match(new RegExp(`\\[data-theme='${theme}'\\]\\s*\\{([^}]*)\\}`))
-  const m = block?.[1].match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6});`))
+  const block = tokens.match(new RegExp(String.raw`\[data-theme='${theme}'\]\s*\{([^}]*)\}`))
+  const m = block?.[1].match(new RegExp(String.raw`--${name}:\s*(#[0-9a-fA-F]{6});`))
   if (!m) throw new Error(`Falta --${name} en el tema ${theme}`)
   return hex(m[1])
 }

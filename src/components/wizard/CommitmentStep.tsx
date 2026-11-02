@@ -2,7 +2,6 @@ import { useRef, useState } from 'react'
 import type { ScheduleBlock, TargetKind } from '@/lib/types'
 import {
   COUNT_UNITS,
-  WEEKDAY_LABELS,
   WEEKDAY_PRESETS,
   blockEndTime,
   durationStep,
@@ -17,6 +16,7 @@ import {
 } from '@/domain/commitment'
 import { formatDuration } from '@/lib/date'
 import { IconTimer, IconTrash } from '@/components/icons'
+import { WEEKDAY_SHORT } from '@/domain/weekdays'
 
 interface CommitmentStepProps {
   blocks: CommitmentBlockDraft[]
@@ -284,7 +284,7 @@ export function CommitmentStep({
       </div>
 
       <div className="row wrap wizard-days" role="group" aria-label="¿Qué días le vas a dedicar?">
-        {WEEKDAY_LABELS.map((label, weekday) => (
+        {WEEKDAY_SHORT.map((label, weekday) => (
           <button
             key={label}
             type="button"
@@ -360,7 +360,7 @@ export function CommitmentStep({
           <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
             <strong>Tu horario</strong>
             <span className="faint tiny">
-              {selectedDays.map((d) => WEEKDAY_LABELS[d]).join(' · ')}
+              {selectedDays.map((d) => WEEKDAY_SHORT[d]).join(' · ')}
             </span>
           </div>
           {sharedMoments.map((moment, i) =>
@@ -391,7 +391,7 @@ export function CommitmentStep({
           {selectedDays.map((weekday) => (
             <div key={weekday} className="card card--tight stack stack--sm">
               <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <strong>{WEEKDAY_LABELS[weekday]}</strong>
+                <strong>{WEEKDAY_SHORT[weekday]}</strong>
                 {selectedDays.length > 1 && (
                   <button
                     type="button"

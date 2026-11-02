@@ -169,11 +169,17 @@ const ACCOMPLISHMENTS = [
   'Me costó concentrarme, pero cumplí.',
 ]
 
-export function buildFixtures(opts: { onboarded?: boolean } = {}): Tables {
-  const onboarded = opts.onboarded ?? true
-  const u = USER.id
+/** Numeración global de filas generadas (estable entre corridas). */
+interface Counters {
+  milestone: number
+  block: number
+  session: number
+}
 
-  const profiles: Row[] = [
+type Block = GoalSeed['blocks'][number]
+
+function buildProfiles(u: string, onboarded: boolean): Row[] {
+  return [
     {
       id: u,
       focus_mode: 'multi',
@@ -188,99 +194,168 @@ export function buildFixtures(opts: { onboarded?: boolean } = {}): Tables {
       created_at: stamp(-60, '08:55'),
     },
   ]
+}
 
-  const goals: Row[] = []
-  const milestones: Row[] = []
-  const goal_schedule: Row[] = []
-  const sessions: Row[] = []
-  let mIdx = 0
-  let bIdx = 0
-  let sIdx = 0
+function goalRow(u: string, g: GoalSeed): Row {
+  return {
+    id: GOAL_IDS[g.key],
+    user_id: u,
+    title: g.title,
+    why: g.why,
+    target_date: dayOffset(g.targetInDays),
+    area: g.area,
+    success_criteria: g.criteria,
+    template_key: g.template,
+    last_reviewed_at: stamp(-8, '18:00'),
+    status: 'active',
+    created_at: stamp(-g.createdDaysAgo, '10:00'),
+    completed_at: null,
+    ai_plan: null,
+    ai_answers: [],
+  }
+}
 
-  for (const g of GOALS) {
-    const goalId = GOAL_IDS[g.key]
-    goals.push({
-      id: goalId,
+function milestoneRows(u: string, g: GoalSeed, counters: Counters): Row[] {
+  let doneCount = 0
+  return g.milestones.map((m, position) => {
+    const doneAt = m.done ? stamp(-g.createdDaysAgo + 7 * ++doneCount, '20:00') : null
+    const targetDate = m.done ? null : dayOffset(Math.round((g.targetInDays / g.milestones.length) * (position + 1)))
+    return {
+      id: uid('8003', ++counters.milestone),
+      goal_id: GOAL_IDS[g.key],
       user_id: u,
-      title: g.title,
-      why: g.why,
-      target_date: dayOffset(g.targetInDays),
-      area: g.area,
-      success_criteria: g.criteria,
-      template_key: g.template,
-      last_reviewed_at: stamp(-8, '18:00'),
-      status: 'active',
+      title: m.title,
+      position,
+      target_date: targetDate,
+      done_at: doneAt,
       created_at: stamp(-g.createdDaysAgo, '10:00'),
-      completed_at: null,
-      ai_plan: null,
-      ai_answers: [],
-    })
-    let doneCount = 0
-    g.milestones.forEach((m, position) => {
-      milestones.push({
-        id: uid('8003', ++mIdx),
+    }
+  })
+}
+
+/**
+ * Patrón estable: la mayoría cumplidas, algunas parciales o perdidas, y los
+ * últimos 4 días siempre cumplidos (racha viva). Hoy depende de la hora del bloque.
+ */
+function sessionStatus(d: number, n: number, time: string): string {
+  if (d === 0) return time < '09:00' ? 'done' : 'pending'
+  if (d < -4 && n % 7 === 3) return 'missed'
+  if (d < -4 && n % 9 === 5) return 'partial'
+  return 'done'
+}
+
+function sessionActual(status: string, target: number): number | null {
+  if (status === 'done') return target
+  if (status === 'partial') return Math.round(target / 2)
+  return null
+}
+
+function sessionRow(u: string, goalId: string, blockId: string, b: Block, d: number, n: number): Row {
+  const kind = b.kind ?? 'time'
+  const status = sessionStatus(d, n, b.time)
+  const target = b.minutes
+  const actual = sessionActual(status, target)
+  const started = status === 'done' || status === 'partial'
+  const minutesSpent = kind === 'time' ? (actual ?? 0) : 25
+  return {
+    id: uid('8005', n),
+    goal_id: goalId,
+    user_id: u,
+    schedule_id: blockId,
+    session_date: dayOffset(d),
+    target_kind: kind,
+    target_value: target,
+    unit: kind === 'count' ? (b.unit ?? null) : null,
+    planned_time: b.time,
+    started_at: started ? stamp(d, b.time) : null,
+    ended_at: started ? stamp(d, addMinutes(b.time, minutesSpent)) : null,
+    actual_value: actual,
+    status,
+    paused_at: null,
+    paused_total_seconds: 0,
+    accomplishment: started && n % 4 === 0 ? ACCOMPLISHMENTS[n % ACCOMPLISHMENTS.length] : null,
+    created_at: stamp(d, '00:05'),
+  }
+}
+
+/** Un bloque de agenda por día de la semana, con sus sesiones de las últimas dos semanas + hoy. */
+function scheduleAndSessions(
+  u: string,
+  g: GoalSeed,
+  counters: Counters,
+): { schedule: Row[]; sessions: Row[] } {
+  const goalId = GOAL_IDS[g.key]
+  const schedule: Row[] = []
+  const sessions: Row[] = []
+  for (const b of g.blocks) {
+    for (const weekday of b.weekdays) {
+      const blockId = uid('8004', ++counters.block)
+      const kind = b.kind ?? 'time'
+      schedule.push({
+        id: blockId,
         goal_id: goalId,
         user_id: u,
-        title: m.title,
-        position,
-        target_date: m.done ? null : dayOffset(Math.round((g.targetInDays / g.milestones.length) * (position + 1))),
-        done_at: m.done ? stamp(-g.createdDaysAgo + 7 * ++doneCount, '20:00') : null,
-        created_at: stamp(-g.createdDaysAgo, '10:00'),
+        weekday,
+        target_kind: kind,
+        target_value: b.minutes,
+        unit: kind === 'count' ? (b.unit ?? null) : null,
+        start_time: b.time,
+        created_at: stamp(-g.createdDaysAgo, '10:05'),
       })
-    })
-    for (const b of g.blocks) {
-      for (const weekday of b.weekdays) {
-        const blockId = uid('8004', ++bIdx)
-        const kind = b.kind ?? 'time'
-        goal_schedule.push({
-          id: blockId,
-          goal_id: goalId,
-          user_id: u,
-          weekday,
-          target_kind: kind,
-          target_value: b.minutes,
-          unit: kind === 'count' ? (b.unit ?? null) : null,
-          start_time: b.time,
-          created_at: stamp(-g.createdDaysAgo, '10:05'),
-        })
-        // Sesiones de las últimas dos semanas + hoy para ese bloque.
-        for (let d = -14; d <= 0; d++) {
-          if (weekdayMon0(d) !== weekday || -d > g.createdDaysAgo) continue
-          const n = ++sIdx
-          // Patrón estable: la mayoría cumplidas, algunas parciales o perdidas,
-          // y los últimos 4 días siempre cumplidos (racha viva).
-          let status = 'done'
-          if (d < -4 && n % 7 === 3) status = 'missed'
-          else if (d < -4 && n % 9 === 5) status = 'partial'
-          if (d === 0) status = b.time < '09:00' ? 'done' : 'pending'
-          const target = b.minutes
-          const actual = status === 'done' ? target : status === 'partial' ? Math.round(target / 2) : null
-          const started = status === 'done' || status === 'partial'
-          sessions.push({
-            id: uid('8005', n),
-            goal_id: goalId,
-            user_id: u,
-            schedule_id: blockId,
-            session_date: dayOffset(d),
-            target_kind: kind,
-            target_value: target,
-            unit: kind === 'count' ? (b.unit ?? null) : null,
-            planned_time: b.time,
-            started_at: started ? stamp(d, b.time) : null,
-            ended_at: started ? stamp(d, addMinutes(b.time, kind === 'time' ? (actual ?? 0) : 25)) : null,
-            actual_value: actual,
-            status,
-            paused_at: null,
-            paused_total_seconds: 0,
-            accomplishment: started && n % 4 === 0 ? ACCOMPLISHMENTS[n % ACCOMPLISHMENTS.length] : null,
-            created_at: stamp(d, '00:05'),
-          })
-        }
+      for (let d = -14; d <= 0; d++) {
+        if (weekdayMon0(d) !== weekday || -d > g.createdDaysAgo) continue
+        sessions.push(sessionRow(u, goalId, blockId, b, d, ++counters.session))
       }
     }
   }
+  return { schedule, sessions }
+}
 
-  const tasks: Row[] = [
+function buildGoalTables(u: string): Pick<Tables, 'goals' | 'milestones' | 'goal_schedule' | 'sessions'> {
+  const counters: Counters = { milestone: 0, block: 0, session: 0 }
+  const out = { goals: [] as Row[], milestones: [] as Row[], goal_schedule: [] as Row[], sessions: [] as Row[] }
+  for (const g of GOALS) {
+    out.goals.push(goalRow(u, g))
+    out.milestones.push(...milestoneRows(u, g, counters))
+    const { schedule, sessions } = scheduleAndSessions(u, g, counters)
+    out.goal_schedule.push(...schedule)
+    out.sessions.push(...sessions)
+  }
+  return out
+}
+
+/** Agua: 4 vasos casi siempre; cada 5 días, 3; hoy, 2. */
+function glassesOfWater(d: number): number {
+  if (d === 0) return 2
+  if (d % 5 === 0) return 3
+  return 4
+}
+
+const WATER_TIMES = ['08:00', '11:00', '15:00', '19:00']
+
+function buildHabitChecks(u: string): Row[] {
+  const check = (habitId: string, d: number, slot: number, time: string): Row => ({
+    user_id: u,
+    habit_id: habitId,
+    date: dayOffset(d),
+    slot,
+    created_at: stamp(d, time),
+  })
+  const habit_checks: Row[] = []
+  for (let d = -14; d <= 0; d++) {
+    const wd = weekdayMon0(d)
+    for (let slot = 0; slot < glassesOfWater(d); slot++) {
+      habit_checks.push(check(HABIT_IDS.agua, d, slot, WATER_TIMES[slot]))
+    }
+    if (d < 0 && d % 4 !== 0) habit_checks.push(check(HABIT_IDS.lectura, d, 0, '21:40'))
+    if (wd <= 4 && d % 6 !== 0) habit_checks.push(check(HABIT_IDS.estirar, d, 0, '06:20'))
+    if (d < 0 && d % 3 !== 0) habit_checks.push(check(HABIT_IDS.pantallas, d, 0, '22:30'))
+  }
+  return habit_checks
+}
+
+function buildTasks(u: string): Row[] {
+  return [
     { title: 'Comprar tenis para correr', goal_id: GOAL_IDS.salud, source: 'goal', status: 'done' },
     { title: 'Revisar el extracto del ahorro', goal_id: GOAL_IDS.finanzas, source: 'goal', status: 'pending' },
     { title: 'Pagar la factura del celular', goal_id: null, source: 'user', status: 'pending' },
@@ -295,8 +370,10 @@ export function buildFixtures(opts: { onboarded?: boolean } = {}): Tables {
     created_at: stamp(0, '06:00'),
     done_at: t.status === 'done' ? stamp(0, '06:45') : null,
   }))
+}
 
-  const habits: Row[] = [
+function buildHabits(u: string): Row[] {
+  return [
     {
       id: HABIT_IDS.agua,
       title: 'Tomar agua',
@@ -352,26 +429,10 @@ export function buildFixtures(opts: { onboarded?: boolean } = {}): Tables {
     created_at: stamp(-30 + i, '09:00'),
     archived_at: null,
   }))
+}
 
-  const habit_checks: Row[] = []
-  for (let d = -14; d <= 0; d++) {
-    const wd = weekdayMon0(d)
-    // Agua: 4 vasos casi siempre; hoy, 2.
-    const vasos = d === 0 ? 2 : d % 5 === 0 ? 3 : 4
-    for (let slot = 0; slot < vasos; slot++) {
-      habit_checks.push(check(HABIT_IDS.agua, d, slot, ['08:00', '11:00', '15:00', '19:00'][slot]))
-    }
-    if (d < 0 && d % 4 !== 0) habit_checks.push(check(HABIT_IDS.lectura, d, 0, '21:40'))
-    if (wd <= 4 && d % 6 !== 0) habit_checks.push(check(HABIT_IDS.estirar, d, 0, '06:20'))
-    if (d < 0 && d % 3 !== 0) habit_checks.push(check(HABIT_IDS.pantallas, d, 0, '22:30'))
-  }
-  function check(habitId: string, d: number, slot: number, time: string): Row {
-    return { user_id: u, habit_id: habitId, date: dayOffset(d), slot, created_at: stamp(d, time) }
-  }
-
-  const habit_skips: Row[] = [{ user_id: u, habit_id: HABIT_IDS.lectura, date: dayOffset(-4), created_at: stamp(-4, '22:00') }]
-
-  const notes: Row[] = [
+function buildNotes(u: string): Row[] {
+  return [
     {
       title: 'Ruta para el domingo',
       body: 'Probar el circuito del parque: dos vueltas son 6 km. Llevar agua.',
@@ -429,8 +490,10 @@ export function buildFixtures(opts: { onboarded?: boolean } = {}): Tables {
     created_at: stamp(-10 + i * 2, '13:00'),
     updated_at: stamp(-6 + i, '13:00'),
   }))
+}
 
-  const events: Row[] = [
+function buildEvents(u: string): Row[] {
+  return [
     { title: 'Carrera de 5K del barrio', goal_id: GOAL_IDS.salud, d: 5, start: '07:00', end: '09:00', all_day: false, done: false },
     { title: 'Clase de conversación en inglés', goal_id: GOAL_IDS.aprendizaje, d: 1, start: '18:00', end: '19:00', all_day: false, done: false },
     { title: 'Cumpleaños de mi papá', goal_id: GOAL_IDS.relaciones, d: 3, start: null, end: null, all_day: true, done: false },
@@ -449,12 +512,16 @@ export function buildFixtures(opts: { onboarded?: boolean } = {}): Tables {
     done_at: e.done ? stamp(e.d, '12:00') : null,
     created_at: stamp(-12, '10:00'),
   }))
+}
 
-  const lesson_reads: Row[] = ['una-meta-primero', 'la-unica-cosa', 'empieza-pequeno', 'regla-de-los-2-minutos'].map(
+function buildLessonReads(u: string): Row[] {
+  return ['una-meta-primero', 'la-unica-cosa', 'empieza-pequeno', 'regla-de-los-2-minutos'].map(
     (lesson_id, i) => ({ user_id: u, lesson_id, created_at: stamp(-20 + i * 3, '21:00') }),
   )
+}
 
-  const goal_coach_messages: Row[] = [
+function buildCoachMessages(u: string): Row[] {
+  return [
     {
       role: 'user',
       body: '¿Me falta algo antes de inscribirme en la carrera?',
@@ -481,22 +548,22 @@ export function buildFixtures(opts: { onboarded?: boolean } = {}): Tables {
     goal_id: GOAL_IDS.salud,
     created_at: stamp(-3, `20:0${i}`),
   }))
+}
 
+export function buildFixtures(opts: { onboarded?: boolean } = {}): Tables {
+  const u = USER.id
   return {
-    profiles,
-    goals,
-    milestones,
-    goal_schedule,
-    sessions,
-    tasks,
-    habits,
-    habit_checks,
-    habit_skips,
+    profiles: buildProfiles(u, opts.onboarded ?? true),
+    ...buildGoalTables(u),
+    tasks: buildTasks(u),
+    habits: buildHabits(u),
+    habit_checks: buildHabitChecks(u),
+    habit_skips: [{ user_id: u, habit_id: HABIT_IDS.lectura, date: dayOffset(-4), created_at: stamp(-4, '22:00') }],
     habit_day_overrides: [],
-    notes,
-    events,
-    lesson_reads,
-    goal_coach_messages,
+    notes: buildNotes(u),
+    events: buildEvents(u),
+    lesson_reads: buildLessonReads(u),
+    goal_coach_messages: buildCoachMessages(u),
     push_subscriptions: [],
   }
 }
@@ -506,5 +573,6 @@ export function todaySessionId(tables: Tables): string {
   const today = dayOffset(0)
   const ofToday = tables.sessions.filter((s) => s.session_date === today)
   const pending = ofToday.find((s) => s.status === 'pending') ?? ofToday[0]
-  return String(pending?.id ?? '')
+  const id = pending?.id
+  return typeof id === 'string' ? id : ''
 }

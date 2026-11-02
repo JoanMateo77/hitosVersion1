@@ -1,11 +1,8 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { useSession } from '@/app/session'
-import { fetchCurrentStreak } from '@/services/profile'
-import { frameForStreak } from '@/domain/frames'
-import { useCachedData } from '@/hooks/useCachedData'
+import { useStreakFrame } from '@/hooks/useStreakFrame'
 import { IconHito } from '@/components/icons'
-import { avatarInitials } from '@/lib/avatar'
+import { UserAvatar } from '@/components/UserAvatar'
 
 /** Barra superior fina (solo móvil/tablet): la marca + acceso a Perfil.
  *  Perfil vive aquí (avatar) para que la barra inferior quede en 5 pestañas
@@ -14,18 +11,9 @@ import { avatarInitials } from '@/lib/avatar'
  *  Se esconde al scrollear hacia abajo y reaparece al subir o al llegar arriba
  *  (patrón iOS/Instagram): el contenido manda, la marca no estorba. */
 export function TopBar() {
-  const { userId, email, displayName, profile } = useSession()
-  const initials = avatarInitials({ displayName, email })
   const [hidden, setHidden] = useState(false)
-
-  // Marco por racha: misma métrica y misma clave de cache que Perfil, así solo
-  // se calcula una vez por sesión. Si falla, simplemente no hay anillo.
-  const { data: streak } = useCachedData(
-    `streak:${userId}`,
-    () => fetchCurrentStreak(userId).catch(() => 0),
-    [userId],
-  )
-  const frame = frameForStreak(streak ?? 0)
+  // Marco por racha: misma métrica y misma cache que Perfil y la barra lateral.
+  const { frame } = useStreakFrame()
 
   useEffect(() => {
     let last = window.scrollY
@@ -59,12 +47,9 @@ export function TopBar() {
       <NavLink
         to="/perfil"
         aria-label="Tu perfil"
-        className={`avatar topbar__avatar${frame ? ' avatar--ring' : ''}`}
-        // Anillo del marco ganado con la racha (ver src/domain/frames.ts). Sin
-        // marco no hay anillo: el avatar es neutro, no una acción.
-        style={frame ? ({ '--avatar-ring': frame.color } as CSSProperties) : undefined}
+        className="avatar-link topbar__avatar"
       >
-        {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : initials}
+        <UserAvatar frame={frame} />
       </NavLink>
     </header>
   )

@@ -12,7 +12,7 @@ export default function globalTeardown() {
   } catch {
     /* primera corrida */
   }
-  const routes: Record<string, unknown> = { ...(previous.routes ?? {}) }
+  const routes: Record<string, unknown> = { ...previous.routes }
   for (const file of readdirSync(PARTS_DIR).filter((f) => f.endsWith('.json')).sort()) {
     const part = JSON.parse(readFileSync(path.join(PARTS_DIR, file), 'utf8'))
     routes[part.slug] = part

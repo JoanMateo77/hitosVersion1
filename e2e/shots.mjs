@@ -5,6 +5,7 @@
  * con Supabase falso). SHOTS_LABEL=antes|despues elige la carpeta de salida.
  */
 import { spawn } from 'node:child_process'
+import { createRequire } from 'node:module'
 
 const args = process.argv.slice(2)
 const env = { ...process.env }
@@ -23,7 +24,11 @@ console.log(
     (env.SHOTS_ROUTES ? `, rutas: ${env.SHOTS_ROUTES}` : ', todas las rutas'),
 )
 
-const child = spawn('npx', ['playwright', 'test', '-c', 'e2e/playwright.config.ts', ...passthrough], {
+// Sin depender del PATH: el mismo binario de Node que corre este script y la
+// ruta absoluta al CLI de Playwright instalado en node_modules.
+const playwrightCli = createRequire(import.meta.url).resolve('@playwright/test/cli')
+
+const child = spawn(process.execPath, [playwrightCli, 'test', '-c', 'e2e/playwright.config.ts', ...passthrough], {
   stdio: 'inherit',
   env,
 })

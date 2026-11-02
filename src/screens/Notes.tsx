@@ -28,7 +28,7 @@ const TABS: { id: Exclude<NoteView, 'archived'>; label: string }[] = [
   { id: 'areas', label: 'Áreas' },
   { id: 'ideas', label: 'Ideas' },
 ]
-const VIEW_IDS: NoteView[] = [...TABS.map((t) => t.id), 'archived']
+const VIEW_IDS: ReadonlySet<string> = new Set<NoteView>([...TABS.map((t) => t.id), 'archived'])
 
 const EMPTY: Record<NoteView, { title: string; text: string }> = {
   inbox: {
@@ -81,7 +81,7 @@ function groupNotes(list: Note[], goals: Goal[]): NoteGroup[] {
 
 /** La vista vive en ?vista= para sobrevivir a ir y volver. */
 function readView(value: string | null): NoteView {
-  return VIEW_IDS.includes(value as NoteView) ? (value as NoteView) : 'inbox'
+  return value !== null && VIEW_IDS.has(value) ? (value as NoteView) : 'inbox'
 }
 
 /** Hoja abierta: una nota existente o una nueva (null). */

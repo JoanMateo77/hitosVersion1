@@ -142,7 +142,7 @@ export function Auth() {
         <span className="brand auth-hero__brand">
           <span className="brand__mark">
             <IconHito size={56} animate />
-          </span>
+          </span>{' '}
           Lógralo
         </span>
         {/* La idea del producto dibujada: llegar por etapas, cada una de un color. */}
@@ -161,7 +161,7 @@ export function Auth() {
           <span className="brand auth-form__wordmark">
             <span className="brand__mark">
               <IconHito size={36} animate />
-            </span>
+            </span>{' '}
             Lógralo
           </span>
           <p className="auth-form__tagline">Tu meta, con un compromiso real.</p>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import type { CalendarEvent, Goal, Habit, HabitCheck, HabitSkip, ScheduleBlock, Session, Task } from '@/lib/types'
@@ -66,7 +66,7 @@ import {
   type LaterItem,
 } from '@/domain/today'
 import { WEEKDAY_SHORT } from '@/domain/weekdays'
-import { avatarInitials } from '@/lib/avatar'
+import { UserAvatar } from '@/components/UserAvatar'
 import { addDays, dayOfMonth, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
 import { friendlyError } from '@/lib/errors'
 import { Disclosure } from '@/components/Disclosure'
@@ -143,7 +143,7 @@ function weekMark(state: DayState) {
 }
 
 export function Today() {
-  const { userId, email, displayName, profile } = useSession()
+  const { userId, displayName, profile } = useSession()
   const navigate = useNavigate()
   const today = todayISO()
 
@@ -726,23 +726,29 @@ export function Today() {
     const habit = item.kind === 'habit' ? todayHabits.find((x) => x.id === item.id) : undefined
     // La sesión es de una meta: su glifo lleva el color del área.
     const sessionGoal = session ? goalById.get(session.goalId) : undefined
+    let glyph: ReactNode
+    if (habit) {
+      glyph = <HabitIcon habit={habit} size="sm" />
+    } else if (sessionGoal) {
+      glyph = (
+        <span
+          className="today-item__glyph today-item__glyph--goal"
+          style={nicheAccent(sessionGoal.area)}
+          aria-hidden="true"
+        >
+          <NicheIcon area={sessionGoal.area} size={16} />
+        </span>
+      )
+    } else {
+      glyph = (
+        <span className="today-item__glyph" aria-hidden="true">
+          {laterGlyph(item.kind)}
+        </span>
+      )
+    }
     return (
       <li key={`${item.kind}:${item.id}`} className={`today-item${item.done ? ' today-item--done' : ''}`}>
-        {habit ? (
-          <HabitIcon habit={habit} size="sm" />
-        ) : sessionGoal ? (
-          <span
-            className="today-item__glyph today-item__glyph--goal"
-            style={nicheAccent(sessionGoal.area)}
-            aria-hidden="true"
-          >
-            <NicheIcon area={sessionGoal.area} size={16} />
-          </span>
-        ) : (
-          <span className="today-item__glyph" aria-hidden="true">
-            {laterGlyph(item.kind)}
-          </span>
-        )}
+        {glyph}
         <span className="today-item__text">
           <span className="today-item__title">{item.title}</span>
           <span className="today-item__sub">{item.subtitle}</span>
@@ -870,19 +876,9 @@ export function Today() {
           <h1 className="today-head__greet">{headline}</h1>
           <span className="today-head__date">{formatHeaderDate(today)}</span>
         </div>
-        <Link
-          to="/perfil"
-          aria-label="Tu perfil"
-          className={`avatar${frame ? ' avatar--ring' : ''}`}
-          // Neutro, como en la barra superior: el anillo es el marco ganado con
-          // la racha; sin marco no hay anillo.
-          style={frame ? ({ '--avatar-ring': frame.color } as CSSProperties) : undefined}
-        >
-          {profile.avatarUrl ? (
-            <img src={profile.avatarUrl} alt="" />
-          ) : (
-            avatarInitials({ displayName, email })
-          )}
+        {/* El marco sale de la racha que Hoy ya calcula con sus propios datos. */}
+        <Link to="/perfil" aria-label="Tu perfil" className="avatar-link">
+          <UserAvatar frame={frame} />
         </Link>
       </header>
 
@@ -919,7 +915,7 @@ export function Today() {
 
       <PinnedGoals goals={pinnedGoals} onOpen={(id) => navigate(`/metas/${id}`)} />
 
-      <div className="today-week" role="group" aria-label="Tu semana">
+      <fieldset className="today-week fieldset--plain" aria-label="Tu semana">
         {Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(today), i)).map((d, i) => {
           const st = stripState(d)
           const isToday = d === today
@@ -949,7 +945,7 @@ export function Today() {
             </button>
           )
         })}
-      </div>
+      </fieldset>
 
       <section className="today-section" aria-label="Tu siguiente paso">
         <span className="section-title">Tu siguiente paso</span>
@@ -1123,7 +1119,7 @@ export function Today() {
       </section>
 
       {voice === 'novedades' && novedad && (
-        <div className="today-row" role="status">
+        <output className="today-row">
           <span className="today-row__glyph" aria-hidden="true">
             <IconLightbulb size={16} />
           </span>
@@ -1134,7 +1130,7 @@ export function Today() {
           <button className="btn--link today-row__action" onClick={cerrarNovedades}>
             Entendido
           </button>
-        </div>
+        </output>
       )}
 
       {voice === 'cheer' && cheerMessage && (
@@ -1153,7 +1149,7 @@ export function Today() {
       )}
 
       {voice === 'streak' && streakBroken && (
-        <div className="today-row" role="status">
+        <output className="today-row">
           <span className="today-row__glyph" aria-hidden="true">
             <IconFlame size={16} />
           </span>
@@ -1166,7 +1162,7 @@ export function Today() {
           <button className="btn--link today-row__action" onClick={dismissStreakNotice}>
             Entendido
           </button>
-        </div>
+        </output>
       )}
 
       {voice === 'resolve' && toResolve && (

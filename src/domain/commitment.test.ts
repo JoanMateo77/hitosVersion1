@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  WEEKDAY_LABELS,
   blockEndTime,
   blockTimeLabel,
   buildMilestonesFromTemplate,
@@ -24,6 +23,7 @@ import {
 import type { ScheduleBlock } from '@/lib/types'
 import { formatDuration } from '@/lib/date'
 import { getTemplate } from '@/domain/templates'
+import { WEEKDAY_SHORT } from '@/domain/weekdays'
 
 const time = (weekday: number, minutes: number, startTime: string | null = null): CommitmentBlockDraft => ({
   weekday,
@@ -141,10 +141,10 @@ describe('weekdaysForCadence', () => {
   })
 })
 
-describe('WEEKDAY_LABELS', () => {
+describe('WEEKDAY_SHORT', () => {
   it('arranca en lunes', () => {
-    expect(WEEKDAY_LABELS[0]).toBe('Lu')
-    expect(WEEKDAY_LABELS[6]).toBe('Do')
+    expect(WEEKDAY_SHORT[0]).toBe('Lu')
+    expect(WEEKDAY_SHORT[6]).toBe('Do')
   })
 })
 

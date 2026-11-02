@@ -1,4 +1,4 @@
-import { CUSTOM_TYPE_KEY, type GoalTypeSuggestion } from '@/domain/goalType'
+import { CUSTOM_TYPE_KEY, TYPE_REASON_MAX, type GoalTypeSuggestion } from '@/domain/goalType'
 import type { QuestionAnswer } from '@/domain/goalPlan'
 import { TEMPLATES, getTemplate } from '@/domain/templates'
 
@@ -9,9 +9,6 @@ import { TEMPLATES, getTemplate } from '@/domain/templates'
 
 /** Largo máximo de la descripción libre del tipo. */
 export const TYPE_NOTE_MAX = 120
-
-/** Largo máximo de la razón de la IA: viene de fuera, se acota antes de pintarla. */
-export const TYPE_REASON_MAX = 160
 
 /** Pregunta con la que la descripción libre viaja en las respuestas del coach. */
 export const TYPE_QUESTION = '¿Qué tipo de meta es?'
@@ -62,20 +59,26 @@ export function parseTypeDraft(d: Record<string, unknown>): TypeDraftFields {
     out.typeNote = d.typeNote.slice(0, TYPE_NOTE_MAX)
   }
   if (typeof d.typePicked === 'boolean') out.typePicked = d.typePicked
-  const s = d.typeSuggestion
-  if (s != null && typeof s === 'object' && !Array.isArray(s)) {
-    const r = s as Record<string, unknown>
-    if (isTemplateKey(r.key) && (r.source === 'ai' || r.source === 'keywords')) {
-      const alternatives = Array.isArray(r.alternatives) ? r.alternatives.filter(isTemplateKey) : []
-      const parsed = aiSuggestion({
-        key: r.key,
-        reason: typeof r.reason === 'string' ? r.reason : '',
-        alternatives,
-      })
-      if (parsed) out.typeSuggestion = { ...parsed, source: r.source }
-    }
-  }
+  const suggestion = parseStoredSuggestion(d.typeSuggestion)
+  if (suggestion) out.typeSuggestion = suggestion
   return out
+}
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return v != null && typeof v === 'object' && !Array.isArray(v)
+}
+
+/** Sugerencia guardada en el borrador: solo con tipo y origen válidos; se re-sanea como la de la IA. */
+function parseStoredSuggestion(s: unknown): TypeSuggestionDraft | null {
+  if (!isPlainObject(s)) return null
+  const { key, source, reason, alternatives } = s
+  if (!isTemplateKey(key) || (source !== 'ai' && source !== 'keywords')) return null
+  const parsed = aiSuggestion({
+    key,
+    reason: typeof reason === 'string' ? reason : '',
+    alternatives: Array.isArray(alternatives) ? alternatives.filter(isTemplateKey) : [],
+  })
+  return parsed ? { ...parsed, source } : null
 }
 
 /** La descripción libre solo cuenta si el tipo elegido es "personalizada". */

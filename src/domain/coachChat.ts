@@ -184,7 +184,7 @@ const norm = (s: string) => s.trim().toLowerCase()
 
 /** El modelo a veces copia el título con su número o su marca ("3. X (cumplida)"). */
 function stripMarks(title: string): string {
-  let t = title.trim().replace(/^\d+ ?[.)-]/, '').trim()
+  let t = title.trim().replace(/^\d+ *[.)-]/, '').trim()
   if (t.toLowerCase().endsWith('(cumplida)')) t = t.slice(0, -'(cumplida)'.length).trim()
   return t
 }

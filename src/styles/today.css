@@ -315,10 +315,12 @@
   align-items: center;
   justify-content: center;
   gap: var(--s2);
-  border: 1px solid transparent;
+  background: transparent;
+  border: 1px solid var(--border);
   border-radius: var(--radius);
+  color: var(--text);
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 600;
   transition: transform var(--dur-tap) var(--ease-out), filter var(--dur-tap) var(--ease-out);
 }
 /* El CTA es .btn.btn--primary (azul con relieve, fullcolor.css): solo ocupa el ancho. */
@@ -326,12 +328,6 @@
   flex: 1;
   min-width: 0;
   font-size: 16px;
-}
-.today-hero__ghost {
-  background: transparent;
-  border-color: var(--border);
-  color: var(--text);
-  font-weight: 600;
 }
 .today-hero__square {
   flex: none;

@@ -29,7 +29,6 @@ import { clearFormDraft, loadFormDraft, saveFormDraft } from '@/lib/formDraft'
 import { isGoalClosed } from '@/domain/goals'
 import { milestoneProgress, weekConsistency } from '@/domain/sessions'
 import {
-  WEEKDAY_LABELS,
   blockTimeLabel,
   preferredStartTime,
   validateCommitment,
@@ -72,6 +71,7 @@ import { applyStageChanges, type ChatContext, type StageChange } from '@/domain/
 import { coachNudge } from '@/domain/coachNudge'
 import type { GoalPlanStage } from '@/domain/goalPlan'
 import { GoalCoach } from '@/components/coach/GoalCoach'
+import { WEEKDAY_SHORT } from '@/domain/weekdays'
 
 /**
  * Saca una meta borrada del cache de sesión: sin esto, /metas y Hoy la pintan
@@ -700,7 +700,7 @@ export function GoalDetail() {
                   <div className="row wrap">
                     {blocks.map((b) => (
                       <span key={b.id} className="tag">
-                        {WEEKDAY_LABELS[b.weekday]} · {blockTimeLabel(b)}
+                        {WEEKDAY_SHORT[b.weekday]} · {blockTimeLabel(b)}
                       </span>
                     ))}
                   </div>
@@ -1081,7 +1081,7 @@ function AdvancesTimeline({ items }: { items: Session[] }) {
 }
 
 /** Atrás canónico (.back-link). Es botón: vuelve por historial o descarta la edición. */
-function BackButton({ label, onClick }: { label: string; onClick: () => void }) {
+function BackButton({ label, onClick }: Readonly<{ label: string; onClick: () => void }>) {
   return (
     <button type="button" className="back-link" onClick={onClick}>
       <IconChevronLeft size={18} />

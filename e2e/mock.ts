@@ -1,6 +1,6 @@
 /**
- * Backend falso para las capturas: intercepta en el navegador TODO lo que iría
- * a Supabase (mock.supabase.test) y a /api/plan-meta, y aborta cualquier otra
+ * Backend falso para las capturas: intercepta en el navegador cada petición que
+ * iría a Supabase (mock.supabase.test) y a /api/plan-meta, y aborta cualquier otra
  * petición que no sea a localhost. Nada sale a la red real.
  *
  * El mock de PostgREST es genérico: tabla por ruta, filtros simples del query
@@ -8,7 +8,7 @@
  * (Accept: application/vnd.pgrst.object+json) y escrituras que devuelven la fila.
  */
 import { randomUUID } from 'node:crypto'
-import type { Page, Route } from '@playwright/test'
+import type { Page, Request, Route } from '@playwright/test'
 import { aiResponse } from './fixtures/ai'
 import type { Row, Tables } from './fixtures/data'
 import { MOCK_SUPABASE_URL, mockSession, mockUser } from './fixtures/session'
@@ -65,13 +65,21 @@ function isFontHost(url: URL): boolean {
 
 /* ===== Filtros PostgREST ================================================== */
 
+/** Texto de un valor de celda: primitivos tal cual, objetos/arrays como JSON. */
+function cellText(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return value.toString()
+  if (value == null) return ''
+  return JSON.stringify(value)
+}
+
 function compare(a: unknown, b: string): number {
   const na = Number(a)
   const nb = Number(b)
   if (typeof a === 'number' || (a !== '' && a !== null && !Number.isNaN(na) && !Number.isNaN(nb) && /^-?\d+(\.\d+)?$/.test(b))) {
     return na - nb
   }
-  return String(a).localeCompare(b)
+  return cellText(a).localeCompare(b)
 }
 
 function unquote(v: string): string {
@@ -92,17 +100,17 @@ function matches(row: Row, column: string, expr: string): boolean {
   let ok: boolean
   switch (op) {
     case 'eq':
-      ok = value != null && String(value) === unquote(raw)
+      ok = value != null && cellText(value) === unquote(raw)
       break
     case 'neq':
-      ok = value == null || String(value) !== unquote(raw)
+      ok = value == null || cellText(value) !== unquote(raw)
       break
     case 'is':
-      ok = raw === 'null' ? value == null : String(value) === raw
+      ok = raw === 'null' ? value == null : cellText(value) === raw
       break
     case 'in': {
       const list = raw.replace(/^\(|\)$/g, '').split(',').map(unquote)
-      ok = value != null && list.includes(String(value))
+      ok = value != null && list.includes(cellText(value))
       break
     }
     case 'gt':
@@ -132,21 +140,38 @@ function applyFilters(rows: Row[], params: URLSearchParams): Row[] {
   return out
 }
 
-function applyOrder(rows: Row[], order: string | null): Row[] {
-  if (!order) return rows
-  const keys = order.split(',').map((part) => {
+interface OrderKey {
+  col: string
+  desc: boolean
+  nullsFirst: boolean
+}
+
+function parseOrder(order: string): OrderKey[] {
+  return order.split(',').map((part) => {
     const [col, ...mods] = part.split('.')
     return { col, desc: mods.includes('desc'), nullsFirst: mods.includes('nullsfirst') }
   })
+}
+
+/** Compara dos filas por una columna; los nulos van al final (o al inicio con `nullsfirst`). */
+function compareByKey(a: Row, b: Row, k: OrderKey): number {
+  const va = a[k.col]
+  const vb = b[k.col]
+  if (va == null && vb == null) return 0
+  const nullSign = k.nullsFirst ? -1 : 1
+  if (va == null) return nullSign
+  if (vb == null) return -nullSign
+  const c = compare(va, cellText(vb))
+  return k.desc ? -c : c
+}
+
+function applyOrder(rows: Row[], order: string | null): Row[] {
+  if (!order) return rows
+  const keys = parseOrder(order)
   return [...rows].sort((a, b) => {
     for (const k of keys) {
-      const va = a[k.col]
-      const vb = b[k.col]
-      if (va == null && vb == null) continue
-      if (va == null) return k.nullsFirst ? -1 : 1
-      if (vb == null) return k.nullsFirst ? 1 : -1
-      const c = compare(va, String(vb))
-      if (c !== 0) return k.desc ? -c : c
+      const c = compareByKey(a, b, k)
+      if (c !== 0) return c
     }
     return 0
   })
@@ -179,91 +204,126 @@ class Store {
     const req = route.request()
     const method = req.method()
     const headers = await req.allHeaders()
-    const accept = headers['accept'] ?? ''
     const prefer = headers['prefer'] ?? ''
-    const single = accept.includes('vnd.pgrst.object')
+    const single = (headers['accept'] ?? '').includes('vnd.pgrst.object')
     const params = url.searchParams
+
+    if (method === 'POST') {
+      const posted = this.insert(table, req.postDataJSON() as Row | Row[], params, prefer)
+      if (posted === 'duplicate') return fulfillDuplicate(route)
+      return respond(route, { method, prefer, single, result: posted, status: 201 })
+    }
+    return respond(route, { method, prefer, single, result: this.query(table, method, req, params), status: 200 })
+  }
+
+  /** GET/HEAD, PATCH y DELETE: filtran las filas y (salvo GET) las modifican. */
+  private query(table: string, method: string, req: Request, params: URLSearchParams): Row[] {
     const all = this.rows(table)
-
-    let result: Row[] = []
-    let status = 200
-
-    if (method === 'GET' || method === 'HEAD') {
-      result = applyOrder(this.withEmbeds(table, applyFilters(all, params), params), params.get('order'))
-      const limit = Number(params.get('limit'))
-      if (limit > 0) result = result.slice(0, limit)
-    } else if (method === 'POST') {
-      const body = req.postDataJSON() as Row | Row[]
-      const incoming = Array.isArray(body) ? body : [body]
-      const conflict = params.get('on_conflict')?.split(',')
-      const ignoreDup = prefer.includes('resolution=ignore-duplicates')
-      const merge = prefer.includes('resolution=merge-duplicates')
-      for (const item of incoming) {
-        const existing = conflict ? all.find((r) => conflict.every((c) => String(r[c]) === String(item[c]))) : undefined
-        if (existing) {
-          if (merge) {
-            Object.assign(existing, item)
-            result.push(existing)
-          } else if (!ignoreDup) {
-            result.push(existing)
-          }
-          continue
-        }
-        if (table === 'habit_checks' && all.some((r) => r.habit_id === item.habit_id && r.date === item.date && (r.slot ?? 0) === (item.slot ?? 0))) {
-          return route.fulfill({
-            status: 409,
-            headers: CORS,
-            contentType: 'application/json',
-            body: JSON.stringify({ code: '23505', message: 'duplicate key value violates unique constraint', details: null, hint: null }),
-          })
-        }
-        const row: Row = {
-          ...(DEFAULTS[table] ?? {}),
-          ...(NO_ID.has(table) ? {} : { id: randomUUID() }),
-          created_at: new Date().toISOString(),
-          ...(table === 'notes' ? { updated_at: new Date().toISOString() } : {}),
-          ...item,
-        }
-        all.push(row)
-        result.push(row)
-      }
-      status = 201
-    } else if (method === 'PATCH') {
+    if (method === 'PATCH') {
       const patch = req.postDataJSON() as Row
-      result = applyFilters(all, params)
+      const result = applyFilters(all, params)
       for (const r of result) Object.assign(r, patch)
-    } else if (method === 'DELETE') {
-      result = applyFilters(all, params)
+      return result
+    }
+    if (method === 'DELETE') {
+      const result = applyFilters(all, params)
       this.tables[table] = all.filter((r) => !result.includes(r))
+      return result
     }
+    if (method !== 'GET' && method !== 'HEAD') return []
+    const result = applyOrder(this.withEmbeds(table, applyFilters(all, params), params), params.get('order'))
+    const limit = Number(params.get('limit'))
+    return limit > 0 ? result.slice(0, limit) : result
+  }
 
-    const contentRange = result.length ? `0-${result.length - 1}/${result.length}` : `*/0`
-    const respHeaders = { ...CORS, 'content-range': contentRange }
-
-    if (method === 'HEAD') {
-      return route.fulfill({ status: 200, headers: respHeaders, body: '' })
-    }
-    if (method !== 'GET' && !prefer.includes('return=representation')) {
-      return route.fulfill({ status: method === 'POST' ? 201 : 204, headers: respHeaders, body: '' })
-    }
-    if (single) {
-      if (result.length !== 1) {
-        return route.fulfill({
-          status: 406,
-          contentType: 'application/json',
-          headers: respHeaders,
-          body: JSON.stringify({
-            code: 'PGRST116',
-            message: 'JSON object requested, multiple (or no) rows returned',
-            details: `The result contains ${result.length} rows`,
-            hint: null,
-          }),
-        })
+  /** POST con upsert (`on_conflict` + `resolution=…`); 'duplicate' = choque de PK en habit_checks. */
+  private insert(table: string, body: Row | Row[], params: URLSearchParams, prefer: string): Row[] | 'duplicate' {
+    const all = this.rows(table)
+    const incoming = Array.isArray(body) ? body : [body]
+    const conflict = params.get('on_conflict')?.split(',')
+    const result: Row[] = []
+    for (const item of incoming) {
+      const existing = conflict ? all.find((r) => conflict.every((c) => cellText(r[c]) === cellText(item[c]))) : undefined
+      if (existing) {
+        const kept = upsertExisting(existing, item, prefer)
+        if (kept) result.push(kept)
+        continue
       }
-      return route.fulfill({ status, contentType: 'application/vnd.pgrst.object+json', headers: respHeaders, body: JSON.stringify(result[0]) })
+      if (table === 'habit_checks' && isDuplicateCheck(all, item)) return 'duplicate'
+      const row = newRow(table, item)
+      all.push(row)
+      result.push(row)
     }
+    return result
+  }
+}
+
+/** Fila existente ante un upsert: `merge` la actualiza, `ignore` la omite; sin preferencia se devuelve tal cual. */
+function upsertExisting(existing: Row, item: Row, prefer: string): Row | null {
+  if (prefer.includes('resolution=merge-duplicates')) return Object.assign(existing, item)
+  if (prefer.includes('resolution=ignore-duplicates')) return null
+  return existing
+}
+
+function isDuplicateCheck(all: Row[], item: Row): boolean {
+  return all.some(
+    (r) => r.habit_id === item.habit_id && r.date === item.date && (r.slot ?? 0) === (item.slot ?? 0),
+  )
+}
+
+function newRow(table: string, item: Row): Row {
+  const now = new Date().toISOString()
+  const row: Row = { ...DEFAULTS[table], created_at: now }
+  if (!NO_ID.has(table)) row.id = randomUUID()
+  if (table === 'notes') row.updated_at = now
+  return { ...row, ...item }
+}
+
+function fulfillDuplicate(route: Route): Promise<void> {
+  return route.fulfill({
+    status: 409,
+    headers: CORS,
+    contentType: 'application/json',
+    body: JSON.stringify({ code: '23505', message: 'duplicate key value violates unique constraint', details: null, hint: null }),
+  })
+}
+
+interface Reply {
+  method: string
+  prefer: string
+  single: boolean
+  result: Row[]
+  status: number
+}
+
+/** Arma la respuesta PostgREST: HEAD vacío, escrituras sin `return=representation` vacías, objeto único o lista. */
+function respond(route: Route, { method, prefer, single, result, status }: Reply): Promise<void> {
+  const contentRange = result.length ? `0-${result.length - 1}/${result.length}` : `*/0`
+  const respHeaders = { ...CORS, 'content-range': contentRange }
+
+  if (method === 'HEAD') {
+    return route.fulfill({ status: 200, headers: respHeaders, body: '' })
+  }
+  if (method !== 'GET' && !prefer.includes('return=representation')) {
+    return route.fulfill({ status: method === 'POST' ? 201 : 204, headers: respHeaders, body: '' })
+  }
+  if (!single) {
     return route.fulfill({ status, contentType: 'application/json', headers: respHeaders, body: JSON.stringify(result) })
   }
+  if (result.length !== 1) {
+    return route.fulfill({
+      status: 406,
+      contentType: 'application/json',
+      headers: respHeaders,
+      body: JSON.stringify({
+        code: 'PGRST116',
+        message: 'JSON object requested, multiple (or no) rows returned',
+        details: `The result contains ${result.length} rows`,
+        hint: null,
+      }),
+    })
+  }
+  return route.fulfill({ status, contentType: 'application/vnd.pgrst.object+json', headers: respHeaders, body: JSON.stringify(result[0]) })
 }
 
 /* ===== Montaje en la página =============================================== */

@@ -34,14 +34,12 @@
   position: relative;
   height: 100%;
 }
+/* El hundido al tocar viene de button.fc-card:active (fullcolor.css). */
 .goal-card.fc-card {
   width: 100%;
   height: calc(100% - var(--lip));
   justify-content: flex-start;
   cursor: pointer;
-}
-/* El hundido al tocar viene de button.fc-card:active (fullcolor.css). */
-.goal-card.fc-card {
   gap: var(--s2);
   /* El patrón ocupa la banda superior, entre el ícono y la estrella. */
   background-position: right 60px top 22px;
@@ -385,6 +383,9 @@
 .goal-created__card.fc-card {
   box-shadow: none;
   margin-bottom: 0;
+  gap: var(--s2);
+  background-position: right 20px top 22px;
+  background-size: auto 40px;
 }
 .goal-created__card .goal-card__top {
   display: flex;
@@ -395,11 +396,6 @@
   width: 42px;
   height: 42px;
   border-radius: 14px;
-}
-.goal-created__card.fc-card {
-  gap: var(--s2);
-  background-position: right 20px top 22px;
-  background-size: auto 40px;
 }
 /* El foco se mueve al título solo para anunciarlo: sin anillo, no es un control. */
 .goal-created__head h1:focus {

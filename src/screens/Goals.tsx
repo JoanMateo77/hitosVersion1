@@ -12,7 +12,6 @@ import { nicheAccent } from '@/lib/nicheAccent'
 import { withViewTransition } from '@/lib/viewTransition'
 import type { Goal, GoalStatus } from '@/lib/types'
 import { useCachedData } from '@/hooks/useCachedData'
-import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
 import { IconChevronRight, IconPlus, IconStar } from '@/components/icons'
@@ -219,8 +218,10 @@ export function Goals() {
  * Detalle "peek" que morphea desde la tarjeta (Blendy FLIP). El `data-blendy-to`
  * debe tener un ÚNICO hijo wrapper (Blendy accede a `children[0]`).
  *
- * Es un diálogo modal de verdad: atrapa el foco (entra en "Abrir meta"), Escape
- * cierra y al cerrarse el foco vuelve a la tarjeta que lo abrió (useFocusTrap).
+ * Es un <dialog> nativo abierto con showModal(): el navegador vuelve inerte el
+ * resto de la página y atrapa el foco. Escape (evento `cancel`) y el clic en el
+ * fondo (el propio <dialog>, fuera de la tarjeta) cierran con la animación de
+ * vuelta; al cerrarse el foco vuelve a la tarjeta que lo abrió.
  * No usa <Sheet>: la hoja entra desde abajo y rompería el morph desde la tarjeta.
  */
 function GoalPeek({
@@ -234,20 +235,47 @@ function GoalPeek({
   onOpen: () => void
   onClose: () => void
 }) {
-  const panelRef = useRef<HTMLDivElement>(null)
-  useFocusTrap(panelRef, onClose)
+  const dialogRef = useRef<HTMLDialogElement>(null)
+  // El cierre se lee desde un ref para abrir el diálogo UNA vez por montaje.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
+
+  // useLayoutEffect del hijo corre antes que el del padre: el diálogo ya está en
+  // el top layer (y medible) cuando Goals dispara el morph de Blendy.
+  useLayoutEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    if (!dialog.open) dialog.showModal()
+
+    function onCancel(e: Event) {
+      // Escape: cerramos nosotros para animar de vuelta a la tarjeta.
+      e.preventDefault()
+      onCloseRef.current()
+    }
+    function onBackdropClick(e: MouseEvent) {
+      // Solo el fondo: los clics dentro de la tarjeta tienen otro target.
+      if (e.target === dialog) onCloseRef.current()
+    }
+    dialog.addEventListener('cancel', onCancel)
+    dialog.addEventListener('click', onBackdropClick)
+    return () => {
+      dialog.removeEventListener('cancel', onCancel)
+      dialog.removeEventListener('click', onBackdropClick)
+      if (dialog.open) dialog.close()
+      previouslyFocused?.focus?.()
+    }
+  }, [])
+
   return (
-    <div className="goal-peek-backdrop" onClick={onClose}>
+    <dialog ref={dialogRef} className="goal-peek-backdrop" aria-label={goal.title}>
       <div data-blendy-to={bid(goal.id)}>
         {/* El peek es la tarjeta de color agrandada; su view-transition-name es el
             mismo que la cabecera del detalle, así "Abrir meta" la convierte en ella. */}
         <div
-          ref={panelRef}
           className="goal-peek fc-card"
-          role="dialog"
-          aria-modal="true"
-          aria-label={goal.title}
-          onClick={(e) => e.stopPropagation()}
           style={{ ...nicheAccent(goal.area), viewTransitionName: `goal-${goal.id}` } as CSSProperties}
         >
           <div className="goal-card__top">
@@ -267,7 +295,7 @@ function GoalPeek({
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   )
 }
 
@@ -304,12 +332,15 @@ function GoalCard({
   const state = goalState(goal, pathComplete)
   // Una sola línea de contexto: "2 de 5 etapas · faltan 6 semanas". "Vencida" ya
   // lo dice el chip de estado, así que no se repite aquí.
+  const stageWord = progressTotal === 1 ? 'etapa' : 'etapas'
   const metaLine = [
-    progressTotal > 0 ? `${progressDone} de ${progressTotal} ${progressTotal === 1 ? 'etapa' : 'etapas'}` : null,
+    progressTotal > 0 ? `${progressDone} de ${progressTotal} ${stageWord}` : null,
     overdue ? null : deadline,
   ]
     .filter(Boolean)
     .join(' · ')
+
+  const stateClass = state && state.tone !== 'neutral' ? `chip-state chip-state--${state.tone}` : 'chip-state'
 
   return (
     <div className={`goal-card-wrap${closed ? ' goal-card-wrap--closed' : ''}`}>
@@ -330,7 +361,7 @@ function GoalCard({
           <span className="goal-card__meta">
             {metaLine && <span className="fc-card__meta">{metaLine}</span>}
             {state && (
-              <span className={`chip-state${state.tone === 'neutral' ? '' : ` chip-state--${state.tone}`}`}>
+              <span className={stateClass}>
                 {state.label}
               </span>
             )}

@@ -71,6 +71,13 @@
   gap: var(--gap, var(--s2));
 }
 /* <fieldset> usado como contenedor de controles: sin el marco/margen del navegador. */
+/* Genérico: especificidad 0 (:where) para que la clase propia del bloque mande. */
+:where(fieldset.fieldset--plain) {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
 fieldset.row,
 fieldset.seg {
   border: 0;
@@ -1469,6 +1476,14 @@ select.input {
   height: 64px;
   font-size: 26px;
 }
+/* Enlace que envuelve un avatar (acceso a Perfil): no añade caja propia; el
+   foco sigue la forma redonda del avatar. */
+.avatar-link {
+  flex: none;
+  display: inline-flex;
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+}
 
 /* Barra lateral (escritorio): oculta por defecto, se enciende en el breakpoint */
 .sidenav {
@@ -2187,18 +2202,32 @@ select.input {
 }
 
 /* Peek de meta: overlay que MORPHEA desde la tarjeta (Blendy FLIP). Solo se muestra
-   en movimiento normal (con reduced-motion navegamos directo al detalle). */
+   en movimiento normal (con reduced-motion navegamos directo al detalle).
+   El <dialog> nativo (showModal) ocupa toda la pantalla y hace de fondo; se
+   anulan los estilos del agente de usuario (borde, márgenes, tope de tamaño). */
 .goal-peek-backdrop {
   position: fixed;
   inset: 0;
   z-index: 150;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  color: inherit;
   padding: var(--s4);
   background: color-mix(in srgb, var(--bg) 72%, transparent);
   backdrop-filter: blur(3px);
   animation: goal-peek-fade var(--dur-state) var(--ease-out);
+}
+.goal-peek-backdrop[open] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.goal-peek-backdrop::backdrop {
+  background: transparent;
 }
 @keyframes goal-peek-fade {
   from {

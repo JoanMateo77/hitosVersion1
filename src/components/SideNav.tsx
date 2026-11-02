@@ -1,9 +1,7 @@
-import type { CSSProperties, MouseEvent } from 'react'
+import type { MouseEvent } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
-import { fetchCurrentStreak } from '@/services/profile'
-import { frameForStreak } from '@/domain/frames'
-import { useCachedData } from '@/hooks/useCachedData'
+import { useStreakFrame } from '@/hooks/useStreakFrame'
 import {
   IconCalendar,
   IconFlame,
@@ -16,7 +14,7 @@ import {
 } from '@/components/icons'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 import { withViewTransition } from '@/lib/viewTransition'
-import { avatarInitials } from '@/lib/avatar'
+import { UserAvatar } from '@/components/UserAvatar'
 
 const NAV = [
   { to: '/', label: 'Hoy', Icon: IconToday },
@@ -31,10 +29,9 @@ const NAV = [
 
 /** Barra lateral (solo escritorio): marca + identidad del usuario + navegación + tema. */
 export function SideNav() {
-  const { userId, email, displayName, profile } = useSession()
+  const { email, displayName, profile } = useSession()
   const { pathname } = useLocation()
   const navigate = useNavigate()
-  const initials = avatarInitials({ displayName, email })
   // Se muestra el nombre; el email solo si no hay nombre.
   const identity = displayName.trim() || email
   const days = daysSince(profile.createdAt)
@@ -46,14 +43,8 @@ export function SideNav() {
           (alsoMatch !== undefined && pathname.startsWith(alsoMatch))
   })
 
-  // Foto y marco por racha, igual que en la TopBar móvil (misma clave de cache:
-  // un solo cálculo por sesión entre las tres superficies).
-  const { data: streak } = useCachedData(
-    `streak:${userId}`,
-    () => fetchCurrentStreak(userId).catch(() => 0),
-    [userId],
-  )
-  const frame = frameForStreak(streak ?? 0)
+  // Marco por racha, igual que en la TopBar móvil (misma cache).
+  const { streak, frame } = useStreakFrame()
 
   return (
     <aside className="sidenav" aria-label="Navegación principal">
@@ -65,14 +56,8 @@ export function SideNav() {
       </span>
 
       <div className="sidenav__identity">
-        <span
-          className={`avatar${frame ? ' avatar--ring' : ''}`}
-          aria-hidden="true"
-          // Anillo del marco ganado, igual que en la TopBar; sin marco, ninguno.
-          style={frame ? ({ '--avatar-ring': frame.color } as CSSProperties) : undefined}
-        >
-          {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : initials}
-        </span>
+        {/* Decorativo: el nombre va escrito al lado. */}
+        <UserAvatar frame={frame} />
         <div className="sidenav__identity-text">
           <span className="sidenav__name" title={identity}>
             {identity}

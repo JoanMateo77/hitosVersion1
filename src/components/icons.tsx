@@ -172,7 +172,7 @@ export function IconStar({ size = 18, className, style }: IconProps) {
 }
 
 /** Chincheta — nota fijada. */
-export function IconPin({ size = 18, className, style }: IconProps) {
+export function IconPin({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M9 3h6l-1 6 3 3v2H7v-2l3-3z" />

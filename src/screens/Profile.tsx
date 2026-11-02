@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { useToast } from '@/app/toast'
 import { deleteAccount, signOut } from '@/services/auth'
-import { fetchCurrentStreak, setDailyDigestTime, updateRhythm, uploadAvatar } from '@/services/profile'
+import { setDailyDigestTime, updateRhythm, uploadAvatar } from '@/services/profile'
 import { disablePush, enablePush, getPushState } from '@/lib/push'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 import {
@@ -15,12 +15,12 @@ import {
   IconSun,
   IconSunrise,
 } from '@/components/icons'
-import { FRAMES, frameForStreak } from '@/domain/frames'
-import { useCachedData } from '@/hooks/useCachedData'
+import { FRAMES } from '@/domain/frames'
+import { useStreakFrame } from '@/hooks/useStreakFrame'
+import { UserAvatar } from '@/components/UserAvatar'
 import { Disclosure } from '@/components/Disclosure'
 import { NOVEDADES } from '@/content/novedades'
 import { formatLongDate } from '@/lib/date'
-import { avatarInitials } from '@/lib/avatar'
 import type { PreferredMoment } from '@/lib/types'
 
 const MOMENTS: { id: PreferredMoment; label: string; Icon: ComponentType<{ size?: number }> }[] = [
@@ -42,7 +42,7 @@ function pushButtonLabel(push: 'on' | 'off' | 'blocked' | 'unsupported' | 'loadi
 }
 
 export function ProfileScreen() {
-  const { userId, email, displayName, profile, setProfile } = useSession()
+  const { userId, email, profile, setProfile } = useSession()
   const { toast } = useToast()
   const [signingOut, setSigningOut] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -53,14 +53,8 @@ export function ProfileScreen() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   // Racha con la misma métrica que Progreso; tolerante a errores (queda en 0,
-  // el resto de la pantalla no se bloquea). Misma clave de cache que la TopBar.
-  const { data: streakData } = useCachedData(
-    `streak:${userId}`,
-    () => fetchCurrentStreak(userId).catch(() => 0),
-    [userId],
-  )
-  const streak = streakData ?? 0
-  const frame = frameForStreak(streak)
+  // el resto de la pantalla no se bloquea). Misma cache que la TopBar.
+  const { streak, frame } = useStreakFrame()
 
   async function handleAvatarFile(file: File | undefined) {
     if (!file || uploading) return
@@ -104,7 +98,6 @@ export function ProfileScreen() {
     }
   }
 
-  const initials = avatarInitials({ displayName, email })
   // Local y optimista: los +/- rápidos no deben leer estado viejo del perfil.
   const [minutes, setMinutes] = useState(profile.defaultSessionMinutes ?? 25)
 
@@ -161,15 +154,8 @@ export function ProfileScreen() {
   return (
     <div className="screen">
       <header className="screen__header profile-id">
-        <span
-          className={`avatar avatar--lg profile-id__avatar${frame ? ' avatar--ring' : ''}`}
-          aria-hidden="true"
-          // El marco ganado con la racha va como anillo (igual que en la barra
-          // superior). Sin marco no hay anillo: el avatar es neutro.
-          style={frame ? ({ '--avatar-ring': frame.color } as CSSProperties) : undefined}
-        >
-          {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : initials}
-        </span>
+        {/* Decorativo: el email va escrito al lado. */}
+        <UserAvatar frame={frame} size="lg" className="profile-id__avatar" />
         <div className="profile-id__text">
           <h1 className="screen__title profile-id__title">Perfil</h1>
           <p className="muted small nowrap-ellipsis" style={{ margin: 0 }}>
@@ -234,7 +220,7 @@ export function ProfileScreen() {
         <h2 className="section-title">Tu ritmo</h2>
         <div className="field">
           <span className="field__label">¿Cuándo te es más fácil cumplir?</span>
-          <div className="seg profile-moments" role="group" aria-label="Momento preferido">
+          <fieldset className="seg profile-moments" aria-label="Momento preferido">
             {MOMENTS.map((m) => (
               <button
                 key={m.id}
@@ -248,7 +234,7 @@ export function ProfileScreen() {
                 <m.Icon size={14} /> {m.label}
               </button>
             ))}
-          </div>
+          </fieldset>
         </div>
         <div className="field">
           <span className="field__label">Sesión por defecto</span>

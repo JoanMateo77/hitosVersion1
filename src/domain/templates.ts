@@ -1,4 +1,4 @@
-import type { GoalTemplate, NicheId } from '@/lib/types'
+import type { GoalTemplate } from '@/lib/types'
 
 /**
  * Mecanismo F — Plantillas pre-armadas por tipo de meta.
@@ -407,13 +407,6 @@ const TEMPLATE_BY_KEY = new Map(TEMPLATES.map((t) => [t.key, t]))
 /** Plantilla por clave. Cae en 'personalizada' si la clave no existe (datos viejos). */
 export function getTemplate(key: string): GoalTemplate {
   return TEMPLATE_BY_KEY.get(key) ?? TEMPLATE_BY_KEY.get('personalizada')!
-}
-
-/** Plantillas que sugiere por defecto un nicho (la propia primero). */
-export function templatesForNiche(niche: NicheId): GoalTemplate[] {
-  const own = TEMPLATES.filter((t) => t.defaultArea === niche && t.key !== 'personalizada')
-  const rest = TEMPLATES.filter((t) => t.defaultArea !== niche)
-  return [...own, ...rest]
 }
 
 /**

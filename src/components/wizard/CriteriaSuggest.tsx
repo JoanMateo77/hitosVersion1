@@ -82,7 +82,15 @@ export function CriteriaSuggest({
       ) : (
         options &&
         options.length > 0 && (
-          <div className="stack stack--sm" role="radiogroup" aria-label="Propuestas del coach" onKeyDown={onRadioKey}>
+          // tabIndex -1: enfocable por script sin sumar una parada de Tab (el foco
+          // con Tab va al radio elegido y las flechas lo mueven).
+          <div
+            className="stack stack--sm"
+            role="radiogroup"
+            aria-label="Propuestas del coach"
+            tabIndex={-1}
+            onKeyDown={onRadioKey}
+          >
             {options.map((o, i) => (
               <button
                 key={o.text}

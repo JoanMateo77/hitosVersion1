@@ -33,6 +33,14 @@ describe('parseCoachReply', () => {
     expect(r?.proposal?.summary).toBe('Quitar la licencia.')
   })
 
+  it('ignora la numeración aunque traiga varios espacios', () => {
+    const r = parseCoachReply(
+      { reply: 'Sobra.', proposalSummary: 'x', changes: [{ kind: 'remove', title: '3  - Sacar la licencia de conducción' }] },
+      stages,
+    )
+    expect(r?.proposal?.changes).toEqual([{ kind: 'remove', title: 'Sacar la licencia de conducción' }])
+  })
+
   it('ignora la numeración que el modelo copia del prompt', () => {
     const r = parseCoachReply(
       { reply: 'Sobra.', proposalSummary: 'x', changes: [{ kind: 'remove', title: '3. Sacar la licencia de conducción' }] },

@@ -22,7 +22,7 @@ import {
   updateEvent,
   type EventInput,
 } from '@/services/events'
-import { WEEKDAY_LABELS, groupByDate, inSameMonth, monthGrid, weekDays } from '@/domain/calendar'
+import { groupByDate, inSameMonth, monthGrid, weekDays } from '@/domain/calendar'
 import {
   WEEKDAY_PLURALS,
   minutesToTime,
@@ -88,6 +88,7 @@ import { NicheIcon } from '@/components/NicheGlyph'
 import { useToast } from '@/app/toast'
 import { sessionCache } from '@/lib/sessionCache'
 import { useCacheMirror } from '@/hooks/useCacheMirror'
+import { WEEKDAY_ABBR } from '@/domain/weekdays'
 
 type View = 'day' | 'week' | 'month'
 
@@ -774,7 +775,7 @@ export function Calendar() {
             <IconChevronRight size={24} />
           </button>
         </div>
-        <div className="seg ag-views" role="group" aria-label="Vista del calendario">
+        <fieldset className="seg ag-views" aria-label="Vista del calendario">
           {(['day', 'week', 'month'] as const).map((v) => (
             <button
               key={v}
@@ -785,7 +786,7 @@ export function Calendar() {
               {VIEW_LABELS[v]}
             </button>
           ))}
-        </div>
+        </fieldset>
       </div>
 
       {ready && error && (
@@ -800,7 +801,7 @@ export function Calendar() {
         <div className="cal-month">
           <div className="cal-month__grid">
             <div className="cal-grid" style={{ marginBottom: 'var(--s2)' }}>
-              {WEEKDAY_LABELS.map((w) => (
+              {WEEKDAY_ABBR.map((w) => (
                 <div key={w} className="cal-dow">
                   {w}
                 </div>

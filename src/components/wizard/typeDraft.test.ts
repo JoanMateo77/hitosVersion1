@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest'
 import {
   TYPE_NOTE_MAX,
   TYPE_QUESTION,
-  TYPE_REASON_MAX,
   aiSuggestion,
   answersWithTypeNote,
   effectiveTypeNote,
   parseTypeDraft,
   typeLabelFor,
 } from '@/components/wizard/typeDraft'
+import { TYPE_REASON_MAX } from '@/domain/goalType'
 
 describe('parseTypeDraft', () => {
   it('acepta campos válidos', () => {

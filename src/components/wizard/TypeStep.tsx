@@ -69,18 +69,26 @@ export function TypeStep({ templateKey, suggestion, reading, typeNote, onPick, o
 
   return (
     <div className="type-step">
-      {/* La región viva existe desde el inicio (vacía): así el lector de
-          pantalla anuncia el texto cuando llega, no se monta junto con él. */}
-      <p className="type-step__reading" role="status">
+      {/* La región viva (<output> = role status) existe desde el inicio (vacía):
+          así el lector de pantalla anuncia el texto cuando llega, no se monta junto con él. */}
+      <output className="type-step__reading">
         {reading && (
           <>
             <CoachOrb thinking size={24} />
             El coach está leyendo tu meta…
           </>
         )}
-      </p>
+      </output>
 
-      <div role="radiogroup" aria-label="Tipo de meta" className="type-step__group" onKeyDown={onKeyDown}>
+      {/* tabIndex -1: el grupo es enfocable por script pero no suma una parada de
+          Tab; el foco con Tab cae en el radio elegido (roving) y las flechas lo mueven. */}
+      <div
+        role="radiogroup"
+        aria-label="Tipo de meta"
+        tabIndex={-1}
+        className="type-step__group"
+        onKeyDown={onKeyDown}
+      >
         {featuredKey && (
           <div className="type-step__featured">
             <span className="section-title">Parece una meta de…</span>

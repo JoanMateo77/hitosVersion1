@@ -36,6 +36,7 @@ import { CoachComposer, CoachOrb, CoachThread } from '@/components/coach/CoachCh
 import { CriteriaSuggest } from '@/components/wizard/CriteriaSuggest'
 import type { CriterionOption } from '@/domain/coachChat'
 import { requestGoalType } from '@/services/goalPlan'
+import { NBSP } from '@/lib/format'
 import { TypeStep } from '@/components/wizard/TypeStep'
 import {
   aiSuggestion,
@@ -48,8 +49,6 @@ import {
 
 /** Pasos del wizard: título · tipo · compromiso · camino · ancla · resumen. */
 const STEPS = 6
-/** Espacio que no se corta ("5 kg" en una línea), escapado: no-irregular-whitespace. */
-const NBSP = '\u00a0'
 
 const DRAFT_KEY = WIZARD_DRAFT_KEY
 
@@ -288,10 +287,10 @@ export function Wizard() {
    * palabras; si falla, se queda esa en silencio. La respuesta solo cambia la
    * elección si la persona no eligió a mano entretanto.
    */
-  const askType = useCallback((forTitle: string, forWhy: string) => {
+  const askType = useCallback((forTitle: string) => {
     const id = ++typeRequest.current
     setTypeReading(forTitle)
-    requestGoalType(forTitle, forWhy)
+    requestGoalType(forTitle)
       .then((raw) => {
         const s = aiSuggestion(raw)
         if (id !== typeRequest.current || !s || typePickedRef.current) return
@@ -319,7 +318,7 @@ export function Wizard() {
   useEffect(() => {
     if (askedOnLoad.current) return
     askedOnLoad.current = true
-    if (step === 1 && title.trim() && typeSuggestion?.source !== 'ai' && !typePicked) askType(title, why)
+    if (step === 1 && title.trim() && typeSuggestion?.source !== 'ai' && !typePicked) askType(title)
     // Solo al montar.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -362,18 +361,16 @@ export function Wizard() {
       setTypeNote('')
       typePickedRef.current = false
       setTypePicked(false)
-      askType(title, why)
+      askType(title)
+      // Si cambió la meta, el plan, las respuestas y las opciones de la IA ya no aplican.
+      setAiPlan(null)
+      setAiAnswers(null)
+      setCriteriaOptions(null)
     }
-    // Si cambió la meta, el plan, las respuestas y las opciones de la IA ya no aplican.
     // Continuar con la sugerencia a la vista es elegirla: la IA ya no la cambia.
     if (step === 1) {
       typePickedRef.current = true
       setTypePicked(true)
-    }
-    if (step === 0 && title !== detectedFromTitle) {
-      setAiPlan(null)
-      setAiAnswers(null)
-      setCriteriaOptions(null)
     }
     setStep((s) => s + 1)
   }

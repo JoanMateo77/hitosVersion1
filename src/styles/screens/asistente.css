@@ -185,11 +185,9 @@
   border-color: transparent;
   background: var(--vivid-ink);
   color: var(--vivid);
-}
-/* El check va arriba a la derecha y el patrón abajo en esa misma columna: el
-   margen reserva el hueco del patrón para que no se pisen en tarjetas bajas
-   (una línea de descripción, p. ej. a 1280). */
-.type-card--on .type-card__check {
+  /* El check va arriba a la derecha y el patrón abajo en esa misma columna: el
+     margen reserva el hueco del patrón para que no se pisen en tarjetas bajas
+     (una línea de descripción, p. ej. a 1280). */
   margin-bottom: 32px;
 }
 /* La razón del coach: ✦ en una pastilla. En reposo, azul de texto sobre un

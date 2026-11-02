@@ -394,6 +394,10 @@ export function HabitDetail() {
   const monthNow = habitMonthStats(habit, checks, skipSet, startOfMonth(today), today)
   const stats = habitMonthStats(habit, checks, skipSet, month, today)
   const grid = habitMonthGrid(habit, checks, skipSet, month, today)
+  const monthDays = grid.flatMap((cell) => (cell.date ? [{ date: cell.date, state: cell.state }] : []))
+  // Huecos previos al día 1: se identifican por la fecha (ISO) del mes anterior que ocupan.
+  const blankCount = grid.length - monthDays.length
+  const padDates = Array.from({ length: blankCount }, (_, k) => addDays(month, k - blankCount))
   const monthTitle = monthTitleOf(month, today)
 
   const firstMonth = startOfMonth(addMonths(today, -MONTHS_BACK))
@@ -504,41 +508,40 @@ export function HabitDetail() {
             <span key={d}>{d}</span>
           ))}
         </div>
-        <div
-          className="hdet-month__grid"
-          role="group"
+        <fieldset
+          className="hdet-month__grid fieldset--plain"
           aria-label={`${monthTitle}: ${stats.done} de ${stats.applicable} días hechos.`}
         >
-          {grid.map((cell, i) =>
-            cell.date ? (
-              <span
-                key={cell.date}
-                role="img"
-                className={`hdet-cell${cell.date === today ? ' is-today' : ''}`}
-                data-state={cell.state}
-                aria-label={cellLabel(cell.date, cell.state, cell.date === today)}
-              >
-                {Number(cell.date.slice(8, 10))}
-              </span>
-            ) : (
-              <span key={`hueco-${i}`} className="hdet-cell" data-state="blank" aria-hidden="true" />
-            ),
-          )}
-        </div>
+          {padDates.map((iso) => (
+            <span key={`hueco-${iso}`} className="hdet-cell" data-state="blank" aria-hidden="true" />
+          ))}
+          {monthDays.map((cell) => (
+            <span
+              key={cell.date}
+              role="img"
+              className={`hdet-cell${cell.date === today ? ' is-today' : ''}`}
+              data-state={cell.state}
+              aria-label={cellLabel(cell.date, cell.state, cell.date === today)}
+            >
+              {Number(cell.date.slice(8, 10))}
+            </span>
+          ))}
+        </fieldset>
         <ul className="hdet-legend" aria-hidden="true">
           <li>
-            <span className="hdet-legend__swatch hdet-cell" data-state="done" />
+            <span className="hdet-legend__swatch hdet-cell" data-state="done" />{' '}
             Hecho
           </li>
           <li>
-            <span className="hdet-legend__swatch hdet-cell" data-state="partial" />A medias
+            <span className="hdet-legend__swatch hdet-cell" data-state="partial" />{' '}
+            A medias
           </li>
           <li>
-            <span className="hdet-legend__swatch hdet-cell" data-state="skipped" />
+            <span className="hdet-legend__swatch hdet-cell" data-state="skipped" />{' '}
             Saltado
           </li>
           <li>
-            <span className="hdet-legend__swatch hdet-cell is-today" data-state="missed" />
+            <span className="hdet-legend__swatch hdet-cell is-today" data-state="missed" />{' '}
             Hoy
           </li>
         </ul>

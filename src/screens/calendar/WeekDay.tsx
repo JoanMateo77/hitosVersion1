@@ -1,10 +1,10 @@
 import { useState, type ReactNode } from 'react'
-import { WEEKDAY_LABELS } from '@/domain/calendar'
 import { weekdayMon0 } from '@/domain/commitment'
 import { dayOfMonth, formatWeekday, isToday } from '@/lib/date'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { IconChevronRight } from '@/components/icons'
 import type { WeekDaySummary } from '@/screens/calendar/agendaItems'
+import { WEEKDAY_ABBR } from '@/domain/weekdays'
 
 /**
  * Un día del acordeón de la semana: cabecera con fecha, resumen en dos
@@ -48,7 +48,7 @@ export function WeekDay({
         aria-label={`${open ? 'Plegar' : 'Desplegar'} ${formatWeekday(day)}: ${summary.main}`}
       >
         <span className="wk-day__date">
-          <span className="wk-day__dow">{WEEKDAY_LABELS[weekdayMon0(day)]}</span>
+          <span className="wk-day__dow">{WEEKDAY_ABBR[weekdayMon0(day)]}</span>
           <span className="wk-day__num">{dayOfMonth(day)}</span>
         </span>
         <span className="wk-day__sum">

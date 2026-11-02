@@ -8,9 +8,6 @@ import { formatDuration, formatTime12, parseISO } from '@/lib/date'
  * Funciones puras, sin I/O.
  */
 
-/** Etiquetas cortas de día, indexadas con lunes=0. */
-export { WEEKDAY_SHORT as WEEKDAY_LABELS } from './weekdays'
-
 /** Nombres completos en plural para mensajes ("Los lunes…"). */
 export const WEEKDAY_PLURALS = [
   'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados', 'domingos',
