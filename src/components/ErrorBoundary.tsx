@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { IconHito } from '@/components/icons'
+import { isStaleChunkError, reloadOnceForStaleChunk } from '@/lib/staleChunk'
 
 interface Props {
   children: ReactNode
@@ -8,15 +9,6 @@ interface State {
   hasError: boolean
   /** Mensaje técnico del error capturado — en chico, para poder reportarlo. */
   message: string | null
-}
-
-const RELOADED_KEY = 'logralo-auto-reload'
-
-/** ¿El error es de módulos viejos tras un deploy nuevo? (chunks que ya no existen) */
-function isStaleChunkError(error: Error): boolean {
-  return /dynamically imported module|module script failed|ChunkLoadError|Loading chunk|error loading/i.test(
-    `${error.name} ${error.message}`,
-  )
 }
 
 /**
@@ -34,16 +26,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('Error no controlado en la UI:', error, info)
-    if (isStaleChunkError(error)) {
-      try {
-        if (!sessionStorage.getItem(RELOADED_KEY)) {
-          sessionStorage.setItem(RELOADED_KEY, '1')
-          window.location.reload()
-        }
-      } catch {
-        /* sin sessionStorage no auto-recargamos: el botón manual queda */
-      }
-    }
+    // Sin sessionStorage no auto-recargamos: el botón manual queda.
+    if (isStaleChunkError(error)) reloadOnceForStaleChunk()
   }
 
   render() {
