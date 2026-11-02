@@ -522,3 +522,90 @@
   flex: none;
   color: var(--text-muted);
 }
+
+/* ---- Editar meta · Apariencia (color propio y portada) -------------------- */
+.goal-appearance {
+  padding-top: var(--s4);
+  border-top: 1px solid var(--border);
+}
+/* Muestras de la paleta cerrada: 44 px tocables, cada una en su tono. */
+.goal-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+.goal-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--vivid);
+  color: var(--vivid-ink);
+  transition: transform var(--dur-tap) var(--ease-out), box-shadow var(--dur-tap) var(--ease-out);
+}
+.goal-swatch:active {
+  transform: scale(0.94);
+}
+/* "Color del área": el tono del área con un aro punteado (= sin color propio). */
+.goal-swatch--area {
+  outline: 2px dashed var(--text-muted);
+  outline-offset: 3px;
+}
+.goal-swatch[aria-checked='true'] {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text);
+}
+.goal-swatch:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 4px;
+}
+.goal-cover-preview {
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.goal-cover-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.goal-appearance__toggle {
+  align-items: center;
+  gap: var(--s4);
+}
+/* Interruptor (mismo dibujo que el de Hábitos): 50 × 30 con disco de 26. */
+.goal-switch {
+  position: relative;
+  flex: none;
+  width: 50px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 15px;
+  background: var(--surface-3);
+  transition: background var(--dur-state) var(--ease-out);
+}
+.goal-switch[aria-checked='true'] {
+  background: var(--state-ok);
+}
+.goal-switch__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--on-primary);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  transition: transform var(--dur-state) var(--ease-ios);
+}
+.goal-switch[aria-checked='true'] .goal-switch__knob {
+  transform: translateX(20px);
+}

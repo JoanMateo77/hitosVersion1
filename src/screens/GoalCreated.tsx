@@ -13,7 +13,7 @@ import { IconPlay } from '@/components/icons'
 import { NicheGlyph } from '@/components/NicheGlyph'
 import { PathIllustration } from '@/components/PathIllustration'
 import { getNiche } from '@/domain/niches'
-import { nicheAccent } from '@/lib/nicheAccent'
+import { goalAccent, goalTone } from '@/lib/goalAccent'
 
 /** "Hoy", "Mañana" o el día de la semana de la primera sesión. */
 function dayWord(offset: number, date: string): string {
@@ -89,7 +89,7 @@ export function GoalCreated() {
   const cleanWhy = strippedWhy ? strippedWhy.charAt(0).toLowerCase() + strippedWhy.slice(1) : strippedWhy
 
   return (
-    <div className="screen screen--full flow-screen goal-created" style={nicheAccent(goal.area)}>
+    <div className="screen screen--full flow-screen goal-created" style={goalAccent(goal)}>
       <div className="stack stack--lg" style={{ flex: 1 }}>
         <header className="goal-created__head">
           {/* El camino con banderín: la idea de la app, dibujada una vez aquí. */}
@@ -104,7 +104,7 @@ export function GoalCreated() {
             aquí no se toca). */}
         <section className="fc-card goal-created__card" aria-label="Tu meta">
           <span className="goal-card__top">
-            <NicheGlyph area={goal.area} size="md" />
+            <NicheGlyph area={goal.area} tone={goalTone(goal)} size="md" />
           </span>
           <span className="fc-card__title">{goal.title}</span>
           <span className="fc-card__meta">{getNiche(goal.area).label}</span>

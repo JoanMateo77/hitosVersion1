@@ -23,7 +23,7 @@ import { habitDoneCount, habitIsComplete, habitTarget, nextSlot } from '@/domain
 import { getTemplate } from '@/domain/templates'
 import { NICHES, getNiche } from '@/domain/niches'
 import { formatPercent } from '@/lib/format'
-import { nicheAccent } from '@/lib/nicheAccent'
+import { coverAccent, goalAccent, goalTone, parseGoalColor } from '@/lib/goalAccent'
 import { friendlyError } from '@/lib/errors'
 import { clearFormDraft, loadFormDraft, saveFormDraft } from '@/lib/formDraft'
 import { isGoalClosed } from '@/domain/goals'
@@ -43,8 +43,12 @@ import {
   startOfWeek,
   todayISO,
 } from '@/lib/date'
-import type { Goal, GoalStatus, Habit, HabitCheck, Milestone, NicheId, ScheduleBlock, Session } from '@/lib/types'
+import type { Goal, GoalColor, GoalStatus, Habit, HabitCheck, Milestone, NicheId, ScheduleBlock, Session } from '@/lib/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { GoalCover } from '@/components/GoalCover'
+import { useCoverUrl } from '@/hooks/useCoverUrl'
+import { discardGoalCover } from '@/services/goalCovers'
+import { GoalAppearance } from '@/screens/goal/GoalAppearance'
 import { Celebration } from '@/components/Celebration'
 import { MilestoneChecklist } from '@/components/MilestoneChecklist'
 import { CommitmentStep } from '@/components/wizard/CommitmentStep'
@@ -170,6 +174,8 @@ export function GoalDetail() {
   const [deleting, setDeleting] = useState(false)
   // Momento focal: la meta quedó lograda. El velo se va solo (won-out).
   const [won, setWon] = useState<string | null>(null)
+  // Portada: URL firmada (1 h, cacheada en memoria); null sin foto o mientras carga.
+  const coverUrl = useCoverUrl(goal?.coverPath ?? null)
   // Etapa recién cumplida: se enciende 700 ms y se apaga.
   const [justDoneId, setJustDoneId] = useState<string | null>(null)
   const flashTimer = useRef<number | null>(null)
@@ -257,6 +263,8 @@ export function GoalDetail() {
     setDeleting(true)
     try {
       await deleteGoal(userId, goal.id)
+      // La foto se intenta borrar sin bloquear (best effort).
+      void discardGoalCover(goal.coverPath)
       forgetGoalInCache(userId, goal.id)
       // La BD ya dejó la prioritaria en null (on delete set null); el perfil en memoria también.
       if (profile.priorityGoalId === goal.id) setProfile({ ...profile, priorityGoalId: null })
@@ -514,7 +522,7 @@ export function GoalDetail() {
         <header className="screen__header" style={{ marginTop: 'var(--s4)' }}>
           <h1 className="screen__title">Editar meta</h1>
         </header>
-        <GoalEditor goal={goal} onCancel={() => setEditing(false)} onSave={saveEdit} />
+        <GoalEditor goal={goal} onCancel={() => setEditing(false)} onSave={saveEdit} onGoalChange={setGoal} />
       </div>
     )
   }
@@ -594,23 +602,24 @@ export function GoalDetail() {
   return (
     <div
       className={`screen goal-detail${isActive ? ' screen--with-fab' : ''}`}
-      style={nicheAccent(goal.area)}
+      style={goalAccent(goal)}
     >
       {won && <Celebration title={won} onDone={() => setWon(null)} />}
 
       {/* Cabecera full color: la tarjeta de la lista "se convierte" en ella
           (mismo view-transition-name que el peek de /metas). */}
       <header
-        className="fc-hero goal-hero"
-        style={{ viewTransitionName: `goal-${goal.id}` } as CSSProperties}
+        className={`fc-hero goal-hero${coverUrl ? ' fc-cover' : ''}`}
+        style={heroStyle(goal, coverUrl)}
       >
+        {coverUrl && <GoalCover url={coverUrl} />}
         <div className="goal-hero__bar">
           <BackButton label="Atrás" onClick={goBack} />
           <button className="goal-hero__edit" onClick={() => setEditing(true)}>
             Editar
           </button>
         </div>
-        <NicheGlyph area={goal.area} size="xl" />
+        <NicheGlyph area={goal.area} tone={goalTone(goal)} size="xl" />
         <h1 className="goal-hero__title">{goal.title}</h1>
         <div className="goal-hero__tags">
           <span className="tag">{niche.label}</span>
@@ -1081,6 +1090,15 @@ function AdvancesTimeline({ items }: { items: Session[] }) {
 }
 
 /** Atrás canónico (.back-link). Es botón: vuelve por historial o descarta la edición. */
+/**
+ * Estilo de la cabecera: mismo view-transition-name que la tarjeta de /metas.
+ * Con foto, la tinta pasa a blanco (capa oscura de .fc-cover).
+ */
+function heroStyle(goal: Goal, coverUrl: string | null): CSSProperties {
+  const accent = coverUrl ? coverAccent(goal) : {}
+  return { ...accent, viewTransitionName: `goal-${goal.id}` } as CSSProperties
+}
+
 function BackButton({ label, onClick }: Readonly<{ label: string; onClick: () => void }>) {
   return (
     <button type="button" className="back-link" onClick={onClick}>
@@ -1101,23 +1119,38 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   )
 }
 
+/** "Mostrar en la tarjeta" a guardar: solo si hay foto y cambió (undefined = no tocar). */
+function appearanceToggle(goal: Goal, coverOnCard: boolean): boolean | undefined {
+  if (!goal.coverPath || coverOnCard === goal.coverOnCard) return undefined
+  return coverOnCard
+}
+
 /** Formulario para editar los campos de una meta ya creada. */
 function GoalEditor({
   goal,
   onCancel,
   onSave,
-}: {
+  onGoalChange,
+}: Readonly<{
   goal: Goal
   onCancel: () => void
   onSave: (edit: GoalEdit) => Promise<void>
-}) {
+  /** La foto se guarda al subirla/quitarla: la meta cambia sin pulsar "Guardar". */
+  onGoalChange: (g: Goal) => void
+}>) {
   // Borrador a prueba de la recarga automática de la PWA (espejo del Wizard):
   // restaura campo por campo validando tipos; guardar o cancelar lo limpia.
   const draftKey = `logralo.goal-edit.${goal.id}`
   const [draft] = useState(() =>
-    loadFormDraft<{ title: string; why: string; targetDate: string; area: NicheId; criteria: string }>(
-      draftKey,
-    ),
+    loadFormDraft<{
+      title: string
+      why: string
+      targetDate: string
+      area: NicheId
+      criteria: string
+      color: GoalColor | null
+      coverOnCard: boolean
+    }>(draftKey),
   )
   const [title, setTitle] = useState(typeof draft?.title === 'string' ? draft.title : goal.title)
   const [why, setWhy] = useState(typeof draft?.why === 'string' ? draft.why : (goal.why ?? ''))
@@ -1130,12 +1163,19 @@ function GoalEditor({
   const [criteria, setCriteria] = useState(
     typeof draft?.criteria === 'string' ? draft.criteria : (goal.successCriteria ?? ''),
   )
+  // Color: un borrador solo cuenta si trae la clave (null = color del área) y es de la paleta.
+  const [color, setColor] = useState<GoalColor | null>(
+    draft && 'color' in draft ? parseGoalColor(draft.color) : goal.color,
+  )
+  const [coverOnCard, setCoverOnCard] = useState(
+    typeof draft?.coverOnCard === 'boolean' ? draft.coverOnCard : goal.coverOnCard,
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    saveFormDraft(draftKey, { title, why, targetDate, area, criteria })
-  }, [draftKey, title, why, targetDate, area, criteria])
+    saveFormDraft(draftKey, { title, why, targetDate, area, criteria, color, coverOnCard })
+  }, [draftKey, title, why, targetDate, area, criteria, color, coverOnCard])
 
   function submit() {
     if (!title.trim()) return
@@ -1147,6 +1187,9 @@ function GoalEditor({
       targetDate: targetDate || null,
       area,
       successCriteria: criteria.trim() || null,
+      // Solo lo que cambió: así editar funciona aunque falte la migración 0019.
+      color: color === goal.color ? undefined : color,
+      coverOnCard: appearanceToggle(goal, coverOnCard),
     })
       .then(() => clearFormDraft(draftKey))
       .catch((e: unknown) => {
@@ -1244,6 +1287,15 @@ function GoalEditor({
           inputMode="text"
         />
       </div>
+      <GoalAppearance
+        goal={goal}
+        area={area}
+        color={color}
+        onColorChange={setColor}
+        coverOnCard={coverOnCard}
+        onCoverOnCardChange={setCoverOnCard}
+        onGoalChange={onGoalChange}
+      />
       {error && (
         <div className="alert alert--error" role="alert">
           {error}

@@ -24,7 +24,7 @@ import {
 import { WEEKDAY_SHORT } from '@/domain/weekdays'
 import { formatPercent } from '@/lib/format'
 import { addDays, formatLongDate, parseISO, startOfWeek, todayISO } from '@/lib/date'
-import { nicheAccent } from '@/lib/nicheAccent'
+import { goalAccent, goalTone } from '@/lib/goalAccent'
 import { useCachedData } from '@/hooks/useCachedData'
 import { Disclosure } from '@/components/Disclosure'
 import { LoadingScreen } from '@/components/LoadingScreen'
@@ -259,11 +259,11 @@ export function Progress() {
                   <button
                     type="button"
                     className="prog-goal"
-                    style={nicheAccent(g.area)}
+                    style={goalAccent(g)}
                     onClick={() => navigate(`/metas/${g.id}`)}
                   >
                     <span className="prog-goal__head">
-                      <NicheGlyph area={g.area} size="sm" />
+                      <NicheGlyph area={g.area} tone={goalTone(g)} size="sm" />
                       <strong className="prog-goal__title">{g.title}</strong>
                       <span className="prog-goal__pct">{formatPercent(pct)}</span>
                     </span>
@@ -375,7 +375,7 @@ function TimelineList({ entries, onOpen }: { entries: Entry[]; onOpen: (goalId: 
         <li
           key={e.kind === 'milestone' ? `m-${e.milestone.id}` : `g-${e.goal.id}`}
           className="timeline__item"
-          style={nicheAccent(e.goal.area)}
+          style={goalAccent(e.goal)}
         >
           <span
             className={`timeline__dot${
@@ -393,7 +393,7 @@ function TimelineList({ entries, onOpen }: { entries: Entry[]; onOpen: (goalId: 
                   </>
                 ) : (
                   <>
-                    <NicheGlyph area={e.goal.area} size="sm" />
+                    <NicheGlyph area={e.goal.area} tone={goalTone(e.goal)} size="sm" />
                     {e.goal.title}
                   </>
                 )}

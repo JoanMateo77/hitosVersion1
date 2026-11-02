@@ -6,7 +6,7 @@ import { relativeDeadline } from '@/lib/date'
 import { milestoneProgressByGoal } from '@/services/milestones'
 import { HabitIcon } from '@/components/HabitIcon'
 import { NicheIcon } from '@/components/NicheGlyph'
-import { nicheAccent } from '@/lib/nicheAccent'
+import { goalAccent } from '@/lib/goalAccent'
 import { IconChevronRight, IconPlus } from '@/components/icons'
 import type { HabitDraft } from '@/screens/habits/habitDraft'
 
@@ -179,7 +179,7 @@ export function SheetStepConfirm({
                   key={goal.id}
                   type="button"
                   className="hsheet-goal"
-                  style={nicheAccent(goal.area)}
+                  style={goalAccent(goal)}
                   aria-pressed={on}
                   onClick={() => patch({ goalId: on ? null : goal.id })}
                 >

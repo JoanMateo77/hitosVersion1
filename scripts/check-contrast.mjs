@@ -91,8 +91,14 @@ const reasonPairs = AREAS.map((a) => {
   return [`razón tipo ${a}`, mixSrgb(vivid(a), ink, reasonTint), ink]
 })
 
+// Portada con foto (.fc-cover): texto blanco sobre el peor caso, una foto
+// blanca, oscurecida por la capa negra en su punto más claro (--cover-scrim-*).
+const scrimMin = Math.min(Number.parseFloat(token('cover-scrim-top')), Number.parseFloat(token('cover-scrim-bottom')))
+const coverPairs = [['portada: foto blanca', mixSrgb([1, 1, 1], [0, 0, 0], scrimMin), hex(token('ink-light'))]]
+
 const pairs = [
   ...themePairs,
+  ...coverPairs,
   ...reasonPairs,
   ...AREAS.map((a) => [`área ${a}`, vivid(a), hex(token(`vivid-ink-${a}`))]),
   ['estado al día', mixWithGray(token('state-base-ok'), intensity, '#8c8c8c'), hex(token('state-ok-ink'))],

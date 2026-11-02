@@ -18,7 +18,7 @@ import {
 import { minutesToTime } from '@/domain/commitment'
 import { formatTime12, todayISO } from '@/lib/date'
 import { IconFlag } from '@/components/icons'
-import { nicheAccent } from '@/lib/nicheAccent'
+import { goalAccent } from '@/lib/goalAccent'
 import { EventCheck } from '@/screens/calendar/EventCheck'
 import { AgendaRow, type AgendaRowHandlers } from '@/screens/calendar/AgendaRow'
 import { AgendaBlock } from '@/screens/calendar/AgendaBlock'
@@ -161,7 +161,7 @@ export function DayAgenda({
               key={`d-${g.id}`}
               type="button"
               className="ag-chip ag-chip--goal"
-              style={nicheAccent(g.area)}
+              style={goalAccent(g)}
               onClick={() => onGoal(g)}
               aria-label={`Meta ${g.title}, fecha objetivo`}
             >

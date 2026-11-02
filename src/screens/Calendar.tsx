@@ -60,6 +60,7 @@ import {
   SESSION_CHANGED_MESSAGE,
 } from '@/services/sessions'
 import { nicheAccent } from '@/lib/nicheAccent'
+import { goalAccent } from '@/lib/goalAccent'
 import { friendlyError } from '@/lib/errors'
 import { clearFormDraft, loadFormDraft, saveFormDraft } from '@/lib/formDraft'
 import {
@@ -1112,7 +1113,7 @@ function BlockSheet({
   }
 
   return (
-    <Sheet onClose={onClose} label={it.goal.title} style={nicheAccent(it.goal.area)}>
+    <Sheet onClose={onClose} label={it.goal.title} style={goalAccent(it.goal)}>
       {(close) => (
         <>
           <div className="row row--between">
@@ -1337,7 +1338,7 @@ function ReorganizeSheet({
             <div className="stack stack--sm">
               <p className="reorg-kicker">Sesiones</p>
               {sessions.map((s) => (
-                <div key={s.key} className="reorg-row" style={nicheAccent(s.goal.area)}>
+                <div key={s.key} className="reorg-row" style={goalAccent(s.goal)}>
                   <span className="reorg-row__icon">
                     <NicheIcon area={s.goal.area} size={14} />
                   </span>

@@ -92,7 +92,7 @@ import {
 } from '@/components/icons'
 import { NicheGlyph, NicheIcon } from '@/components/NicheGlyph'
 import { PathIllustration } from '@/components/PathIllustration'
-import { nicheAccent } from '@/lib/nicheAccent'
+import { goalAccent, goalTone } from '@/lib/goalAccent'
 import { useCheer } from '@/hooks/useCheer'
 import { useNovedades } from '@/hooks/useNovedades'
 import { useToast } from '@/app/toast'
@@ -733,7 +733,7 @@ export function Today() {
       glyph = (
         <span
           className="today-item__glyph today-item__glyph--goal"
-          style={nicheAccent(sessionGoal.area)}
+          style={goalAccent(sessionGoal)}
           aria-hidden="true"
         >
           <NicheIcon area={sessionGoal.area} size={16} />
@@ -862,7 +862,7 @@ export function Today() {
       <div className="row wrap">
         {activeGoals.map((g) => (
           <button key={g.id} type="button" className="chip today-spont" onClick={() => addSpontaneous(g)}>
-            <NicheGlyph area={g.area} size="sm" /> {g.title}
+            <NicheGlyph area={g.area} tone={goalTone(g)} size="sm" /> {g.title}
           </button>
         ))}
       </div>
@@ -953,7 +953,7 @@ export function Today() {
         {heroRunning && heroGoal ? (
           // La sesión es de una meta: la franja superior lleva el color de su área
           // (de qué se habla); el botón azul, la acción.
-          <div className="today-hero today-hero--goal" style={nicheAccent(heroGoal.area)}>
+          <div className="today-hero today-hero--goal" style={goalAccent(heroGoal)}>
             <div className="today-hero__band">
               <div className="today-hero__top">
                 <span className="today-hero__state">
@@ -970,7 +970,7 @@ export function Today() {
                 </span>
               </div>
               <div className="today-hero__head">
-                <NicheGlyph area={heroGoal.area} size="md" />
+                <NicheGlyph area={heroGoal.area} tone={goalTone(heroGoal)} size="md" />
                 <span className="today-hero__title">{heroGoal.title}</span>
               </div>
             </div>
@@ -1001,7 +1001,7 @@ export function Today() {
             </div>
           </div>
         ) : heroPending && heroGoal ? (
-          <div className="today-hero today-hero--goal" style={nicheAccent(heroGoal.area)}>
+          <div className="today-hero today-hero--goal" style={goalAccent(heroGoal)}>
             <div className="today-hero__band">
               <div className="today-hero__top">
                 <span className="today-hero__state">
@@ -1019,7 +1019,7 @@ export function Today() {
                 </span>
               </div>
               <div className="today-hero__head">
-                <NicheGlyph area={heroGoal.area} size="md" />
+                <NicheGlyph area={heroGoal.area} tone={goalTone(heroGoal)} size="md" />
                 <span className="today-hero__title">{heroGoal.title}</span>
               </div>
             </div>

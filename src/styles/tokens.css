@@ -157,6 +157,10 @@
 
   --ink-dark: #1a1a1c;
   --ink-light: #ffffff;
+  /* Portada con foto (.fc-cover): capa negra degradada bajo el texto blanco.
+     El mínimo garantiza ≥ 4.5:1 aun con una foto blanca (check:contrast). */
+  --cover-scrim-top: 0.6;
+  --cover-scrim-bottom: 0.78;
 
   --vivid-base-salud: #86c232;
   --vivid-base-finanzas: #f2b81f;

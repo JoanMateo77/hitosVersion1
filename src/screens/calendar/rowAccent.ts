@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react'
 import type { HabitColor } from '@/lib/types'
 import { habitColor } from '@/domain/habits'
 import { nicheAccent } from '@/lib/nicheAccent'
-import { rowArea, type AgendaRowItem } from '@/screens/calendar/agendaItems'
+import { rowTone, type AgendaRowItem } from '@/screens/calendar/agendaItems'
 
 /**
  * Color de un hábito con los mismos nombres que publica `nicheAccent`, para
@@ -20,10 +20,10 @@ function habitAccent(color: HabitColor): CSSProperties {
 
 /** Clave del color de una fila: el hábito por su color, lo demás por su área. */
 export function rowAccentKey(item: AgendaRowItem): string {
-  return item.kind === 'habit' ? `habit-${habitColor(item.habit.habit)}` : `area-${rowArea(item)}`
+  return item.kind === 'habit' ? `habit-${habitColor(item.habit.habit)}` : `area-${rowTone(item)}`
 }
 
-/** Estilo de color de una fila: hábito = su color (como en Hábitos); resto = área. */
+/** Estilo de color de una fila: hábito = su color (como en Hábitos); resto = color de la meta (o área). */
 export function rowAccent(item: AgendaRowItem): CSSProperties {
-  return item.kind === 'habit' ? habitAccent(habitColor(item.habit.habit)) : nicheAccent(rowArea(item))
+  return item.kind === 'habit' ? habitAccent(habitColor(item.habit.habit)) : nicheAccent(rowTone(item))
 }

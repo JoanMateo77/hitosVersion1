@@ -3,6 +3,7 @@ import type { AgendaSpan } from '@/domain/agenda'
 import { rangeLabel } from '@/domain/agenda'
 import type { HabitDayRow } from '@/domain/habits'
 import { formatDuration, todayISO } from '@/lib/date'
+import { goalTone } from '@/lib/goalAccent'
 
 /**
  * Tipos y helpers de los ítems que pinta la agenda de un día. Sin React ni
@@ -119,10 +120,10 @@ export function rowTitle(item: AgendaRowItem): string {
 }
 
 /** Área para teñir la fila; los eventos sueltos usan el gris neutro. */
-export function rowArea(item: AgendaRowItem): NicheId {
-  if (item.kind === 'session') return item.session.goal.area
+export function rowTone(item: AgendaRowItem): NicheId {
+  if (item.kind === 'session') return goalTone(item.session.goal)
   if (item.kind === 'habit') return item.habit.habit.area
-  return item.goal?.area ?? 'otra'
+  return item.goal ? goalTone(item.goal) : 'otra'
 }
 
 /* ---- Resumen de un día para el acordeón de la semana --------------------- */
@@ -130,7 +131,7 @@ export function rowArea(item: AgendaRowItem): NicheId {
 export interface WeekDaySummary {
   main: string
   sub: string | null
-  /** Un punto por meta con sesión (áreas, sin repetir). */
+  /** Un punto por meta con sesión (su color: propio o del área, sin repetir). */
   dots: NicheId[]
 }
 
@@ -168,7 +169,10 @@ export function weekDaySummary(input: {
   else if (deadlines.length > 1) parts.push(`${deadlines.length} metas con fecha`)
 
   const dots: NicheId[] = []
-  for (const s of sessions) if (!dots.includes(s.goal.area)) dots.push(s.goal.area)
+  for (const s of sessions) {
+    const tone = goalTone(s.goal)
+    if (!dots.includes(tone)) dots.push(tone)
+  }
 
   if (parts.length === 0) return { main: 'Nada agendado', sub: null, dots }
   const [main, ...rest] = parts

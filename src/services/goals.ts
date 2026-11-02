@@ -1,5 +1,7 @@
-import type { Goal, GoalStatus, NicheId } from '@/lib/types'
+import type { Goal, GoalColor, GoalStatus, NicheId } from '@/lib/types'
 import { supabase } from '@/lib/supabase'
+import { parseGoalColor } from '@/lib/goalAccent'
+import { UserMessageError } from '@/lib/errors'
 
 interface GoalRow {
   id: string
@@ -14,6 +16,10 @@ interface GoalRow {
   status: string
   created_at: string
   completed_at: string | null
+  /** Opcionales: si la migración 0019 no se aplicó aún, `select *` no las trae. */
+  color?: string | null
+  cover_path?: string | null
+  cover_on_card?: boolean | null
 }
 
 function mapGoal(row: GoalRow): Goal {
@@ -30,6 +36,10 @@ function mapGoal(row: GoalRow): Goal {
     status: row.status as GoalStatus,
     createdAt: row.created_at,
     completedAt: row.completed_at,
+    // Un valor fuera de la paleta (no debería pasar: hay check en la BD) cae al área.
+    color: parseGoalColor(row.color),
+    coverPath: row.cover_path ?? null,
+    coverOnCard: row.cover_on_card === true,
   }
 }
 
@@ -116,23 +126,61 @@ export interface GoalEdit {
   targetDate: string | null
   area: NicheId
   successCriteria: string | null
+  /**
+   * Apariencia: solo se envían si cambiaron (undefined = no tocar). Así editar
+   * el resto de la meta sigue funcionando aunque la migración 0019 no esté.
+   */
+  color?: GoalColor | null
+  coverOnCard?: boolean
+}
+
+/** Códigos de "columna inexistente" (PostgreSQL y caché de esquema de PostgREST). */
+const MISSING_COLUMN = new Set(['42703', 'PGRST204'])
+
+/** Mensaje claro cuando falta la migración de color y portada. */
+export function appearanceError(error: { code?: string; message: string }): Error {
+  if (error.code && MISSING_COLUMN.has(error.code)) {
+    return new UserMessageError('Falta aplicar la migración 0019 para el color y la portada de la meta.')
+  }
+  return new Error(error.message)
 }
 
 /** Edita los campos de una meta existente (no toca estado ni progreso). */
 export async function updateGoal(goalId: string, edit: GoalEdit): Promise<Goal> {
+  const patch: Record<string, unknown> = {
+    title: edit.title,
+    why: edit.why,
+    target_date: edit.targetDate,
+    area: edit.area,
+    success_criteria: edit.successCriteria,
+  }
+  if (edit.color !== undefined) {
+    // Doble barrera: la BD tiene su check; aquí no sale nada fuera de la paleta.
+    if (edit.color !== null && parseGoalColor(edit.color) === null) throw new UserMessageError('Ese color no está en la paleta.')
+    patch.color = edit.color
+  }
+  if (edit.coverOnCard !== undefined) patch.cover_on_card = edit.coverOnCard
   const { data, error } = await supabase
     .from('goals')
-    .update({
-      title: edit.title,
-      why: edit.why,
-      target_date: edit.targetDate,
-      area: edit.area,
-      success_criteria: edit.successCriteria,
-    })
+    .update(patch)
     .eq('id', goalId)
     .select('*')
     .single()
-  if (error) throw new Error(error.message)
+  if (error) throw appearanceError(error)
+  return mapGoal(data as GoalRow)
+}
+
+/** Fija (o quita, con null) la foto de portada de la meta. Quitarla también la saca de la tarjeta. */
+export async function setGoalCoverPath(goalId: string, coverPath: string | null): Promise<Goal> {
+  const patch: Record<string, unknown> = { cover_path: coverPath }
+  if (coverPath === null) patch.cover_on_card = false
+  const { data, error } = await supabase
+    .from('goals')
+    .update(patch)
+    .eq('id', goalId)
+    .select('*')
+    .single()
+  if (error) throw appearanceError(error)
   return mapGoal(data as GoalRow)
 }
 

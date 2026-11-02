@@ -14,11 +14,23 @@ export function isUniqueViolation(err: unknown): boolean {
 }
 
 /**
+ * Error cuyo mensaje ya está escrito para la persona (claro, en español y sin
+ * datos técnicos): `friendlyError` lo muestra tal cual.
+ */
+export class UserMessageError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'UserMessageError'
+  }
+}
+
+/**
  * Traduce errores técnicos (red, sesión expirada, RLS) a un mensaje claro en
  * español. Para todo lo demás devuelve el `fallback` del caller, que ya viene
  * con contexto ("No se pudo cargar tu día."). Nunca exponemos el mensaje crudo.
  */
 export function friendlyError(err: unknown, fallback: string): string {
+  if (err instanceof UserMessageError) return err.message
   const message =
     err instanceof Error ? err.message : typeof err === 'string' ? err : ''
   const m = message.toLowerCase()

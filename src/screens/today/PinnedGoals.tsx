@@ -1,6 +1,8 @@
 import type { Goal } from '@/lib/types'
-import { nicheAccent } from '@/lib/nicheAccent'
+import { coverAccent, goalAccent, goalTone } from '@/lib/goalAccent'
 import { NicheGlyph } from '@/components/NicheGlyph'
+import { GoalCover } from '@/components/GoalCover'
+import { useCoverUrl } from '@/hooks/useCoverUrl'
 
 interface PinnedGoalsProps {
   goals: Goal[]
@@ -22,23 +24,31 @@ export function PinnedGoals({ goals, onOpen }: Readonly<PinnedGoalsProps>) {
       {/* 1–2 metas se reparten el ancho (y 3 desde tableta); si no caben, carrusel. */}
       <div className={`today-pinned__row${rowModifier(goals.length)}`}>
         {goals.map((g) => (
-          <button
-            key={g.id}
-            type="button"
-            className="fc-card today-pinned__card"
-            style={nicheAccent(g.area)}
-            onClick={() => onOpen(g.id)}
-          >
-            {/* Igual que en Metas: la tarjeta lleva el color del área y su tinta
-                (versión compacta de .fc-card). */}
-            <NicheGlyph area={g.area} size="md" />
-            <span className="today-pinned__text">
-              <span className="today-pinned__title">{g.title}</span>
-              {g.why ? <span className="today-pinned__why">{g.why}</span> : null}
-            </span>
-          </button>
+          <PinnedGoalCard key={g.id} goal={g} onOpen={onOpen} />
         ))}
       </div>
     </section>
+  )
+}
+
+/** Tarjeta compacta: color de la meta (propio o del área) y, si se pidió, su portada. */
+function PinnedGoalCard({ goal, onOpen }: Readonly<{ goal: Goal; onOpen: (id: string) => void }>) {
+  const coverUrl = useCoverUrl(goal.coverOnCard ? goal.coverPath : null)
+  return (
+    <button
+      type="button"
+      className={`fc-card today-pinned__card${coverUrl ? ' fc-cover' : ''}`}
+      style={coverUrl ? coverAccent(goal) : goalAccent(goal)}
+      onClick={() => onOpen(goal.id)}
+    >
+      {coverUrl && <GoalCover url={coverUrl} />}
+      {/* Igual que en Metas: la tarjeta lleva el color de la meta y su tinta
+          (versión compacta de .fc-card). */}
+      <NicheGlyph area={goal.area} tone={goalTone(goal)} size="md" />
+      <span className="today-pinned__text">
+        <span className="today-pinned__title">{goal.title}</span>
+        {goal.why ? <span className="today-pinned__why">{goal.why}</span> : null}
+      </span>
+    </button>
   )
 }

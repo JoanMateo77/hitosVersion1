@@ -3,7 +3,7 @@ import { noteExcerpt, noteHeading, notePlace } from '@/domain/notes'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { IconPin } from '@/components/icons'
 import { NicheIcon } from '@/components/NicheGlyph'
-import { noteArea, notePlaceLabel } from '@/screens/notes/noteUi'
+import { noteArea, noteTone, notePlaceLabel } from '@/screens/notes/noteUi'
 
 /**
  * Tarjeta: encabezado, extracto, lugar (meta/área) y chincheta si está fijada.
@@ -27,12 +27,14 @@ export function NoteCard({
   const excerpt = noteExcerpt(note)
   const place = notePlace(note)
   const area = noteArea(note, goals)
+  // Color: el propio de la meta si lo eligió; el ícono sigue siendo el del área.
+  const tone = noteTone(note, goals)
   const showPlace = withPlace && (place === 'goal' || place === 'area')
   return (
     <button
       type="button"
       className={`card note-card${area ? ' note-card--area' : ''}`}
-      style={area ? nicheAccent(area) : undefined}
+      style={tone ? nicheAccent(tone) : undefined}
       onClick={onOpen}
     >
       <span className="note-card__head">

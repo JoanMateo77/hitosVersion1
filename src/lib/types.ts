@@ -17,6 +17,12 @@ export type NicheId =
   | 'bienestar'
   | 'otra'
 
+/**
+ * Color propio de una meta: una clave de la paleta cerrada (los mismos 8 tonos
+ * de área ya verificados en contraste). Catálogo y nombres en lib/goalAccent.ts.
+ */
+export type GoalColor = NicheId
+
 /** Modo elegido en el onboarding: una sola meta (enfocado) o varias en paralelo. */
 export type FocusMode = 'single' | 'multi'
 
@@ -73,6 +79,12 @@ export interface Goal {
   status: GoalStatus
   createdAt: string
   completedAt: string | null
+  /** Color elegido por la persona; null = el del área. */
+  color: GoalColor | null
+  /** Ruta de la foto de portada en el bucket privado 'goal-covers' (null = sin foto). */
+  coverPath: string | null
+  /** Si la foto se muestra también en la tarjeta (en la cabecera siempre). */
+  coverOnCard: boolean
 }
 
 /** Un ítem del plan del día. */
