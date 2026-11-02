@@ -40,13 +40,13 @@ p{margin:0 0 12px}
 .row-label{font-weight:700;font-size:14px;color:var(--muted);margin:18px 0 8px;text-transform:uppercase;letter-spacing:.06em}
 .grid{display:grid;gap:14px;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr))}
 @media (min-width:900px){ .grid{grid-template-columns:repeat(var(--cols,2),minmax(0,300px))} }
-@media (max-width:640px){ .grid[data-n="3"],.grid[data-n="4"]{--cols:2 !important} }
+@media (max-width:640px){ .grid{--cols:2 !important;gap:10px} .opt{padding:8px} .opt__letter{font-size:28px} }
 .opt{background:var(--surface);border:2px solid var(--line);border-radius:var(--radius);padding:10px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .opt:has(input:checked){border-color:var(--action);box-shadow:0 0 0 3px var(--action-soft)}
 .opt__tag{display:flex;align-items:baseline;gap:8px;min-width:0}
 .opt__letter{font-size:32px;line-height:1;font-weight:800}
 .opt__name{font-weight:700;overflow-wrap:anywhere}
-.opt__desc{font-size:14px;color:var(--muted);margin:0}
+.opt__desc{font-size:14px;line-height:1.4;color:var(--muted);margin:0;flex:1}
 .shot{display:block;width:100%;padding:0;border:0;background:none;cursor:zoom-in;position:relative;border-radius:12px;overflow:hidden;max-height:min(70vh,640px)}
 .shot img{display:block;width:100%;height:auto}
 .shot::after{content:"Toca para ampliar";position:absolute;left:0;right:0;bottom:0;padding:28px 8px 8px;font-size:13px;font-weight:600;color:#fff;text-align:center;background:linear-gradient(transparent,rgba(0,0,0,.72))}
@@ -137,6 +137,47 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
  * Para agregar una pregunta nueva, añade otro objeto a la lista con un id distinto.
  */
 const PREGUNTAS = [
+  { id: 'metas', tipo: 'imagenes', titulo: 'Tus metas (lista)', principal: true,
+    ayuda: 'La pregunta principal. Son bocetos del estudio de color (B a G), la lista como quedó en la app (H) y la de antes (A), solo como referencia. Todas se pueden elegir.',
+    opciones: [
+      { letra: 'A', nombre: 'Antes, como referencia', desc: 'Tarjetas blancas; el color solo en un ícono tenue.',
+        img: 'img/metas-antes.webp', imgOscuro: 'img/metas-antes-oscuro.webp',
+        alt: 'Lista de metas del diseño anterior: tarjetas blancas con ícono de color tenue y barra verde.' },
+      { letra: 'B', nombre: 'Sobria', desc: 'Ícono sólido, barra y borde del color del área; estados en verde/ámbar. Superficies iguales.',
+        img: 'img/lista-sobria.webp', imgOscuro: 'img/lista-sobria-oscuro.webp',
+        alt: 'Boceto Sobria: tarjetas neutras con ícono sólido de color, borde y barra del color de cada meta.' },
+      { letra: 'C', nombre: 'Viva', desc: 'Además una franja con patrón propio por área y la cabecera del detalle teñida.',
+        img: 'img/lista-viva.webp', imgOscuro: 'img/lista-viva-oscuro.webp',
+        alt: 'Boceto Viva: tarjetas blancas con una franja superior de color con patrón propio y el ícono superpuesto.' },
+      { letra: 'D', nombre: 'Full color · Tarjeta entera', desc: 'Cada meta es un bloque de su color. Máxima energía.',
+        img: 'img/lista-full-a.webp', imgOscuro: 'img/lista-full-a-oscuro.webp',
+        alt: 'Boceto Full color, tarjeta entera: cada tarjeta es un bloque de color plano con texto blanco.' },
+      { letra: 'E', nombre: 'Full color · Con profundidad', desc: 'Igual, con una luz suave arriba a la izquierda y el tono más hondo abajo. Menos plano, más “objeto”.',
+        img: 'img/lista-full-b.webp', imgOscuro: 'img/lista-full-b-oscuro.webp',
+        alt: 'Boceto Full color con profundidad: tarjetas de color con degradado de luz arriba y tono más oscuro abajo.' },
+      { letra: 'F', nombre: 'Full color · Tapa de color', desc: 'Solo la cabecera va pintada; datos y barra sobre fondo neutro. Se lee más fácil con muchas metas.',
+        img: 'img/lista-full-c.webp', imgOscuro: 'img/lista-full-c-oscuro.webp',
+        alt: 'Boceto Full color, tapa de color: solo la cabecera de cada tarjeta es de color; datos y barra sobre fondo neutro.' },
+      { letra: 'G', nombre: 'Full color · Acento con relieve', desc: 'Tarjeta neutra con relieve; el color va en el ícono, la barra gruesa y los estados. La más calmada.',
+        img: 'img/lista-full-d.webp', imgOscuro: 'img/lista-full-d-oscuro.webp',
+        alt: 'Boceto Full color, acento con relieve: tarjetas neutras con relieve; color en el ícono, la barra gruesa y los estados.' },
+      { letra: 'H', nombre: 'Así quedó en la app', desc: 'Cada meta con su propio color y, si quieres, foto de portada.',
+        img: 'img/metas-ahora.webp', imgOscuro: 'img/metas-ahora-oscuro.webp',
+        alt: 'Lista de metas en la app actual: cada meta es una tarjeta de su propio color y una tiene foto de portada.' },
+    ] },
+  { id: 'meta-detalle', tipo: 'imagenes', titulo: 'Detalle de una meta', ayuda: 'Lo que ves al abrir una meta. B, C y D son bocetos; E es como quedó en la app.',
+    opciones: [
+      { letra: 'A', nombre: 'Antes', desc: 'Cabecera clara, sin color propio.', img: 'img/meta-detalle-antes.webp',
+        alt: 'Detalle de meta, diseño anterior: cabecera clara con el título, etapa actual, compromiso, camino y notas.' },
+      { letra: 'B', nombre: 'Sobria', desc: 'Ícono sólido, barra y borde del color del área; estados en verde/ámbar. Superficies iguales.', img: 'img/detalle-sobria.webp',
+        alt: 'Boceto Sobria del detalle: cabecera neutra, ícono sólido verde y barra de etapas en verde.' },
+      { letra: 'C', nombre: 'Viva', desc: 'Además una franja con patrón propio por área y la cabecera del detalle teñida.', img: 'img/detalle-viva.webp',
+        alt: 'Boceto Viva del detalle: cabecera teñida de verde claro con patrón, etapa actual y semana.' },
+      { letra: 'D', nombre: 'Full color', desc: 'Tarjetas planas del color del área, saturado (no neón), texto blanco y botones con relieve que se hunden al tocarlos.', img: 'img/detalle-full.webp',
+        alt: 'Boceto Full color del detalle: cabecera verde plena con título blanco y botón verde con relieve.' },
+      { letra: 'E', nombre: 'Así quedó en la app', desc: 'Cabecera con la foto de portada y el color de la meta.', img: 'img/meta-detalle-ahora.webp',
+        alt: 'Detalle de meta en la app actual: cabecera con foto de portada y título en blanco; botones y barras en el verde de la meta.' },
+    ] },
   { id: 'hoy', tipo: 'imagenes', titulo: 'Hoy', ayuda: 'La pantalla de inicio: tu día, tus metas y tu siguiente paso.',
     opciones: [
       { letra: 'A', nombre: 'Antes', img: 'img/hoy-antes.webp', imgOscuro: 'img/hoy-antes-oscuro.webp',
@@ -145,22 +186,6 @@ const PREGUNTAS = [
       { letra: 'B', nombre: 'Ahora', desc: 'Cada meta con su color y foto de portada.', img: 'img/hoy-ahora.webp', imgOscuro: 'img/hoy-ahora-oscuro.webp',
         alt: 'Hoy, diseño actual: las metas son tarjetas de color pleno (una con foto de portada) y la siguiente sesión lleva la cabecera del color de su meta.',
         altOscuro: 'Hoy, diseño actual en tema oscuro, con las tarjetas de meta en color pleno.' },
-    ] },
-  { id: 'metas', tipo: 'imagenes', titulo: 'Metas', ayuda: 'La lista de todas tus metas.',
-    opciones: [
-      { letra: 'A', nombre: 'Antes', img: 'img/metas-antes.webp', imgOscuro: 'img/metas-antes-oscuro.webp',
-        alt: 'Metas, diseño anterior: tarjetas blancas con ícono de color tenue y barra de progreso verde.',
-        altOscuro: 'Metas, diseño anterior en tema oscuro.' },
-      { letra: 'B', nombre: 'Ahora', desc: 'Cada meta con su color y foto de portada.', img: 'img/metas-ahora.webp', imgOscuro: 'img/metas-ahora-oscuro.webp',
-        alt: 'Metas, diseño actual: cada meta es una tarjeta de su propio color (rojo, celeste, morado, verde, fucsia) y una tiene foto de portada.',
-        altOscuro: 'Metas, diseño actual en tema oscuro, tarjetas de color pleno.' },
-    ] },
-  { id: 'meta-detalle', tipo: 'imagenes', titulo: 'Detalle de una meta', ayuda: 'Lo que ves al abrir una meta.',
-    opciones: [
-      { letra: 'A', nombre: 'Antes', img: 'img/meta-detalle-antes.webp',
-        alt: 'Detalle de meta, diseño anterior: cabecera clara con el título, etapa actual, compromiso, camino y notas.' },
-      { letra: 'B', nombre: 'Ahora', desc: 'Cabecera con la foto de portada y el color de la meta.', img: 'img/meta-detalle-ahora.webp',
-        alt: 'Detalle de meta, diseño actual: cabecera con foto de portada y título en blanco; botones y barras en el verde de la meta.' },
     ] },
   { id: 'habitos', tipo: 'imagenes', titulo: 'Hábitos', ayuda: 'Tus hábitos del día y de la semana.',
     opciones: [
@@ -181,18 +206,6 @@ const PREGUNTAS = [
     opciones: [
       { letra: 'A', nombre: 'Antes', img: 'img/perfil-antes.webp', alt: 'Perfil, diseño anterior: datos de la cuenta y ajustes.' },
       { letra: 'B', nombre: 'Ahora', img: 'img/perfil-ahora.webp', alt: 'Perfil, diseño actual: datos de la cuenta y ajustes.' },
-    ] },
-  { id: 'variante', tipo: 'imagenes', titulo: 'Tarjeta de meta: ¿qué variante prefieres?',
-    ayuda: 'Cuatro formas de usar el color en la lista de metas (boceto, no es la app real).',
-    opciones: [
-      { letra: 'A', nombre: 'Tarjeta entera', desc: 'Cada meta es un bloque de su color.', img: 'img/variante-a.webp',
-        alt: 'Variante A: tarjetas completas de color plano con texto blanco.' },
-      { letra: 'B', nombre: 'Entera con profundidad', desc: 'Igual, con luz arriba y tono más hondo abajo.', img: 'img/variante-b.webp',
-        alt: 'Variante B: tarjetas completas de color con degradado de luz y sombra.' },
-      { letra: 'C', nombre: 'Tapa de color', desc: 'Solo la cabecera va pintada.', img: 'img/variante-c.webp',
-        alt: 'Variante C: solo la parte de arriba de cada tarjeta es de color; los datos y la barra van sobre fondo claro.' },
-      { letra: 'D', nombre: 'Acento con relieve', desc: 'Tarjeta neutra; el color en ícono y barra.', img: 'img/variante-d.webp',
-        alt: 'Variante D: tarjetas claras con relieve; el color aparece en el ícono, la barra gruesa y los estados.' },
     ] },
   { id: 'portada', tipo: 'opciones', titulo: '¿Te gustaría poner una foto de portada a tus metas?',
     opciones: [ { letra: 'Sí', nombre: 'Sí' }, { letra: 'No', nombre: 'No' }, { letra: '?', nombre: 'Me da igual' } ] },
@@ -216,8 +229,8 @@ function tarjeta(p, o, oscuro) {
   const radio = oscuro ? '' : `<label class="pick"><input type="radio" name="q-${p.id}" value="${esc(o.letra)}"${estado[p.id] === o.letra ? ' checked' : ''}> Prefiero ${esc(o.letra)}</label>`
   return `<div class="opt">
     <div class="opt__tag"><span class="opt__letter" aria-hidden="true">${esc(o.letra)}</span><span class="opt__name">${esc(o.nombre)}</span></div>
-    ${o.desc && !oscuro ? `<p class="opt__desc">${esc(o.desc)}</p>` : ''}
     ${img ? `<button type="button" class="shot" data-src="${esc(img)}" data-title="${esc(titulo)}" data-alt="${esc(alt)}" aria-label="Ampliar: ${esc(titulo)}"><img src="${esc(img)}" alt="${esc(alt)}" loading="lazy" decoding="async"></button>` : ''}
+    ${o.desc && !oscuro ? `<p class="opt__desc">${esc(o.desc)}</p>` : ''}
     ${radio}
   </div>`
 }
@@ -230,10 +243,10 @@ function render() {
     n++
     if (p.tipo === 'imagenes') {
       const k = p.opciones.length
-      const cols = `style="--cols:${k}" data-n="${k}"`
+      const cols = `style="--cols:${Math.min(k, 4)}" data-n="${k}"`
       const conOscuro = p.opciones.some((o) => o.imgOscuro)
       secciones.push(`<section class="q" id="sec-${p.id}" aria-labelledby="h-${p.id}">
-        <div class="q__head"><span class="q__num">${n}.</span><h2 id="h-${p.id}">${esc(p.titulo)} <span class="muted" style="font-weight:600">· ${p.opciones.map((o) => esc(etiqueta(o))).join(' / ')}</span></h2></div>
+        <div class="q__head"><span class="q__num">${n}.</span><h2 id="h-${p.id}">${esc(p.titulo)} <span class="muted" style="font-weight:600">· ${k <= 3 ? p.opciones.map((o) => esc(etiqueta(o))).join(' / ') : `${k} opciones, ${p.opciones[0].letra} a ${p.opciones[k - 1].letra}`}</span></h2></div>
         ${p.ayuda ? `<p class="q__hint">${esc(p.ayuda)}</p>` : ''}
         <fieldset style="border:0;padding:0;margin:0"><legend class="row-label">${conOscuro ? 'Tema claro' : 'Elige una'}</legend>
           <div class="grid" ${cols}>${p.opciones.map((o) => tarjeta(p, o, false)).join('')}</div>
