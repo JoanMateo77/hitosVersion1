@@ -277,3 +277,32 @@ export function formatClock(totalSeconds: number): string {
   const sec = totalSeconds % 60
   return `${m}:${String(sec).padStart(2, '0')}`
 }
+
+/** Largo máximo del avance de una sesión (la columna es text; esto evita notas eternas al ir sumando). */
+export const ACCOMPLISHMENT_MAX = 500
+
+/** Prioridad para anotar un avance del coach: primero lo trabajado, luego lo en curso o por hacer. */
+const NOTE_PRIORITY: readonly Session['status'][] = ['done', 'partial', 'running', 'pending']
+
+/**
+ * Sesión de hoy de una meta donde guardar un avance registrado desde el
+ * coach. Las saltadas, perdidas o sin confirmar no cuentan (anotar un avance
+ * ahí lo contradiría): sin candidata, null → se crea una espontánea.
+ */
+export function sessionForNote(sessions: readonly Session[], goalId: string, dateISO: string): Session | null {
+  const own = sessions.filter((s) => s.goalId === goalId && s.date === dateISO)
+  for (const status of NOTE_PRIORITY) {
+    const match = own.find((s) => s.status === status)
+    if (match) return match
+  }
+  return null
+}
+
+/** Suma una nota al avance que ya tenía la sesión, separada por " · ", sin pasar el máximo. */
+export function appendAccomplishment(current: string | null, note: string, max = ACCOMPLISHMENT_MAX): string {
+  const prev = (current ?? '').trim()
+  const next = note.trim()
+  if (!prev) return next.slice(0, max)
+  if (prev.toLowerCase().endsWith(next.toLowerCase())) return prev.slice(0, max)
+  return `${prev} · ${next}`.slice(0, max)
+}

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ACCOMPLISHMENT_MAX,
   activeBlocksOf,
+  appendAccomplishment,
   activeCommittedWeekdays,
   bestStreakCommitted,
   currentStreakCommitted,
@@ -15,6 +17,7 @@ import {
   nextMilestoneTitle,
   pickSuggestion,
   remainingSeconds,
+  sessionForNote,
   weekConsistency,
 } from '@/domain/sessions'
 import type { Milestone, ScheduleBlock, Session } from '@/lib/types'
@@ -413,5 +416,31 @@ describe('sesiones saltadas (días neutros)', () => {
       session({ date: '2026-06-10', status: 'skipped', scheduleId: null }),
     ]
     expect(weekConsistency(weekBlocks, sessions, '2026-06-08')).toEqual({ done: 1, committed: 3 })
+  })
+})
+
+describe('avance registrado desde el coach', () => {
+  const day = '2026-06-10'
+  it('prefiere la sesión trabajada de hoy de esa meta', () => {
+    const list = [
+      session({ id: 'otra-meta', goalId: 'g2', status: 'done' }),
+      session({ id: 'ayer', date: '2026-06-09', status: 'done' }),
+      session({ id: 'pend', status: 'pending' }),
+      session({ id: 'hecha', status: 'done' }),
+    ]
+    expect(sessionForNote(list, 'g1', day)?.id).toBe('hecha')
+  })
+  it('usa la pendiente de hoy si no hay otra', () => {
+    expect(sessionForNote([session({ id: 'pend' })], 'g1', day)?.id).toBe('pend')
+  })
+  it('sin sesión útil (saltada o perdida) devuelve null → sesión espontánea', () => {
+    expect(sessionForNote([session({ status: 'skipped' }), session({ status: 'missed' })], 'g1', day)).toBeNull()
+    expect(sessionForNote([], 'g1', day)).toBeNull()
+  })
+  it('suma la nota al avance existente con " · " y respeta el máximo', () => {
+    expect(appendAccomplishment(null, ' Revisé mis gastos: 320.000 ')).toBe('Revisé mis gastos: 320.000')
+    expect(appendAccomplishment('Leí el capítulo 2', 'Hice el resumen')).toBe('Leí el capítulo 2 · Hice el resumen')
+    expect(appendAccomplishment('Hice el resumen', 'hice el resumen')).toBe('Hice el resumen')
+    expect(appendAccomplishment('a'.repeat(ACCOMPLISHMENT_MAX), 'más')).toHaveLength(ACCOMPLISHMENT_MAX)
   })
 })

@@ -8,6 +8,8 @@ interface UseCoachChatOptions {
   getContext: () => ChatContext
   /** Aplica los cambios aceptados. Si lanza, la propuesta queda pendiente. */
   onApply: (changes: StageChange[]) => void | Promise<void>
+  /** Registra el avance aceptado (solo el detalle de meta). Si lanza, queda pendiente. */
+  onLogProgress?: (note: string) => void | Promise<void>
   initial?: CoachMessage[]
   /** Persistencia opcional (detalle de meta). Devuelve los mensajes con id real. */
   persist?: (messages: Omit<CoachMessage, 'id' | 'createdAt'>[]) => Promise<CoachMessage[]>
@@ -21,7 +23,14 @@ const tempId = () => `local-${++localId}`
  * Estado de la conversación con el coach: enviar, esperar, aplicar o descartar
  * propuestas. Lo comparten el asistente de nueva meta y el detalle de meta.
  */
-export function useCoachChat({ getContext, onApply, initial = [], persist, persistStatus }: UseCoachChatOptions) {
+export function useCoachChat({
+  getContext,
+  onApply,
+  onLogProgress,
+  initial = [],
+  persist,
+  persistStatus,
+}: UseCoachChatOptions) {
   const [messages, setMessages] = useState<CoachMessage[]>(initial)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -88,14 +97,20 @@ export function useCoachChat({ getContext, onApply, initial = [], persist, persi
     async (id: string) => {
       const proposal = messagesRef.current.find((m) => m.id === id)?.proposal
       if (!proposal || proposal.status !== 'pending') return
+      const isProgress = proposal.kind === 'progress'
       try {
-        await onApply(proposal.changes)
+        if (proposal.kind === 'progress') {
+          if (!onLogProgress) throw new Error('progress_not_supported')
+          await onLogProgress(proposal.note)
+        } else {
+          await onApply(proposal.changes)
+        }
         setStatus(id, 'applied')
       } catch {
-        setError('No se pudo aplicar el cambio. Inténtalo de nuevo.')
+        setError(isProgress ? 'No se pudo registrar el avance. Inténtalo de nuevo.' : 'No se pudo aplicar el cambio. Inténtalo de nuevo.')
       }
     },
-    [onApply, setStatus],
+    [onApply, onLogProgress, setStatus],
   )
 
   const dismiss = useCallback((id: string) => setStatus(id, 'dismissed'), [setStatus])
