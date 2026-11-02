@@ -5,11 +5,12 @@
  *
  * Acciones: "questions" (qué falta saber) · "plan" (camino con respuestas) ·
  * "refine" (pulir un plan con un pedido en lenguaje natural) · "chat" (un turno
- * de conversación con propuesta de cambios) · "criteria" (cómo saber que se logró).
+ * de conversación con propuesta de cambios) · "criteria" (cómo saber que se logró) ·
+ * "type" (qué tipo de meta es, según el título).
  */
-import { parseGoalPlan, type GoalPlanInput, type QuestionAnswer } from '../domain/goalPlan'
-import { readHistory, readStages, type ChatContext } from '../domain/coachChat'
-import type { GoalPlanner } from './geminiPlanner'
+import { parseGoalPlan, type GoalPlanInput, type QuestionAnswer } from '../domain/goalPlan.js'
+import { readHistory, readStages, type ChatContext } from '../domain/coachChat.js'
+import type { GoalPlanner } from './geminiPlanner.js'
 
 /**
  * Cada acción cuenta (preguntas, plan, pulidos, mensajes de chat). Generoso a
@@ -17,7 +18,7 @@ import type { GoalPlanner } from './geminiPlanner'
  */
 export const DAILY_LIMIT = 100
 
-const ACTIONS = ['questions', 'plan', 'refine', 'chat', 'criteria']
+const ACTIONS = ['questions', 'plan', 'refine', 'chat', 'criteria', 'type']
 
 export interface PlanMetaDeps {
   /** Devuelve el id del usuario dueño del token, o null si no es válido. */
@@ -109,6 +110,10 @@ export async function handlePlanMeta(request: Request, deps: PlanMetaDeps): Prom
   if (!deps.takeQuota(userId)) return json(429, { error: { code: 'daily_limit' } })
 
   try {
+    // El tipo solo depende del título: no hace falta la memoria de comportamiento.
+    if (action === 'type') {
+      return json(200, { type: await deps.planner.goalType(input.title, input.why ?? null) })
+    }
     const signals = await deps.loadSignals(userId, token)
     if (action === 'questions') {
       return json(200, { questions: await deps.planner.questions(input, signals), signals })

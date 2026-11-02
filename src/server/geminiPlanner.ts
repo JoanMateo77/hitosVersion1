@@ -15,8 +15,8 @@ import {
   minStagesFor,
   parseGoalPlan,
   parseQuestions,
-} from '../domain/goalPlan'
-import type { ClarifyingQuestion, GoalPlan, GoalPlanInput } from '../domain/goalPlan'
+} from '../domain/goalPlan.js'
+import type { ClarifyingQuestion, GoalPlan, GoalPlanInput } from '../domain/goalPlan.js'
 import {
   CHAT_RESPONSE_SCHEMA,
   CRITERIA_RESPONSE_SCHEMA,
@@ -24,9 +24,12 @@ import {
   buildCriteriaPrompt,
   parseCoachReply,
   parseCriteria,
-} from '../domain/coachChat'
-import type { ChatContext, ChatTurn, CoachReply, CriterionOption } from '../domain/coachChat'
-import { COACH_SYSTEM } from '../domain/planningMethod'
+} from '../domain/coachChat.js'
+import type { ChatContext, ChatTurn, CoachReply, CriterionOption } from '../domain/coachChat.js'
+import { COACH_SYSTEM } from '../domain/planningMethod.js'
+import { buildTypePrompt, parseTypeSuggestion, typeResponseSchema } from '../domain/goalType.js'
+import type { GoalTypeSuggestion } from '../domain/goalType.js'
+import { TEMPLATES } from '../domain/templates.js'
 
 /** Contrato del coach: cambiar de proveedor = otra implementación de esto. */
 export interface GoalPlanner {
@@ -37,9 +40,14 @@ export interface GoalPlanner {
   chat(ctx: ChatContext, history: ChatTurn[], message: string, signals: string[]): Promise<CoachReply>
   /** Formas de saber que la meta está lograda, opcionalmente guiadas por un pedido. */
   criteria(ctx: ChatContext, hint: string, signals: string[]): Promise<CriterionOption[]>
+  /** Tipo de meta (una clave de las plantillas) a partir del título. */
+  goalType(title: string, why: string | null): Promise<GoalTypeSuggestion>
 }
 
 export class PlannerError extends Error {}
+
+const TEMPLATE_KEYS = TEMPLATES.map((t) => t.key)
+const TEMPLATE_CATALOG = TEMPLATES.map(({ key, label, description }) => ({ key, label, description }))
 
 const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models'
 const TIMEOUT_MS = 20_000
@@ -117,5 +125,9 @@ export function createGeminiPlanner(apiKey: string, model: string): GoalPlanner 
       ),
     criteria: (ctx, hint, signals) =>
       callWithRetry(buildCriteriaPrompt(ctx, hint, signals), CRITERIA_RESPONSE_SCHEMA, parseCriteria),
+    goalType: (title, why) =>
+      callWithRetry(buildTypePrompt(title, why, TEMPLATE_CATALOG), typeResponseSchema(TEMPLATE_KEYS), (raw) =>
+        parseTypeSuggestion(raw, TEMPLATE_KEYS),
+      ),
   }
 }
