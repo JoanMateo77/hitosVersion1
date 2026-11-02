@@ -17,6 +17,15 @@ import {
   parseQuestions,
 } from '../domain/goalPlan'
 import type { ClarifyingQuestion, GoalPlan, GoalPlanInput } from '../domain/goalPlan'
+import {
+  CHAT_RESPONSE_SCHEMA,
+  CRITERIA_RESPONSE_SCHEMA,
+  buildChatPrompt,
+  buildCriteriaPrompt,
+  parseCoachReply,
+  parseCriteria,
+} from '../domain/coachChat'
+import type { ChatContext, ChatTurn, CoachReply, CriterionOption } from '../domain/coachChat'
 import { COACH_SYSTEM } from '../domain/planningMethod'
 
 /** Contrato del coach: cambiar de proveedor = otra implementación de esto. */
@@ -24,6 +33,10 @@ export interface GoalPlanner {
   questions(input: GoalPlanInput, signals: string[]): Promise<ClarifyingQuestion[]>
   plan(input: GoalPlanInput, signals: string[]): Promise<GoalPlan>
   refine(input: GoalPlanInput, plan: GoalPlan, instruction: string, signals: string[]): Promise<GoalPlan>
+  /** Un turno de conversación; puede traer una propuesta de cambios a las etapas. */
+  chat(ctx: ChatContext, history: ChatTurn[], message: string, signals: string[]): Promise<CoachReply>
+  /** Formas de saber que la meta está lograda, opcionalmente guiadas por un pedido. */
+  criteria(ctx: ChatContext, hint: string, signals: string[]): Promise<CriterionOption[]>
 }
 
 export class PlannerError extends Error {}
@@ -98,5 +111,11 @@ export function createGeminiPlanner(apiKey: string, model: string): GoalPlanner 
     plan: (input, signals) => planWithReview(buildGoalPlanPrompt(input, signals), input),
     refine: (input, plan, instruction, signals) =>
       planWithReview(buildRefinePrompt(input, plan, instruction, signals), input),
+    chat: (ctx, history, message, signals) =>
+      callWithRetry(buildChatPrompt(ctx, history, message, signals), CHAT_RESPONSE_SCHEMA, (raw) =>
+        parseCoachReply(raw, ctx.stages),
+      ),
+    criteria: (ctx, hint, signals) =>
+      callWithRetry(buildCriteriaPrompt(ctx, hint, signals), CRITERIA_RESPONSE_SCHEMA, parseCriteria),
   }
 }

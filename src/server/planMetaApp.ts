@@ -17,6 +17,7 @@ export function createPlanMetaHandler(env: Record<string, string | undefined>) {
   const anonKey = env.VITE_SUPABASE_ANON_KEY ?? ''
   const verifyUser = createSupabaseVerifier(url, anonKey)
   const loadSignals = createSignalsLoader(url, anonKey)
-  const takeQuota = createMemoryQuota()
+  const limit = Number(env.AI_DAILY_LIMIT)
+  const takeQuota = createMemoryQuota(Number.isFinite(limit) && limit > 0 ? limit : undefined)
   return (request: Request) => handlePlanMeta(request, { planner, verifyUser, takeQuota, loadSignals })
 }

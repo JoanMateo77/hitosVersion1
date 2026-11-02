@@ -4,13 +4,20 @@
  * Las dependencias entran por parámetro para poder testearlo sin red.
  *
  * Acciones: "questions" (qué falta saber) · "plan" (camino con respuestas) ·
- * "refine" (pulir un plan con un pedido en lenguaje natural).
+ * "refine" (pulir un plan con un pedido en lenguaje natural) · "chat" (un turno
+ * de conversación con propuesta de cambios) · "criteria" (cómo saber que se logró).
  */
 import { parseGoalPlan, type GoalPlanInput, type QuestionAnswer } from '../domain/goalPlan'
+import { readHistory, readStages, type ChatContext } from '../domain/coachChat'
 import type { GoalPlanner } from './geminiPlanner'
 
-/** Cada acción cuenta: preguntas + plan + unos cuantos pulidos al día. */
-export const DAILY_LIMIT = 30
+/**
+ * Cada acción cuenta (preguntas, plan, pulidos, mensajes de chat). Generoso a
+ * propósito en la etapa de pruebas; se ajusta con AI_DAILY_LIMIT.
+ */
+export const DAILY_LIMIT = 100
+
+const ACTIONS = ['questions', 'plan', 'refine', 'chat', 'criteria']
 
 export interface PlanMetaDeps {
   /** Devuelve el id del usuario dueño del token, o null si no es válido. */
@@ -57,6 +64,17 @@ function readInput(b: Record<string, unknown>): GoalPlanInput | null {
   }
 }
 
+/** Contexto de chat/criterio: la meta y sus etapas tal como las ve la persona. */
+function readChatContext(b: Record<string, unknown>, input: GoalPlanInput): ChatContext {
+  const stages = readStages(b.stages)
+  return {
+    ...input,
+    stages: stages.length > 0 ? stages : readStages(input.currentStages),
+    successCriteria: str(b.successCriteria),
+    weekProgress: str(b.weekProgress),
+  }
+}
+
 export async function handlePlanMeta(request: Request, deps: PlanMetaDeps): Promise<Response> {
   if (request.method !== 'POST') return json(405, { error: { code: 'method_not_allowed' } })
   if (!deps.planner) return json(503, { error: { code: 'ai_not_configured' } })
@@ -78,10 +96,12 @@ export async function handlePlanMeta(request: Request, deps: PlanMetaDeps): Prom
   // Un plan a pulir puede tener 0 sugerencias ("tu camino está completo").
   const currentPlan = action === 'refine' ? parseGoalPlan(body.plan, 0) : null
   const instruction = str(body.instruction)?.trim() ?? ''
+  const message = str(body.message)?.trim() ?? ''
   if (
     !input ||
-    !['questions', 'plan', 'refine'].includes(String(action)) ||
-    (action === 'refine' && (!currentPlan || !instruction))
+    !ACTIONS.includes(String(action)) ||
+    (action === 'refine' && (!currentPlan || !instruction)) ||
+    (action === 'chat' && !message)
   ) {
     return json(400, { error: { code: 'invalid_body' } })
   }
@@ -92,6 +112,14 @@ export async function handlePlanMeta(request: Request, deps: PlanMetaDeps): Prom
     const signals = await deps.loadSignals(userId, token)
     if (action === 'questions') {
       return json(200, { questions: await deps.planner.questions(input, signals), signals })
+    }
+    if (action === 'chat') {
+      const ctx = readChatContext(body, input)
+      return json(200, { ...(await deps.planner.chat(ctx, readHistory(body.history), message, signals)), signals })
+    }
+    if (action === 'criteria') {
+      const ctx = readChatContext(body, input)
+      return json(200, { options: await deps.planner.criteria(ctx, str(body.hint) ?? '', signals), signals })
     }
     const plan =
       action === 'refine' && currentPlan
