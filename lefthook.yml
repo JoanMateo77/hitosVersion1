@@ -8,6 +8,10 @@ pre-commit:
     - name: rls
       run: node scripts/check-rls.mjs
       glob: "supabase/**/*.sql"
+    # Las funciones de Vercel deben cargar en Node como en producción.
+    - name: api
+      run: node scripts/check-api.mjs
+      glob: "{api,src/server,src/domain}/**/*.ts"
 
 pre-push:
   jobs:
