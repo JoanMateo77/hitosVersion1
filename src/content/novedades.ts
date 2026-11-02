@@ -8,6 +8,16 @@ import type { Novedad } from '@/domain/novedades'
  */
 export const NOVEDADES: Novedad[] = [
   {
+    id: '2026-11-02',
+    titulo: 'Más color y un coach que te acompaña paso a paso',
+    items: [
+      'Cada meta tiene su color en todas las pantallas, y los textos y botones se leen mejor en modo claro y oscuro.',
+      'Toca una meta y entras directo a su detalle.',
+      'El coach de tu meta te dice en qué etapa estás y cuál es el siguiente paso, sin repetirse.',
+      'Cuando le cuentes al coach que ya hiciste algo, puedes registrarlo como avance con un toque.',
+    ],
+  },
+  {
     id: '2026-10-28',
     titulo: 'Metas más flexibles y una pestaña de Notas',
     items: [
