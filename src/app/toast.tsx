@@ -37,7 +37,7 @@ const LEAVE_MS = 160
  * - Los useCheer (celebraciones de primer/último check, hito) viven aparte: el toast
  *   es feedback de acción, el cheer es palmada en la espalda.
  */
-export function ToastProvider({ children }: { children: ReactNode }) {
+export function ToastProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [current, setCurrent] = useState<ToastShape | null>(null)
   const timer = useRef<number | null>(null)
   const leaveTimer = useRef<number | null>(null)

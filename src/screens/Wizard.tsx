@@ -730,11 +730,11 @@ function Question({
   title,
   hint,
   children,
-}: {
+}: Readonly<{
   title: string
   hint?: string
   children: ReactNode
-}) {
+}>) {
   return (
     <section className="stack">
       <div>
@@ -754,14 +754,14 @@ function ReviewCard({
   targetDate,
   why,
   criteria,
-}: {
+}: Readonly<{
   title: string
   templateLabel: string
   area: NicheId
   targetDate: string
   why: string
   criteria: string
-}) {
+}>) {
   const cleanWhy = why.trim()
   const cleanCriteria = criteria.trim()
   const dateLabel = targetDate

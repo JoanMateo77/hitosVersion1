@@ -37,7 +37,7 @@ export function Sheet({
   onSubmit,
   side = false,
   children,
-}: {
+}: Readonly<{
   onClose: () => void
   /** aria-label del diálogo: el mismo texto del <h2> de la hoja. */
   label: string
@@ -50,7 +50,7 @@ export function Sheet({
   side?: boolean
   /** Recibe `close()` para los botones propios de la hoja. */
   children: (close: () => void) => ReactNode
-}) {
+}>) {
   const panelRef = useRef<HTMLElement | null>(null)
   // Un callback estable sirve al <div> y al <form> sin castear el ref.
   const setPanel = useCallback((node: HTMLElement | null) => {

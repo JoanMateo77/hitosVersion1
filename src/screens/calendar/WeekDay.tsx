@@ -18,7 +18,7 @@ export function WeekDay({
   selected,
   onSelect,
   children,
-}: {
+}: Readonly<{
   day: string
   summary: WeekDaySummary
   defaultOpen: boolean
@@ -26,7 +26,7 @@ export function WeekDay({
   selected: boolean
   onSelect: (day: string) => void
   children: ReactNode
-}) {
+}>) {
   const [open, setOpen] = useState(defaultOpen)
   const [mounted, setMounted] = useState(defaultOpen)
   const today = isToday(day)

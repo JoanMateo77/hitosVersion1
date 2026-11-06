@@ -298,11 +298,11 @@ function Interview({
   index,
   onPick,
   onCancel,
-}: {
+}: Readonly<{
   index: number
   onPick: (niche: NicheId) => void
   onCancel: () => void
-}) {
+}>) {
   const question = NICHE_QUESTIONS[index]
   return (
     <section className="stack stack--lg" style={{ marginTop: 'var(--s5)' }}>

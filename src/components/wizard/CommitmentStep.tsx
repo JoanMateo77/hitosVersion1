@@ -35,7 +35,7 @@ export function CommitmentStep({
   existing,
   defaultMinutes,
   defaultStart,
-}: CommitmentStepProps) {
+}: Readonly<CommitmentStepProps>) {
   // El tipo de medida es uno solo por meta a nivel UI (los bloques lo copian).
   const kind: TargetKind = blocks[0]?.targetKind ?? 'time'
   const unit = blocks.find((b) => b.unit)?.unit ?? ''

@@ -13,7 +13,7 @@ interface HintProps {
  * (persistido vía useFirstTimeHint) y se descarta con ×. La idea es que la
  * app se explique sola sin sermonear: tono operativo, una frase, listo.
  */
-export function Hint({ id, children }: HintProps) {
+export function Hint({ id, children }: Readonly<HintProps>) {
   const { visible, dismiss } = useFirstTimeHint(id)
   if (!visible) return null
   return (

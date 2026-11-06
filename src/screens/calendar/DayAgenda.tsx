@@ -55,7 +55,7 @@ export function DayAgenda({
   onPlanAt,
   now,
   ...handlers
-}: DayAgendaProps) {
+}: Readonly<DayAgendaProps>) {
   // Los eventos de una meta con sesión ese día viven en su hoja de bloque:
   // aquí solo cuentan en "plan X de Y". El resto son filas.
   const { nested, standalone } = assignEventsToSessions(

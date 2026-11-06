@@ -1209,7 +1209,7 @@ export function GoalDetail() {
 }
 
 /** Diario de avances: una entrada por sesión con nota de qué se logró. */
-function AdvancesTimeline({ items }: { items: Session[] }) {
+function AdvancesTimeline({ items }: Readonly<{ items: Session[] }>) {
   return (
     <ul className="timeline">
       {items.map((s) => (
@@ -1249,7 +1249,7 @@ function BackButton({ label, onClick }: Readonly<{ label: string; onClick: () =>
   )
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <div className="row row--between" style={{ alignItems: 'flex-start', gap: 'var(--s4)' }}>
       <span className="faint small" style={{ flex: 'none' }}>

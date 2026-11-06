@@ -12,7 +12,7 @@ const THEME_ICONS: Record<Theme, ComponentType<{ size?: number }>> = {
 }
 
 /** Selector de apariencia (claro / oscuro / sistema). */
-export function ThemeSwitcher({ variant = 'compact' }: { variant?: Variant }) {
+export function ThemeSwitcher({ variant = 'compact' }: Readonly<{ variant?: Variant }>) {
   const { theme, setTheme } = useTheme()
 
   if (variant === 'stack') {

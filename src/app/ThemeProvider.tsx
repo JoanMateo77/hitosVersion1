@@ -13,7 +13,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null)
  * así todos los selectores (sidebar, top bar, perfil, login) quedan en sincronía.
  * El tema inicial ya lo aplica el script inline de index.html (sin parpadeo).
  */
-export function ThemeProvider({ children }: { children: ReactNode }) {
+export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [theme, setThemeState] = useState<Theme>(readTheme)
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next)

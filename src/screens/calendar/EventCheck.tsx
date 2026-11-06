@@ -3,7 +3,7 @@ import { tapHaptic } from '@/lib/haptics'
 import { IconCheck } from '@/components/icons'
 
 /** Check circular para marcar un evento de la agenda como hecho. */
-export function EventCheck({ event, onToggle }: { event: CalendarEvent; onToggle: () => void }) {
+export function EventCheck({ event, onToggle }: Readonly<{ event: CalendarEvent; onToggle: () => void }>) {
   return (
     <button
       type="button"

@@ -11,12 +11,12 @@ export function Disclosure({
   defaultOpen = false,
   className,
   children,
-}: {
+}: Readonly<{
   summary: ReactNode
   defaultOpen?: boolean
   className?: string
   children: ReactNode
-}) {
+}>) {
   const [open, setOpen] = useState(defaultOpen)
   // Igual que <details open={x}>: si el padre cambia defaultOpen, se sigue.
   useEffect(() => setOpen(defaultOpen), [defaultOpen])

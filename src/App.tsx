@@ -96,11 +96,11 @@ function ProfiledApp({
   userId,
   email,
   displayName,
-}: {
+}: Readonly<{
   userId: string
   email: string
   displayName: string
-}) {
+}>) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -180,7 +180,7 @@ function ProfiledApp({
 }
 
 /** Bloquea el acceso a la app hasta completar el onboarding. */
-function RequireOnboarded({ onboarded }: { onboarded: boolean }) {
+function RequireOnboarded({ onboarded }: Readonly<{ onboarded: boolean }>) {
   if (!onboarded) return <Navigate to="/onboarding" replace />
   return <Outlet />
 }

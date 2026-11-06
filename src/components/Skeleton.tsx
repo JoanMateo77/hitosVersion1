@@ -2,7 +2,7 @@
  *
  * Skeleton "estructural": imita la forma de un .task (check + 2 líneas + botones)
  * para que la transición a contenido real sea continua y no un parpadeo de cajas. */
-export function SkeletonList({ rows = 3 }: { rows?: number }) {
+export function SkeletonList({ rows = 3 }: Readonly<{ rows?: number }>) {
   return (
     <div className="stack stack--sm" aria-hidden="true">
       {Array.from({ length: rows }).map((_, i) => (
