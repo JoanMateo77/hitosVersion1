@@ -132,7 +132,7 @@ function contextData(ctx: ChatContext, signalLines: string[], today: Date): stri
   }
   const stages = ctx.stages.map((s) => ({ ...s, title: clean(s.title) })).filter((s) => s.title).slice(0, 12)
   const stageLine = (s: ChatStage, i: number) => (s.done ? `${i + 1}. ${s.title} (cumplida)` : `${i + 1}. ${s.title}`)
-  const numbered = stages.map(stageLine).join(' | ')
+  const numbered = stages.map((s, i) => stageLine(s, i)).join(' | ')
   lines.push(stages.length > 0 ? `<etapas>${numbered}</etapas>` : '<etapas>(todavía ninguna)</etapas>')
   if (signalLines.length > 0) {
     lines.push(`<historial_en_la_app>${signalLines.map((l) => clean(l, 160)).join(' ')}</historial_en_la_app>`)
