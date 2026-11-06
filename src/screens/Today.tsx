@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode, type SubmitEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import type { CalendarEvent, Goal, Habit, HabitCheck, HabitSkip, ScheduleBlock, Session, Task } from '@/lib/types'
@@ -47,54 +47,23 @@ import {
   globalStreak,
   isTimeReached,
   neutralDatesOf,
-  type DayState,
   appendAccomplishment,
 } from '@/domain/sessions'
 import { PinnedGoals } from '@/screens/today/PinnedGoals'
+import { TodayStats, WeekStrip } from '@/screens/today/TodayStats'
+import { NextStep, QuickNote, type StageProgress } from '@/screens/today/TodayHero'
+import { TodayVoice } from '@/screens/today/TodayVoice'
+import { LaterSection, type LaterLookup } from '@/screens/today/TodayLater'
 import { goalsInView } from '@/domain/goals'
-import { rangeLabel, sessionSpan } from '@/domain/agenda'
 import { frameForStreak } from '@/domain/frames'
-import {
-  formatCommitted,
-  formatElapsed,
-  formatHeaderDate,
-  frameCaption,
-  greeting,
-  laterTodayItems,
-  nextPendingSession,
-  progressLine,
-  SHORT_NICHE_LABELS,
-  type LaterItem,
-} from '@/domain/today'
-import { WEEKDAY_SHORT } from '@/domain/weekdays'
+import { formatHeaderDate, greeting, laterTodayItems, nextPendingSession, type LaterItem } from '@/domain/today'
 import { UserAvatar } from '@/components/UserAvatar'
-import { addDays, dayOfMonth, formatWeekday, startOfWeek, todayISO } from '@/lib/date'
+import { addDays, todayISO } from '@/lib/date'
 import { friendlyError } from '@/lib/errors'
-import { Disclosure } from '@/components/Disclosure'
-import { Hint } from '@/components/Hint'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkeletonList } from '@/components/Skeleton'
-import { HabitIcon } from '@/components/HabitIcon'
-import {
-  IconBriefcase,
-  IconCalendar,
-  IconCelebrate,
-  IconCheck,
-  IconChevronRight,
-  IconClock,
-  IconFlame,
-  IconLightbulb,
-  IconMinus,
-  IconPlay,
-  IconPlus,
-  IconQuote,
-  IconSprout,
-  IconStop,
-} from '@/components/icons'
-import { NicheGlyph, NicheIcon } from '@/components/NicheGlyph'
-import { PathIllustration } from '@/components/PathIllustration'
-import { goalAccent, goalTone } from '@/lib/goalAccent'
 import { useCheer } from '@/hooks/useCheer'
+import { useStreakBumps } from '@/hooks/useStreakBumps'
 import { useNovedades } from '@/hooks/useNovedades'
 import { useToast } from '@/app/toast'
 import { ensureCommitmentBackfill } from '@/services/backfill'
@@ -106,7 +75,7 @@ import '@/styles/today.css'
 import '@/styles/habits.css'
 
 /** Progreso de hitos por meta (etapa X de Y en el héroe). */
-type MilestoneProgress = Map<string, { done: number; total: number; nextTitle: string | null }>
+type MilestoneProgress = Map<string, StageProgress>
 
 /** Instantánea de datos cacheada por sesión para pintar Hoy al instante al volver. */
 type TodaySnapshot = {
@@ -123,24 +92,38 @@ type TodaySnapshot = {
   milestones: MilestoneProgress
 }
 
-/** Máximo de segmentos de una barra: más allá se dibuja una barra proporcional. */
-const MAX_SEGMENTS = 12
-
-/** Estado de un día de la tira semanal, dicho en palabras (aria-label). */
-const WEEK_STATE_TEXT: Record<DayState, string> = {
-  done: 'cumplido',
-  partial: 'a medias',
-  missed: 'sin hacer',
-  future: 'pendiente',
-  free: 'sin compromiso',
+/** "Buenos días, Ana" (o solo el saludo si no hay nombre). */
+function headlineFor(displayName: string | null | undefined, hour: number): string {
+  return displayName ? `${greeting(hour)}, ${displayName}` : greeting(hour)
 }
 
-/** Glifo de estado del día: el color nunca lo dice solo. */
-function weekMark(state: DayState) {
-  if (state === 'done') return <IconCheck size={12} />
-  if (state === 'partial') return <span className="today-week__dot" />
-  if (state === 'missed') return <IconMinus size={12} />
-  return null
+function TodayHeader({ headline, today, children }: Readonly<{ headline: string; today: string; children?: ReactNode }>) {
+  return (
+    <header className="today-head">
+      <div className="today-head__text">
+        <h1 className="today-head__greet">{headline}</h1>
+        <span className="today-head__date">{formatHeaderDate(today)}</span>
+      </div>
+      {children}
+    </header>
+  )
+}
+
+/**
+ * La sesión del héroe: la que corre (si su meta sigue a la vista) o, si no, la
+ * siguiente pendiente de una meta activa; con su meta resuelta.
+ */
+function pickHero(
+  runningSession: Session | null,
+  todaySessions: { session: Session; goal: Goal }[],
+  goalById: Map<string, Goal>,
+) {
+  const running = runningSession && goalById.has(runningSession.goalId) ? runningSession : null
+  const pending = running
+    ? null
+    : nextPendingSession(todaySessions.filter((x) => x.goal.status === 'active').map((x) => x.session))
+  const session = running ?? pending
+  return { running, pending, session, goal: session ? goalById.get(session.goalId) : undefined }
 }
 
 export function Today() {
@@ -352,15 +335,8 @@ export function Today() {
     [goals, history, sessions, blocks, today],
   )
 
-  // La racha sube: la llama late y el número entra desde abajo (.fc-bump), SOLO
-  // cuando el valor sube con la pantalla abierta. La carga inicial no cuenta
-  // como cambio: se toma como punto de partida el primer valor ya cargado.
-  const [streakSeen, setStreakSeen] = useState<number | null>(loading ? null : streak)
-  const [streakBumps, setStreakBumps] = useState(0)
-  if (!loading && streak !== streakSeen) {
-    if (streakSeen !== null && streak > streakSeen) setStreakBumps((n) => n + 1)
-    setStreakSeen(streak)
-  }
+  // La racha sube: la llama late y el número entra desde abajo (solo con la pantalla abierta).
+  const streakBumps = useStreakBumps(streak, loading)
 
   // Racha recién rota: veníamos con racha (≥2) y el último día comprometido quedó
   // sin cumplir. El chip desaparecía sin explicación — el silencio es peor.
@@ -606,7 +582,7 @@ export function Today() {
     )
   }
 
-  function addTask(e: FormEvent) {
+  function addTask(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     const title = newTitle.trim()
     if (!title) return
@@ -658,17 +634,12 @@ export function Today() {
     })
   }
 
-  const headline = displayName ? `${greeting(new Date().getHours())}, ${displayName}` : greeting(new Date().getHours())
+  const headline = headlineFor(displayName, new Date().getHours())
 
   if (loading) {
     return (
       <div className="screen today">
-        <header className="today-head">
-          <div className="today-head__text">
-            <h1 className="today-head__greet">{headline}</h1>
-            <span className="today-head__date">{formatHeaderDate(today)}</span>
-          </div>
-        </header>
+        <TodayHeader headline={headline} today={today} />
         <SkeletonList rows={4} />
       </div>
     )
@@ -676,14 +647,7 @@ export function Today() {
   if (error) return <LoadingScreen error={error} />
 
   // ----- El héroe: una sola tarjeta, el primer paso del día -----
-  const heroRunning =
-    runningSession && goalById.has(runningSession.goalId) ? runningSession : null
-  const heroPending = heroRunning
-    ? null
-    : nextPendingSession(
-        todaySessions.filter((x) => x.goal.status === 'active').map((x) => x.session),
-      )
-  const heroSessionId = heroRunning?.id ?? heroPending?.id ?? null
+  const hero = pickHero(runningSession, todaySessions, goalById)
 
   // ----- Más tarde hoy -----
   const laterItems = laterTodayItems({
@@ -693,11 +657,8 @@ export function Today() {
     tasks: userTasks,
     events: todayEvents,
     today,
-    excludeSessionId: heroSessionId,
+    excludeSessionId: hero.session?.id ?? null,
   })
-  const laterPending = laterItems.filter((i) => !i.done)
-  const laterDone = laterItems.filter((i) => i.done)
-  const hasPartialSession = todaySessions.some((x) => x.session.status === 'partial')
 
   /** Un toque en el círculo de la lista: marca o desmarca, según el tipo.
    *  Las sesiones no pasan por aquí: se cumplen con el cronómetro. */
@@ -715,605 +676,106 @@ export function Today() {
     toggleEvent(item.id, !item.done)
   }
 
-  function laterGlyph(kind: LaterItem['kind']) {
-    if (kind === 'session') return <IconBriefcase size={15} />
-    if (kind === 'habit') return <IconFlame size={16} />
-    if (kind === 'task') return <IconCheck size={16} />
-    return <IconCalendar size={16} />
-  }
-
-  function renderLater(item: LaterItem) {
-    const session = item.kind === 'session' ? sessions.find((x) => x.id === item.id) : undefined
-    const partial = session?.status === 'partial'
-    // El hábito muestra su propio azulejo de identidad (icono + color); el resto
-    // sigue con el glifo genérico gris de la fila.
-    const habit = item.kind === 'habit' ? todayHabits.find((x) => x.id === item.id) : undefined
-    // La sesión es de una meta: su glifo lleva el color del área.
-    const sessionGoal = session ? goalById.get(session.goalId) : undefined
-    let glyph: ReactNode
-    if (habit) {
-      glyph = <HabitIcon habit={habit} size="sm" />
-    } else if (sessionGoal) {
-      glyph = (
-        <span
-          className="today-item__glyph today-item__glyph--goal"
-          style={goalAccent(sessionGoal)}
-          aria-hidden="true"
-        >
-          <NicheIcon area={sessionGoal.area} size={16} />
-        </span>
-      )
-    } else {
-      glyph = (
-        <span className="today-item__glyph" aria-hidden="true">
-          {laterGlyph(item.kind)}
-        </span>
-      )
-    }
-    return (
-      <li key={`${item.kind}:${item.id}`} className={`today-item${item.done ? ' today-item--done' : ''}`}>
-        {glyph}
-        <span className="today-item__text">
-          <span className="today-item__title">{item.title}</span>
-          <span className="today-item__sub">{item.subtitle}</span>
-        </span>
-        {session ? (
-          // Una sesión (25 min, 1 h…) no se cierra con un toque: se abre y se
-          // cumple con el cronómetro. Hecha: check fijo y "Deshacer"; parcial: "Retomar".
-          <>
-            {partial && (
-              <button type="button" className="btn--link today-item__link" onClick={() => resumeClosed(session)}>
-                Retomar
-              </button>
-            )}
-            {session.status === 'done' && (
-              <button type="button" className="btn--link today-item__link" onClick={() => reopen(session)}>
-                Deshacer
-              </button>
-            )}
-            {item.done ? (
-              <span className="today-item__check today-item__check--done today-item__check--static" aria-hidden="true">
-                <IconCheck size={14} />
-              </span>
-            ) : (
-              <button
-                type="button"
-                className="today-item__open"
-                aria-label={`Abrir la sesión "${item.title}"`}
-                onClick={() => navigate(`/sesion/${session.id}`)}
-              >
-                <IconChevronRight size={16} />
-              </button>
-            )}
-          </>
-        ) : (
-          <button
-            type="button"
-            className={`today-item__check${item.done ? ' today-item__check--done' : ''}`}
-            aria-pressed={item.done}
-            aria-label={item.done ? `Desmarcar "${item.title}"` : `Marcar "${item.title}" como hecho`}
-            onClick={() => toggleLater(item)}
-          >
-            {item.done && <IconCheck size={14} />}
-          </button>
-        )}
-      </li>
-    )
-  }
-
-  // UNA sola voz por vista. Prioridad: consecuencia de una acción del usuario
-  // (celebración, racha rota) > pregunta que la app necesita (sin confirmar,
-  // revisión, olvidada). Las tareas pendientes de ayer no compiten por esta
-  // voz: viven en la lista de "Más tarde hoy".
-  type Voice = 'novedades' | 'cheer' | 'streak' | 'resolve' | 'review' | 'forgotten' | null
-  const voice: Voice = novedad
-    ? 'novedades'
-    : cheerMessage
-      ? 'cheer'
-      : showStreakNotice && streakBroken
-        ? 'streak'
-        : toResolve
-          ? 'resolve'
-          : reviewDue.length > 0
-            ? 'review'
-            : forgotten
-              ? 'forgotten'
-              : null
-
-  const frame = frameForStreak(streak)
-  const heroGoal = heroRunning
-    ? goalById.get(heroRunning.goalId)
-    : heroPending
-      ? goalById.get(heroPending.goalId)
-      : undefined
-
-  /** Barra segmentada de las tarjetas de resumen (proporcional si hay demasiados). */
-  function segmentedBar(done: number, total: number) {
-    if (total > MAX_SEGMENTS) {
-      return (
-        <span className="progress" aria-hidden="true">
-          <span className="progress__bar" style={{ width: `${Math.round((done / total) * 100)}%` }} />
-        </span>
-      )
-    }
-    return (
-      <div className="segbar" aria-hidden="true">
-        {total === 0 ? (
-          <span />
-        ) : (
-          Array.from({ length: total }, (_, i) => <span key={i} className={i < done ? 'done' : undefined} />)
-        )}
-      </div>
-    )
-  }
-
-  /** Botón (o selector de meta) para sumar una sesión espontánea al día. */
-  function renderSpontaneous() {
-    if (!pickingSpontaneous) {
-      return (
-        <div className="today-hero__actions">
-          <button
-            type="button"
-            className="today-hero__ghost"
-            onClick={() => setPickingSpontaneous(true)}
-          >
-            <IconPlus size={16} /> Sesión espontánea
-          </button>
-        </div>
-      )
-    }
-    return (
-      <div className="row wrap">
-        {activeGoals.map((g) => (
-          <button key={g.id} type="button" className="chip today-spont" onClick={() => addSpontaneous(g)}>
-            <NicheGlyph area={g.area} tone={goalTone(g)} size="sm" /> {g.title}
-          </button>
-        ))}
-      </div>
-    )
+  const laterLookup: LaterLookup = {
+    sessionOf: (id) => sessions.find((x) => x.id === id),
+    habitOf: (id) => todayHabits.find((x) => x.id === id),
+    goalOf: (id) => goalById.get(id),
+    onToggle: toggleLater,
+    onResume: resumeClosed,
+    onReopen: reopen,
+    onOpen: (s) => navigate(`/sesion/${s.id}`),
   }
 
   return (
     <div className="screen today">
-      <header className="today-head">
-        <div className="today-head__text">
-          <h1 className="today-head__greet">{headline}</h1>
-          <span className="today-head__date">{formatHeaderDate(today)}</span>
-        </div>
+      <TodayHeader headline={headline} today={today}>
         {/* El marco sale de la racha que Hoy ya calcula con sus propios datos. */}
         <Link to="/perfil" aria-label="Tu perfil" className="avatar-link">
-          <UserAvatar frame={frame} />
+          <UserAvatar frame={frameForStreak(streak)} />
         </Link>
-      </header>
+      </TodayHeader>
 
-      <div className="today-stats">
-        <div className="today-stat">
-          <span className="today-stat__label">Sesiones</span>
-          <span className="today-stat__value">
-            {doneCount}
-            <span className="today-stat__total"> / {todaySessions.length}</span>
-          </span>
-          {segmentedBar(doneCount, todaySessions.length)}
-        </div>
-        <div className="today-stat">
-          <span className="today-stat__label">Hábitos</span>
-          <span className={`today-stat__value${habitTotal > 0 && habitDone === habitTotal ? ' today-stat__value--ok' : ''}`}>
-            {habitDone}
-            <span className="today-stat__total"> / {habitTotal}</span>
-          </span>
-          {segmentedBar(habitDone, habitTotal)}
-        </div>
-        <div className="today-stat">
-          <span className="today-stat__label">Racha</span>
-          {/* key: cada subida remonta el valor y la animación vuelve a correr. */}
-          <span
-            key={streakBumps}
-            className={`today-stat__value today-stat__value--streak${streakBumps > 0 ? ' fc-bump' : ''}`}
-          >
-            <IconFlame size={16} className="today-stat__flame" />
-            <span className="fc-bump__n">{streak}</span>
-          </span>
-          <span className="today-stat__caption">{frameCaption(streak)}</span>
-        </div>
-      </div>
+      <TodayStats
+        sessionsDone={doneCount}
+        sessionsTotal={todaySessions.length}
+        habitsDone={habitDone}
+        habitsTotal={habitTotal}
+        streak={streak}
+        streakBumps={streakBumps}
+      />
 
       <PinnedGoals goals={pinnedGoals} onOpen={(id) => navigate(`/metas/${id}`)} />
 
-      <fieldset className="today-week fieldset--plain" aria-label="Tu semana">
-        {Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(today), i)).map((d, i) => {
-          const st = stripState(d)
-          const isToday = d === today
-          const dayName = formatWeekday(d)
-          const stateText = WEEK_STATE_TEXT[st]
-          return (
-            <button
-              key={d}
-              type="button"
-              className={`today-week__day today-week__day--${st}${isToday ? ' today-week__day--today' : ''}`}
-              disabled={isToday}
-              aria-label={
-                isToday
-                  ? `${WEEKDAY_SHORT[i]} ${d.slice(8)}: hoy, ${stateText}`
-                  : `Ver ${dayName.charAt(0).toLowerCase()}${dayName.slice(1)} en la agenda: ${stateText}`
-              }
-              // Pasado: la agenda de ese día muestra qué hiciste. Futuro: ahí se
-              // planifica. Hoy no navega: ya estás en Hoy. La ruta de la Agenda
-              // es /calendario (el nombre visible "Agenda" no es la URL).
-              onClick={() => navigate(`/calendario?d=${d}`)}
-            >
-              <span className="today-week__label">{WEEKDAY_SHORT[i]}</span>
-              <span className="today-week__num">{dayOfMonth(d)}</span>
-              <span className="today-week__mark" aria-hidden="true">
-                {weekMark(st)}
-              </span>
-            </button>
-          )
-        })}
-      </fieldset>
+      {/* La ruta de la Agenda es /calendario (el nombre visible "Agenda" no es la URL). */}
+      <WeekStrip today={today} stateOf={stripState} onOpenDay={(d) => navigate(`/calendario?d=${d}`)} />
 
       <section className="today-section" aria-label="Tu siguiente paso">
         <span className="section-title">Tu siguiente paso</span>
-
-        {heroRunning && heroGoal ? (
-          // La sesión es de una meta: la franja superior lleva el color de su área
-          // (de qué se habla); el botón azul, la acción.
-          <div className="today-hero today-hero--goal" style={goalAccent(heroGoal)}>
-            <div className="today-hero__band">
-              <div className="today-hero__top">
-                <span className="today-hero__state">
-                  <span className="today-hero__dot" aria-hidden="true" />
-                  {heroRunning.pausedAt ? 'Sesión en pausa' : 'Sesión en curso'}
-                </span>
-                <span className="today-hero__meta">
-                  {SHORT_NICHE_LABELS[heroGoal.area]}
-                  {(() => {
-                    const ms = milestones.get(heroGoal.id)
-                    if (!ms || ms.total === 0) return ''
-                    return ` · Etapa ${Math.min(ms.done + 1, ms.total)} de ${ms.total}`
-                  })()}
-                </span>
-              </div>
-              <div className="today-hero__head">
-                <NicheGlyph area={heroGoal.area} tone={goalTone(heroGoal)} size="md" />
-                <span className="today-hero__title">{heroGoal.title}</span>
-              </div>
-            </div>
-            <div className="today-hero__body">
-              <span className="today-hero__sub">{progressLine(heroRunning, nowTick)}</span>
-              <span className="today-hero__clock">
-                {heroRunning.targetKind === 'time'
-                  ? formatElapsed(elapsedSeconds(heroRunning, nowTick))
-                  : `${heroRunning.actualValue ?? 0}/${heroRunning.targetValue}`}
-              </span>
-            </div>
-            <div className="today-hero__actions">
-              <button
-                type="button"
-                className="btn btn--primary today-hero__cta"
-                onClick={() => continueSession(heroRunning)}
-              >
-                <IconPlay size={16} /> Continuar sesión
-              </button>
-              <button
-                type="button"
-                className="today-hero__square"
-                aria-label="Terminar la sesión"
-                onClick={() => stopRunning(heroRunning)}
-              >
-                <IconStop size={18} />
-              </button>
-            </div>
-          </div>
-        ) : heroPending && heroGoal ? (
-          <div className="today-hero today-hero--goal" style={goalAccent(heroGoal)}>
-            <div className="today-hero__band">
-              <div className="today-hero__top">
-                <span className="today-hero__state">
-                  <span className="today-hero__dot" aria-hidden="true" />Siguiente sesión
-                </span>
-                <span className="today-hero__meta">
-                  {(() => {
-                    const span = sessionSpan(
-                      heroPending.plannedTime,
-                      heroPending.targetKind,
-                      heroPending.targetValue,
-                    )
-                    return span.start ? rangeLabel(span.start, span.end) : 'Sin hora'
-                  })()}
-                </span>
-              </div>
-              <div className="today-hero__head">
-                <NicheGlyph area={heroGoal.area} tone={goalTone(heroGoal)} size="md" />
-                <span className="today-hero__title">{heroGoal.title}</span>
-              </div>
-            </div>
-            <div className="today-hero__body">
-              <span className="today-hero__sub">
-                {heroPending.targetKind === 'time'
-                  ? `${formatCommitted(heroPending)} comprometidos`
-                  : formatCommitted(heroPending)}
-              </span>
-            </div>
-            <div className="today-hero__actions">
-              <button
-                type="button"
-                className="btn btn--primary today-hero__cta"
-                onClick={() => navigate(`/sesion/${heroPending.id}?start=1`)}
-              >
-                <IconPlay size={16} /> Empezar sesión
-              </button>
-            </div>
-          </div>
-        ) : allResolved ? (
-          <div className="today-hero">
-            <div className="today-hero__top">
-              {/* Estado del día: verde si se cumplió todo; neutro si no (sin culpa). */}
-              <span
-                className={`chip-state${doneCount === todaySessions.length ? ' chip-state--ok' : ''}`}
-              >
-                {doneCount === todaySessions.length && <IconCheck size={12} />}
-                Compromiso de hoy
-              </span>
-            </div>
-            <span className="today-hero__title">
-              {doneCount === todaySessions.length
-                ? 'Cumpliste tu compromiso de hoy.'
-                : doneCount === 0
-                  ? 'Hoy no pudiste. Mañana se empieza de nuevo.'
-                  : `Cerraste el día: ${doneCount} de ${todaySessions.length} ${doneCount === 1 ? 'cumplida' : 'cumplidas'}.`}
-            </span>
-            {renderSpontaneous()}
-          </div>
-        ) : activeGoals.length > 0 ? (
-          <div className="today-hero">
-            <div className="today-hero__top">
-              <span className="today-hero__state">
-                <span className="today-hero__dot" aria-hidden="true" />Día libre
-              </span>
-            </div>
-            <span className="today-hero__title">Hoy no comprometiste sesiones.</span>
-            {renderSpontaneous()}
-          </div>
-        ) : (
-          <div className="today-hero today-hero--empty">
-            <PathIllustration width={180} done={1} className="today-hero__art" />
-            <div className="today-hero__top">
-              <span className="today-hero__state">Empieza aquí</span>
-            </div>
-            <span className="today-hero__title">Tu día se arma alrededor de una meta.</span>
-            <div className="today-hero__actions">
-              <button type="button" className="btn btn--primary today-hero__cta" onClick={() => navigate('/ideas')}>
-                Ver ideas para empezar
-              </button>
-            </div>
-            <button type="button" className="btn--link today-hero__link" onClick={() => navigate('/meta/nueva')}>
-              Escribir mi propia meta
-            </button>
-          </div>
-        )}
-
+        <NextStep
+          running={hero.running}
+          pending={hero.pending}
+          goal={hero.goal}
+          stage={hero.goal && milestones.get(hero.goal.id)}
+          now={nowTick}
+          allResolved={allResolved}
+          doneCount={doneCount}
+          sessionCount={todaySessions.length}
+          spontaneous={{
+            picking: pickingSpontaneous,
+            goals: activeGoals,
+            onOpen: () => setPickingSpontaneous(true),
+            onPick: addSpontaneous,
+          }}
+          onContinue={continueSession}
+          onStop={stopRunning}
+          onStart={(s) => navigate(`/sesion/${s.id}?start=1`)}
+          onIdeas={() => navigate('/ideas')}
+          onNewGoal={() => navigate('/meta/nueva')}
+        />
         {notePrompt && (
-          <div className="today-note">
-            <label className="field__label" htmlFor="quick-note">
-              ¿Qué lograste? (opcional)
-            </label>
-            <div className="row">
-              <input
-                id="quick-note"
-                className="input"
-                autoFocus
-                maxLength={200}
-                placeholder="Ej: terminé el capítulo 3…"
-                value={notePrompt.text}
-                onChange={(e) => setNotePrompt({ sessionId: notePrompt.sessionId, text: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') saveQuickNote()
-                  if (e.key === 'Escape') setNotePrompt(null)
-                }}
-              />
-              <button className="btn btn--sm btn--primary" onClick={saveQuickNote}>
-                Guardar
-              </button>
-              <button className="btn btn--sm btn--subtle" onClick={() => setNotePrompt(null)}>
-                Omitir
-              </button>
-            </div>
-          </div>
+          <QuickNote
+            text={notePrompt.text}
+            onChange={(text) => setNotePrompt({ sessionId: notePrompt.sessionId, text })}
+            onSave={saveQuickNote}
+            onSkip={() => setNotePrompt(null)}
+          />
         )}
       </section>
 
-      {voice === 'novedades' && novedad && (
-        <output className="today-row">
-          <span className="today-row__glyph" aria-hidden="true">
-            <IconLightbulb size={16} />
-          </span>
-          <span className="today-row__text">
-            <span className="today-row__title">Novedades · {novedad.titulo}</span>
-            <span className="today-row__sub">{novedad.items[0]}</span>
-          </span>
-          <button className="btn--link today-row__action" onClick={cerrarNovedades}>
-            Entendido
-          </button>
-        </output>
-      )}
+      <TodayVoice
+        novedad={novedad}
+        onCloseNovedad={cerrarNovedades}
+        cheerMessage={cheerMessage}
+        cheerLeaving={cheerLeaving}
+        streakBroken={showStreakNotice ? streakBroken : null}
+        onDismissStreak={dismissStreakNotice}
+        toResolve={toResolve && { goalTitle: goalById.get(toResolve.goalId)?.title }}
+        onResolve={() => navigate(`/sesion/${toResolve?.id}`)}
+        reviewCount={reviewDue.length}
+        onReview={() => navigate('/revision')}
+        forgotten={forgotten}
+        onForgottenSession={addSpontaneous}
+        onForgottenPause={pauseForgotten}
+        onForgottenAccept={acceptForgotten}
+      />
 
-      {voice === 'cheer' && cheerMessage && (
-        <div
-          className={`today-row cheer${cheerLeaving ? ' cheer--leaving' : ''}`}
-          role="status"
-          aria-live="polite"
-        >
-          <span className="today-row__glyph" aria-hidden="true">
-            <IconCelebrate size={16} />
-          </span>
-          <span className="today-row__text">
-            <span className="today-row__title">{cheerMessage}</span>
-          </span>
-        </div>
-      )}
-
-      {voice === 'streak' && streakBroken && (
-        <output className="today-row">
-          <span className="today-row__glyph" aria-hidden="true">
-            <IconFlame size={16} />
-          </span>
-          <span className="today-row__text">
-            <span className="today-row__title">Tu racha se reinició</span>
-            <span className="today-row__sub">
-              Récord: {streakBroken.best} días. Hoy se empieza otra.
-            </span>
-          </span>
-          <button className="btn--link today-row__action" onClick={dismissStreakNotice}>
-            Entendido
-          </button>
-        </output>
-      )}
-
-      {voice === 'resolve' && toResolve && (
-        <button
-          type="button"
-          className="today-row today-row--link"
-         
-          onClick={() => navigate(`/sesion/${toResolve.id}`)}
-        >
-          <span className="today-row__glyph" aria-hidden="true">
-            <IconClock size={16} />
-          </span>
-          <span className="today-row__text">
-            <span className="today-row__title">Quedó una sesión abierta</span>
-            <span className="today-row__sub">
-              {goalById.get(toResolve.goalId)?.title} · ¿Cómo te fue?
-            </span>
-          </span>
-          <IconChevronRight size={16} className="today-row__chev" />
-        </button>
-      )}
-
-      {voice === 'review' && (
-        <button
-          type="button"
-          className="today-row today-row--link"
-         
-          onClick={() => navigate('/revision')}
-        >
-          <span className="today-row__glyph" aria-hidden="true">
-            <IconQuote size={16} />
-          </span>
-          <span className="today-row__text">
-            <span className="today-row__title">Revisión guiada</span>
-            <span className="today-row__sub">
-              {reviewDue.length} {reviewDue.length === 1 ? 'meta lista' : 'metas listas'} para revisar · 3 min
-            </span>
-          </span>
-          <IconChevronRight size={16} className="today-row__chev" />
-        </button>
-      )}
-
-      {voice === 'forgotten' && forgotten && (
-        <div className="today-row today-row--stack">
-          <span className="today-row__glyph" aria-hidden="true">
-            <IconSprout size={16} />
-          </span>
-          <span className="today-row__text">
-            <span className="today-row__title">
-              Hace {forgotten.days} días sin {forgotten.goal.title}
-            </span>
-            <span className="today-row__sub">¿La retomas o la pausas?</span>
-            <span className="today-row__actions">
-              <button className="btn--link" onClick={() => addSpontaneous(forgotten.goal)}>
-                Sesión hoy
-              </button>
-              <button className="btn--link" onClick={() => pauseForgotten(forgotten.goal)}>
-                Pausar
-              </button>
-              <button className="btn--link" onClick={() => acceptForgotten(forgotten.goal)}>
-                Está bien así
-              </button>
-            </span>
-          </span>
-        </div>
-      )}
-
-      <section className="today-section" aria-label="Más tarde hoy">
-        <div className="today-later__head">
-          <span className="section-title">Más tarde hoy</span>
-          <button
-            type="button"
-            className="today-later__add"
-            aria-label="Agregar algo para hoy"
-            aria-expanded={addingTask}
-            onClick={() => setAddingTask((v) => !v)}
-          >
-            <IconPlus size={16} />
-          </button>
-        </div>
-
-        {addingTask && (
-          <form className="row" onSubmit={addTask}>
-            <input
-              ref={addInputRef}
-              className="input"
-              placeholder="Agrega algo para hoy…"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              maxLength={300}
-              autoCapitalize="sentences"
-              autoCorrect="on"
-              enterKeyHint="send"
-              inputMode="text"
-            />
-            <button className="iconbtn" type="submit" aria-label="Agregar tarea" disabled={!newTitle.trim()}>
-              <IconPlus size={18} />
-            </button>
-          </form>
-        )}
-
-        <ul className="today-list">
-          {yesterdayPending.length > 0 && (
-            <li className="today-item">
-              <span className="today-item__glyph" aria-hidden="true">
-                <IconClock size={16} />
-              </span>
-              <span className="today-item__text">
-                <span className="today-item__title">
-                  {yesterdayPending.length === 1
-                    ? '1 tarea de ayer'
-                    : `${yesterdayPending.length} tareas de ayer`}
-                </span>
-                <span className="today-item__sub">
-                  {yesterdayPending.map((t) => t.title).join(' · ')}
-                </span>
-              </span>
-              <span className="today-item__links">
-                <button className="btn--link today-item__link" onClick={bringYesterdayTasks}>
-                  Traer
-                </button>
-                <button className="btn--link today-item__link" onClick={dismissYesterdayTasks}>
-                  Descartar
-                </button>
-              </span>
-            </li>
-          )}
-          {laterPending.map(renderLater)}
-          {laterPending.length === 0 && yesterdayPending.length === 0 && (
-            <li className="today-item today-item--empty">
-              <span className="today-item__sub">Nada más por hoy</span>
-            </li>
-          )}
-        </ul>
-
-        {laterDone.length > 0 && (
-          <Disclosure summary={`Hecho hoy · ${laterDone.length}`}>
-            <ul className="today-list">{laterDone.map(renderLater)}</ul>
-            {hasPartialSession && (
-              <Hint id="session-partial-2026-06">
-                Una sesión <strong>parcial</strong> cuenta lo que hiciste y no rompe tu racha.
-                Puedes retomarla para completarla.
-              </Hint>
-            )}
-          </Disclosure>
-        )}
-      </section>
+      <LaterSection
+        pending={laterItems.filter((i) => !i.done)}
+        done={laterItems.filter((i) => i.done)}
+        lookup={laterLookup}
+        hasPartialSession={todaySessions.some((x) => x.session.status === 'partial')}
+        yesterday={yesterdayPending}
+        onBringYesterday={bringYesterdayTasks}
+        onDismissYesterday={dismissYesterdayTasks}
+        addTask={{
+          open: addingTask,
+          title: newTitle,
+          inputRef: addInputRef,
+          onToggle: () => setAddingTask((v) => !v),
+          onTitle: setNewTitle,
+          onSubmit: addTask,
+        }}
+      />
 
       {actionError && (
         <div className="alert alert--error" role="alert">
