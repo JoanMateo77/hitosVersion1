@@ -146,12 +146,12 @@ function rangeTitle(view: View, selected: string, week: string[], anchor: string
 /** Orientación temporal: deja claro si miras el pasado (lo que hiciste) o el futuro (planificar). */
 function DayContextBanner({ past, onToday }: Readonly<{ past: boolean; onToday: () => void }>) {
   return (
-    <div className={`alert${past ? '' : ' faint'}`} role="status">
+    <output className={`alert${past ? '' : ' faint'}`}>
       {past ? 'Estás viendo un día pasado: esto fue lo que hiciste.' : 'Día futuro: lo que agregues aquí queda planificado.'}{' '}
       <button type="button" className="btn--link" onClick={onToday}>
         Volver a hoy
       </button>
-    </div>
+    </output>
   )
 }
 

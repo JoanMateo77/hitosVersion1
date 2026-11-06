@@ -4,6 +4,7 @@
  */
 import { GOAL_IDS, HABIT_IDS, type Tables, todaySessionId } from './fixtures/data'
 import { WIZARD_PLAN } from './fixtures/ai'
+import { dayOffset } from './fixtures/dates'
 
 export interface ShotRoute {
   slug: string
@@ -76,6 +77,8 @@ export const ROUTES: ShotRoute[] = [
   { slug: 'habitos', path: '/habitos', url: fixed('/habitos') },
   { slug: 'habito-detalle', path: '/habitos/:habitId', url: fixed(`/habitos/${HABIT_IDS.agua}`) },
   { slug: 'calendario', path: '/calendario', url: fixed('/calendario') },
+  // Un día pasado: la agenda avisa que se mira lo que ya pasó.
+  { slug: 'calendario-pasado', path: '/calendario?d=ayer', url: () => `/calendario?d=${dayOffset(-1)}` },
   { slug: 'progreso', path: '/progreso', url: fixed('/progreso') },
   { slug: 'aprender', path: '/aprender', url: fixed('/aprender') },
   { slug: 'notas', path: '/notas', url: fixed('/notas') },

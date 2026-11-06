@@ -49,6 +49,8 @@ function comparePlanItems(a: CalendarEvent, b: CalendarEvent): number {
   return a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0
 }
 
+/** Cómo se cierra una sesión: cumplida, a medias o "hoy no pude". */
+type Outcome = 'done' | 'partial' | 'missed'
 
 interface ResolutionOptionsProps {
   title: string
@@ -60,7 +62,7 @@ interface ResolutionOptionsProps {
   saving: boolean
   partialValue: number | null
   onPartialChange: (v: number | null) => void
-  onFinish: (status: 'done' | 'partial' | 'missed', actualValue: number) => void
+  onFinish: (status: Outcome, actualValue: number) => void
   /** Solo con la sesión abierta o al cerrarla antes de tiempo: bajo "¡Lo lograste!" no se consuela. */
   showMissedHint?: boolean
 }
@@ -133,6 +135,12 @@ function ResolutionOptions({
  * La sesión en vivo: cronómetro (tiempo) o contador (cantidad), pausa real por
  * timestamps, y el cierre honesto "¿cómo te fue?" cuando venció sin confirmar.
  */
+/** "Plan · 2 de 3" (o solo "Plan" si aún no hay pasos). */
+function planSummary(items: CalendarEvent[]): string {
+  if (items.length === 0) return 'Plan'
+  return `Plan · ${items.filter((e) => e.doneAt !== null).length} de ${items.length}`
+}
+
 /** El plan de esta sesión: lo agendado para esta meta hoy, tachable, y sumar algo más. */
 function SessionPlan({
   items,
@@ -164,7 +172,7 @@ function SessionPlan({
   return (
     <section className="session-plan" aria-label="El plan de esta sesión">
       <Disclosure
-        summary={`Plan${items.length > 0 ? ` · ${items.filter((e) => e.doneAt !== null).length} de ${items.length}` : ''}`}
+        summary={planSummary(items)}
         defaultOpen={status !== 'running'}
       >
         {status === 'pending' && (
@@ -252,7 +260,7 @@ function ClosedNote({ skipped, onHome }: Readonly<{ skipped: boolean; onHome: ()
 }
 
 /** Cierre de una sesión de cantidad: hecho si llegó al objetivo, parcial si hizo algo, no hecho si nada. */
-function countOutcome(count: number, target: number): 'done' | 'partial' | 'missed' {
+function countOutcome(count: number, target: number): Outcome {
   if (count >= target) return 'done'
   return count > 0 ? 'partial' : 'missed'
 }
@@ -271,7 +279,7 @@ function CountRunner({
   unit: string | null
   saving: boolean
   onCount: (value: number) => void
-  onFinish: (status: 'done' | 'partial' | 'missed', value: number) => void
+  onFinish: (status: Outcome, value: number) => void
 }>) {
   return (
     <>
@@ -715,7 +723,7 @@ export function SessionRun() {
     }
   }
 
-  async function finish(status: 'done' | 'partial' | 'missed', actualValue: number) {
+  async function finish(status: Outcome, actualValue: number) {
     if (!session) return
     setSaving(true)
     try {
@@ -813,7 +821,7 @@ export function SessionRun() {
     saving,
     partialValue,
     onPartialChange: setPartialValue,
-    onFinish: (st: 'done' | 'partial' | 'missed', v: number) => void finish(st, v),
+    onFinish: (st: Outcome, v: number) => void finish(st, v),
   }
 
   // salir hay que pausar (o terminar). Las sesiones de cantidad no tienen
