@@ -162,37 +162,43 @@ function goalState(goal: Goal, pathComplete: boolean): { tone: 'ok' | 'late' | '
   return null
 }
 
+/** Lo que muestra la tarjeta a partir de la meta y su avance (sin UI). */
+function goalCardView(goal: Goal, progress: { done: number; total: number } | undefined) {
+  const done = progress?.done ?? 0
+  const total = progress?.total ?? 0
+  const pathComplete = total > 0 && done >= total
+  const closed = isGoalClosed(goal.status)
+  const deadline = closed || pathComplete ? null : relativeDeadline(goal.targetDate)
+  const overdue = deadline !== null && goal.targetDate !== null && daysUntil(goal.targetDate) < 0
+  // Una sola línea de contexto: "2 de 5 etapas · faltan 6 semanas". "Vencida" ya
+  // lo dice el chip de estado, así que no se repite aquí.
+  const stageWord = total === 1 ? 'etapa' : 'etapas'
+  const metaLine = [total > 0 ? `${done} de ${total} ${stageWord}` : null, overdue ? null : deadline]
+    .filter(Boolean)
+    .join(' · ')
+  return {
+    closed,
+    metaLine,
+    state: goalState(goal, pathComplete),
+    showProgress: (goal.status === 'active' || goal.status === 'paused') && total > 1,
+    pct: Math.round((done / Math.max(1, total)) * 100),
+  }
+}
+
 function GoalCard({
   goal,
   progress,
   isPriority = false,
   onTogglePriority,
   onClick,
-}: {
+}: Readonly<{
   goal: Goal
   progress?: { done: number; total: number }
   isPriority?: boolean
   onTogglePriority?: () => void
   onClick: () => void
-}) {
-  const progressDone = progress?.done ?? 0
-  const progressTotal = progress?.total ?? 0
-  const pathComplete = progressTotal > 0 && progressDone >= progressTotal
-  const closed = isGoalClosed(goal.status)
-  const deadline = closed || pathComplete ? null : relativeDeadline(goal.targetDate)
-  const overdue = deadline !== null && goal.targetDate !== null && daysUntil(goal.targetDate) < 0
-  const showProgress = (goal.status === 'active' || goal.status === 'paused') && progressTotal > 1
-  const pct = Math.round((progressDone / Math.max(1, progressTotal)) * 100)
-  const state = goalState(goal, pathComplete)
-  // Una sola línea de contexto: "2 de 5 etapas · faltan 6 semanas". "Vencida" ya
-  // lo dice el chip de estado, así que no se repite aquí.
-  const stageWord = progressTotal === 1 ? 'etapa' : 'etapas'
-  const metaLine = [
-    progressTotal > 0 ? `${progressDone} de ${progressTotal} ${stageWord}` : null,
-    overdue ? null : deadline,
-  ]
-    .filter(Boolean)
-    .join(' · ')
+}>) {
+  const { closed, metaLine, state, showProgress, pct } = goalCardView(goal, progress)
 
   const stateClass = state && state.tone !== 'neutral' ? `chip-state chip-state--${state.tone}` : 'chip-state'
   // Portada en la tarjeta solo si la persona lo pidió; la tinta pasa a blanco sobre la foto.

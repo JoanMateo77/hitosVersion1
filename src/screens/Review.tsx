@@ -35,6 +35,108 @@ function segClass(i: number, stage: number): string {
   return ''
 }
 
+/** Sin metas que toquen revisión. */
+function ReviewEmpty({ onHome }: Readonly<{ onHome: () => void }>) {
+  return (
+    <main className="screen review-focus">
+      <header className="screen__header">
+        <h1 className="screen__title">Revisión guiada</h1>
+      </header>
+      <div className="empty">
+        <PathIllustration width={180} done={2} className="review-illus" />
+        <p className="empty__title">Nada para revisar por ahora</p>
+        <p className="muted" style={{ marginBottom: 'var(--s4)' }}>
+          Cuando una de tus metas toque revisión, la repasamos aquí.
+        </p>
+        <button className="btn btn--primary" onClick={onHome}>
+          Volver a hoy
+        </button>
+      </div>
+    </main>
+  )
+}
+
+function tallyChips(tally: Record<TallyKey, number>, skipped: number): string[] {
+  const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+  return [
+    tally.advanced > 0 && count(tally.advanced, 'avanzada', 'avanzadas'),
+    tally.achieved > 0 && count(tally.achieved, 'lograda', 'logradas'),
+    tally.kept > 0 && `${tally.kept} en marcha`,
+    tally.paused > 0 && `${tally.paused} en pausa`,
+    skipped > 0 && `${skipped} para después`,
+  ].filter((c): c is string => typeof c === 'string')
+}
+
+/** Cierre de la revisión: qué se hizo y adónde ir. */
+function ReviewSummary({
+  total,
+  skipped,
+  tally,
+  won,
+  onCelebrated,
+  onGo,
+}: Readonly<{
+  total: number
+  skipped: number
+  tally: Record<TallyKey, number>
+  won: string | null
+  onCelebrated: () => void
+  onGo: (path: string) => void
+}>) {
+  const chips = tallyChips(tally, skipped)
+
+  // Solo celebramos si de verdad revisaste algo: si saltaste todo, un cierre
+  // neutro (nada que festejar) en vez de confeti inmerecido.
+  const reviewedCount = total - skipped
+  const reviewedAny = reviewedCount > 0
+
+  return (
+    <main className="screen review-focus">
+      {/* Primero en el árbol a propósito: lograr la última meta pasa a este
+          resumen en el mismo tick, y así la celebración no se remonta. */}
+      {won && <Celebration title={won} onDone={onCelebrated} />}
+      <div className="empty">
+        {reviewedAny ? (
+          <PathIllustration width={200} done={3} className="review-illus" />
+        ) : (
+          <IconSprout size={56} style={{ color: 'var(--text-muted)' }} />
+        )}
+        <h1 className="screen__title" style={{ marginTop: 'var(--s4)' }}>
+          {reviewedAny ? 'Revisión lista' : 'Lo dejaste para después'}
+        </h1>
+        <p className="muted">
+          {reviewedAny
+            ? `Repasaste ${reviewedCount} de ${total} ${total === 1 ? 'meta' : 'metas'}. Así se mantiene el rumbo.`
+            : 'No revisaste ninguna meta esta vez. Cuando quieras, la retomas desde aquí.'}
+        </p>
+        {chips.length > 0 && (
+          <div
+            className="row wrap"
+            style={{ justifyContent: 'center', gap: 'var(--s2)', marginTop: 'var(--s3)' }}
+          >
+            {chips.map((c) => (
+              <span key={c} className="tag">
+                {c}
+              </span>
+            ))}
+          </div>
+        )}
+        <div
+          className="stack stack--sm"
+          style={{ marginTop: 'var(--s6)', width: 'min(340px, 100%)' }}
+        >
+          <button className="btn btn--primary btn--block" onClick={() => onGo('/progreso')}>
+            Ver cómo vas
+          </button>
+          <button className="btn--link" onClick={() => onGo('/')}>
+            Volver a hoy
+          </button>
+        </div>
+      </div>
+    </main>
+  )
+}
+
 export function Review() {
   const { userId } = useSession()
   const navigate = useNavigate()
@@ -106,84 +208,18 @@ export function Review() {
   const total = goals.length
   const goal = goals[index]
 
-  if (total === 0) {
-    return (
-      <main className="screen review-focus">
-        <header className="screen__header">
-          <h1 className="screen__title">Revisión guiada</h1>
-        </header>
-        <div className="empty">
-          <PathIllustration width={180} done={2} className="review-illus" />
-          <p className="empty__title">Nada para revisar por ahora</p>
-          <p className="muted" style={{ marginBottom: 'var(--s4)' }}>
-            Cuando una de tus metas toque revisión, la repasamos aquí.
-          </p>
-          <button className="btn btn--primary" onClick={() => navigate('/')}>
-            Volver a hoy
-          </button>
-        </div>
-      </main>
-    )
-  }
+  if (total === 0) return <ReviewEmpty onHome={() => navigate('/')} />
 
   if (!goal) {
-    const chips = [
-      tally.advanced > 0 && `${tally.advanced} ${tally.advanced === 1 ? 'avanzada' : 'avanzadas'}`,
-      tally.achieved > 0 && `${tally.achieved} ${tally.achieved === 1 ? 'lograda' : 'logradas'}`,
-      tally.kept > 0 && `${tally.kept} en marcha`,
-      tally.paused > 0 && `${tally.paused} en pausa`,
-      skipped > 0 && `${skipped} para después`,
-    ].filter(Boolean) as string[]
-
-    // Solo celebramos si de verdad revisaste algo: si saltaste todo, un cierre
-    // neutro (nada que festejar) en vez de confeti inmerecido.
-    const reviewedCount = total - skipped
-    const reviewedAny = reviewedCount > 0
-
     return (
-      <main className="screen review-focus">
-        {/* Primero en el árbol a propósito: lograr la última meta pasa a este
-            resumen en el mismo tick, y así la celebración no se remonta. */}
-        {won && <Celebration title={won} onDone={() => setWon(null)} />}
-        <div className="empty">
-          {reviewedAny ? (
-            <PathIllustration width={200} done={3} className="review-illus" />
-          ) : (
-            <IconSprout size={56} style={{ color: 'var(--text-muted)' }} />
-          )}
-          <h1 className="screen__title" style={{ marginTop: 'var(--s4)' }}>
-            {reviewedAny ? 'Revisión lista' : 'Lo dejaste para después'}
-          </h1>
-          <p className="muted">
-            {reviewedAny
-              ? `Repasaste ${reviewedCount} de ${total} ${total === 1 ? 'meta' : 'metas'}. Así se mantiene el rumbo.`
-              : 'No revisaste ninguna meta esta vez. Cuando quieras, la retomas desde aquí.'}
-          </p>
-          {chips.length > 0 && (
-            <div
-              className="row wrap"
-              style={{ justifyContent: 'center', gap: 'var(--s2)', marginTop: 'var(--s3)' }}
-            >
-              {chips.map((c) => (
-                <span key={c} className="tag">
-                  {c}
-                </span>
-              ))}
-            </div>
-          )}
-          <div
-            className="stack stack--sm"
-            style={{ marginTop: 'var(--s6)', width: 'min(340px, 100%)' }}
-          >
-            <button className="btn btn--primary btn--block" onClick={() => navigate('/progreso')}>
-              Ver cómo vas
-            </button>
-            <button className="btn--link" onClick={() => navigate('/')}>
-              Volver a hoy
-            </button>
-          </div>
-        </div>
-      </main>
+      <ReviewSummary
+        total={total}
+        skipped={skipped}
+        tally={tally}
+        won={won}
+        onCelebrated={() => setWon(null)}
+        onGo={(path) => navigate(path)}
+      />
     )
   }
 

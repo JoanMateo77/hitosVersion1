@@ -132,6 +132,266 @@ type GoalSnapshot = {
   habitChecks: HabitCheck[]
 }
 
+/** Aviso del coach para una meta activa, según su ritmo de la semana y su camino. */
+function goalNudge(
+  goal: Goal,
+  consistency: { committed: number; done: number },
+  progress: { done: number; total: number },
+): string | null {
+  const ageDays = Math.floor((Date.now() - Date.parse(goal.createdAt)) / 86_400_000)
+  return coachNudge({
+    committed: consistency.committed,
+    done: consistency.done,
+    weekday: weekdayMon0(todayISO()),
+    pendingStages: progress.total - progress.done,
+    doneStages: progress.done,
+    ageDays: Number.isFinite(ageDays) ? ageDays : 0,
+  })
+}
+
+/** Todo lo que muestra el detalle de una meta, en paralelo. */
+async function loadGoalDetail(userId: string, id: string) {
+  const weekStart = startOfWeek(todayISO())
+  const [g, ms, blks, weekSess, st, mins, adv, allHabits, checks] = await Promise.all([
+    getGoal(id),
+    listMilestones(id),
+    listScheduleForGoal(id),
+    listSessionsInRange(userId, weekStart, addDays(weekStart, 6)),
+    sessionStatsForGoal(id),
+    minutesByGoalInRange(userId, weekStart, addDays(weekStart, 6)),
+    listAccomplishments(id),
+    // Integraciones: degradan a vacío sin romper el detalle.
+    listHabits(userId).catch(() => [] as Habit[]),
+    listHabitChecksInRange(userId, addDays(todayISO(), -119), todayISO()).catch(() => [] as HabitCheck[]),
+  ])
+  return { g, ms, blks, weekSess, st, mins, adv, allHabits, checks }
+}
+
+/** Aplica los cambios del coach a las etapas guardadas y devuelve la lista final ordenada. */
+async function applyChangesToMilestones(
+  userId: string,
+  goalId: string,
+  list: Milestone[],
+  changes: StageChange[],
+): Promise<Milestone[]> {
+  const norm = (t: string) => t.trim().toLowerCase()
+  for (const c of changes) {
+    const m = list.find((x) => norm(x.title) === norm(c.title))
+    if (c.kind === 'remove' && m) await deleteMilestone(m.id)
+    else if (c.kind === 'rename' && m) await updateMilestoneFields(m.id, { title: c.newTitle })
+    else if (c.kind === 'add' && !m) await addMilestone(userId, goalId, c.title, list.length)
+  }
+  // El orden final sale de la misma función pura que usa el asistente.
+  const fresh = await listMilestones(goalId)
+  const order = applyStageChanges(
+    list.map((m) => m.title),
+    changes,
+  )
+  const placed = order
+    .map((t) => fresh.find((f) => norm(f.title) === norm(t)))
+    .filter((m): m is Milestone => m !== undefined)
+  const final = [...placed, ...fresh.filter((f) => !placed.includes(f))].map((m, position) => ({ ...m, position }))
+  await reorderMilestones(final.map((m) => ({ id: m.id, position: m.position })))
+  return final
+}
+
+/**
+ * Guarda la nota de avance del coach. Si hoy ya hay una sesión de esta meta,
+ * la nota se suma a su avance. Si no, el paso del coach fue el trabajo del día:
+ * se crea una sesión espontánea y se cierra como hecha, igual que "La completé"
+ * (actualValue = su objetivo).
+ */
+async function saveProgressNote(
+  userId: string,
+  goalId: string,
+  blocks: ScheduleBlock[],
+  defaultMinutes: number,
+  note: string,
+): Promise<void> {
+  const today = todayISO()
+  // Idempotente: si hoy es día comprometido y la sesión aún no existía, la
+  // crea (así no queda una espontánea duplicada junto a la del horario).
+  const sessions = await generateSessionsForDate(userId, today, blocks)
+  const existing = sessionForNote(sessions, goalId, today)
+  if (existing) {
+    await setSessionAccomplishment(existing.id, appendAccomplishment(existing.accomplishment, note))
+    return
+  }
+  const ownBlock = blocks.find((b) => b.weekday === weekdayMon0(today)) ?? blocks[0]
+  const created = await createSpontaneousSession(userId, goalId, today, {
+    targetKind: ownBlock?.targetKind ?? 'time',
+    targetValue: ownBlock?.targetValue ?? defaultMinutes,
+    unit: ownBlock?.unit ?? null,
+  })
+  await finishSession(created.id, { status: 'done', actualValue: created.targetValue })
+  await setSessionAccomplishment(created.id, appendAccomplishment(null, note))
+}
+
+/** "Tu compromiso": la agenda de la meta, con editarla o sacarla de la agenda. */
+function CommitmentSection({
+  isActive,
+  blocks,
+  commitDraft,
+  otherBlocks,
+  defaultMinutes,
+  defaultStart,
+  updating,
+  confirmUnschedule,
+  onConfirmUnschedule,
+  onOpenEditor,
+  onDraft,
+  onSave,
+  onUnschedule,
+}: Readonly<{
+  isActive: boolean
+  blocks: ScheduleBlock[]
+  commitDraft: CommitmentBlockDraft[] | null
+  otherBlocks: ScheduleBlock[]
+  defaultMinutes: number
+  defaultStart: string | null
+  updating: boolean
+  confirmUnschedule: boolean
+  onConfirmUnschedule: (value: boolean) => void
+  onOpenEditor: () => void
+  onDraft: (draft: CommitmentBlockDraft[] | null) => void
+  onSave: () => void
+  onUnschedule: () => void
+}>) {
+  return (
+    <div className="card stack stack--sm">
+      <div className="row row--between">
+        <span className="section-title">Tu compromiso</span>
+        {isActive && commitDraft === null && blocks.length > 0 && (
+          <button className="btn--link" style={{ fontSize: 'var(--fs-xs)' }} onClick={onOpenEditor}>
+            Editar
+          </button>
+        )}
+      </div>
+      {commitDraft === null ? (
+        blocks.length > 0 ? (
+          <>
+            <div className="row wrap">
+              {blocks.map((b) => (
+                <span key={b.id} className="tag">
+                  {WEEKDAY_SHORT[b.weekday]} · {blockTimeLabel(b)}
+                </span>
+              ))}
+            </div>
+            {isActive &&
+              (!confirmUnschedule ? (
+                <button
+                  className="btn--link"
+                  style={{ fontSize: 'var(--fs-xs)', alignSelf: 'flex-start' }}
+                  onClick={() => onConfirmUnschedule(true)}
+                >
+                  Sacar de la agenda
+                </button>
+              ) : (
+                <div className="card card--tight stack stack--sm" style={{ borderColor: 'var(--danger)' }}>
+                  <p className="small" style={{ margin: 0 }}>
+                    La meta queda sin horario; la seguirás viendo arriba en Hoy. Tu historial se conserva.
+                  </p>
+                  <div className="row wrap">
+                    <button
+                      className="btn btn--danger btn--sm"
+                      disabled={updating}
+                      onClick={onUnschedule}
+                    >
+                      Sacar de la agenda
+                    </button>
+                    <button
+                      className="btn btn--secondary btn--sm"
+                      disabled={updating}
+                      onClick={() => onConfirmUnschedule(false)}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </>
+        ) : (
+          <>
+            <p className="small muted" style={{ margin: 0 }}>
+              Sin agenda
+            </p>
+            {isActive && (
+              <button
+                className="btn btn--secondary btn--sm"
+                style={{ alignSelf: 'flex-start' }}
+                onClick={onOpenEditor}
+              >
+                Agregar agenda
+              </button>
+            )}
+          </>
+        )
+      ) : (
+        <>
+          <CommitmentStep
+            blocks={commitDraft}
+            onChange={onDraft}
+            existing={otherBlocks}
+            defaultMinutes={defaultMinutes}
+            defaultStart={defaultStart}
+          />
+          <div className="row" style={{ marginTop: 'var(--s2)' }}>
+            <button
+              className="btn btn--primary btn--sm"
+              style={{ flex: 1 }}
+              disabled={updating || validateCommitment(commitDraft) !== null}
+              onClick={onSave}
+            >
+              Guardar
+            </button>
+            <button className="btn btn--secondary btn--sm" style={{ flex: 1 }} onClick={() => onDraft(null)}>
+              Cancelar
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/** Eliminar la meta, con confirmación en dos pasos. */
+function DeleteGoal({
+  confirming,
+  deleting,
+  onConfirm,
+  onDelete,
+}: Readonly<{ confirming: boolean; deleting: boolean; onConfirm: (value: boolean) => void; onDelete: () => void }>) {
+  return (
+    <>
+      {!confirming ? (
+      <button
+        className="btn btn--danger-link"
+        style={{ alignSelf: 'center' }}
+        onClick={() => onConfirm(true)}
+      >
+        Eliminar meta
+      </button>
+    ) : (
+      <div className="card card--tight stack stack--sm" style={{ borderColor: 'var(--danger)' }}>
+        <strong className="small">¿Eliminar esta meta para siempre?</strong>
+        <p className="small muted" style={{ margin: 0 }}>
+          Se borran sus etapas, su agenda, sus sesiones y sus tareas. Las notas, eventos y hábitos vinculados se
+          conservan, sin vínculo. Si solo quieres sacarla de la vista, mejor archívala.
+        </p>
+        <div className="row wrap">
+          <button className="btn btn--danger btn--sm" onClick={onDelete} disabled={deleting}>
+            {deleting ? 'Eliminando…' : 'Sí, eliminar'}
+          </button>
+          <button className="btn btn--secondary btn--sm" onClick={() => onConfirm(false)} disabled={deleting}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    )}
+    </>
+  )
+}
+
 export function GoalDetail() {
   const { goalId } = useParams<{ goalId: string }>()
   const { userId, profile, setProfile } = useSession()
@@ -210,21 +470,7 @@ export function GoalDetail() {
         // Solo skeleton en carga en frío (sin cache): al volver ya hay datos que mostrar.
         if (sessionCache.get(cacheKey) === undefined) setLoading(true)
         const id = goalId ?? ''
-        const weekStart = startOfWeek(todayISO())
-        const [g, ms, blks, weekSess, st, mins, adv, allHabits, checks] = await Promise.all([
-          getGoal(id),
-          listMilestones(id),
-          listScheduleForGoal(id),
-          listSessionsInRange(userId, weekStart, addDays(weekStart, 6)),
-          sessionStatsForGoal(id),
-          minutesByGoalInRange(userId, weekStart, addDays(weekStart, 6)),
-          listAccomplishments(id),
-          // Integraciones: degradan a vacío sin romper el detalle.
-          listHabits(userId).catch(() => [] as Habit[]),
-          listHabitChecksInRange(userId, addDays(todayISO(), -119), todayISO()).catch(
-            () => [] as HabitCheck[],
-          ),
-        ])
+        const { g, ms, blks, weekSess, st, mins, adv, allHabits, checks } = await loadGoalDetail(userId, id)
         if (!active) return
         setGoal(g)
         setMilestones(ms)
@@ -468,55 +714,15 @@ export function GoalDetail() {
   /** Aplica a las etapas reales los cambios que la persona aceptó en el chat. */
   async function applyCoachChanges(changes: StageChange[]) {
     if (!goal) return
-    const norm = (t: string) => t.trim().toLowerCase()
-    const list = sortedMilestones
-    for (const c of changes) {
-      const m = list.find((x) => norm(x.title) === norm(c.title))
-      if (c.kind === 'remove' && m) await deleteMilestone(m.id)
-      else if (c.kind === 'rename' && m) await updateMilestoneFields(m.id, { title: c.newTitle })
-      else if (c.kind === 'add' && !m) await addMilestone(userId, goal.id, c.title, list.length)
-    }
-    // El orden final sale de la misma función pura que usa el asistente.
-    const fresh = await listMilestones(goal.id)
-    const order = applyStageChanges(
-      list.map((m) => m.title),
-      changes,
-    )
-    const placed = order
-      .map((t) => fresh.find((f) => norm(f.title) === norm(t)))
-      .filter((m): m is Milestone => m !== undefined)
-    const final = [...placed, ...fresh.filter((f) => !placed.includes(f))].map((m, position) => ({ ...m, position }))
-    await reorderMilestones(final.map((m) => ({ id: m.id, position: m.position })))
-    setMilestones(final)
+    setMilestones(await applyChangesToMilestones(userId, goal.id, sortedMilestones, changes))
     toast('Camino actualizado.', 'success')
   }
 
-  /**
-   * Registra el avance que la persona aceptó en el chat. Si hoy ya hay una
-   * sesión de esta meta, la nota se suma a su avance. Si no, el paso del coach
-   * fue el trabajo del día: se crea una sesión espontánea y se cierra como
-   * hecha, igual que "La completé" (actualValue = su objetivo).
-   */
+  /** Registra el avance que la persona aceptó en el chat y refresca lo que depende de él. */
   async function logCoachProgress(note: string) {
     if (!goal) return
-    const today = todayISO()
-    // Idempotente: si hoy es día comprometido y la sesión aún no existía, la
-    // crea (así no queda una espontánea duplicada junto a la del horario).
-    const sessions = await generateSessionsForDate(userId, today, blocks)
-    const existing = sessionForNote(sessions, goal.id, today)
-    if (existing) {
-      await setSessionAccomplishment(existing.id, appendAccomplishment(existing.accomplishment, note))
-    } else {
-      const ownBlock = blocks.find((b) => b.weekday === weekdayMon0(today)) ?? blocks[0]
-      const created = await createSpontaneousSession(userId, goal.id, today, {
-        targetKind: ownBlock?.targetKind ?? 'time',
-        targetValue: ownBlock?.targetValue ?? profile.defaultSessionMinutes ?? 25,
-        unit: ownBlock?.unit ?? null,
-      })
-      await finishSession(created.id, { status: 'done', actualValue: created.targetValue })
-      await setSessionAccomplishment(created.id, appendAccomplishment(null, note))
-    }
-    const weekStart = startOfWeek(today)
+    await saveProgressNote(userId, goal.id, blocks, profile.defaultSessionMinutes ?? 25, note)
+    const weekStart = startOfWeek(todayISO())
     const [adv, st, weekSess] = await Promise.all([
       listAccomplishments(goal.id),
       sessionStatsForGoal(goal.id),
@@ -580,17 +786,7 @@ export function GoalDetail() {
   const currentPlan = currentStage ? planFor(currentStage.title) : undefined
   const weekProgress =
     consistency.committed > 0 ? `${consistency.done} de ${consistency.committed} sesiones esta semana` : null
-  const ageDays = Math.floor((Date.now() - Date.parse(goal.createdAt)) / 86_400_000)
-  const nudge = isActive
-    ? coachNudge({
-        committed: consistency.committed,
-        done: consistency.done,
-        weekday: weekdayMon0(todayISO()),
-        pendingStages: progress.total - progress.done,
-        doneStages: progress.done,
-        ageDays: Number.isFinite(ageDays) ? ageDays : 0,
-      })
-    : null
+  const nudge = isActive ? goalNudge(goal, consistency, progress) : null
   const coachContext = (): ChatContext => ({
     title: goal.title,
     typeLabel: getTemplate(goal.templateKey).label,
@@ -735,99 +931,21 @@ export function GoalDetail() {
           </article>
 
           {/* ----- Tu compromiso, visible y editable (backlog smoke #3) ----- */}
-          <div className="card stack stack--sm">
-            <div className="row row--between">
-              <span className="section-title">Tu compromiso</span>
-              {isActive && commitDraft === null && blocks.length > 0 && (
-                <button className="btn--link" style={{ fontSize: 'var(--fs-xs)' }} onClick={() => void openCommitmentEditor()}>
-                  Editar
-                </button>
-              )}
-            </div>
-            {commitDraft === null ? (
-              blocks.length > 0 ? (
-                <>
-                  <div className="row wrap">
-                    {blocks.map((b) => (
-                      <span key={b.id} className="tag">
-                        {WEEKDAY_SHORT[b.weekday]} · {blockTimeLabel(b)}
-                      </span>
-                    ))}
-                  </div>
-                  {isActive &&
-                    (!confirmUnschedule ? (
-                      <button
-                        className="btn--link"
-                        style={{ fontSize: 'var(--fs-xs)', alignSelf: 'flex-start' }}
-                        onClick={() => setConfirmUnschedule(true)}
-                      >
-                        Sacar de la agenda
-                      </button>
-                    ) : (
-                      <div className="card card--tight stack stack--sm" style={{ borderColor: 'var(--danger)' }}>
-                        <p className="small" style={{ margin: 0 }}>
-                          La meta queda sin horario; la seguirás viendo arriba en Hoy. Tu historial se conserva.
-                        </p>
-                        <div className="row wrap">
-                          <button
-                            className="btn btn--danger btn--sm"
-                            disabled={updating}
-                            onClick={() => void removeFromAgenda()}
-                          >
-                            Sacar de la agenda
-                          </button>
-                          <button
-                            className="btn btn--secondary btn--sm"
-                            disabled={updating}
-                            onClick={() => setConfirmUnschedule(false)}
-                          >
-                            Cancelar
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                </>
-              ) : (
-                <>
-                  <p className="small muted" style={{ margin: 0 }}>
-                    Sin agenda
-                  </p>
-                  {isActive && (
-                    <button
-                      className="btn btn--secondary btn--sm"
-                      style={{ alignSelf: 'flex-start' }}
-                      onClick={() => void openCommitmentEditor()}
-                    >
-                      Agregar agenda
-                    </button>
-                  )}
-                </>
-              )
-            ) : (
-              <>
-                <CommitmentStep
-                  blocks={commitDraft}
-                  onChange={setCommitDraft}
-                  existing={otherBlocks}
-                  defaultMinutes={profile.defaultSessionMinutes ?? 25}
-                  defaultStart={preferredStartTime(profile.preferredMoment)}
-                />
-                <div className="row" style={{ marginTop: 'var(--s2)' }}>
-                  <button
-                    className="btn btn--primary btn--sm"
-                    style={{ flex: 1 }}
-                    disabled={updating || validateCommitment(commitDraft) !== null}
-                    onClick={() => void saveCommitment()}
-                  >
-                    Guardar
-                  </button>
-                  <button className="btn btn--secondary btn--sm" style={{ flex: 1 }} onClick={() => setCommitDraft(null)}>
-                    Cancelar
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+          <CommitmentSection
+            isActive={isActive}
+            blocks={blocks}
+            commitDraft={commitDraft}
+            otherBlocks={otherBlocks}
+            defaultMinutes={profile.defaultSessionMinutes ?? 25}
+            defaultStart={preferredStartTime(profile.preferredMoment)}
+            updating={updating}
+            confirmUnschedule={confirmUnschedule}
+            onConfirmUnschedule={setConfirmUnschedule}
+            onOpenEditor={() => void openCommitmentEditor()}
+            onDraft={setCommitDraft}
+            onSave={() => void saveCommitment()}
+            onUnschedule={() => void removeFromAgenda()}
+          />
 
 
           {/* ----- El camino: checklist real ----- */}
@@ -1066,31 +1184,12 @@ export function GoalDetail() {
                 Reactivar
               </button>
             )}
-            {!confirmDelete ? (
-              <button
-                className="btn btn--danger-link"
-                style={{ alignSelf: 'center' }}
-                onClick={() => setConfirmDelete(true)}
-              >
-                Eliminar meta
-              </button>
-            ) : (
-              <div className="card card--tight stack stack--sm" style={{ borderColor: 'var(--danger)' }}>
-                <strong className="small">¿Eliminar esta meta para siempre?</strong>
-                <p className="small muted" style={{ margin: 0 }}>
-                  Se borran sus etapas, su agenda, sus sesiones y sus tareas. Las notas, eventos y hábitos vinculados se
-                  conservan, sin vínculo. Si solo quieres sacarla de la vista, mejor archívala.
-                </p>
-                <div className="row wrap">
-                  <button className="btn btn--danger btn--sm" onClick={() => void handleDelete()} disabled={deleting}>
-                    {deleting ? 'Eliminando…' : 'Sí, eliminar'}
-                  </button>
-                  <button className="btn btn--secondary btn--sm" onClick={() => setConfirmDelete(false)} disabled={deleting}>
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            )}
+            <DeleteGoal
+              confirming={confirmDelete}
+              deleting={deleting}
+              onConfirm={setConfirmDelete}
+              onDelete={() => void handleDelete()}
+            />
           </div>
         </div>
       </div>

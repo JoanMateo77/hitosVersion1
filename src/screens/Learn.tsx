@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import { getGoal } from '@/services/goals'
 import { listLessonReads, pushLessonReads, setLessonRead } from '@/services/learn'
-import type { LearnLesson, NicheId } from '@/lib/types'
+import type { LearnCollection, LearnLesson, NicheId } from '@/lib/types'
 import { LEARN_COLLECTIONS } from '@/content/learn'
 import { seedWizardDraft } from '@/lib/wizardDraft'
 import { nicheAccent } from '@/lib/nicheAccent'
@@ -69,6 +69,164 @@ function saveMode(mode: ReadMode): void {
   } catch {
     /* sin localStorage la preferencia dura solo la sesión: aceptable */
   }
+}
+
+/** Una lección: modo de lectura, "Aplícalo hoy", leída y paso siguiente. */
+function LessonView({
+  collection,
+  lesson,
+  read,
+  mode,
+  onMode,
+  onToggleRead,
+  onCta,
+  onOpenLesson,
+}: Readonly<{
+  collection: LearnCollection
+  lesson: LearnLesson
+  read: Set<string>
+  mode: ReadMode
+  onMode: (mode: ReadMode) => void
+  onToggleRead: (id: string) => void
+  onCta: (cta: NonNullable<LearnLesson['cta']>) => void
+  /** null = volver a la colección. */
+  onOpenLesson: (id: string | null) => void
+}>) {
+  const isRead = read.has(lesson.id)
+  const lessonIndex = collection.lessons.findIndex((l) => l.id === lesson.id)
+  const nextLesson = collection.lessons[lessonIndex + 1] ?? null
+  return (
+    <div className="screen" style={nicheAccent(collection.area)}>
+      {/* Cabecera full color: el color del área dice de qué colección se lee. */}
+      <header className="screen__header fc-hero learn-hero">
+        <button type="button" className="back-link" onClick={() => onOpenLesson(null)}>
+          <IconChevronLeft size={18} />
+          Colección
+        </button>
+        <div className="learn-hero__text">
+          <span className="section-title learn-hero__kicker">
+            <NicheGlyph area={collection.area} size="sm" />
+            {collection.title}
+          </span>
+          <h1 className="learn-hero__title">{lesson.title}</h1>
+        </div>
+      </header>
+
+      {/* key = re-monta el contenido al pasar de lección (estado de scroll y
+          foco limpios, como pasar de página). */}
+      <div className="stack" key={lesson.id}>
+        <div className="row row--between" style={{ alignItems: 'center' }}>
+          <span className="lesson-dots" aria-hidden="true">
+            {collection.lessons.map((l) => (
+              <span
+                key={l.id}
+                data-read={read.has(l.id) || undefined}
+                data-current={l.id === lesson.id || undefined}
+              />
+            ))}
+          </span>
+          <span className="faint tiny">
+            Lección {lessonIndex + 1} de {collection.lessons.length}
+          </span>
+        </div>
+
+        {/* Dos modos del mismo cuerpo: resumen o a fondo. Los minutos van en
+            cada opción para que el costo de cada modo se vea antes de elegir. */}
+        <div className="seg" role="tablist" aria-label="Modo de lectura">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'resumen'}
+            className={`seg__btn${mode === 'resumen' ? ' seg__btn--active' : ''}`}
+            onClick={() => onMode('resumen')}
+          >
+            Resumen · {readingMinutes(lesson, 'resumen')} min
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'fondo'}
+            className={`seg__btn${mode === 'fondo' ? ' seg__btn--active' : ''}`}
+            onClick={() => onMode('fondo')}
+          >
+            A fondo · {readingMinutes(lesson, 'fondo')} min
+          </button>
+        </div>
+
+        {/* Solo el primer párrafo lleva capitular. */}
+        {(mode === 'fondo' ? lesson.ideaLong : lesson.idea).split('\n\n').map((para, i) => (
+          <p
+            key={`${mode}-${i}`}
+            className={`lesson-idea${i > 0 ? ' lesson-idea--follow' : ''}`}
+          >
+            {para}
+          </p>
+        ))}
+
+        <section
+          className="card card--tight stack stack--sm lesson-apply"
+          aria-label="Aplícalo hoy"
+        >
+          <h2 className="section-title row row--sm" style={{ alignItems: 'center' }}>
+            <IconPlay size={14} /> Aplícalo hoy
+          </h2>
+          <p className="small" style={{ margin: 0 }}>
+            {lesson.apply}
+          </p>
+        </section>
+
+        <div className="stack stack--sm">
+          <button
+            type="button"
+            className="btn btn--secondary btn--block"
+            aria-pressed={isRead}
+            onClick={() => onToggleRead(lesson.id)}
+          >
+            {isRead ? (
+              <>
+                <IconCheck size={16} style={{ color: 'var(--success)' }} /> Leída
+              </>
+            ) : (
+              'Marcar como leída'
+            )}
+          </button>
+
+          {lesson.cta && (
+            <button
+              type="button"
+              className="btn btn--primary btn--block"
+              onClick={() => lesson.cta && onCta(lesson.cta)}
+            >
+              {lesson.cta.kind === 'habit'
+                ? `Crear el hábito: ${lesson.cta.title}`
+                : `Crear la meta: ${lesson.cta.title}`}
+            </button>
+          )}
+
+          {/* Avanzar dentro de la colección sin salir y volver a entrar cada vez.
+              En la última lección, cerrar la colección en vez de dejar sin salida. */}
+          {nextLesson ? (
+            <button
+              type="button"
+              className="btn btn--secondary btn--block"
+              onClick={() => onOpenLesson(nextLesson.id)}
+            >
+              Siguiente lección: {nextLesson.title} →
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn--link"
+              style={{ alignSelf: 'center' }}
+              onClick={() => onOpenLesson(null)}
+            >
+              Terminaste {collection.title} · volver a la colección
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 /**
@@ -159,140 +317,17 @@ export function Learn() {
 
   /* ----- Vista de lección ------------------------------------------------ */
   if (collection && lesson) {
-    const isRead = read.has(lesson.id)
-    const lessonIndex = collection.lessons.findIndex((l) => l.id === lesson.id)
-    const nextLesson = collection.lessons[lessonIndex + 1] ?? null
     return (
-      <div className="screen" style={nicheAccent(collection.area)}>
-        {/* Cabecera full color: el color del área dice de qué colección se lee. */}
-        <header className="screen__header fc-hero learn-hero">
-          <button type="button" className="back-link" onClick={() => setLessonId(null)}>
-            <IconChevronLeft size={18} />
-            Colección
-          </button>
-          <div className="learn-hero__text">
-            <span className="section-title learn-hero__kicker">
-              <NicheGlyph area={collection.area} size="sm" />
-              {collection.title}
-            </span>
-            <h1 className="learn-hero__title">{lesson.title}</h1>
-          </div>
-        </header>
-
-        {/* key = re-monta el contenido al pasar de lección (estado de scroll y
-            foco limpios, como pasar de página). */}
-        <div className="stack" key={lesson.id}>
-          <div className="row row--between" style={{ alignItems: 'center' }}>
-            <span className="lesson-dots" aria-hidden="true">
-              {collection.lessons.map((l) => (
-                <span
-                  key={l.id}
-                  data-read={read.has(l.id) || undefined}
-                  data-current={l.id === lesson.id || undefined}
-                />
-              ))}
-            </span>
-            <span className="faint tiny">
-              Lección {lessonIndex + 1} de {collection.lessons.length}
-            </span>
-          </div>
-
-          {/* Dos modos del mismo cuerpo: resumen o a fondo. Los minutos van en
-              cada opción para que el costo de cada modo se vea antes de elegir. */}
-          <div className="seg" role="tablist" aria-label="Modo de lectura">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'resumen'}
-              className={`seg__btn${mode === 'resumen' ? ' seg__btn--active' : ''}`}
-              onClick={() => changeMode('resumen')}
-            >
-              Resumen · {readingMinutes(lesson, 'resumen')} min
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'fondo'}
-              className={`seg__btn${mode === 'fondo' ? ' seg__btn--active' : ''}`}
-              onClick={() => changeMode('fondo')}
-            >
-              A fondo · {readingMinutes(lesson, 'fondo')} min
-            </button>
-          </div>
-
-          {/* Solo el primer párrafo lleva capitular. */}
-          {(mode === 'fondo' ? lesson.ideaLong : lesson.idea).split('\n\n').map((para, i) => (
-            <p
-              key={`${mode}-${i}`}
-              className={`lesson-idea${i > 0 ? ' lesson-idea--follow' : ''}`}
-            >
-              {para}
-            </p>
-          ))}
-
-          <section
-            className="card card--tight stack stack--sm lesson-apply"
-            aria-label="Aplícalo hoy"
-          >
-            <h2 className="section-title row row--sm" style={{ alignItems: 'center' }}>
-              <IconPlay size={14} /> Aplícalo hoy
-            </h2>
-            <p className="small" style={{ margin: 0 }}>
-              {lesson.apply}
-            </p>
-          </section>
-
-          <div className="stack stack--sm">
-            <button
-              type="button"
-              className="btn btn--secondary btn--block"
-              aria-pressed={isRead}
-              onClick={() => toggleRead(lesson.id)}
-            >
-              {isRead ? (
-                <>
-                  <IconCheck size={16} style={{ color: 'var(--success)' }} /> Leída
-                </>
-              ) : (
-                'Marcar como leída'
-              )}
-            </button>
-
-            {lesson.cta && (
-              <button
-                type="button"
-                className="btn btn--primary btn--block"
-                onClick={() => lesson.cta && followCta(lesson.cta)}
-              >
-                {lesson.cta.kind === 'habit'
-                  ? `Crear el hábito: ${lesson.cta.title}`
-                  : `Crear la meta: ${lesson.cta.title}`}
-              </button>
-            )}
-
-            {/* Avanzar dentro de la colección sin salir y volver a entrar cada vez.
-                En la última lección, cerrar la colección en vez de dejar sin salida. */}
-            {nextLesson ? (
-              <button
-                type="button"
-                className="btn btn--secondary btn--block"
-                onClick={() => setLessonId(nextLesson.id)}
-              >
-                Siguiente lección: {nextLesson.title} →
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="btn--link"
-                style={{ alignSelf: 'center' }}
-                onClick={() => setLessonId(null)}
-              >
-                Terminaste {collection.title} · volver a la colección
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      <LessonView
+        collection={collection}
+        lesson={lesson}
+        read={read}
+        mode={mode}
+        onMode={changeMode}
+        onToggleRead={toggleRead}
+        onCta={followCta}
+        onOpenLesson={setLessonId}
+      />
     )
   }
 

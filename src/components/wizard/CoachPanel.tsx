@@ -47,6 +47,22 @@ function thinkingSteps(input: GoalPlanInput, stageCount: number): string[] {
   ]
 }
 
+/** Qué dice el coach en su cabecera según la fase. */
+function statusLabel(phase: Phase): string {
+  switch (phase.kind) {
+    case 'asking':
+      return 'Antes de revisar tu camino'
+    case 'loading':
+      return 'Pensando qué preguntarte…'
+    case 'thinking':
+      return phase.label
+    case 'planned':
+      return 'Revisé tu camino'
+    default:
+      return 'Listo cuando quieras'
+  }
+}
+
 export function CoachPanel({
   input,
   stageTitles,
@@ -153,16 +169,7 @@ export function CoachPanel({
     }
   }
 
-  const status =
-    phase.kind === 'asking'
-      ? 'Antes de revisar tu camino'
-      : phase.kind === 'loading'
-        ? 'Pensando qué preguntarte…'
-        : phase.kind === 'thinking'
-          ? phase.label
-          : phase.kind === 'planned'
-            ? 'Revisé tu camino'
-            : 'Listo cuando quieras'
+  const status = statusLabel(phase)
 
   function sendChat(text: string) {
     void chat.send(text)

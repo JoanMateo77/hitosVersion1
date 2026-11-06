@@ -18,6 +18,20 @@ function GoogleLogo() {
   )
 }
 
+const TITLE: Record<Mode, string> = { signin: 'Entra', signup: 'Crea tu cuenta', reset: 'Recupera tu contraseña' }
+
+function googleLabel(opening: boolean, isSignup: boolean): string {
+  if (opening) return 'Abriendo Google…'
+  return isSignup ? 'Crear cuenta con Google' : 'Continuar con Google'
+}
+
+/** Texto del botón principal: en curso, reenviar el enlace o la acción del modo. */
+function submitLabel(mode: Mode, loading: boolean, sent: boolean): string {
+  if (loading) return { signin: 'Entrando…', signup: 'Creando cuenta…', reset: 'Enviando…' }[mode]
+  if (mode === 'reset') return sent ? 'Volver a enviar el enlace' : 'Enviarme el enlace'
+  return mode === 'signup' ? 'Crear cuenta' : 'Entrar'
+}
+
 export function Auth() {
   const [mode, setMode] = useState<Mode>('signin')
   const [email, setEmail] = useState('')
@@ -170,7 +184,7 @@ export function Auth() {
         <div className="auth-form-card">
           <form className="stack stack--lg" onSubmit={handleSubmit}>
             <h1 className="auth-form__title">
-              {isReset ? 'Recupera tu contraseña' : isSignup ? 'Crea tu cuenta' : 'Entra'}
+              {TITLE[mode]}
             </h1>
 
             {isReset && (
@@ -191,11 +205,7 @@ export function Auth() {
                   onClick={() => void handleGoogle()}
                 >
                   <GoogleLogo />
-                  {oauthLoading
-                    ? 'Abriendo Google…'
-                    : isSignup
-                      ? 'Crear cuenta con Google'
-                      : 'Continuar con Google'}
+                  {googleLabel(oauthLoading, isSignup)}
                 </button>
                 <div className="auth-divider" aria-hidden="true">
                   <span>o con tu email</span>
@@ -308,19 +318,7 @@ export function Auth() {
             )}
 
             <button className="btn btn--primary btn--block" type="submit" disabled={loading}>
-              {loading
-                ? isReset
-                  ? 'Enviando…'
-                  : isSignup
-                    ? 'Creando cuenta…'
-                    : 'Entrando…'
-                : isReset
-                  ? notice
-                    ? 'Volver a enviar el enlace'
-                    : 'Enviarme el enlace'
-                  : isSignup
-                    ? 'Crear cuenta'
-                    : 'Entrar'}
+              {submitLabel(mode, loading, notice !== null)}
             </button>
           </form>
 
