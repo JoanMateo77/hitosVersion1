@@ -1,4 +1,5 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
+import { focusOnMount } from '@/lib/focus'
 import type { Goal, Session } from '@/lib/types'
 import { rangeLabel, sessionSpan } from '@/domain/agenda'
 import { elapsedSeconds } from '@/domain/sessions'
@@ -247,9 +248,6 @@ interface QuickNoteProps {
 
 /** Tras un ✓ rápido: "¿Qué lograste?" para que el diario de la meta no quede vacío. */
 export function QuickNote({ text, onChange, onSave, onSkip }: Readonly<QuickNoteProps>) {
-  // Al aparecer, el foco va al campo para escribir de inmediato (sin autoFocus en el JSX).
-  const inputRef = useRef<HTMLInputElement | null>(null)
-  useEffect(() => inputRef.current?.focus(), [])
   return (
     <div className="today-note">
       <label className="field__label" htmlFor="quick-note">
@@ -258,7 +256,7 @@ export function QuickNote({ text, onChange, onSave, onSkip }: Readonly<QuickNote
       <div className="row">
         <input
           id="quick-note"
-          ref={inputRef}
+          ref={focusOnMount}
           className="input"
           maxLength={200}
           placeholder="Ej: terminé el capítulo 3…"

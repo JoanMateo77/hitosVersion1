@@ -13,7 +13,7 @@ import logo96Url from '@/assets/logo-96.png'
 interface IconProps {
   size?: number
   className?: string
-  /** Override puntual (color, margin, etc.). Para casos limitados — preferí className. */
+  /** Override puntual (color, margin, etc.). Para casos limitados: mejor className. */
   style?: CSSProperties
   /** Variante rellena (20% de currentColor) — solo la honran los íconos de nav activa. */
   filled?: boolean

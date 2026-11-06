@@ -52,7 +52,7 @@ export function SideNav() {
         <span className="brand__mark">
           <IconHito size={22} />
         </span>
-        Lógralo
+        {'Lógralo'}
       </span>
 
       <div className="sidenav__identity">

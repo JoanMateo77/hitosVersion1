@@ -42,7 +42,7 @@ export function TopBar() {
         <span className="brand__mark">
           <IconHito size={20} />
         </span>
-        Lógralo
+        {'Lógralo'}
       </span>
       <NavLink
         to="/perfil"

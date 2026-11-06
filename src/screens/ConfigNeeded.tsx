@@ -8,7 +8,7 @@ export function ConfigNeeded() {
         <span className="brand__mark">
           <IconHito size={36} />
         </span>
-        Lógralo
+        {'Lógralo'}
       </div>
 
       <div className="card stack stack--lg" style={{ marginTop: 'var(--s6)' }}>
