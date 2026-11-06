@@ -15,7 +15,8 @@
     "check:rls": "node scripts/check-rls.mjs",
     "check:api": "node scripts/check-api.mjs",
     "check:contrast": "node scripts/check-contrast.mjs",
-    "shots": "node e2e/shots.mjs"
+    "shots": "node e2e/shots.mjs",
+    "probe:ai": "node --env-file=.env scripts/probe-ai.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.48.1",

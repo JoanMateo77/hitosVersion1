@@ -4,6 +4,8 @@ import type { GoalPlan } from '../domain/goalPlan'
 
 const plan: GoalPlan = { schemaVersion: 1, summary: 's', weeklyMinutes: 60, stages: [] }
 
+const refund = vi.fn()
+
 function deps(over: Partial<PlanMetaDeps> = {}): PlanMetaDeps {
   return {
     verifyUser: async (t) => (t === 'ok' ? 'user-1' : null),
@@ -15,7 +17,7 @@ function deps(over: Partial<PlanMetaDeps> = {}): PlanMetaDeps {
       criteria: vi.fn(async () => [{ text: 'Tengo la moto', why: 'Resultado' }]),
       goalType: vi.fn(async () => ({ key: 'finanzas', reason: 'Quieres comprar algo', alternatives: [] })),
     },
-    takeQuota: () => true,
+    takeQuota: () => refund,
     loadSignals: vi.fn(async () => ['Completas el 80% de tus sesiones.']),
     ...over,
   }
@@ -102,7 +104,7 @@ describe('handlePlanMeta', () => {
   })
 
   it('aplica el límite diario (429)', async () => {
-    const res = await handlePlanMeta(req({ title: 'x' }), deps({ takeQuota: () => false }))
+    const res = await handlePlanMeta(req({ title: 'x' }), deps({ takeQuota: () => null }))
     expect(res.status).toBe(429)
   })
 
@@ -112,15 +114,57 @@ describe('handlePlanMeta', () => {
     const failing = deps({ planner: { plan: boom, questions: boom, refine: boom, chat: boom, criteria: boom, goalType: boom } })
     vi.spyOn(console, 'error').mockImplementation(() => {})
     expect((await handlePlanMeta(req({ title: 'x' }), failing)).status).toBe(502)
+    // El fallo de la IA no le gasta el uso a la persona.
+    expect(refund).toHaveBeenCalledTimes(1)
+  })
+
+  it('no devuelve cuota cuando la respuesta sale bien', async () => {
+    refund.mockClear()
+    await handlePlanMeta(req({ title: 'x' }), deps())
+    expect(refund).not.toHaveBeenCalled()
   })
 })
 
 describe('createMemoryQuota', () => {
+  const D1 = new Date('2026-10-31T10:00:00Z')
+
   it('permite N usos por usuario y día', () => {
-    let day = new Date('2026-10-31T10:00:00Z')
+    let day = D1
     const take = createMemoryQuota(2, () => day)
-    expect([take('a'), take('a'), take('a'), take('b')]).toEqual([true, true, false, true])
+    expect([take('a'), take('a'), take('a'), take('b')].map(Boolean)).toEqual([true, true, false, true])
     day = new Date('2026-11-01T10:00:00Z')
-    expect(take('a')).toBe(true)
+    expect(take('a')).not.toBeNull()
+  })
+
+  it('la devolución libera el uso cobrado, una sola vez', () => {
+    const take = createMemoryQuota(1, () => D1)
+    const refund = take('a')!
+    expect(take('a')).toBeNull()
+    refund()
+    refund()
+    expect(take('a')).not.toBeNull()
+    expect(take('a')).toBeNull()
+  })
+
+  it('devuelve al día en que se cobró aunque ya sea otro día', () => {
+    let day = new Date('2026-10-31T23:59:50Z')
+    const take = createMemoryQuota(1, () => day)
+    const refund = take('a')!
+    day = new Date('2026-11-01T00:00:30Z')
+    expect(take('a')).not.toBeNull()
+    refund()
+    // El día nuevo sigue cobrado; el anterior quedó libre.
+    expect(take('a')).toBeNull()
+    day = new Date('2026-10-31T23:59:59Z')
+    expect(take('a')).not.toBeNull()
+  })
+
+  it('limita las devoluciones por día para que fallar en bucle no sea gratis', () => {
+    const take = createMemoryQuota(100, () => D1, 2)
+    for (let i = 0; i < 3; i++) take('a')!()
+    // 3 cobros, solo 2 devueltos: queda 1 uso gastado.
+    let left = 0
+    while (take('a')) left++
+    expect(left).toBe(99)
   })
 })

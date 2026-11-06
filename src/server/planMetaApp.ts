@@ -1,18 +1,17 @@
 /**
  * Arma el handler con dependencias reales a partir de variables de entorno.
- * GEMINI_API_KEY no lleva prefijo VITE_: así Vite nunca la mete en el bundle.
+ * Las claves de IA no llevan prefijo VITE_: así Vite nunca las mete en el bundle.
  */
-import { createGeminiPlanner } from './geminiPlanner.js'
+import { createModelChain, parseChain, realChainOptions } from './aiChain.js'
+import { createGoalPlanner } from './goalPlanner.js'
 import { createMemoryQuota, createSupabaseVerifier, handlePlanMeta } from './planMeta.js'
 import { createSignalsLoader } from './userSignalsLoader.js'
 
-export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite'
-
 export function createPlanMetaHandler(env: Record<string, string | undefined>) {
-  const apiKey = env.GEMINI_API_KEY
-  const planner = apiKey
-    ? createGeminiPlanner(apiKey, env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL)
-    : null
+  // Una sola cadena por instancia: el enfriamiento de modelos caídos se comparte
+  // entre peticiones de la misma instancia.
+  const links = parseChain(env)
+  const planner = links.length > 0 ? createGoalPlanner(createModelChain(links, realChainOptions())) : null
   const url = env.VITE_SUPABASE_URL ?? ''
   const anonKey = env.VITE_SUPABASE_ANON_KEY ?? ''
   const verifyUser = createSupabaseVerifier(url, anonKey)
