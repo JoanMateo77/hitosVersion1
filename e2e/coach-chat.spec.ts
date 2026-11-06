@@ -70,3 +70,24 @@ for (const viewport of [
     await context.close()
   })
 }
+
+test('tocar el fondo oscuro cierra la hoja del chat', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 700 }, serviceWorkers: 'block', locale: 'es-CO' })
+  const page = await context.newPage()
+  await installMocks(page, buildFixtures({ onboarded: true }), newLog())
+  await page.addInitScript(
+    ({ key, session }) => {
+      localStorage.setItem(key, JSON.stringify(session))
+      sessionStorage.setItem('logralo.backfill-v1', '1')
+    },
+    { key: SESSION_STORAGE_KEY, session: mockSession() },
+  )
+  await page.goto(`/metas/${GOAL_IDS.salud}`)
+  await page.getByRole('button', { name: 'Hablar con el coach' }).click()
+  await expect(page.getByRole('dialog', { name: 'Hablar con la meta' })).toBeVisible()
+  await settle(page)
+  // Arriba de la hoja solo hay fondo.
+  await page.mouse.click(195, 20)
+  await expect(page.getByRole('dialog', { name: 'Hablar con la meta' })).toBeHidden()
+  await context.close()
+})

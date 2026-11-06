@@ -114,7 +114,7 @@ export function momentsOfDay(blocks: CommitmentBlockDraft[], weekday: number): C
  * Se usa para inferir el modo "mismo horario todos los días".
  */
 export function uniformMoments(blocks: CommitmentBlockDraft[]): CommitmentMoment[] | null {
-  const days = [...new Set(blocks.map((b) => b.weekday))].sort()
+  const days = [...new Set(blocks.map((b) => b.weekday))].sort((a, b) => a - b)
   if (days.length === 0) return null
   const signature = (moments: CommitmentMoment[]) =>
     JSON.stringify(moments.map((m) => [m.targetKind, m.targetValue, m.unit, m.startTime]))

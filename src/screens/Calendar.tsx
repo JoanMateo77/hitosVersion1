@@ -1259,8 +1259,9 @@ function ReorganizeSheet({
     return base.map((orig, i) => draft[i] || orig)
   }
   const habitChanged = (r: ReorganizeHabitRow) => {
-    const base = [...(r.effective.times ?? [])].sort()
-    const next = [...habitTimesOf(r)].sort()
+    // Horas "HH:MM": el orden de texto coincide con el cronológico.
+    const base = [...(r.effective.times ?? [])].sort((a, b) => a.localeCompare(b))
+    const next = [...habitTimesOf(r)].sort((a, b) => a.localeCompare(b))
     return base.join(',') !== next.join(',')
   }
   const eventChanged = (e: CalendarEvent) =>
