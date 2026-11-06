@@ -2,7 +2,7 @@
  * El chat del coach en el detalle de una meta sigue usable en una conversación
  * larga: tras cada respuesta, la caja de texto está en pantalla y habilitada.
  */
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Browser, type Locator, type Page } from '@playwright/test'
 import { buildFixtures, GOAL_IDS } from './fixtures/data'
 import { mockSession, SESSION_STORAGE_KEY } from './fixtures/session'
 import { installMocks, newLog } from './mock'
@@ -19,23 +19,29 @@ async function settle(page: Page) {
   )
 }
 
+/** Sesión iniciada contra el backend falso, en el detalle de una meta, con el chat abierto. */
+async function openGoalChat(browser: Browser, viewport: { width: number; height: number }) {
+  const context = await browser.newContext({ viewport, serviceWorkers: 'block', locale: 'es-CO' })
+  const page = await context.newPage()
+  await installMocks(page, buildFixtures({ onboarded: true }), newLog())
+  await page.addInitScript(
+    ({ key, session }) => {
+      localStorage.setItem(key, JSON.stringify(session))
+      sessionStorage.setItem('logralo.backfill-v1', '1')
+    },
+    { key: SESSION_STORAGE_KEY, session: mockSession() },
+  )
+  await page.goto(`/metas/${GOAL_IDS.salud}`)
+  await page.getByRole('button', { name: 'Hablar con el coach' }).click()
+  return { context, page }
+}
+
 for (const viewport of [
   { width: 390, height: 700 },
   { width: 1280, height: 800 },
 ]) {
   test(`conversación larga en ${viewport.width}px: la caja de texto sigue a mano`, async ({ browser }) => {
-    const context = await browser.newContext({ viewport, serviceWorkers: 'block', locale: 'es-CO' })
-    const page = await context.newPage()
-    await installMocks(page, buildFixtures({ onboarded: true }), newLog())
-    await page.addInitScript(
-      ({ key, session }) => {
-        localStorage.setItem(key, JSON.stringify(session))
-        sessionStorage.setItem('logralo.backfill-v1', '1')
-      },
-      { key: SESSION_STORAGE_KEY, session: mockSession() },
-    )
-    await page.goto(`/metas/${GOAL_IDS.salud}`)
-    await page.getByRole('button', { name: 'Hablar con el coach' }).click()
+    const { context, page } = await openGoalChat(browser, viewport)
 
     const input = page.getByLabel('Escríbele al coach')
     const replies = page.locator('.coach-msg--coach')
@@ -72,18 +78,7 @@ for (const viewport of [
 }
 
 test('tocar el fondo oscuro cierra la hoja del chat', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 700 }, serviceWorkers: 'block', locale: 'es-CO' })
-  const page = await context.newPage()
-  await installMocks(page, buildFixtures({ onboarded: true }), newLog())
-  await page.addInitScript(
-    ({ key, session }) => {
-      localStorage.setItem(key, JSON.stringify(session))
-      sessionStorage.setItem('logralo.backfill-v1', '1')
-    },
-    { key: SESSION_STORAGE_KEY, session: mockSession() },
-  )
-  await page.goto(`/metas/${GOAL_IDS.salud}`)
-  await page.getByRole('button', { name: 'Hablar con el coach' }).click()
+  const { context, page } = await openGoalChat(browser, { width: 390, height: 700 })
   await expect(page.getByRole('dialog', { name: 'Hablar con la meta' })).toBeVisible()
   await settle(page)
   // Arriba de la hoja solo hay fondo.
