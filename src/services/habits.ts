@@ -236,38 +236,24 @@ export async function setHabitCheck(
   done: boolean,
   slot = 0,
 ): Promise<void> {
-  if (done) {
-    // Insert simple (sin onConflict): el nombre del índice único cambia con la
-    // migración 0013 y un duplicado (23505) significa "ya estaba marcado".
-    const { error } = await supabase
-      .from('habit_checks')
-      .insert({ user_id: userId, habit_id: habitId, date: dateISO, slot })
-    if (error && isMissingColumn(error) && slot === 0) {
-      const retry = await supabase
-        .from('habit_checks')
-        .insert({ user_id: userId, habit_id: habitId, date: dateISO })
-      if (retry.error && retry.error.code !== '23505') throw new Error(retry.error.message)
-      return
-    }
-    if (error && error.code !== '23505') throw new Error(error.message)
-  } else {
-    const { error } = await supabase
-      .from('habit_checks')
-      .delete()
-      .eq('habit_id', habitId)
-      .eq('date', dateISO)
-      .eq('slot', slot)
-    if (error && isMissingColumn(error) && slot === 0) {
-      const retry = await supabase
-        .from('habit_checks')
-        .delete()
-        .eq('habit_id', habitId)
-        .eq('date', dateISO)
-      if (retry.error) throw new Error(retry.error.message)
-      return
-    }
-    if (error) throw new Error(error.message)
-  }
+  if (done) await insertHabitCheck(userId, habitId, dateISO, slot)
+  else await deleteHabitCheck(habitId, dateISO, slot)
+}
+
+async function insertHabitCheck(userId: string, habitId: string, dateISO: string, slot: number): Promise<void> {
+  // Insert simple (sin onConflict): el nombre del índice único cambia con la
+  // migración 0013 y un duplicado (23505) significa "ya estaba marcado".
+  const row = { user_id: userId, habit_id: habitId, date: dateISO }
+  let { error } = await supabase.from('habit_checks').insert({ ...row, slot })
+  if (error && isMissingColumn(error) && slot === 0) ({ error } = await supabase.from('habit_checks').insert(row))
+  if (error && error.code !== '23505') throw new Error(error.message)
+}
+
+async function deleteHabitCheck(habitId: string, dateISO: string, slot: number): Promise<void> {
+  const base = () => supabase.from('habit_checks').delete().eq('habit_id', habitId).eq('date', dateISO)
+  let { error } = await base().eq('slot', slot)
+  if (error && isMissingColumn(error) && slot === 0) ({ error } = await base())
+  if (error) throw new Error(error.message)
 }
 
 // ---- Reorganizar un día (0015): horas del hábito distintas solo esa fecha ----
