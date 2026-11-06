@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import type { CalendarEvent, Goal, Milestone, Session } from '@/lib/types'
 import { getGoal } from '@/services/goals'
@@ -133,6 +133,401 @@ function ResolutionOptions({
  * La sesión en vivo: cronómetro (tiempo) o contador (cantidad), pausa real por
  * timestamps, y el cierre honesto "¿cómo te fue?" cuando venció sin confirmar.
  */
+/** El plan de esta sesión: lo agendado para esta meta hoy, tachable, y sumar algo más. */
+function SessionPlan({
+  items,
+  status,
+  closed,
+  suggestion,
+  notice,
+  draft,
+  draftTime,
+  adding,
+  onDraft,
+  onDraftTime,
+  onAdd,
+  onToggle,
+}: Readonly<{
+  items: CalendarEvent[]
+  status: Session['status']
+  closed: boolean
+  suggestion: string
+  notice: string | null
+  draft: string
+  draftTime: string
+  adding: boolean
+  onDraft: (value: string) => void
+  onDraftTime: (value: string) => void
+  onAdd: (e: FormEvent) => void
+  onToggle: (item: CalendarEvent) => void
+}>) {
+  return (
+    <section className="session-plan" aria-label="El plan de esta sesión">
+      <Disclosure
+        summary={`Plan${items.length > 0 ? ` · ${items.filter((e) => e.doneAt !== null).length} de ${items.length}` : ''}`}
+        defaultOpen={status !== 'running'}
+      >
+        {status === 'pending' && (
+          <p className="small muted row row--sm" style={{ alignItems: 'center', marginBottom: 'var(--s3)' }}>
+            <IconLightbulb size={13} /> <span>Idea: {suggestion}</span>
+          </p>
+        )}
+        {notice && (
+          <div className="alert alert--warn" role="alert" style={{ marginBottom: 'var(--s3)' }}>
+            {notice}
+          </div>
+        )}
+        <ul className="session-plan__list">
+          {items.map((e) => {
+            const done = e.doneAt !== null
+            const noteLine = e.notes?.split('\n')[0].trim() || null
+            return (
+              <li key={e.id} className="session-plan__item">
+                <button
+                  type="button"
+                  className={`session-plan__check${done ? ' session-plan__check--done' : ''}`}
+                  aria-pressed={done}
+                  aria-label={`${done ? 'Desmarcar' : 'Marcar'} ${e.title}`}
+                  disabled={closed}
+                  onClick={() => onToggle(e)}
+                >
+                  {done && <IconCheck size={12} />}
+                </button>
+                <span className="session-plan__time">
+                  {e.startTime ? formatTime12(e.startTime) : '—'}
+                </span>
+                <span className={`session-plan__text${done ? ' session-plan__text--done' : ''}`}>
+                  <span className="session-plan__name">{e.title}</span>
+                  {noteLine && <span className="session-plan__note">{noteLine}</span>}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+        {!closed && (
+          <form className="session-plan__add" onSubmit={onAdd}>
+            <input
+              className="input session-plan__add-title"
+              value={draft}
+              onChange={(e) => onDraft(e.target.value)}
+              placeholder="Agregar al plan…"
+              maxLength={200}
+              aria-label="Agregar algo al plan de esta sesión"
+            />
+            <input
+              type="time"
+              className="input session-plan__add-time"
+              value={draftTime}
+              onChange={(e) => onDraftTime(e.target.value)}
+              aria-label="Hora (opcional)"
+            />
+            <button
+              type="submit"
+              className="btn btn--sm"
+              disabled={!draft.trim() || adding}
+            >
+              Sumar
+            </button>
+          </form>
+        )}
+      </Disclosure>
+    </section>
+  )
+}
+
+/** La sesión ya estaba cerrada al llegar (por URL). */
+function ClosedNote({ skipped, onHome }: Readonly<{ skipped: boolean; onHome: () => void }>) {
+  return (
+    <div className="stack stack--sm center" style={{ alignItems: 'center' }}>
+      <p className="muted">
+        {skipped
+          ? 'Saltaste esta sesión; tu racha no se rompe. Si quieres hacerla, deshaz el salto desde la Agenda.'
+          : 'Esta sesión ya está cerrada.'}
+      </p>
+      <button className="btn btn--ghost btn--sm" onClick={onHome}>
+        Volver a tu día
+      </button>
+    </div>
+  )
+}
+
+/** Cierre de una sesión de cantidad: hecho si llegó al objetivo, parcial si hizo algo, no hecho si nada. */
+function countOutcome(count: number, target: number): 'done' | 'partial' | 'missed' {
+  if (count >= target) return 'done'
+  return count > 0 ? 'partial' : 'missed'
+}
+
+/** Sesión de cantidad en curso: contador con − y + y "Terminé". */
+function CountRunner({
+  count,
+  target,
+  unit,
+  saving,
+  onCount,
+  onFinish,
+}: Readonly<{
+  count: number
+  target: number
+  unit: string | null
+  saving: boolean
+  onCount: (value: number) => void
+  onFinish: (status: 'done' | 'partial' | 'missed', value: number) => void
+}>) {
+  return (
+    <>
+      <SessionRing progress={count / target}>
+        <strong className="ring__time">{count}</strong>
+        <span className="small muted">de {target} {unit ?? ''}</span>
+      </SessionRing>
+      <div className="row" style={{ alignItems: 'center', gap: 'var(--s4)' }}>
+        <button
+          type="button"
+          className="iconbtn"
+          style={{ width: 56, height: 56, fontSize: 24 }}
+          aria-label="Restar uno"
+          onClick={() => onCount(Math.max(0, count - 1))}
+        >
+          −
+        </button>
+        <button
+          type="button"
+          className="iconbtn"
+          style={{ width: 56, height: 56, fontSize: 24 }}
+          aria-label="Sumar uno"
+          onClick={() => onCount(count + 1)}
+        >
+          +
+        </button>
+      </div>
+      <button
+        className="btn btn--primary btn--block"
+        disabled={saving}
+        onClick={() => onFinish(countOutcome(count, target), count)}
+      >
+        <IconCheck size={16} /> Terminé
+      </button>
+    </>
+  )
+}
+
+/** Tras guardar el cierre: nota de avance y, si hay, marcar la etapa. */
+function SessionFinished({
+  status,
+  note,
+  milestone,
+  saving,
+  onNote,
+  onComplete,
+  onLeave,
+}: Readonly<{
+  status: 'done' | 'partial'
+  note: string
+  milestone: Milestone | null
+  saving: boolean
+  onNote: (value: string) => void
+  onComplete: () => void
+  onLeave: () => void
+}>) {
+  return (
+    <div className="stack stack--sm center" style={{ width: '100%', alignItems: 'center' }}>
+      {/* Logro: disco de estado (verde = cumplido, ámbar = parcial) que entra con un pop. */}
+      <span
+        className={`session-done__badge${status === 'partial' ? ' session-done__badge--partial' : ''}`}
+        aria-hidden="true"
+      >
+        <IconCheck size={28} />
+      </span>
+      <h2 style={{ fontSize: 'var(--fs-lg)', textAlign: 'center' }}>
+        {status === 'done' ? 'Sesión cumplida' : 'Parcial guardado'}
+      </h2>
+
+      {/* Diario de avances: en el futuro podrás recordar cómo llegaste. */}
+      <div className="field" style={{ width: '100%', maxWidth: 400, textAlign: 'left' }}>
+        <label className="field__label" htmlFor="session-note">
+          ¿Qué lograste en este tiempo? (opcional)
+        </label>
+        <input
+          id="session-note"
+          className="input"
+          placeholder="Ej: terminé el capítulo 3, corrí 5 km…"
+          value={note}
+          onChange={(e) => onNote(e.target.value)}
+          maxLength={200}
+          autoCapitalize="sentences"
+          autoCorrect="on"
+          enterKeyHint="done"
+          inputMode="text"
+        />
+        <span className="field__hint">Queda en tu meta, para ver el camino recorrido.</span>
+      </div>
+
+      {milestone ? (
+        <>
+          <p className="small muted center" style={{ maxWidth: 360 }}>
+            ¿Completaste la etapa “{milestone.title}”?
+          </p>
+          <button className="btn btn--primary btn--block" disabled={saving} onClick={onComplete}>
+            Sí, cumplida
+          </button>
+          <button className="btn btn--ghost btn--block" disabled={saving} onClick={onLeave}>
+            Aún no
+          </button>
+        </>
+      ) : (
+        <button className="btn btn--primary btn--block" disabled={saving} onClick={onLeave}>
+          Guardar y volver
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** Sesión de tiempo en curso: reloj, avisos, pausar/reanudar y "Terminé". */
+function TimeRunner({
+  elapsed,
+  remaining,
+  target,
+  targetLabel,
+  keepGoing,
+  paused,
+  why,
+  syncNotice,
+  awayNotice,
+  earlyFinish,
+  saving,
+  closeOptions,
+  onPause,
+  onResume,
+  onDone,
+}: Readonly<{
+  elapsed: number
+  remaining: number
+  target: number
+  targetLabel: string
+  keepGoing: boolean
+  paused: boolean
+  why: string | null
+  syncNotice: string | null
+  /** Solo si el reloj está avanzando (si no, null). */
+  awayNotice: string | null
+  earlyFinish: boolean
+  saving: boolean
+  /** Opciones de cierre anticipado ("¿Cómo cierro la sesión?"). */
+  closeOptions: ReactNode
+  onPause: () => void
+  onResume: () => void
+  onDone: () => void
+}>) {
+  return (
+    <>
+      <SessionRing progress={keepGoing ? 1 : elapsed / (target * 60)}>
+        <strong className="ring__time">
+          {keepGoing ? formatClock(elapsed) : formatClock(remaining)}
+        </strong>
+        <span className="small muted">
+          {keepGoing ? `ya superaste tus ${targetLabel}` : `de ${targetLabel}`}
+        </span>
+      </SessionRing>
+      {/* La cita del porqué solo en pausa: corriendo, la pantalla respira. */}
+      {why && paused && (
+        <p className="small muted center" style={{ maxWidth: 360 }}>“{why}”</p>
+      )}
+      {syncNotice && (
+        <div className="alert alert--warn" role="alert" style={{ width: '100%', maxWidth: 360 }}>
+          {syncNotice}
+        </div>
+      )}
+      {awayNotice && (
+        <p className="small muted center" role="status" style={{ maxWidth: 360 }}>
+          {awayNotice}
+        </p>
+      )}
+      {!earlyFinish ? (
+        <div className="row" style={{ width: '100%' }}>
+          {paused ? (
+            <button className="btn btn--ghost" style={{ flex: 1 }} disabled={saving} onClick={onResume}>
+              <IconPlay size={14} /> Reanudar
+            </button>
+          ) : (
+            <button className="btn btn--ghost" style={{ flex: 1 }} disabled={saving} onClick={onPause}>
+              <IconPause size={15} /> Pausar
+            </button>
+          )}
+          <button
+            className="btn btn--primary"
+            style={{ flex: 1 }}
+            disabled={saving}
+            onClick={onDone}
+          >
+            <IconCheck size={16} /> Terminé
+          </button>
+        </div>
+      ) : (
+        closeOptions
+      )}
+    </>
+  )
+}
+
+/** ¿El reloj está avanzando? Solo con un cronómetro visible de hoy, sin pausa ni panel de cierre. */
+function isTicking(session: Session | null, now: Date, keepGoing: boolean, earlyFinish: boolean): boolean {
+  if (session?.status !== 'running' || session.pausedAt || session.targetKind !== 'time') return false
+  if (session.date !== todayISO() || earlyFinish) return false
+  return keepGoing || !isTimeReached(session, now)
+}
+
+/** ¿Cumplió hoy el objetivo de tiempo con la sesión aún corriendo? */
+function isReachedToday(session: Session | null, now: Date, today: string): boolean {
+  return session?.status === 'running' && session.date === today && isTimeReached(session, now)
+}
+
+/** Valor inicial de "hice una parte": lo trabajado, sin llegar al objetivo. */
+function partialDefault(isTime: boolean, step: number, elapsedMinutes: number, count: number, target: number): number {
+  if (isTime) return Math.min(Math.max(5, elapsedMinutes), Math.max(step, target - step))
+  return Math.max(1, Math.min(count || 1, target - 1))
+}
+
+/** "La comenzaste hoy · objetivo 30 min" para una sesión que quedó abierta. */
+function openSessionHint(session: Session, today: string, targetLabel: string): string | undefined {
+  if (!session.startedAt) return undefined
+  const when = session.date === today ? 'hoy' : `el ${session.date}`
+  return `La comenzaste ${when} · objetivo ${targetLabel}`
+}
+
+/** Sesión por comenzar: objetivo, hora prevista, el porqué y "Comenzar". */
+function PendingStart({
+  targetLabel,
+  plannedTime,
+  why,
+  saving,
+  onStart,
+}: Readonly<{ targetLabel: string; plannedTime: string | null; why: string | null; saving: boolean; onStart: () => void }>) {
+  return (
+    <>
+      <SessionRing progress={0}>
+        <strong style={{ fontSize: 'var(--fs-2xl, 28px)' }}>{targetLabel}</strong>
+        {plannedTime && <span className="small muted">{formatTime12(plannedTime)}</span>}
+      </SessionRing>
+      {why && <p className="small muted center" style={{ maxWidth: 360 }}>“{why}”</p>}
+      <button className="btn btn--primary btn--block" disabled={saving} onClick={onStart}>
+        <IconPlay size={16} /> Comenzar
+      </button>
+    </>
+  )
+}
+
+/** " · Etapa 2 de 4" mientras quede alguna etapa por cumplir; nada si no. */
+function stageNote(milestones: Milestone[]): string | null {
+  if (!milestones.some((m) => m.doneAt === null)) return null
+  return ` · Etapa ${milestones.filter((m) => m.doneAt !== null).length + 1} de ${milestones.length}`
+}
+
+/** "30 min" o "20 páginas": el objetivo de la sesión. */
+function sessionTargetLabel(session: Session): string {
+  if (session.targetKind === 'time') return `${session.targetValue} min`
+  return `${session.targetValue} ${session.unit ?? ''}`.trim()
+}
+
 export function SessionRun() {
   const { sessionId } = useParams<{ sessionId: string }>()
   const [params] = useSearchParams()
@@ -224,14 +619,7 @@ export function SessionRun() {
   // Tick del reloj: solo cuando hay un cronómetro visible avanzando. Recalcula
   // desde timestamps (cerrar la app no lo rompe). Se detiene al cumplir el
   // objetivo o al abrir un panel de cierre (ahí no hay reloj que mover).
-  const ticking =
-    session !== null &&
-    session.status === 'running' &&
-    !session.pausedAt &&
-    session.targetKind === 'time' &&
-    session.date === todayISO() &&
-    (!isTimeReached(session, now) || keepGoing) &&
-    !earlyFinish
+  const ticking = isTicking(session, now, keepGoing, earlyFinish)
   useEffect(() => {
     if (!ticking) return
     const id = setInterval(() => setNow(new Date()), 1000)
@@ -249,12 +637,7 @@ export function SessionRun() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.id])
 
-  const reachedToday =
-    session !== null &&
-    !keepGoing &&
-    session.status === 'running' &&
-    session.date === today &&
-    isTimeReached(session, now)
+  const reachedToday = !keepGoing && isReachedToday(session, now, today)
 
   // Vibración corta al cumplir el objetivo (si el dispositivo lo soporta).
   const vibrated = useRef(false)
@@ -274,14 +657,12 @@ export function SessionRun() {
   const currentMilestone = milestones.find((m) => m.doneAt === null) ?? null
   const suggestion = pickSuggestion(template, goal.id, today)
   const isTime = session.targetKind === 'time'
-  const targetLabel = isTime ? `${session.targetValue} min` : `${session.targetValue} ${session.unit ?? ''}`.trim()
+  const targetLabel = sessionTargetLabel(session)
   const elapsed = elapsedSeconds(session, now)
   /** Minutos trabajados redondeados, mínimo 1 si llegó a arrancar. */
   const elapsedMinutes = Math.max(session.startedAt ? 1 : 0, Math.round(elapsed / 60))
   const partialStep = isTime ? 5 : 1
-  const defaultPartial = isTime
-    ? Math.min(Math.max(5, elapsedMinutes), Math.max(partialStep, session.targetValue - partialStep))
-    : Math.max(1, Math.min(count || 1, session.targetValue - 1))
+  const defaultPartial = partialDefault(isTime, partialStep, elapsedMinutes, count, session.targetValue)
   // Cierre pendiente de confirmación: quedó sin confirmar, o corriendo de otro día.
   const needsResolution =
     session.status === 'unconfirmed' || (session.status === 'running' && session.date < today)
@@ -423,15 +804,22 @@ export function SessionRun() {
   }
 
   // Modo enfoque: con el reloj corriendo, esta pantalla es la única — para
+  // Lo común a todas las opciones de cierre.
+  const resolution = {
+    isTime,
+    unit: session.unit,
+    target: session.targetValue,
+    defaultPartial,
+    saving,
+    partialValue,
+    onPartialChange: setPartialValue,
+    onFinish: (st: 'done' | 'partial' | 'missed', v: number) => void finish(st, v),
+  }
+
   // salir hay que pausar (o terminar). Las sesiones de cantidad no tienen
   // reloj, así que no encierran.
   const focusLocked =
-    !needsResolution &&
-    !reachedToday &&
-    !finishedStatus &&
-    session.status === 'running' &&
-    isTime &&
-    !session.pausedAt
+    !needsResolution && !reachedToday && !finishedStatus && isTime && session.status === 'running' && !session.pausedAt
 
   return (
     <main className="screen screen--full flow-screen flow-screen--session" style={goalAccent(goal)}>
@@ -460,63 +848,20 @@ export function SessionRun() {
           </h1>
           <span className="session-head__meta">
             {targetLabel}
-            {milestones.length > 0 && currentMilestone && (
-              <> · Etapa {milestones.filter((m) => m.doneAt !== null).length + 1} de {milestones.length}</>
-            )}
+            {stageNote(milestones)}
           </span>
         </div>
 
         {finishedStatus ? (
-          <div className="stack stack--sm center" style={{ width: '100%', alignItems: 'center' }}>
-            {/* Logro: disco de estado (verde = cumplido, ámbar = parcial) que entra con un pop. */}
-            <span
-              className={`session-done__badge${finishedStatus === 'partial' ? ' session-done__badge--partial' : ''}`}
-              aria-hidden="true"
-            >
-              <IconCheck size={28} />
-            </span>
-            <h2 style={{ fontSize: 'var(--fs-lg)', textAlign: 'center' }}>
-              {finishedStatus === 'done' ? 'Sesión cumplida' : 'Parcial guardado'}
-            </h2>
-
-            {/* Diario de avances: en el futuro podrás recordar cómo llegaste. */}
-            <div className="field" style={{ width: '100%', maxWidth: 400, textAlign: 'left' }}>
-              <label className="field__label" htmlFor="session-note">
-                ¿Qué lograste en este tiempo? (opcional)
-              </label>
-              <input
-                id="session-note"
-                className="input"
-                placeholder="Ej: terminé el capítulo 3, corrí 5 km…"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                maxLength={200}
-                autoCapitalize="sentences"
-                autoCorrect="on"
-                enterKeyHint="done"
-                inputMode="text"
-              />
-              <span className="field__hint">Queda en tu meta, para ver el camino recorrido.</span>
-            </div>
-
-            {currentMilestone ? (
-              <>
-                <p className="small muted center" style={{ maxWidth: 360 }}>
-                  ¿Completaste la etapa “{currentMilestone.title}”?
-                </p>
-                <button className="btn btn--primary btn--block" disabled={saving} onClick={() => void completeMilestoneAndLeave()}>
-                  Sí, cumplida
-                </button>
-                <button className="btn btn--ghost btn--block" disabled={saving} onClick={() => void leaveWithNote()}>
-                  Aún no
-                </button>
-              </>
-            ) : (
-              <button className="btn btn--primary btn--block" disabled={saving} onClick={() => void leaveWithNote()}>
-                Guardar y volver
-              </button>
-            )}
-          </div>
+          <SessionFinished
+            status={finishedStatus}
+            note={note}
+            milestone={currentMilestone}
+            saving={saving}
+            onNote={setNote}
+            onComplete={() => void completeMilestoneAndLeave()}
+            onLeave={() => void leaveWithNote()}
+          />
         ) : (
           <>
         {/* --- Cierre pendiente (otro día / sin confirmar) --- */}
@@ -524,19 +869,8 @@ export function SessionRun() {
           <ResolutionOptions
             title={`Tu sesión de ${goal.title} quedó abierta`}
             showMissedHint
-            hint={
-              session.startedAt
-                ? `La comenzaste ${session.date === today ? 'hoy' : `el ${session.date}`} · objetivo ${targetLabel}`
-                : undefined
-            }
-            isTime={isTime}
-            unit={session.unit}
-            target={session.targetValue}
-            defaultPartial={defaultPartial}
-            saving={saving}
-            partialValue={partialValue}
-            onPartialChange={setPartialValue}
-            onFinish={(st, v) => void finish(st, v)}
+            hint={openSessionHint(session, today, targetLabel)}
+            {...resolution}
           />
         )}
 
@@ -555,222 +889,81 @@ export function SessionRun() {
             </button>
             <ResolutionOptions
               title="¡Lo lograste!"
-              isTime={isTime}
-            unit={session.unit}
-            target={session.targetValue}
-            defaultPartial={defaultPartial}
-            saving={saving}
-            partialValue={partialValue}
-            onPartialChange={setPartialValue}
-            onFinish={(st, v) => void finish(st, v)}
+              {...resolution}
             />
           </>
         )}
 
         {/* --- Pendiente: por comenzar --- */}
         {!needsResolution && !reachedToday && session.status === 'pending' && (
-          <>
-            <SessionRing progress={0}>
-              <strong style={{ fontSize: 'var(--fs-2xl, 28px)' }}>{targetLabel}</strong>
-              {session.plannedTime && <span className="small muted">{formatTime12(session.plannedTime)}</span>}
-            </SessionRing>
-            {goal.why && <p className="small muted center" style={{ maxWidth: 360 }}>“{goal.why}”</p>}
-            <button className="btn btn--primary btn--block" disabled={saving} onClick={doStart}>
-              <IconPlay size={16} /> Comenzar
-            </button>
-          </>
+          <PendingStart
+            targetLabel={targetLabel}
+            plannedTime={session.plannedTime}
+            why={goal.why}
+            saving={saving}
+            onStart={() => void doStart()}
+          />
         )}
 
         {/* --- En curso: tiempo --- */}
         {!needsResolution && !reachedToday && session.status === 'running' && isTime && (
-          <>
-            <SessionRing progress={keepGoing ? 1 : elapsed / (session.targetValue * 60)}>
-              <strong className="ring__time">
-                {keepGoing ? formatClock(elapsed) : formatClock(remainingSeconds(session, now))}
-              </strong>
-              <span className="small muted">
-                {keepGoing ? `ya superaste tus ${targetLabel}` : `de ${targetLabel}`}
-              </span>
-            </SessionRing>
-            {/* La cita del porqué solo en pausa: corriendo, la pantalla respira. */}
-            {goal.why && session.pausedAt && (
-              <p className="small muted center" style={{ maxWidth: 360 }}>“{goal.why}”</p>
-            )}
-            {syncNotice && (
-              <div className="alert alert--warn" role="alert" style={{ width: '100%', maxWidth: 360 }}>
-                {syncNotice}
-              </div>
-            )}
-            {awayNotice && ticking && (
-              <p className="small muted center" role="status" style={{ maxWidth: 360 }}>
-                {awayNotice}
-              </p>
-            )}
-            {!earlyFinish ? (
-              <div className="row" style={{ width: '100%' }}>
-                {session.pausedAt ? (
-                  <button className="btn btn--ghost" style={{ flex: 1 }} disabled={saving} onClick={doResume}>
-                    <IconPlay size={14} /> Reanudar
-                  </button>
-                ) : (
-                  <button className="btn btn--ghost" style={{ flex: 1 }} disabled={saving} onClick={doPause}>
-                    <IconPause size={15} /> Pausar
-                  </button>
-                )}
-                <button
-                  className="btn btn--primary"
-                  style={{ flex: 1 }}
-                  disabled={saving}
-                  onClick={() => (keepGoing ? void finish('done', elapsedMinutes) : setEarlyFinish(true))}
-                >
-                  <IconCheck size={16} /> Terminé
-                </button>
-              </div>
-            ) : (
+          <TimeRunner
+            elapsed={elapsed}
+            remaining={remainingSeconds(session, now)}
+            target={session.targetValue}
+            targetLabel={targetLabel}
+            keepGoing={keepGoing}
+            paused={Boolean(session.pausedAt)}
+            why={goal.why}
+            syncNotice={syncNotice}
+            awayNotice={ticking ? awayNotice : null}
+            earlyFinish={earlyFinish}
+            saving={saving}
+            closeOptions={
               <ResolutionOptions
                 title="¿Cómo cierro la sesión?"
                 showMissedHint
                 hint={`Llevas ${elapsedMinutes} min de ${session.targetValue}.`}
-                isTime={isTime}
-            unit={session.unit}
-            target={session.targetValue}
-            defaultPartial={defaultPartial}
-            saving={saving}
-            partialValue={partialValue}
-            onPartialChange={setPartialValue}
-            onFinish={(st, v) => void finish(st, v)}
+                {...resolution}
               />
-            )}
-          </>
+            }
+            onPause={() => void doPause()}
+            onResume={() => void doResume()}
+            onDone={() => (keepGoing ? void finish('done', elapsedMinutes) : setEarlyFinish(true))}
+          />
         )}
 
         {/* --- En curso: cantidad --- */}
         {!needsResolution && session.status === 'running' && !isTime && (
-          <>
-            <SessionRing progress={count / session.targetValue}>
-              <strong className="ring__time">{count}</strong>
-              <span className="small muted">de {session.targetValue} {session.unit ?? ''}</span>
-            </SessionRing>
-            <div className="row" style={{ alignItems: 'center', gap: 'var(--s4)' }}>
-              <button
-                type="button"
-                className="iconbtn"
-                style={{ width: 56, height: 56, fontSize: 24 }}
-                aria-label="Restar uno"
-                onClick={() => setCount((c) => Math.max(0, c - 1))}
-              >
-                −
-              </button>
-              <button
-                type="button"
-                className="iconbtn"
-                style={{ width: 56, height: 56, fontSize: 24 }}
-                aria-label="Sumar uno"
-                onClick={() => setCount((c) => c + 1)}
-              >
-                +
-              </button>
-            </div>
-            <button
-              className="btn btn--primary btn--block"
-              disabled={saving}
-              onClick={() => {
-                if (count >= session.targetValue) void finish('done', count)
-                else if (count > 0) void finish('partial', count)
-                else void finish('missed', 0)
-              }}
-            >
-              <IconCheck size={16} /> Terminé
-            </button>
-          </>
+          <CountRunner
+            count={count}
+            target={session.targetValue}
+            unit={session.unit}
+            saving={saving}
+            onCount={setCount}
+            onFinish={(st, v) => void finish(st, v)}
+          />
         )}
 
         {/* --- Ya cerrada (llegó por URL) --- */}
-        {closed && (
-          <div className="stack stack--sm center" style={{ alignItems: 'center' }}>
-            <p className="muted">
-              {session.status === 'skipped'
-                ? 'Saltaste esta sesión; tu racha no se rompe. Si quieres hacerla, deshaz el salto desde la Agenda.'
-                : 'Esta sesión ya está cerrada.'}
-            </p>
-            <button className="btn btn--ghost btn--sm" onClick={() => navigate('/')}>
-              Volver a tu día
-            </button>
-          </div>
-        )}
+        {closed && <ClosedNote skipped={session.status === 'skipped'} onHome={() => navigate('/')} />}
 
         {/* --- El plan de esta sesión: lo agendado para esta meta hoy --- */}
-        {!needsResolution && (planItems.length > 0 || (!closed && session?.goalId)) && (
-          <section className="session-plan" aria-label="El plan de esta sesión">
-            <Disclosure
-              summary={`Plan${planItems.length > 0 ? ` · ${planItems.filter((e) => e.doneAt !== null).length} de ${planItems.length}` : ''}`}
-              defaultOpen={session.status !== 'running'}
-            >
-              {session.status === 'pending' && (
-                <p className="small muted row row--sm" style={{ alignItems: 'center', marginBottom: 'var(--s3)' }}>
-                  <IconLightbulb size={13} /> <span>Idea: {suggestion}</span>
-                </p>
-              )}
-              {planNotice && (
-                <div className="alert alert--warn" role="alert" style={{ marginBottom: 'var(--s3)' }}>
-                  {planNotice}
-                </div>
-              )}
-              <ul className="session-plan__list">
-                {planItems.map((e) => {
-                  const done = e.doneAt !== null
-                  const noteLine = e.notes?.split('\n')[0].trim() || null
-                  return (
-                    <li key={e.id} className="session-plan__item">
-                      <button
-                        type="button"
-                        className={`session-plan__check${done ? ' session-plan__check--done' : ''}`}
-                        aria-pressed={done}
-                        aria-label={`${done ? 'Desmarcar' : 'Marcar'} ${e.title}`}
-                        disabled={closed}
-                        onClick={() => void togglePlanItem(e)}
-                      >
-                        {done && <IconCheck size={12} />}
-                      </button>
-                      <span className="session-plan__time">
-                        {e.startTime ? formatTime12(e.startTime) : '—'}
-                      </span>
-                      <span className={`session-plan__text${done ? ' session-plan__text--done' : ''}`}>
-                        <span className="session-plan__name">{e.title}</span>
-                        {noteLine && <span className="session-plan__note">{noteLine}</span>}
-                      </span>
-                    </li>
-                  )
-                })}
-              </ul>
-              {!closed && (
-                <form className="session-plan__add" onSubmit={(e) => void addPlanItem(e)}>
-                  <input
-                    className="input session-plan__add-title"
-                    value={planDraft}
-                    onChange={(e) => setPlanDraft(e.target.value)}
-                    placeholder="Agregar al plan…"
-                    maxLength={200}
-                    aria-label="Agregar algo al plan de esta sesión"
-                  />
-                  <input
-                    type="time"
-                    className="input session-plan__add-time"
-                    value={planDraftTime}
-                    onChange={(e) => setPlanDraftTime(e.target.value)}
-                    aria-label="Hora (opcional)"
-                  />
-                  <button
-                    type="submit"
-                    className="btn btn--sm"
-                    disabled={!planDraft.trim() || addingPlan}
-                  >
-                    Sumar
-                  </button>
-                </form>
-              )}
-            </Disclosure>
-          </section>
+        {!needsResolution && (planItems.length > 0 || !closed) && (
+          <SessionPlan
+            items={planItems}
+            status={session.status}
+            closed={closed}
+            suggestion={suggestion}
+            notice={planNotice}
+            draft={planDraft}
+            draftTime={planDraftTime}
+            adding={addingPlan}
+            onDraft={setPlanDraft}
+            onDraftTime={setPlanDraftTime}
+            onAdd={(e) => void addPlanItem(e)}
+            onToggle={(e) => void togglePlanItem(e)}
+          />
         )}
           </>
         )}
