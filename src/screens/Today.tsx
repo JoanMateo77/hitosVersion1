@@ -369,7 +369,8 @@ export function Today() {
     const all = [...history, ...sessions]
     const doneDates = doneDatesOf(all)
     if (doneDates.size === 0) return null
-    const lastDone = [...doneDates].sort().pop()!
+    // Fechas yyyy-mm-dd: el orden de texto es el cronológico.
+    const lastDone = [...doneDates].sort((a, b) => a.localeCompare(b)).pop()!
     if (lastDone < addDays(today, -14)) return null
     const best = bestStreakCommitted(
       doneDates,

@@ -143,7 +143,9 @@ export function Sheet({
       aria-modal="true"
       aria-label={label}
     >
-      <div className="sheet__backdrop" onClick={close} />
+      {/* Botón nativo (clic o toque fuera cierra); fuera del orden de Tab porque
+          Escape y el botón de cerrar ya cubren el teclado. */}
+      <button type="button" className="sheet__backdrop" aria-label="Cerrar" tabIndex={-1} onClick={close} />
       {as === 'form' ? (
         <form ref={setPanel} {...panelProps} onSubmit={onSubmit}>
           {grabber}

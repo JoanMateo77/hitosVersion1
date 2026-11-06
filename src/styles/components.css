@@ -1266,6 +1266,11 @@ fieldset.row {
 .sheet__backdrop {
   position: absolute;
   inset: 0;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  cursor: default;
   background: rgba(0, 0, 0, 0.5);
   animation: sheet-fade var(--dur-state) var(--ease-out);
 }

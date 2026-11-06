@@ -39,7 +39,7 @@ export function CommitmentStep({
   // El tipo de medida es uno solo por meta a nivel UI (los bloques lo copian).
   const kind: TargetKind = blocks[0]?.targetKind ?? 'time'
   const unit = blocks.find((b) => b.unit)?.unit ?? ''
-  const selectedDays = [...new Set(blocks.map((b) => b.weekday))].sort()
+  const selectedDays = [...new Set(blocks.map((b) => b.weekday))].sort((a, b) => a - b)
   const warning = overcommitWarning(existing, blocks)
 
   // Modo por defecto: un mismo horario para todos los días. Al editar una meta
@@ -55,7 +55,7 @@ export function CommitmentStep({
   // recuperas lo que habías escrito en vez de los defaults. No convertimos entre
   // tipos: "30 minutos" y "30 páginas" siguen sin ser intercambiables.
   const kindMemory = useRef<Partial<Record<TargetKind, CommitmentBlockDraft[]>>>({})
-  const daysSignature = (bs: CommitmentBlockDraft[]) => bs.map((b) => b.weekday).sort().join(',')
+  const daysSignature = (bs: CommitmentBlockDraft[]) => bs.map((b) => b.weekday).sort((a, b) => a - b).join(',')
 
   function defaultMoment(withStart: boolean): CommitmentMoment {
     return {
