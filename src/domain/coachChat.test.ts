@@ -211,6 +211,16 @@ describe('prompts', () => {
     expect(p).toContain('propón registrarlo como avance en "progress"')
     expect(p).not.toContain('vos ')
   })
+  it('sabe qué día es y cuántas semanas quedan', () => {
+    const p = buildChatPrompt({ ...ctx, targetDate: '2027-03-01' }, [], 'hola', [], new Date('2026-11-06T15:00:00Z'))
+    expect(p).toContain('<hoy>2026-11-06</hoy>')
+    expect(p).toContain('<semanas_disponibles>16</semanas_disponibles>')
+  })
+  it('ante una meta que no alcanza, pide cuentas y opciones concretas', () => {
+    const p = buildChatPrompt(ctx, [], 'no creo llegar')
+    expect(p).toContain('no llega a la meta')
+    expect(p).toContain('Editar')
+  })
   it('sin canLogProgress no propone avances', () => {
     const p = buildChatPrompt(ctx, [], 'ya lo hice')
     expect(p).toContain('progress: siempre vacío')
