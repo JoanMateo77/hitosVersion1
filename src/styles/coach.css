@@ -300,6 +300,13 @@
 }
 .coach-typing i:nth-child(2) { animation-delay: 0.15s; }
 .coach-typing i:nth-child(3) { animation-delay: 0.3s; }
+/* Con movimiento reducido, los puntos quedan quietos: el texto accesible ya dice que escribe. */
+@media (prefers-reduced-motion: reduce) {
+  .coach-typing i {
+    animation: none;
+    opacity: 0.6;
+  }
+}
 @keyframes coach-dot {
   0%, 60%, 100% { opacity: 0.3; transform: none; }
   30% { opacity: 1; transform: translateY(-3px); }

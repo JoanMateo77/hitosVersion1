@@ -103,6 +103,11 @@ describe('handlePlanMeta', () => {
     expect((await handlePlanMeta(req(null, 'ok', 'GET'), deps())).status).toBe(405)
   })
 
+  it('rechaza una acción que no es texto o que no existe', async () => {
+    expect((await handlePlanMeta(req({ title: 'x', action: { plan: true } }), deps())).status).toBe(400)
+    expect((await handlePlanMeta(req({ title: 'x', action: 'borrar' }), deps())).status).toBe(400)
+  })
+
   it('aplica el límite diario (429)', async () => {
     const res = await handlePlanMeta(req({ title: 'x' }), deps({ takeQuota: () => null }))
     expect(res.status).toBe(429)

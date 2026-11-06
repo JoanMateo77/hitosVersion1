@@ -131,11 +131,9 @@ function contextData(ctx: ChatContext, signalLines: string[], today: Date): stri
     if (q && ans) lines.push(`<respuesta pregunta="${attr(q)}">${ans}</respuesta>`)
   }
   const stages = ctx.stages.map((s) => ({ ...s, title: clean(s.title) })).filter((s) => s.title).slice(0, 12)
-  lines.push(
-    stages.length > 0
-      ? `<etapas>${stages.map((s, i) => `${i + 1}. ${s.title}${s.done ? ' (cumplida)' : ''}`).join(' | ')}</etapas>`
-      : '<etapas>(todavía ninguna)</etapas>',
-  )
+  const stageLine = (s: ChatStage, i: number) => (s.done ? `${i + 1}. ${s.title} (cumplida)` : `${i + 1}. ${s.title}`)
+  const numbered = stages.map(stageLine).join(' | ')
+  lines.push(stages.length > 0 ? `<etapas>${numbered}</etapas>` : '<etapas>(todavía ninguna)</etapas>')
   if (signalLines.length > 0) {
     lines.push(`<historial_en_la_app>${signalLines.map((l) => clean(l, 160)).join(' ')}</historial_en_la_app>`)
   }
@@ -368,6 +366,14 @@ export function readStoredProposal(value: unknown): StoredProposal | null {
   return { kind: 'stages', summary: value.summary, changes: value.changes as StageChange[], status }
 }
 
+/** Dónde insertar una etapa nueva: null = al inicio; sin ancla o ancla perdida = al final. */
+function insertIndex(list: readonly string[], afterTitle: string | null | undefined): number {
+  if (afterTitle === null) return 0
+  if (afterTitle === undefined) return list.length
+  const j = list.findIndex((t) => norm(t) === norm(afterTitle))
+  return j >= 0 ? j + 1 : list.length
+}
+
 /** Aplica una propuesta a una lista de títulos, en orden. Pura: la usa el wizard. */
 export function applyStageChanges(titles: readonly string[], changes: readonly StageChange[]): string[] {
   let list = [...titles]
@@ -375,18 +381,7 @@ export function applyStageChanges(titles: readonly string[], changes: readonly S
     const i = list.findIndex((t) => norm(t) === norm(c.title))
     if (c.kind === 'remove' && i >= 0) list = list.filter((_, k) => k !== i)
     else if (c.kind === 'rename' && i >= 0) list[i] = c.newTitle
-    else if (c.kind === 'add' && i < 0) {
-      const at =
-        c.afterTitle === null
-          ? 0
-          : c.afterTitle === undefined
-            ? list.length
-            : (() => {
-                const j = list.findIndex((t) => norm(t) === norm(c.afterTitle as string))
-                return j >= 0 ? j + 1 : list.length
-              })()
-      list.splice(at, 0, c.title)
-    }
+    else if (c.kind === 'add' && i < 0) list.splice(insertIndex(list, c.afterTitle), 0, c.title)
   }
   return list
 }
