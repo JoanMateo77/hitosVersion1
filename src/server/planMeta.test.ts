@@ -16,6 +16,7 @@ function deps(over: Partial<PlanMetaDeps> = {}): PlanMetaDeps {
       goalType: vi.fn(async () => ({ key: 'finanzas', reason: 'Quieres comprar algo', alternatives: [] })),
     },
     takeQuota: () => true,
+    refundQuota: vi.fn(),
     loadSignals: vi.fn(async () => ['Completas el 80% de tus sesiones.']),
     ...over,
   }
@@ -112,15 +113,34 @@ describe('handlePlanMeta', () => {
     const failing = deps({ planner: { plan: boom, questions: boom, refine: boom, chat: boom, criteria: boom, goalType: boom } })
     vi.spyOn(console, 'error').mockImplementation(() => {})
     expect((await handlePlanMeta(req({ title: 'x' }), failing)).status).toBe(502)
+    // El fallo de la IA no le gasta el uso a la persona.
+    expect(failing.refundQuota).toHaveBeenCalledWith('user-1')
+  })
+
+  it('no devuelve cuota cuando la respuesta sale bien', async () => {
+    const d = deps()
+    await handlePlanMeta(req({ title: 'x' }), d)
+    expect(d.refundQuota).not.toHaveBeenCalled()
   })
 })
 
 describe('createMemoryQuota', () => {
   it('permite N usos por usuario y día', () => {
     let day = new Date('2026-10-31T10:00:00Z')
-    const take = createMemoryQuota(2, () => day)
+    const { take } = createMemoryQuota(2, () => day)
     expect([take('a'), take('a'), take('a'), take('b')]).toEqual([true, true, false, true])
     day = new Date('2026-11-01T10:00:00Z')
     expect(take('a')).toBe(true)
+  })
+
+  it('refund libera un uso del día y nunca baja de cero', () => {
+    const day = new Date('2026-10-31T10:00:00Z')
+    const quota = createMemoryQuota(1, () => day)
+    quota.refund('a')
+    expect(quota.take('a')).toBe(true)
+    expect(quota.take('a')).toBe(false)
+    quota.refund('a')
+    expect(quota.take('a')).toBe(true)
+    expect(quota.take('a')).toBe(false)
   })
 })

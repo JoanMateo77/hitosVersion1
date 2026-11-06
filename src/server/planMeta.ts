@@ -10,7 +10,7 @@
  */
 import { parseGoalPlan, type GoalPlanInput, type QuestionAnswer } from '../domain/goalPlan.js'
 import { readHistory, readStages, type ChatContext } from '../domain/coachChat.js'
-import type { GoalPlanner } from './geminiPlanner.js'
+import type { GoalPlanner } from './goalPlanner.js'
 
 /**
  * Cada acción cuenta (preguntas, plan, pulidos, mensajes de chat). Generoso a
@@ -26,6 +26,8 @@ export interface PlanMetaDeps {
   planner: GoalPlanner | null
   /** Registra un uso y dice si el usuario sigue dentro del límite diario. */
   takeQuota(userId: string): boolean
+  /** Devuelve el uso cuando no hubo respuesta: un fallo de la IA no gasta cuota. */
+  refundQuota(userId: string): void
   /** Memoria de comportamiento en frases legibles ([] si no hay o falla). */
   loadSignals(userId: string, accessToken: string): Promise<string[]>
 }
@@ -136,6 +138,7 @@ export async function handlePlanMeta(request: Request, deps: PlanMetaDeps): Prom
     return json(200, { plan, signals })
   } catch (err) {
     console.error('[plan-meta] fallo del planner:', err instanceof Error ? err.message : 'desconocido')
+    deps.refundQuota(userId)
     return json(502, { error: { code: 'ai_unavailable' } })
   }
 }
@@ -147,12 +150,20 @@ export async function handlePlanMeta(request: Request, deps: PlanMetaDeps): Prom
  */
 export function createMemoryQuota(limit = DAILY_LIMIT, now = () => new Date()) {
   const used = new Map<string, number>()
-  return (userId: string): boolean => {
-    const key = `${now().toISOString().slice(0, 10)}:${userId}`
-    const count = used.get(key) ?? 0
-    if (count >= limit) return false
-    used.set(key, count + 1)
-    return true
+  const keyOf = (userId: string) => `${now().toISOString().slice(0, 10)}:${userId}`
+  return {
+    take(userId: string): boolean {
+      const key = keyOf(userId)
+      const count = used.get(key) ?? 0
+      if (count >= limit) return false
+      used.set(key, count + 1)
+      return true
+    },
+    refund(userId: string): void {
+      const key = keyOf(userId)
+      const count = used.get(key) ?? 0
+      if (count > 0) used.set(key, count - 1)
+    },
   }
 }
 
