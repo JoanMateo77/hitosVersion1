@@ -88,8 +88,8 @@ export function parseChain(env: Record<string, string | undefined>): ChainLink[]
     if (sep < 1 || !model || !isProvider(provider) || seen.has(`${provider}:${model}`)) continue
     seen.add(`${provider}:${model}`)
     splitList(env[KEY_ENV[provider]]).forEach((apiKey, i) => {
-      const label = `${provider}:${model}${i > 0 ? `#${i + 1}` : ''}`
-      links.push({ provider, model, apiKey, label })
+      const suffix = i > 0 ? `#${i + 1}` : ''
+      links.push({ provider, model, apiKey, label: `${provider}:${model}${suffix}` })
     })
   }
   return links

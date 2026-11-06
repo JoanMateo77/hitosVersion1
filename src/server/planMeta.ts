@@ -18,7 +18,7 @@ import type { GoalPlanner } from './goalPlanner.js'
  */
 export const DAILY_LIMIT = 100
 
-const ACTIONS = ['questions', 'plan', 'refine', 'chat', 'criteria', 'type']
+const ACTIONS = new Set(['questions', 'plan', 'refine', 'chat', 'criteria', 'type'])
 
 export interface PlanMetaDeps {
   /** Devuelve el id del usuario dueño del token, o null si no es válido. */
@@ -82,62 +82,78 @@ function readChatContext(b: Record<string, unknown>, input: GoalPlanInput): Chat
   }
 }
 
+/** Pedido ya validado: la acción y los datos que necesita. */
+interface CoachRequest {
+  action: string
+  input: GoalPlanInput
+  body: Record<string, unknown>
+  currentPlan: ReturnType<typeof parseGoalPlan>
+  instruction: string
+  message: string
+}
+
+async function readBody(request: Request): Promise<Record<string, unknown> | null> {
+  try {
+    const parsed: unknown = await request.json()
+    return parsed != null && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null
+  } catch {
+    return null
+  }
+}
+
+/** null si el pedido no es válido para su acción. */
+function readCoachRequest(body: Record<string, unknown>): CoachRequest | null {
+  const input = readInput(body)
+  // Sin acción = "plan"; una acción que no es texto no es válida (nada de "[object Object]").
+  const action = body.action === undefined ? 'plan' : body.action
+  if (!input || typeof action !== 'string' || !ACTIONS.has(action)) return null
+  // Un plan a pulir puede tener 0 sugerencias ("tu camino está completo").
+  const currentPlan = action === 'refine' ? parseGoalPlan(body.plan, 0) : null
+  const instruction = str(body.instruction)?.trim() ?? ''
+  const message = str(body.message)?.trim() ?? ''
+  if (action === 'refine' && (!currentPlan || !instruction)) return null
+  if (action === 'chat' && !message) return null
+  return { action, input, body, currentPlan, instruction, message }
+}
+
+async function runAction(req: CoachRequest, planner: GoalPlanner, signals: () => Promise<string[]>): Promise<unknown> {
+  const { action, input, body } = req
+  // El tipo solo depende del título: no hace falta la memoria de comportamiento.
+  if (action === 'type') return { type: await planner.goalType(input.title, input.why ?? null) }
+  const lines = await signals()
+  if (action === 'questions') return { questions: await planner.questions(input, lines), signals: lines }
+  if (action === 'chat') {
+    const reply = await planner.chat(readChatContext(body, input), readHistory(body.history), req.message, lines)
+    return { ...reply, signals: lines }
+  }
+  if (action === 'criteria') {
+    return { options: await planner.criteria(readChatContext(body, input), str(body.hint) ?? '', lines), signals: lines }
+  }
+  const plan =
+    action === 'refine' && req.currentPlan
+      ? await planner.refine(input, req.currentPlan, req.instruction, lines)
+      : await planner.plan(input, lines)
+  return { plan, signals: lines }
+}
+
 export async function handlePlanMeta(request: Request, deps: PlanMetaDeps): Promise<Response> {
   if (request.method !== 'POST') return json(405, { error: { code: 'method_not_allowed' } })
-  if (!deps.planner) return json(503, { error: { code: 'ai_not_configured' } })
+  const planner = deps.planner
+  if (!planner) return json(503, { error: { code: 'ai_not_configured' } })
 
   const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? ''
   const userId = token ? await deps.verifyUser(token) : null
   if (!userId) return json(401, { error: { code: 'unauthenticated' } })
 
-  let body: Record<string, unknown>
-  try {
-    const parsed: unknown = await request.json()
-    if (parsed == null || typeof parsed !== 'object') throw new Error('body')
-    body = parsed as Record<string, unknown>
-  } catch {
-    return json(400, { error: { code: 'invalid_body' } })
-  }
-  const input = readInput(body)
-  const action = body.action ?? 'plan'
-  // Un plan a pulir puede tener 0 sugerencias ("tu camino está completo").
-  const currentPlan = action === 'refine' ? parseGoalPlan(body.plan, 0) : null
-  const instruction = str(body.instruction)?.trim() ?? ''
-  const message = str(body.message)?.trim() ?? ''
-  if (
-    !input ||
-    !ACTIONS.includes(String(action)) ||
-    (action === 'refine' && (!currentPlan || !instruction)) ||
-    (action === 'chat' && !message)
-  ) {
-    return json(400, { error: { code: 'invalid_body' } })
-  }
+  const body = await readBody(request)
+  const req = body && readCoachRequest(body)
+  if (!req) return json(400, { error: { code: 'invalid_body' } })
 
   const refundQuota = deps.takeQuota(userId)
   if (!refundQuota) return json(429, { error: { code: 'daily_limit' } })
 
   try {
-    // El tipo solo depende del título: no hace falta la memoria de comportamiento.
-    if (action === 'type') {
-      return json(200, { type: await deps.planner.goalType(input.title, input.why ?? null) })
-    }
-    const signals = await deps.loadSignals(userId, token)
-    if (action === 'questions') {
-      return json(200, { questions: await deps.planner.questions(input, signals), signals })
-    }
-    if (action === 'chat') {
-      const ctx = readChatContext(body, input)
-      return json(200, { ...(await deps.planner.chat(ctx, readHistory(body.history), message, signals)), signals })
-    }
-    if (action === 'criteria') {
-      const ctx = readChatContext(body, input)
-      return json(200, { options: await deps.planner.criteria(ctx, str(body.hint) ?? '', signals), signals })
-    }
-    const plan =
-      action === 'refine' && currentPlan
-        ? await deps.planner.refine(input, currentPlan, instruction, signals)
-        : await deps.planner.plan(input, signals)
-    return json(200, { plan, signals })
+    return json(200, await runAction(req, planner, () => deps.loadSignals(userId, token)))
   } catch (err) {
     console.error('[plan-meta] fallo del planner:', err instanceof Error ? err.message : 'desconocido')
     refundQuota()

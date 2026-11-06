@@ -177,7 +177,8 @@ function goalData(input: GoalPlanInput, signalLines: string[], today: Date): str
   }
   const current = currentStages(input)
   if (current.length > 0) {
-    lines.push(`<etapas_actuales>${current.map((t, i) => `${i + 1}. ${t}`).join(' | ')}</etapas_actuales>`)
+    const numbered = current.map((t, i) => `${i + 1}. ${t}`).join(' | ')
+    lines.push(`<etapas_actuales>${numbered}</etapas_actuales>`)
   }
   if (signalLines.length > 0) {
     lines.push(`<historial_en_la_app>${signalLines.map((l) => clean(l, 160)).join(' ')}</historial_en_la_app>`)
