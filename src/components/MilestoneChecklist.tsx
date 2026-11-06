@@ -38,7 +38,7 @@ export function MilestoneChecklist({
   onMove,
   onDelete,
   onAdd,
-}: MilestoneChecklistProps) {
+}: Readonly<MilestoneChecklistProps>) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [menuId, setMenuId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)

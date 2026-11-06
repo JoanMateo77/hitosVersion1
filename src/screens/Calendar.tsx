@@ -1033,7 +1033,7 @@ export function Calendar() {
 }
 
 /** Tag de estado de sesión; el "hecha" celebra con el check en verde. */
-function SessionStateTag({ state }: { state: DayAgendaSession['state'] }) {
+function SessionStateTag({ state }: Readonly<{ state: DayAgendaSession['state'] }>) {
   return (
     <span className={`tag${state === 'done' ? ' tag--done' : ''}`}>
       {state === 'done' && <IconCheck size={11} />} {sessionStateLabel(state)}
@@ -1046,11 +1046,11 @@ function EventSubRow({
   e,
   onOpen,
   onToggle,
-}: {
+}: Readonly<{
   e: CalendarEvent
   onOpen: (e: CalendarEvent) => void
   onToggle: (e: CalendarEvent) => void
-}) {
+}>) {
   return (
     <li className={`ev-sub${e.doneAt ? ' ev-sub--done' : ''}`}>
       <EventCheck event={e} onToggle={() => onToggle(e)} />
@@ -1079,7 +1079,7 @@ function BlockSheet({
   onOpenSession,
   onSetTime,
   editSection,
-}: {
+}: Readonly<{
   it: DayAgendaSession
   sub: CalendarEvent[]
   onClose: () => void
@@ -1090,7 +1090,7 @@ function BlockSheet({
   onSetTime: () => void
   /** Días, duración, saltar y sacar de la agenda (solo bloques recurrentes). */
   editSection?: ReactNode
-}) {
+}>) {
   const [title, setTitle] = useState('')
   const [time, setTime] = useState('')
   const [adding, setAdding] = useState(false)
@@ -1221,7 +1221,7 @@ function ReorganizeSheet({
   onHabitTimes,
   onClearHabit,
   onEventTime,
-}: {
+}: Readonly<{
   day: string
   sessions: DayAgendaSession[]
   habitRows: ReorganizeHabitRow[]
@@ -1231,7 +1231,7 @@ function ReorganizeSheet({
   onHabitTimes: (habitId: string, times: string[]) => Promise<void>
   onClearHabit: (habitId: string) => Promise<void>
   onEventTime: (e: CalendarEvent, start: string) => Promise<void>
-}) {
+}>) {
   const { toast } = useToast()
   const [sessionDrafts, setSessionDrafts] = useState<Record<string, string>>(() =>
     Object.fromEntries(sessions.map((s) => [s.key, s.time ?? ''])),
@@ -1451,12 +1451,12 @@ function PlanSessionSheet({
   goals,
   onPick,
   onClose,
-}: {
+}: Readonly<{
   date: string
   goals: Goal[]
   onPick: (g: Goal) => void
   onClose: () => void
-}) {
+}>) {
   return (
     <Sheet onClose={onClose} label="¿A qué meta le sumas una sesión?">
       {(close) => (
@@ -1499,7 +1499,7 @@ function TimeSheet({
   onClose,
   onSave,
   onDelete,
-}: {
+}: Readonly<{
   goal: Goal
   /** null = sesión espontánea de una sola fecha; presente = compromiso recurrente. */
   block: ScheduleBlock | null
@@ -1512,7 +1512,7 @@ function TimeSheet({
   onSave: (time: string | null, scope: EditScope) => void
   /** Solo para sesiones espontáneas: permite quitarlas. */
   onDelete?: () => void
-}) {
+}>) {
   const initialTime = block?.startTime ?? session?.plannedTime ?? suggested ?? ''
   const [time, setTime] = useState(initialTime)
   // "Quitar hora" con varios bloques pasa por la misma pregunta de alcance.
@@ -1591,7 +1591,7 @@ function EventEditor({
   onClose,
   onSubmit,
   onDelete,
-}: {
+}: Readonly<{
   initial: CalendarEvent | null
   date: string
   goals: Goal[]
@@ -1603,7 +1603,7 @@ function EventEditor({
   onClose: () => void
   onSubmit: (input: EventInput) => Promise<void>
   onDelete: () => Promise<void>
-}) {
+}>) {
   // Borrador a prueba de la recarga automática de la PWA: lo que escribiste
   // vuelve al reabrir el editor. Guardar, borrar o cerrar a propósito lo limpia.
   const draftKey = `logralo.event-edit.${initial?.id ?? `new-${date}`}`

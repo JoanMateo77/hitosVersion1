@@ -80,7 +80,7 @@ function ResolutionOptions({
   onPartialChange,
   onFinish,
   showMissedHint = false,
-}: ResolutionOptionsProps) {
+}: Readonly<ResolutionOptionsProps>) {
   const step = isTime ? 5 : 1
   return (
     <div className="stack stack--sm" style={{ width: '100%' }}>

@@ -368,7 +368,7 @@ export function Progress() {
 }
 
 /** Lista de entradas de "Tu camino": hitos cumplidos y metas cerradas. */
-function TimelineList({ entries, onOpen }: { entries: Entry[]; onOpen: (goalId: string) => void }) {
+function TimelineList({ entries, onOpen }: Readonly<{ entries: Entry[]; onOpen: (goalId: string) => void }>) {
   return (
     <ul className="timeline prog-path">
       {entries.map((e) => (

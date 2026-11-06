@@ -7,7 +7,7 @@ import { PathIllustration } from '@/components/PathIllustration'
  * pantalla cierra el ciclo pidiendo la contraseña nueva antes de soltar al
  * usuario en la app. "Ahora no" deja pasar (la sesión ya es válida).
  */
-export function UpdatePassword({ onDone }: { onDone: () => void }) {
+export function UpdatePassword({ onDone }: Readonly<{ onDone: () => void }>) {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [show, setShow] = useState(false)

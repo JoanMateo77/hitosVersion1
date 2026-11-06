@@ -21,7 +21,7 @@ export function TaskItem({
   onToggle,
   onEdit,
   onRemove,
-}: TaskItemProps) {
+}: Readonly<TaskItemProps>) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(task.title)
   const done = task.status === 'done'

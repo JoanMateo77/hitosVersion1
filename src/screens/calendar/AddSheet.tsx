@@ -9,14 +9,14 @@ export function AddSheet({
   onEvent,
   onSession,
   onClose,
-}: {
+}: Readonly<{
   date: string
   /** Solo hoy/futuro con metas activas. */
   canPlanSession: boolean
   onEvent: () => void
   onSession: () => void
   onClose: () => void
-}) {
+}>) {
   return (
     <Sheet onClose={onClose} label="¿Qué agregas?">
       {(close) => (

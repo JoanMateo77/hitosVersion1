@@ -65,7 +65,7 @@ function closedLabel(session: Session): string {
   }
 }
 
-export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onResume }: SessionCardProps) {
+export function SessionCard({ session, goal, onOpen, onQuickDone, onReopen, onResume }: Readonly<SessionCardProps>) {
   const closed =
     session.status === 'done' ||
     session.status === 'partial' ||

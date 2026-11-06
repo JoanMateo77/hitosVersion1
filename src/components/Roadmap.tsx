@@ -28,7 +28,7 @@ const HALO_R = 16
  * al lado de cada nodo. Mantenemos la lista accesible (con botones cuando onSelect)
  * y la curva como decoración. La parte verde del camino refleja el progreso real.
  */
-export function Roadmap({ milestones, currentIndex = 0, onSelect, intro = false }: RoadmapProps) {
+export function Roadmap({ milestones, currentIndex = 0, onSelect, intro = false }: Readonly<RoadmapProps>) {
   const n = milestones.length
   if (n === 0) return null
 

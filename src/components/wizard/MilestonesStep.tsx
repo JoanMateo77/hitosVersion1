@@ -52,7 +52,7 @@ function renumber(list: MilestoneDraft[]): MilestoneDraft[] {
  * editable al tocar, y fecha/orden/quitar detrás de "⋯". Mismo lenguaje visual
  * que el checklist del detalle de meta.
  */
-export function MilestonesStep({ milestones, onChange, ghosts = [], onAcceptGhost }: MilestonesStepProps) {
+export function MilestonesStep({ milestones, onChange, ghosts = [], onAcceptGhost }: Readonly<MilestonesStepProps>) {
   const ghostsAt = (i: number) =>
     ghosts.filter((g) => g.index === i).map((g) => <GhostRow key={`g-${g.stage.title}`} stage={g.stage} onAccept={onAcceptGhost} />)
 

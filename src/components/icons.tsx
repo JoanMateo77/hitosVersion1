@@ -37,7 +37,7 @@ function base(size: number) {
   }
 }
 
-export function IconToday({ size = 24, className, style, filled = false }: IconProps) {
+export function IconToday({ size = 24, className, style, filled = false }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <rect
@@ -54,7 +54,7 @@ export function IconToday({ size = 24, className, style, filled = false }: IconP
   )
 }
 
-export function IconGoals({ size = 24, className, style, filled = false }: IconProps) {
+export function IconGoals({ size = 24, className, style, filled = false }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <circle
@@ -70,7 +70,7 @@ export function IconGoals({ size = 24, className, style, filled = false }: IconP
   )
 }
 
-export function IconProfile({ size = 24, className, style }: IconProps) {
+export function IconProfile({ size = 24, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <circle cx="12" cy="8" r="4" />
@@ -79,7 +79,7 @@ export function IconProfile({ size = 24, className, style }: IconProps) {
   )
 }
 
-export function IconPlus({ size = 24, className, style }: IconProps) {
+export function IconPlus({ size = 24, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M12 5v14M5 12h14" />
@@ -87,7 +87,7 @@ export function IconPlus({ size = 24, className, style }: IconProps) {
   )
 }
 
-export function IconCheck({ size = 18, className, style }: IconProps) {
+export function IconCheck({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M20 6L9 17l-5-5" />
@@ -95,7 +95,7 @@ export function IconCheck({ size = 18, className, style }: IconProps) {
   )
 }
 
-export function IconBack({ size = 24, className, style }: IconProps) {
+export function IconBack({ size = 24, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M15 18l-6-6 6-6" />
@@ -103,7 +103,7 @@ export function IconBack({ size = 24, className, style }: IconProps) {
   )
 }
 
-export function IconClose({ size = 20, className, style }: IconProps) {
+export function IconClose({ size = 20, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M18 6L6 18M6 6l12 12" />
@@ -111,7 +111,7 @@ export function IconClose({ size = 20, className, style }: IconProps) {
   )
 }
 
-export function IconPencil({ size = 18, className, style }: IconProps) {
+export function IconPencil({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M12 20h9" />
@@ -145,7 +145,7 @@ export function IconHito({
   )
 }
 
-export function IconCalendar({ size = 24, className, style, filled = false }: IconProps) {
+export function IconCalendar({ size = 24, className, style, filled = false }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <rect
@@ -163,7 +163,7 @@ export function IconCalendar({ size = 24, className, style, filled = false }: Ic
 }
 
 /** Estrella de "foco" — línea limpia, no la estrella sticker. */
-export function IconStar({ size = 18, className, style }: IconProps) {
+export function IconStar({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 17l-5.3 2.7 1-5.9L3.5 9.7l5.9-.8z" />
@@ -182,7 +182,7 @@ export function IconPin({ size = 18, className, style }: Readonly<IconProps>) {
 }
 
 /** Brote — meta olvidada que vuelve a la vida sin culpa. */
-export function IconSprout({ size = 18, className, style }: IconProps) {
+export function IconSprout({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M12 21V11" />
@@ -193,7 +193,7 @@ export function IconSprout({ size = 18, className, style }: IconProps) {
 }
 
 /** Comillas — usar para revisar / reflexionar / "tu porqué". */
-export function IconQuote({ size = 18, className, style }: IconProps) {
+export function IconQuote({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M7 6c-2 0-3 1.5-3 3.5C4 12 5.5 14 8 14M8 6l-1 12" />
@@ -203,7 +203,7 @@ export function IconQuote({ size = 18, className, style }: IconProps) {
 }
 
 /** Bandera — meta logrado / hito cumplido. */
-export function IconFlag({ size = 18, className, style }: IconProps) {
+export function IconFlag({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M6.5 21V4" />
@@ -213,7 +213,7 @@ export function IconFlag({ size = 18, className, style }: IconProps) {
 }
 
 /** Reloj — "esta semana le dedicaste X". */
-export function IconClock({ size = 18, className, style }: IconProps) {
+export function IconClock({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <circle cx="12" cy="12" r="9" />
@@ -223,7 +223,7 @@ export function IconClock({ size = 18, className, style }: IconProps) {
 }
 
 /** Bombilla — sugerencias / ideas. */
-export function IconLightbulb({ size = 18, className, style }: IconProps) {
+export function IconLightbulb({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M9 18h6" />
@@ -234,7 +234,7 @@ export function IconLightbulb({ size = 18, className, style }: IconProps) {
 }
 
 /** Destello — el coach con IA (botón ✦, cabecera del coach). */
-export function IconSparkle({ size = 18, className, style }: IconProps) {
+export function IconSparkle({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M12 3.5c.6 3.9 2.6 5.9 6.5 6.5-3.9.6-5.9 2.6-6.5 6.5-.6-3.9-2.6-5.9-6.5-6.5 3.9-.6 5.9-2.6 6.5-6.5Z" />
@@ -244,7 +244,7 @@ export function IconSparkle({ size = 18, className, style }: IconProps) {
 }
 
 /** Brújula — empty state: "encontrá tu rumbo". */
-export function IconCompass({ size = 18, className, style }: IconProps) {
+export function IconCompass({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <circle cx="12" cy="12" r="9" />
@@ -254,7 +254,7 @@ export function IconCompass({ size = 18, className, style }: IconProps) {
 }
 
 /** Flecha "de retorno" — meta de origen de una tarea (reemplaza el unicode ↳). */
-export function IconArrowReturn({ size = 12, className, style }: IconProps) {
+export function IconArrowReturn({ size = 12, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M6 6V11C6 12.1 6.9 13 8 13H19" />
@@ -264,7 +264,7 @@ export function IconArrowReturn({ size = 12, className, style }: IconProps) {
 }
 
 /** Chevron derecho — reemplaza el unicode ›. */
-export function IconChevronRight({ size = 16, className, style }: IconProps) {
+export function IconChevronRight({ size = 16, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M9 6L15 12L9 18" />
@@ -273,7 +273,7 @@ export function IconChevronRight({ size = 16, className, style }: IconProps) {
 }
 
 /** Triángulo "play" / siguiente paso — reemplaza el unicode ▶. */
-export function IconPlay({ size = 14, className, style }: IconProps) {
+export function IconPlay({ size = 14, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M7 5L18 12L7 19V5Z" fill="currentColor" stroke="none" />
@@ -282,7 +282,7 @@ export function IconPlay({ size = 14, className, style }: IconProps) {
 }
 
 /** Cuadrado relleno — detener la sesión en curso (▪ del héroe de Hoy). */
-export function IconStop({ size = 18, className, style }: IconProps) {
+export function IconStop({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor" stroke="none" />
@@ -291,7 +291,7 @@ export function IconStop({ size = 18, className, style }: IconProps) {
 }
 
 /** Confeti — celebración al lograr meta. */
-export function IconCelebrate({ size = 20, className, style }: IconProps) {
+export function IconCelebrate({ size = 20, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M4 20L9 8L16 15L4 20Z" />
@@ -300,7 +300,7 @@ export function IconCelebrate({ size = 20, className, style }: IconProps) {
   )
 }
 
-export function IconProgress({ size = 24, className, style, filled = false }: IconProps) {
+export function IconProgress({ size = 24, className, style, filled = false }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <polyline points="3 17.5 9 10.5 13 14.5 21 5.5" />
@@ -314,7 +314,7 @@ export function IconProgress({ size = 24, className, style, filled = false }: Ic
 }
 
 /** Triángulo de alerta — pantalla de error y avisos serios. */
-export function IconAlert({ size = 20, className, style }: IconProps) {
+export function IconAlert({ size = 20, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M10.2 4.2 2.8 17.5a2 2 0 0 0 1.8 3h14.8a2 2 0 0 0 1.8-3L13.8 4.2a2 2 0 0 0-3.6 0Z" />
@@ -326,7 +326,7 @@ export function IconAlert({ size = 20, className, style }: IconProps) {
 
 /* ===== Tema / momento del día ============================================ */
 
-export function IconSun({ size = 18, className, style }: IconProps) {
+export function IconSun({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <circle cx="12" cy="12" r="4.2" />
@@ -335,7 +335,7 @@ export function IconSun({ size = 18, className, style }: IconProps) {
   )
 }
 
-export function IconMoon({ size = 18, className, style }: IconProps) {
+export function IconMoon({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M20.4 14.2A8.2 8.2 0 0 1 9.8 3.6a8.2 8.2 0 1 0 10.6 10.6Z" />
@@ -344,7 +344,7 @@ export function IconMoon({ size = 18, className, style }: IconProps) {
 }
 
 /** Monitor — tema "sistema". */
-export function IconSystem({ size = 18, className, style }: IconProps) {
+export function IconSystem({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <rect x="3" y="4.5" width="18" height="13" rx="2.5" />
@@ -354,7 +354,7 @@ export function IconSystem({ size = 18, className, style }: IconProps) {
 }
 
 /** Amanecer — momento "mañana". */
-export function IconSunrise({ size = 18, className, style }: IconProps) {
+export function IconSunrise({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M12 9.5V2.8M8.8 5.2L12 2l3.2 3.2" />
@@ -367,7 +367,7 @@ export function IconSunrise({ size = 18, className, style }: IconProps) {
 /* ===== Estados y acciones ================================================ */
 
 /** Llama — racha de días cumplidos. */
-export function IconFlame({ size = 16, className, style, filled = false }: IconProps) {
+export function IconFlame({ size = 16, className, style, filled = false }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path
@@ -380,7 +380,7 @@ export function IconFlame({ size = 16, className, style, filled = false }: IconP
   )
 }
 
-export function IconPause({ size = 16, className, style }: IconProps) {
+export function IconPause({ size = 16, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M9 5.5v13M15 5.5v13" />
@@ -389,7 +389,7 @@ export function IconPause({ size = 16, className, style }: IconProps) {
 }
 
 /** Tres puntos — "más opciones". */
-export function IconDots({ size = 18, className, style }: IconProps) {
+export function IconDots({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <circle cx="5" cy="12" r="1.1" fill="currentColor" stroke="none" />
@@ -399,7 +399,7 @@ export function IconDots({ size = 18, className, style }: IconProps) {
   )
 }
 
-export function IconShare({ size = 18, className, style }: IconProps) {
+export function IconShare({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M12 14.5V3.5M8.5 6.5L12 3l3.5 3.5" />
@@ -408,7 +408,7 @@ export function IconShare({ size = 18, className, style }: IconProps) {
   )
 }
 
-export function IconTrash({ size = 16, className, style }: IconProps) {
+export function IconTrash({ size = 16, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M4 6.5h16M9.5 6.5V4.8a1.3 1.3 0 0 1 1.3-1.3h2.4a1.3 1.3 0 0 1 1.3 1.3v1.7" />
@@ -417,7 +417,7 @@ export function IconTrash({ size = 16, className, style }: IconProps) {
   )
 }
 
-export function IconArrowUp({ size = 16, className, style }: IconProps) {
+export function IconArrowUp({ size = 16, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M12 19V5M6 11l6-6 6 6" />
@@ -425,7 +425,7 @@ export function IconArrowUp({ size = 16, className, style }: IconProps) {
   )
 }
 
-export function IconArrowDown({ size = 16, className, style }: IconProps) {
+export function IconArrowDown({ size = 16, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M12 5v14M6 13l6 6 6-6" />
@@ -434,7 +434,7 @@ export function IconArrowDown({ size = 16, className, style }: IconProps) {
 }
 
 /** Cronómetro — sesiones medidas. */
-export function IconTimer({ size = 18, className, style }: IconProps) {
+export function IconTimer({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <circle cx="12" cy="13.5" r="7.5" />
@@ -444,7 +444,7 @@ export function IconTimer({ size = 18, className, style }: IconProps) {
 }
 
 /** Ruta con paradas — "un camino por etapas". */
-export function IconRoute({ size = 18, className, style }: IconProps) {
+export function IconRoute({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <circle cx="6" cy="19" r="2.4" />
@@ -457,7 +457,7 @@ export function IconRoute({ size = 18, className, style }: IconProps) {
 /* ===== Áreas (nichos) — un trazo por área, mismo lenguaje del set ======== */
 
 /** Corazón con pulso — salud y cuerpo. */
-export function IconHeartPulse({ size = 18, className, style }: IconProps) {
+export function IconHeartPulse({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M12 20.5S3 14.7 3 8.9C3 6 5.2 4 7.7 4c1.8 0 3.3 1 4.3 2.5C13 5 14.5 4 16.3 4 18.8 4 21 6 21 8.9c0 5.8-9 11.6-9 11.6Z" />
@@ -467,7 +467,7 @@ export function IconHeartPulse({ size = 18, className, style }: IconProps) {
 }
 
 /** Monedas — finanzas. */
-export function IconCoins({ size = 18, className, style }: IconProps) {
+export function IconCoins({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <ellipse cx="12" cy="6" rx="7.5" ry="3.2" />
@@ -478,7 +478,7 @@ export function IconCoins({ size = 18, className, style }: IconProps) {
 }
 
 /** Maletín — carrera y trabajo. */
-export function IconBriefcase({ size = 18, className, style }: IconProps) {
+export function IconBriefcase({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <rect x="3" y="7.5" width="18" height="12.5" rx="2.5" />
@@ -488,7 +488,7 @@ export function IconBriefcase({ size = 18, className, style }: IconProps) {
 }
 
 /** Libro abierto — aprendizaje. */
-export function IconBook({ size = 18, className, style }: IconProps) {
+export function IconBook({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M12 6.5C10.5 4.8 8.2 4 5.5 4c-1 0-1.9.1-2.5.3v14.4c.6-.2 1.5-.3 2.5-.3 2.7 0 5 .8 6.5 2.5 1.5-1.7 3.8-2.5 6.5-2.5 1 0 1.9.1 2.5.3V4.3C20.4 4.1 19.5 4 18.5 4c-2.7 0-5 .8-6.5 2.5Z" />
@@ -498,7 +498,7 @@ export function IconBook({ size = 18, className, style }: IconProps) {
 }
 
 /** Dos personas — relaciones. */
-export function IconUsers({ size = 18, className, style }: IconProps) {
+export function IconUsers({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <circle cx="9" cy="8" r="3.5" />
@@ -509,7 +509,7 @@ export function IconUsers({ size = 18, className, style }: IconProps) {
 }
 
 /** Pincel — crear y publicar. */
-export function IconBrush({ size = 18, className, style }: IconProps) {
+export function IconBrush({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M20.8 3.2c-3.6 1.5-7.4 4.6-9.6 7.6l2 2c3-2.2 6.1-6 7.6-9.6Z" />
@@ -519,7 +519,7 @@ export function IconBrush({ size = 18, className, style }: IconProps) {
 }
 
 /** Hoja — bienestar. */
-export function IconLeaf({ size = 18, className, style }: IconProps) {
+export function IconLeaf({ size = 18, className, style }: Readonly<IconProps>) {
   return (
     <svg {...base(size)} className={className} style={style} aria-hidden="true">
       <path d="M5 19C5 9.5 11 4 20.5 3.5 21 13 15.5 19 6 19" />

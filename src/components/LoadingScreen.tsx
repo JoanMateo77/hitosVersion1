@@ -4,7 +4,7 @@ interface LoadingScreenProps {
 
 /** Pantalla de carga a pantalla completa; muestra el error si algo falló.
  *  Spinner = tres puntos verdes en stagger, los hitos del camino caminando. */
-export function LoadingScreen({ error }: LoadingScreenProps) {
+export function LoadingScreen({ error }: Readonly<LoadingScreenProps>) {
   return (
     <div className="screen loading-screen">
       {error ? (

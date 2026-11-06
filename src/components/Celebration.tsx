@@ -16,7 +16,7 @@ interface CelebrationProps {
  * Se va por su propia animación (`won-out`), no por un temporizador: si el
  * usuario tiene reduced-motion la regla global la acorta y `onDone` llega igual.
  */
-export function Celebration({ title, onDone }: CelebrationProps) {
+export function Celebration({ title, onDone }: Readonly<CelebrationProps>) {
   useEffect(() => {
     successHaptic()
   }, [])

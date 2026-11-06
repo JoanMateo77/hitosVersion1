@@ -13,7 +13,7 @@ const R = 80
 const CIRCUMFERENCE = 2 * Math.PI * R
 
 /** Anillo de progreso de la sesión en curso (cronómetro / contador). */
-export function SessionRing({ progress, children, reached }: SessionRingProps) {
+export function SessionRing({ progress, children, reached }: Readonly<SessionRingProps>) {
   const clamped = Math.max(0, Math.min(1, progress))
   return (
     <div className={`ring${reached ? ' ring--reached' : ''}`}>

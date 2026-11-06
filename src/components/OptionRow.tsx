@@ -27,7 +27,7 @@ export function OptionRow({
   disabled = false,
   busy = false,
   onClick,
-}: OptionRowProps) {
+}: Readonly<OptionRowProps>) {
   return (
     <button
       type="button"
