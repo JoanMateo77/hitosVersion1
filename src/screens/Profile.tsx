@@ -368,7 +368,7 @@ export function ProfileScreen() {
         {push !== 'unsupported' && push !== 'blocked' && (
           <div className="row row--between" style={{ alignItems: 'center' }}>
             <span className="small">
-              Recordatorio de sesión
+              {'Recordatorio de sesión'}
               <span className="field__hint" style={{ display: 'block' }}>
                 Te avisamos a la hora de cada sesión con horario.
               </span>

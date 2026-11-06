@@ -264,9 +264,9 @@ export function CoachPanel({
       )}
 
       {error && (
-        <p className="tiny faint" role="status">
+        <output className="tiny faint" style={{ display: 'block' }}>
           {error}
-        </p>
+        </output>
       )}
 
       {phase.kind === 'planned' && plan && (

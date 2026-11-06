@@ -17,7 +17,7 @@ export function ThemeSwitcher({ variant = 'compact' }: Readonly<{ variant?: Vari
 
   if (variant === 'stack') {
     return (
-      <div className="themeswitch" role="group" aria-label="Tema">
+      <fieldset className="themeswitch fieldset--plain" aria-label="Tema">
         {THEMES.map((t) => {
           const Icon = THEME_ICONS[t.id]
           return (
@@ -32,12 +32,12 @@ export function ThemeSwitcher({ variant = 'compact' }: Readonly<{ variant?: Vari
             </button>
           )
         })}
-      </div>
+      </fieldset>
     )
   }
 
   return (
-    <div className="seg" role="group" aria-label="Tema">
+    <fieldset className="seg" aria-label="Tema">
       {THEMES.map((t) => {
         const Icon = THEME_ICONS[t.id]
         return (
@@ -54,6 +54,6 @@ export function ThemeSwitcher({ variant = 'compact' }: Readonly<{ variant?: Vari
           </button>
         )
       })}
-    </div>
+    </fieldset>
   )
 }

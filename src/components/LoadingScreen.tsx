@@ -15,11 +15,11 @@ export function LoadingScreen({ error }: Readonly<LoadingScreenProps>) {
           </button>
         </div>
       ) : (
-        <div className="spinner" role="status" aria-label="Cargando">
+        <output className="spinner" aria-label="Cargando">
           <span />
           <span />
           <span />
-        </div>
+        </output>
       )}
     </div>
   )

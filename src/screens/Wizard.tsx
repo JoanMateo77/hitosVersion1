@@ -46,6 +46,7 @@ import {
   typeLabelFor,
   type TypeSuggestionDraft,
 } from '@/components/wizard/typeDraft'
+import { focusOnMount } from '@/lib/focus'
 
 /** Pasos del wizard: título · tipo · compromiso · camino · ancla · resumen. */
 const STEPS = 6
@@ -477,8 +478,8 @@ export function Wizard() {
         {step === 0 && (
           <Question title="¿Qué quieres lograr?" hint={`Una frase clara. Ej: “Aprender inglés” o “Bajar 5${NBSP}kg”.`}>
             <input
+              ref={focusOnMount}
               className="input"
-              autoFocus
               aria-label="¿Qué quieres lograr?"
               placeholder="Escribe tu meta…"
               value={title}
@@ -595,8 +596,8 @@ export function Wizard() {
             hint="Tu motivo, la fecha límite y cómo sabrás que la lograste. Los tres son opcionales."
           >
             <textarea
+              ref={focusOnMount}
               className="textarea"
-              autoFocus
               aria-label="¿Por qué quieres lograrlo?"
               placeholder="Porque…"
               value={why}

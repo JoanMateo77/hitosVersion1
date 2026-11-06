@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Task } from '@/lib/types'
 import { tapHaptic } from '@/lib/haptics'
 import { IconArrowDown, IconArrowReturn, IconCheck, IconPencil, IconTrash } from '@/components/icons'
+import { focusOnMount } from '@/lib/focus'
 
 interface TaskItemProps {
   task: Task
@@ -44,7 +45,7 @@ export function TaskItem({
       <li className="task">
         <input
           className="input"
-          autoFocus
+          ref={focusOnMount}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {

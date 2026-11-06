@@ -134,9 +134,9 @@ export function CoachThread({ chat, empty }: Readonly<{ chat: CoachChat; empty?:
         </p>
       )}
       {chat.error && (
-        <p className="tiny faint" role="status">
+        <output className="tiny faint" style={{ display: 'block' }}>
           {chat.error}
-        </p>
+        </output>
       )}
       <div ref={end} />
     </div>

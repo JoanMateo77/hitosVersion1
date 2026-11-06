@@ -90,6 +90,7 @@ import { useToast } from '@/app/toast'
 import { sessionCache } from '@/lib/sessionCache'
 import { useCacheMirror } from '@/hooks/useCacheMirror'
 import { WEEKDAY_ABBR } from '@/domain/weekdays'
+import { focusOnMount } from '@/lib/focus'
 
 type View = 'day' | 'week' | 'month'
 
@@ -1760,8 +1761,8 @@ function EventEditor({
           </div>
 
           <input
+            ref={focusOnMount}
             className="input"
-            autoFocus
             placeholder="¿Qué tienes? Ej: Clase de inglés"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -1781,7 +1782,7 @@ function EventEditor({
               value={eventDate}
               onChange={(e) => setEventDate(e.target.value)}
             />
-            <div className="seg" role="group" aria-label="Tipo de evento" style={{ alignSelf: 'flex-start' }}>
+            <fieldset className="seg" aria-label="Tipo de evento" style={{ alignSelf: 'flex-start' }}>
               <button
                 type="button"
                 className={`seg__btn${allDay ? ' seg__btn--active' : ''}`}
@@ -1798,7 +1799,7 @@ function EventEditor({
               >
                 Con horario
               </button>
-            </div>
+            </fieldset>
             {!allDay && (
               <>
                 <div className="row">

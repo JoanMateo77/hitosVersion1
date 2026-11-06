@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { updatePassword } from '@/services/auth'
 import { PathIllustration } from '@/components/PathIllustration'
+import { focusOnMount } from '@/lib/focus'
 
 /**
  * El enlace de "olvidé mi contraseña" inicia sesión pero no la cambia: esta
@@ -70,7 +71,7 @@ export function UpdatePassword({ onDone }: Readonly<{ onDone: () => void }>) {
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={6}
-            autoFocus
+            ref={focusOnMount}
           />
         </div>
         <div className="field">

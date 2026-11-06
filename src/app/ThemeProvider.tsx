@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { applyTheme, readTheme, type Theme } from '@/app/theme'
 
 interface ThemeContextValue {
@@ -14,9 +14,9 @@ const ThemeContext = createContext<ThemeContextValue | null>(null)
  * El tema inicial ya lo aplica el script inline de index.html (sin parpadeo).
  */
 export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const [theme, setThemeState] = useState<Theme>(readTheme)
-  const setTheme = useCallback((next: Theme) => {
-    setThemeState(next)
+  const [theme, setTheme] = useState<Theme>(readTheme)
+  const changeTheme = useCallback((next: Theme) => {
+    setTheme(next)
     applyTheme(next)
   }, [])
   // En modo Sistema, seguir los cambios de apariencia del SO en vivo.
@@ -27,7 +27,8 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
     mq.addEventListener('change', onChange)
     return () => mq.removeEventListener('change', onChange)
   }, [theme])
-  return <ThemeContext.Provider value={{ theme, setTheme }}>{children}</ThemeContext.Provider>
+  const value = useMemo(() => ({ theme, setTheme: changeTheme }), [theme, changeTheme])
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }
 
 export function useTheme(): ThemeContextValue {

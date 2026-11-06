@@ -264,7 +264,7 @@ export function CommitmentStep({
 
   return (
     <div className="stack">
-      <div className="row wrap" role="group" aria-label="Atajos de días">
+      <fieldset className="row wrap" aria-label="Atajos de días">
         {WEEKDAY_PRESETS.map((preset) => {
           const active =
             preset.days.length === selectedDays.length &&
@@ -281,9 +281,9 @@ export function CommitmentStep({
             </button>
           )
         })}
-      </div>
+      </fieldset>
 
-      <div className="row wrap wizard-days" role="group" aria-label="¿Qué días le vas a dedicar?">
+      <fieldset className="row wrap wizard-days" aria-label="¿Qué días le vas a dedicar?">
         {WEEKDAY_SHORT.map((label, weekday) => (
           <button
             key={label}
@@ -295,7 +295,7 @@ export function CommitmentStep({
             {label}
           </button>
         ))}
-      </div>
+      </fieldset>
 
       <div className="row wrap">
         <button
@@ -313,7 +313,7 @@ export function CommitmentStep({
         </output>
       )}
 
-      <div className="row" role="group" aria-label="Cómo se mide cada sesión">
+      <fieldset className="row" aria-label="Cómo se mide cada sesión">
         <button
           type="button"
           className={`chip${kind === 'time' ? ' chip--selected' : ''}`}
@@ -353,7 +353,7 @@ export function CommitmentStep({
             ))}
           </select>
         )}
-      </div>
+      </fieldset>
 
       {!perDay && selectedDays.length > 0 && (
         <div className="card card--tight stack stack--sm">

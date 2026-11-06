@@ -447,9 +447,9 @@ function TimeRunner({
         </div>
       )}
       {awayNotice && (
-        <p className="small muted center" role="status" style={{ maxWidth: 360 }}>
+        <output className="small muted center" style={{ display: 'block', maxWidth: 360 }}>
           {awayNotice}
-        </p>
+        </output>
       )}
       {!earlyFinish ? (
         <div className="row" style={{ width: '100%' }}>
@@ -834,9 +834,9 @@ export function SessionRun() {
     <main className="screen screen--full flow-screen flow-screen--session" style={goalAccent(goal)}>
       <div className="row" style={{ marginBottom: 'var(--s4)', minHeight: 34, alignItems: 'center' }}>
         {focusLocked ? (
-          <span className="small faint" role="status">
+          <output className="small faint">
             Modo enfoque — pausa el reloj para salir
-          </span>
+          </output>
         ) : (
           /* Con texto: en esta pantalla sin navegación, una flecha sola no orienta.
              El Atrás canónico de la app (.back-link). */

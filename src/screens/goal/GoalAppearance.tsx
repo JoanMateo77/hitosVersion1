@@ -216,7 +216,7 @@ export function GoalAppearance({
       {goal.coverPath && (
         <div className="row row--between goal-appearance__toggle">
           <span className="small">
-            Mostrar también en la tarjeta
+            {'Mostrar también en la tarjeta'}
             <span className="field__hint" style={{ display: 'block' }}>
               En la cabecera de la meta se ve siempre.
             </span>

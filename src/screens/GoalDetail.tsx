@@ -1399,7 +1399,7 @@ function GoalEditor({
         <span className="field__label" id="edit-area-label">
           Área
         </span>
-        <div className="row wrap" role="group" aria-labelledby="edit-area-label">
+        <fieldset className="row wrap" aria-labelledby="edit-area-label">
           {NICHES.map((n) => (
             <button
               key={n.id}
@@ -1411,7 +1411,7 @@ function GoalEditor({
               {n.label}
             </button>
           ))}
-        </div>
+        </fieldset>
       </div>
       <div className="field">
         <label className="field__label" htmlFor="edit-criteria">

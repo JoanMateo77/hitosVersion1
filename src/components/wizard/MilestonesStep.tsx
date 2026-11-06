@@ -10,6 +10,7 @@ import {
   IconPlus,
   IconTrash,
 } from '@/components/icons'
+import { focusOnMount } from '@/lib/focus'
 
 /** Sugerencia del coach ubicada en el camino: va antes de la etapa `index`. */
 export interface GhostStage {
@@ -134,7 +135,7 @@ export function MilestonesStep({ milestones, onChange, ghosts = [], onAcceptGhos
             {editingIndex === index ? (
               <input
                 className="input mstone__input"
-                autoFocus
+                ref={focusOnMount}
                 defaultValue={m.title}
                 maxLength={200}
                 aria-label={`Editar la etapa ${index + 1}`}
