@@ -16,7 +16,8 @@
     "check:api": "node scripts/check-api.mjs",
     "check:contrast": "node scripts/check-contrast.mjs",
     "shots": "node e2e/shots.mjs",
-    "probe:ai": "node --env-file=.env scripts/probe-ai.mjs"
+    "probe:ai": "node --env-file=.env scripts/probe-ai.mjs",
+    "e2e:coach": "playwright test -c e2e/coach.config.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.48.1",

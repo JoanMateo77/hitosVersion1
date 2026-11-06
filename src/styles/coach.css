@@ -346,8 +346,14 @@
 .coach-sheet {
   gap: var(--s4);
 }
+/* El hilo es lo único que scrollea: con una conversación larga, la cabecera y
+   la caja de texto quedan fijas. Sin esto el hilo se encogía dentro del alto
+   máximo de la hoja y sus mensajes desbordaban encima de la caja, tapándola. */
 .coach-sheet .coach-thread {
+  flex: 1 1 auto;
   min-height: 120px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* ---- Botón ✦: junto a Continuar en el asistente; flotante en el resto ---- */
