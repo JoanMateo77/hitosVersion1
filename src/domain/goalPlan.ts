@@ -148,13 +148,25 @@ function stageRules(input: GoalPlanInput): string[] {
   ]
 }
 
+/**
+ * Fecha de hoy y semanas hasta la fecha límite: sin esto el modelo no sabe
+ * cuánto plazo hay y arma caminos que no lo cubren o no caben.
+ */
+export function timeData(targetDate: string | null | undefined, today: Date): string[] {
+  const lines = [`<hoy>${today.toISOString().slice(0, 10)}</hoy>`]
+  const date = clean(targetDate, 10)
+  if (date) lines.push(`<fecha_limite>${date}</fecha_limite>`)
+  const weeks = weeksUntil(date, today)
+  if (weeks !== null) lines.push(`<semanas_disponibles>${weeks}</semanas_disponibles>`)
+  return lines
+}
+
 /** Bloque de datos de la meta, siempre delimitado: el modelo lo trata como datos. */
-function goalData(input: GoalPlanInput, signalLines: string[]): string[] {
+function goalData(input: GoalPlanInput, signalLines: string[], today: Date): string[] {
   const lines = [`<meta>${clean(input.title)}</meta>`, `<tipo>${clean(input.typeLabel)}</tipo>`]
   const why = clean(input.why)
   if (why) lines.push(`<motivo>${why}</motivo>`)
-  const date = clean(input.targetDate, 10)
-  if (date) lines.push(`<fecha_limite>${date}</fecha_limite>`)
+  lines.push(...timeData(input.targetDate, today))
   if (input.weeklyMinutes && input.weeklyMinutes > 0) {
     lines.push(`<tiempo_semanal_comprometido>${Math.round(input.weeklyMinutes)} minutos</tiempo_semanal_comprometido>`)
   }
@@ -173,24 +185,34 @@ function goalData(input: GoalPlanInput, signalLines: string[]): string[] {
   return lines
 }
 
-export function buildQuestionsPrompt(input: GoalPlanInput, signalLines: string[] = []): string {
+export function buildQuestionsPrompt(input: GoalPlanInput, signalLines: string[] = [], today = new Date()): string {
   return [
     areaGuide(input.area ?? 'otra'),
     `Antes de planificar, decide qué te falta saber para que el plan sea realista. Haz entre 1 y ${MAX_QUESTIONS} preguntas cortas, las de mayor impacto (punto de partida, recursos, restricciones).`,
+    'Si la meta es una cantidad (dinero, kilos, kilómetros, páginas), una pregunta es cuánto lleva ya.',
     'No preguntes lo que ya está en los datos (fecha, motivo, tiempo semanal comprometido, historial).',
     'Cada pregunta trae 2 a 4 opciones de respuesta breves y concretas (máx. 5 palabras cada una).',
-    ...goalData(input, signalLines),
+    ...goalData(input, signalLines, today),
   ].join('\n')
 }
 
-export function buildGoalPlanPrompt(input: GoalPlanInput, signalLines: string[] = []): string {
+/** Reglas de contenido del camino: comunes a planear y pulir. */
+const PLAN_RULES = [
+  'Cada etapa: título corto (máx. 8 palabras), objetivo en una frase, semanas estimadas, 1 a 3 primeras acciones que se hagan en una sesión, y una señal de éxito observable.',
+  'Si hay <semanas_disponibles>, las semanas de las etapas suman aproximadamente ese número: el camino cubre el plazo, sin pasarse ni quedarse corto.',
+  'Si la meta es una cantidad (dinero, kilos, kilómetros, páginas), calcula el ritmo necesario (por mes o por semana) con el plazo y compáralo con lo que la persona contó. Escribe montos y ritmos concretos en las acciones. Si no alcanza, dilo en summary con los números y arma el camino más cercano posible.',
+  'Cada respuesta de la persona tiene que notarse en al menos una etapa o en summary; no ignores ninguna.',
+  'La última etapa se valida con una prueba real fuera de la app (otra persona, un examen, un resultado verificable), no solo con una simulación.',
+]
+
+export function buildGoalPlanPrompt(input: GoalPlanInput, signalLines: string[] = [], today = new Date()): string {
   return [
     areaGuide(input.area ?? 'otra'),
     ...stageRules(input),
-    'Cada etapa: título corto (máx. 8 palabras), objetivo en una frase, semanas estimadas, 1 a 3 primeras acciones que se hagan en una sesión, y una señal de éxito observable.',
+    ...PLAN_RULES,
     'summary: el enfoque en 1–2 frases, mencionando el punto de partida. weeklyMinutes: minutos por semana que el plan necesita (no más que el tiempo comprometido, si lo hay).',
     'No incluyas changeNote.',
-    ...goalData(input, signalLines),
+    ...goalData(input, signalLines, today),
   ].join('\n')
 }
 
@@ -199,13 +221,15 @@ export function buildRefinePrompt(
   plan: GoalPlan,
   instruction: string,
   signalLines: string[] = [],
+  today = new Date(),
 ): string {
   return [
     areaGuide(input.area ?? 'otra'),
     'La persona quiere ajustar las sugerencias. Aplica su pedido manteniendo el método; conserva lo que no hace falta cambiar.',
     ...stageRules(input),
+    ...PLAN_RULES,
     'Devuelve todas las sugerencias actualizadas y en changeNote una frase que diga qué cambió.',
-    ...goalData(input, signalLines),
+    ...goalData(input, signalLines, today),
     `<plan_actual>${JSON.stringify({ summary: plan.summary, weeklyMinutes: plan.weeklyMinutes, stages: plan.stages })}</plan_actual>`,
     `<pedido>${clean(instruction, 300)}</pedido>`,
   ].join('\n')
@@ -337,6 +361,9 @@ export function parseQuestions(raw: unknown): ClarifyingQuestion[] | null {
   return questions.length > 0 ? questions : null
 }
 
+/** Un camino que usa menos de esta fracción del plazo deja la meta sin plan al final. */
+const UNDERUSE_RATIO = 0.6
+
 /** Semanas completas entre hoy y la fecha límite (yyyy-mm-dd), o null. */
 function weeksUntil(targetDate: string | null | undefined, today: Date): number | null {
   if (!targetDate || !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) return null
@@ -360,10 +387,16 @@ export function checkPlanRealism(plan: GoalPlan, input: GoalPlanInput, today = n
   const total = plan.stages.reduce((sum, s) => sum + s.weeks, 0)
   const weeks = weeksUntil(input.targetDate, today)
   // Con etapas propias (sin semanas) la suma no describe el camino entero.
-  if (currentStages(input).length === 0 && weeks !== null && weeks > 0 && total > weeks + 1) {
-    issues.push(
-      `Las etapas suman ${total} semanas y solo quedan ${weeks} hasta la fecha límite. Comprime el camino o ajusta el alcance y dilo en el resumen.`,
-    )
+  if (currentStages(input).length === 0 && weeks !== null && weeks > 0) {
+    if (total > weeks + 1) {
+      issues.push(
+        `Las etapas suman ${total} semanas y solo quedan ${weeks} hasta la fecha límite. Comprime el camino o ajusta el alcance y dilo en el resumen.`,
+      )
+    } else if (total < weeks * UNDERUSE_RATIO) {
+      issues.push(
+        `Las etapas suman ${total} semanas y quedan ${weeks} hasta la fecha límite. Reparte el camino en todo el plazo (más semanas por etapa o una etapa más) en vez de dejarlo sin usar.`,
+      )
+    }
   }
   return issues
 }

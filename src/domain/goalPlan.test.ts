@@ -120,6 +120,29 @@ describe('prompts del coach', () => {
     expect(buildQuestionsPrompt(input)).toContain('No preguntes lo que ya está en los datos')
   })
 
+  it('dicen la fecha de hoy y las semanas que quedan hasta la fecha límite', () => {
+    const today = new Date('2026-11-06T15:00:00Z')
+    const dated = { ...input, targetDate: '2027-03-01' }
+    for (const p of [buildGoalPlanPrompt(dated, [], today), buildQuestionsPrompt(dated, [], today)]) {
+      expect(p).toContain('<hoy>2026-11-06</hoy>')
+      expect(p).toContain('<semanas_disponibles>16</semanas_disponibles>')
+    }
+    // Sin fecha límite no se inventan semanas.
+    expect(buildGoalPlanPrompt(input, [], today)).not.toMatch(/<semanas_disponibles>\d/)
+  })
+
+  it('el plan pide cuentas con números, usar cada respuesta, cubrir el plazo y una prueba real', () => {
+    const p = buildGoalPlanPrompt(input)
+    expect(p).toContain('ritmo necesario')
+    expect(p).toContain('Cada respuesta de la persona')
+    expect(p).toContain('semanas_disponibles')
+    expect(p).toContain('prueba real')
+  })
+
+  it('las preguntas piden el punto de partida de una meta medible', () => {
+    expect(buildQuestionsPrompt(input)).toContain('cuánto lleva')
+  })
+
   it('el pulido incluye el plan actual y el pedido delimitados', () => {
     const plan: GoalPlan = { schemaVersion: 1, summary: 's', weeklyMinutes: 90, stages: [] }
     const p = buildRefinePrompt(input, plan, 'más suave', [])
@@ -150,6 +173,19 @@ describe('checkPlanRealism', () => {
     expect(issues).toHaveLength(2)
     expect(issues[0]).toContain('300 min')
     expect(issues[1]).toContain('12 semanas')
+  })
+
+  it('detecta un camino que deja sin usar buena parte del plazo', () => {
+    // 6 semanas de etapas cuando quedan 34.
+    const issues = checkPlanRealism(plan(60, [2, 2, 2]), { title: 't', typeLabel: 't', targetDate: '2027-06-26' }, today)
+    expect(issues).toHaveLength(1)
+    expect(issues[0]).toContain('6 semanas')
+    expect(issues[0]).toContain('34')
+  })
+
+  it('con etapas propias no juzga la suma de semanas', () => {
+    const input = { title: 't', typeLabel: 't', targetDate: '2027-06-26', currentStages: ['Una'] }
+    expect(checkPlanRealism(plan(60, [1]), input, today)).toEqual([])
   })
 })
 
