@@ -29,10 +29,12 @@
   padding-bottom: calc(var(--safe-bottom) + var(--s6));
   display: flex;
   flex-direction: column;
+  position: relative;
+  isolation: isolate;
 }
 
 .screen__header {
-  margin-bottom: var(--s5);
+  margin-bottom: var(--s6);
 }
 
 .screen__title {
@@ -45,8 +47,9 @@
 
 .screen__subtitle {
   color: var(--text-muted);
-  font-size: var(--fs-sm);
-  margin-top: var(--s1);
+  font-size: var(--fs-md);
+  margin-top: var(--s2);
+  line-height: var(--lh-snug);
 }
 
 /* ---- Utilidades --------------------------------------------------------- */
@@ -417,7 +420,7 @@ fieldset.row {
 }
 .task__title {
   font-weight: 500;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .task--done .task__title {
   text-decoration: line-through;
@@ -465,6 +468,7 @@ fieldset.row {
   background: var(--state-ok);
   border-color: var(--state-ok);
   color: var(--state-ok-ink);
+  animation: check-pop var(--dur-state) var(--ease-spring);
 }
 
 /* Glyph de nicho en la fila de hábito: alinea el ícono con la primera línea
@@ -487,6 +491,7 @@ fieldset.row {
   color: var(--text-muted);
   font-size: var(--fs-xs);
   font-weight: 600;
+  border: 1px solid var(--border-soft);
 }
 
 /* .goals-grid: vive en screens/metas.css. */
@@ -581,17 +586,24 @@ fieldset.row {
   border-radius: var(--radius-lg);
   padding: var(--s4) var(--s5);
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 8%, transparent);
 }
-/* Grano sutil para que la "tarjeta especial" tenga textura, no plástico. */
+/* Bloom del color del área por detrás del contenido. */
 .focus-card::before {
   content: '';
   position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.6 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   opacity: 0.04;
   mix-blend-mode: overlay;
   pointer-events: none;
+  top: -40%;
+  left: -10%;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--vivid, transparent) 10%, transparent),
+    transparent 70%
+  );
 }
 .focus-card > * {
   position: relative;
@@ -805,6 +817,8 @@ fieldset.row {
   -webkit-backdrop-filter: saturate(1.6) blur(18px);
   backdrop-filter: saturate(1.6) blur(18px);
   border-top: 1px solid var(--border-soft);
+  /* Fuera del cross-fade de root: no parpadea en cada cambio de ruta. */
+  view-transition-name: bottomnav;
 }
 .bottomnav__inner {
   position: relative;
@@ -916,6 +930,8 @@ fieldset.row {
   color: var(--text);
   font-weight: 600;
   margin-bottom: var(--s1);
+  font-size: var(--fs-lg);
+  line-height: var(--lh-snug);
 }
 
 /* ---- Alertas / banners -------------------------------------------------- */
@@ -1193,7 +1209,7 @@ fieldset.row {
 }
 .ev__title {
   font-weight: 500;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .iconbtn--sm {
@@ -1306,6 +1322,10 @@ fieldset.row {
 select.input {
   appearance: none;
   -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%239fadc9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 40px;
 }
 
 /* ---- Realces del tema neón --------------------------------------------- */
@@ -1433,6 +1453,8 @@ select.input {
   -webkit-user-select: none;
   user-select: none;
   transition: transform var(--dur-state) var(--ease-out);
+  /* Fuera del cross-fade de root: no parpadea en cada cambio de ruta. */
+  view-transition-name: topbar;
 }
 /* Al scrollear hacia abajo la barra cede el espacio al contenido; vuelve al
    subir o al llegar arriba (lo maneja TopBar.tsx). reduced-motion la deja fija
@@ -1493,6 +1515,8 @@ select.input {
 /* Barra lateral (escritorio): oculta por defecto, se enciende en el breakpoint */
 .sidenav {
   display: none;
+  /* Fuera del cross-fade de root: no parpadea en cada cambio de ruta. */
+  view-transition-name: sidenav;
 }
 
 /* Selector de tema, variante apilada (sidebar): pista iOS en --surface-2, el
@@ -1776,22 +1800,6 @@ select.input {
    tokens vía color-mix, así los 3 temas quedan sincronizados.
    ============================================================================ */
 
-/* Tipografía */
-.screen__title {
-  font-size: 30px;
-  font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-}
-.screen__subtitle {
-  font-size: var(--fs-md);
-  line-height: var(--lh-snug);
-  margin-top: var(--s2);
-}
-.screen__header {
-  margin-bottom: var(--s6);
-}
-
 /* Elevación: la superficie es plana; las tarjetas se separan por contraste. */
 .task,
 .ev {
@@ -1834,52 +1842,14 @@ select.input {
   transform: scale(0.99);
 }
 
-/* Focus-card: el elemento estrella con un bloom del color del área por detrás */
-.focus-card {
-  position: relative;
-  overflow: hidden;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 8%, transparent);
-}
-.focus-card::before {
-  content: '';
-  position: absolute;
-  top: -40%;
-  left: -10%;
-  width: 220px;
-  height: 220px;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--vivid, transparent) 10%, transparent),
-    transparent 70%
-  );
-  pointer-events: none;
-}
-.focus-card > * {
-  position: relative;
-}
-/* Inputs: anillo de foco suave + flecha del select (que hoy no se ve) */
+/* Inputs: anillo de foco suave */
 .input:focus,
 .textarea:focus,
 select.input:focus {
   box-shadow: 0 0 0 3px var(--primary-soft);
 }
-select.input {
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%239fadc9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 40px;
-}
 
-/* Estado vacío: título más fuerte */
-.empty__title {
-  font-size: var(--fs-lg);
-  line-height: var(--lh-snug);
-}
-
-/* Completar tarea: pequeño "pop" (respeta prefers-reduced-motion de base.css) */
-.check--done {
-  animation: check-pop var(--dur-state) var(--ease-spring);
-}
+/* "Pop" al completar (.check--done); respeta prefers-reduced-motion de base.css. */
 @keyframes check-pop {
   0% {
     transform: scale(0.8);
@@ -1896,17 +1866,8 @@ select.input {
   transition: opacity var(--dur-state) var(--ease-out);
 }
 
-/* Tag con hairline (más nítido en claro) */
-.tag {
-  border: 1px solid var(--border-soft);
-}
-
 /* Pantallas completas (login, onboarding, asistente): wordmark grande en
    tinta, sin halo ni degradado azul (el azul es para actuar, no para decorar). */
-.screen--full {
-  position: relative;
-  isolation: isolate;
-}
 .screen--full .brand {
   font-size: var(--fs-3xl);
   color: var(--text);
@@ -2181,19 +2142,6 @@ select.input {
   outline-offset: -4px;
 }
 
-/* Barras fijas con view-transition-name propio: quedan fuera del cross-fade de
-   root, así no parpadean en cada cambio de ruta (lo que el comentario de base.css
-   prometía y antes no existía). */
-.sidenav {
-  view-transition-name: sidenav;
-}
-.topbar {
-  view-transition-name: topbar;
-}
-.bottomnav {
-  view-transition-name: bottomnav;
-}
-
 /* Sección colapsable de metas terminadas/archivadas en la pantalla de Metas. */
 .goals-finished {
   margin-top: var(--s5);
@@ -2264,7 +2212,6 @@ select.input {
 .timeline__title {
   font-weight: 500;
 }
-
 
 /* --- Sesiones del día (Fase 2): tarjeta con tinte sutil por meta --- */
 .session {
@@ -2383,7 +2330,6 @@ select.input {
   font-variant-numeric: tabular-nums;
   font-family: var(--font-display);
 }
-
 
 /* --- Checklist compacto de etapas (detalle de meta y wizard) --- */
 .mstone {
@@ -2903,7 +2849,6 @@ select.input {
   color: inherit;
 }
 
-
 /* ---- Agenda: bloques, rangos y huecos (0014) ----------------------------- */
 /* Sub-lista contenida en la tarjeta: filete teñido del nicho y filas compactas
    sin fondo ni bordes propios (nada de tarjeta-dentro-de-tarjeta). */
@@ -2937,7 +2882,7 @@ select.input {
   font: inherit;
   font-size: var(--fs-sm);
   color: var(--text);
-  word-break: break-word;
+  overflow-wrap: anywhere;
   transition: color var(--dur-tap) var(--ease-out);
 }
 .ev-sub--done .ev-sub__time {
