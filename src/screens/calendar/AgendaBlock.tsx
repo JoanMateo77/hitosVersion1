@@ -5,6 +5,7 @@ import { IconChevronRight, IconPlus } from '@/components/icons'
 import { AgendaRow, TimeColumn, type AgendaRowHandlers } from '@/screens/calendar/AgendaRow'
 import { rowAccent, rowAccentKey } from '@/screens/calendar/rowAccent'
 import { rowTitle, type AgendaRowItem } from '@/screens/calendar/agendaItems'
+import { countLabel } from '@/lib/plural'
 
 /**
  * Bloque de tiempo con dos o más cosas a la vez. Cerrado: rango, títulos en
@@ -33,7 +34,7 @@ export function AgendaBlock({
   const sessions = items.filter((i) => i.kind === 'session').length
   const first = items.find((i) => i.kind === 'session') ?? items[0]
   const titles = items.map(rowTitle).join(' · ')
-  const meta = `${items.length} cosas${sessions > 0 ? ` · ${sessions} ${sessions === 1 ? 'sesión' : 'sesiones'}` : ''}`
+  const meta = sessions > 0 ? `${items.length} cosas · ${countLabel(sessions, 'sesión', 'sesiones')}` : `${items.length} cosas`
   // Un punto por COLOR distinto (área de la meta o color del hábito), no por ítem.
   const dots = new Map<string, AgendaRowItem>()
   for (const it of items) {

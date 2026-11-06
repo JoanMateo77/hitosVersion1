@@ -764,9 +764,7 @@ function ReviewCard({
 }>) {
   const cleanWhy = why.trim()
   const cleanCriteria = criteria.trim()
-  const dateLabel = targetDate
-    ? `${formatLongDate(targetDate)}${relativeDeadline(targetDate) ? ` · ${relativeDeadline(targetDate)}` : ''}`
-    : null
+  const dateLabel = targetDate ? [formatLongDate(targetDate), relativeDeadline(targetDate)].filter(Boolean).join(' · ') : null
   return (
     <div className="fc-card wizard-review" style={nicheAccent(area)}>
       <div className="row" style={{ alignItems: 'center', gap: 'var(--s3)' }}>

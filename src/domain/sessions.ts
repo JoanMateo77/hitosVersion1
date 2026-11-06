@@ -12,11 +12,8 @@ import { addDays, parseISO } from '@/lib/date'
 export function elapsedSeconds(s: Session, now: Date): number {
   if (!s.startedAt) return 0
   const start = new Date(s.startedAt).getTime()
-  const endRef = s.pausedAt
-    ? new Date(s.pausedAt).getTime()
-    : s.endedAt
-      ? new Date(s.endedAt).getTime()
-      : now.getTime()
+  // Se cuenta hasta la pausa, el cierre o ahora (en ese orden).
+  const endRef = new Date(s.pausedAt ?? s.endedAt ?? now).getTime()
   const raw = Math.floor((endRef - start) / 1000) - s.pausedTotalSeconds
   return Math.max(0, raw)
 }

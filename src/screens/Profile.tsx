@@ -343,7 +343,7 @@ export function ProfileScreen() {
       {/* ----- Recordatorios ----- */}
       <section className="card stack stack--sm" aria-label="Recordatorios">
         <h2 className="section-title">Recordatorios</h2>
-        {push === 'unsupported' ? (
+        {push === 'unsupported' && (
           <div className="stack stack--sm">
             <p className="small muted" style={{ margin: 0 }}>Este navegador no permite notificaciones.</p>
             <Disclosure summary="¿Cómo activarlos en iPhone?">
@@ -359,11 +359,13 @@ export function ProfileScreen() {
               </p>
             </Disclosure>
           </div>
-        ) : push === 'blocked' ? (
+        )}
+        {push === 'blocked' && (
           <p className="small muted" style={{ margin: 0 }}>
             Bloqueaste las notificaciones para este sitio. Actívalas desde los ajustes del navegador.
           </p>
-        ) : (
+        )}
+        {push !== 'unsupported' && push !== 'blocked' && (
           <div className="row row--between" style={{ alignItems: 'center' }}>
             <span className="small">
               Recordatorio de sesión

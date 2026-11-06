@@ -3,6 +3,7 @@ import type { ClarifyingQuestion, GoalPlan, GoalPlanInput, QuestionAnswer } from
 import { refineGoalPlan, requestGoalPlan, requestQuestions } from '@/services/goalPlan'
 import type { CoachChat } from '@/hooks/useCoachChat'
 import { CoachComposer, CoachOrb, CoachThread } from '@/components/coach/CoachChatView'
+import { countLabel } from '@/lib/plural'
 
 interface CoachPanelProps {
   input: GoalPlanInput
@@ -39,9 +40,20 @@ const DONT_KNOW = 'No sé todavía'
 
 const key = (titles: readonly string[]) => titles.map((t) => t.trim().toLowerCase()).join('\n')
 
+/** Paso del "pensando…": hecho, en curso o por venir. */
+function stepClass(index: number, current: number): string {
+  if (index < current) return 'done'
+  return index === current ? 'on' : ''
+}
+
+function startLabel(hasPlan: boolean, hasStages: boolean): string {
+  if (hasPlan) return 'Revisar de nuevo con tus cambios'
+  return hasStages ? 'Revisar mi camino' : 'Armar mi camino'
+}
+
 function thinkingSteps(input: GoalPlanInput, stageCount: number): string[] {
   return [
-    stageCount > 0 ? `Leyendo tus ${stageCount} ${stageCount === 1 ? 'etapa' : 'etapas'}` : 'Leyendo tu meta',
+    stageCount > 0 ? `Leyendo tus ${countLabel(stageCount, 'etapa', 'etapas')}` : 'Leyendo tu meta',
     input.weeklyMinutes ? `Comparando con tus ${input.weeklyMinutes} min por semana` : 'Pensando en un ritmo realista',
     'Buscando qué falta y dónde va',
   ]
@@ -238,7 +250,7 @@ export function CoachPanel({
       {phase.kind === 'thinking' && (
         <ul className="coach-steps" aria-live="polite">
           {thinkingSteps(input, stageTitles.length).map((t, i) => (
-            <li key={t} className={i < step ? 'done' : i === step ? 'on' : ''}>
+            <li key={t} className={stepClass(i, step)}>
               {t}
             </li>
           ))}
@@ -247,7 +259,7 @@ export function CoachPanel({
 
       {(phase.kind === 'idle' || (phase.kind === 'planned' && changedSinceAnalysis)) && (
         <button type="button" className="btn btn--primary btn--sm coach__cta" onClick={() => void start()}>
-          {plan ? 'Revisar de nuevo con tus cambios' : hasStages ? 'Revisar mi camino' : 'Armar mi camino'}
+          {startLabel(plan !== null, hasStages)}
         </button>
       )}
 
@@ -273,7 +285,7 @@ export function CoachPanel({
           <div className="row wrap" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s2)' }}>
             <span className="small faint">
               {pendingCount > 0
-                ? `${pendingCount} ${pendingCount === 1 ? 'sugerencia marcada' : 'sugerencias marcadas'} con + en tu camino.`
+                ? `${countLabel(pendingCount, 'sugerencia marcada', 'sugerencias marcadas')} con + en tu camino.`
                 : 'No hay sugerencias pendientes: tu camino se ve completo.'}
             </span>
             {pendingCount > 1 && (

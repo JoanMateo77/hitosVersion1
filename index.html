@@ -26,9 +26,9 @@
       try {
         var raw = localStorage.getItem('hito-theme')
         var pref = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'oscuro' : 'claro'
-        var t = raw === 'claro' || raw === 'oscuro' ? raw
-          : raw === 'negro' || raw === 'neon' ? 'oscuro'
-          : pref
+        var t = pref
+        if (raw === 'claro' || raw === 'oscuro') t = raw
+        else if (raw === 'negro' || raw === 'neon') t = 'oscuro'
         document.documentElement.dataset.theme = t
         var c = { claro: '#f2f2f7', oscuro: '#000000' }[t]
         var metas = document.querySelectorAll('meta[name="theme-color"]')

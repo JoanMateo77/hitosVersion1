@@ -22,7 +22,7 @@ export function Disclosure({
   useEffect(() => setOpen(defaultOpen), [defaultOpen])
   const id = useId()
   return (
-    <div className={`disclosure${open ? ' disclosure--open' : ''}${className ? ` ${className}` : ''}`}>
+    <div className={['disclosure', open && 'disclosure--open', className].filter(Boolean).join(' ')}>
       <button
         type="button"
         className="disclosure__summary"
