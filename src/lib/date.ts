@@ -137,6 +137,12 @@ export function formatDuration(totalMin: number): string {
   return `${h} h ${m} min`
 }
 
+/** Lo hecho o comprometido: "1 h 30 min" si es tiempo; "12 páginas" si es cantidad. */
+export function formatAmount(kind: 'time' | 'count', value: number, unit: string | null): string {
+  if (kind === 'time') return formatDuration(value)
+  return `${value} ${unit ?? ''}`
+}
+
 /** "20:02" → "8:02 pm" (formato 12 horas para mostrar; los inputs siguen nativos). */
 export function formatTime12(hhmm: string): string {
   const [hStr, mStr] = hhmm.split(':')

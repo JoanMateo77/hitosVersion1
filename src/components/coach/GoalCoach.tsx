@@ -20,6 +20,13 @@ function nudgeSeen(goalId: string): boolean {
   }
 }
 
+/** Atajos bajo el chat: los de apertura si no hay mensajes, los del aviso si el último es el aviso. */
+function suggestionChips(pending: boolean, messageCount: number, lastId: string | undefined): readonly string[] {
+  if (pending) return []
+  if (messageCount === 0) return OPEN_CHIPS
+  return lastId === 'local-nudge' ? NUDGE_CHIPS : []
+}
+
 /**
  * "Hablar con la meta": botón ✦ flotante, globo cuando el coach tiene algo
  * útil que decir y la conversación (hoja en móvil, panel lateral en PC). La
@@ -77,7 +84,7 @@ export function GoalCoach({
   }
 
   const last = chat.messages[chat.messages.length - 1]
-  const chips = chat.pending ? [] : chat.messages.length === 0 ? OPEN_CHIPS : last?.id === 'local-nudge' ? NUDGE_CHIPS : []
+  const chips = suggestionChips(chat.pending, chat.messages.length, last?.id)
 
   return (
     <>

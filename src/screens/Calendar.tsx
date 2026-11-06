@@ -67,7 +67,7 @@ import {
   addDays,
   addMonths,
   dayOfMonth,
-  formatDuration,
+  formatAmount,
   formatMonthYear,
   formatTime12,
   formatWeekday,
@@ -130,6 +130,34 @@ function isDesktopWidth(): boolean {
   } catch {
     return false
   }
+}
+
+/** Fin de un evento movido: tope a las 23:59 (sin pasar a la madrugada); sin fin si quedaría antes del inicio. */
+function shiftedEnd(rawMinutes: number, start: string): string | null {
+  if (rawMinutes >= 24 * 60) return '23:59'
+  if (rawMinutes <= timeToMinutes(start)) return null
+  return minutesToTime(rawMinutes)
+}
+
+function eventSaveLabel(saving: boolean, editing: boolean): string {
+  if (saving) return 'Guardando…'
+  return editing ? 'Guardar cambios' : 'Crear evento'
+}
+
+/** Botón de la hoja de un bloque: hoy se empieza o se continúa; otro día, se mira. */
+function openSessionLabel(today: boolean, status: Session['status']): string {
+  if (!today) return 'Ver el detalle de la sesión'
+  return status === 'running' ? 'Continuar la sesión' : 'Empezar ahora'
+}
+
+/**
+ * Hora inicial del editor de eventos: el borrador guardado gana; si se edita
+ * un evento, la suya (o vacío); si es nuevo, la del hueco elegido.
+ */
+function initialTime(draft: unknown, existing: string | null | undefined, preset: string | undefined): string {
+  if (typeof draft === 'string') return draft
+  if (existing !== undefined) return existing ?? ''
+  return preset ?? ''
 }
 
 /** ?d=YYYY-MM-DD válido, o null. */
@@ -660,7 +688,7 @@ export function Calendar() {
     if (end) {
       const raw = timeToMinutes(end) + delta
       // Sin envolver a la madrugada: el rango debe seguir siendo válido.
-      end = raw >= 24 * 60 ? '23:59' : raw <= timeToMinutes(start) ? null : minutesToTime(raw)
+      end = shiftedEnd(raw, start)
     }
     const updated = await updateEvent(e.id, {
       title: e.title,
@@ -800,9 +828,8 @@ export function Calendar() {
         </div>
       )}
 
-      {!ready ? (
-        <LoadingScreen error={error ?? undefined} />
-      ) : view === 'month' ? (
+      {!ready && <LoadingScreen error={error ?? undefined} />}
+      {ready && view === 'month' && (
         <div className="cal-month">
           <div className="cal-month__grid">
             <div className="cal-grid" style={{ marginBottom: 'var(--s2)' }}>
@@ -858,7 +885,8 @@ export function Calendar() {
             <DayAgenda {...dayProps(selected)} />
           </div>
         </div>
-      ) : view === 'week' ? (
+      )}
+      {ready && view === 'week' && (
         <div className="stack cal-week">
           {week.map((day) => {
             const props = dayProps(day)
@@ -883,7 +911,8 @@ export function Calendar() {
             )
           })}
         </div>
-      ) : (
+      )}
+      {ready && view === 'day' && (
         <div className="stack">
           {dayContextBanner}
           <DayAgenda {...dayProps(selected)} />
@@ -1175,11 +1204,7 @@ function BlockSheet({
               className="btn btn--primary btn--block"
               onClick={() => onOpenSession(it.session as Session)}
             >
-              {openToday
-                ? it.session.status === 'running'
-                  ? 'Continuar la sesión'
-                  : 'Empezar ahora'
-                : 'Ver el detalle de la sesión'}
+              {openSessionLabel(openToday, it.session.status)}
             </button>
           ) : (
             <button className="btn btn--primary btn--block" onClick={onSetTime}>
@@ -1533,7 +1558,7 @@ function TimeSheet({
             Sesión de <strong>{goal.title}</strong>
             {block ? ` · todos los ${WEEKDAY_PLURALS[block.weekday]}` : ' · solo este día'}
             {target &&
-              ` · ${target.targetKind === 'time' ? formatDuration(target.targetValue) : `${target.targetValue} ${target.unit ?? ''}`}`}
+              ` · ${formatAmount(target.targetKind, target.targetValue, target.unit)}`}
           </p>
           <input
             className="input"
@@ -1606,7 +1631,7 @@ function EventEditor({
 }>) {
   // Borrador a prueba de la recarga automática de la PWA: lo que escribiste
   // vuelve al reabrir el editor. Guardar, borrar o cerrar a propósito lo limpia.
-  const draftKey = `logralo.event-edit.${initial?.id ?? `new-${date}`}`
+  const draftKey = `logralo.event-edit.${initial?.id ?? 'new-' + date}`
   const [draft] = useState(() =>
     loadFormDraft<{
       title: string
@@ -1630,15 +1655,9 @@ function EventEditor({
     typeof draft?.allDay === 'boolean' ? draft.allDay : (initial?.allDay ?? !presetStart),
   )
   const [startTime, setStartTime] = useState(
-    typeof draft?.startTime === 'string'
-      ? draft.startTime
-      : (initial?.startTime ?? (initial ? '' : (presetStart ?? ''))),
+    initialTime(draft?.startTime, initial ? initial.startTime : undefined, presetStart),
   )
-  const [endTime, setEndTime] = useState(
-    typeof draft?.endTime === 'string'
-      ? draft.endTime
-      : (initial?.endTime ?? (initial ? '' : (presetEnd ?? ''))),
-  )
+  const [endTime, setEndTime] = useState(initialTime(draft?.endTime, initial ? initial.endTime : undefined, presetEnd))
   const [goalId, setGoalId] = useState(
     typeof draft?.goalId === 'string' ? draft.goalId : (initial?.goalId ?? ''),
   )
@@ -1841,7 +1860,7 @@ function EventEditor({
           {err && <div className="alert alert--error">{err}</div>}
 
           <button className="btn btn--primary btn--block" type="submit" disabled={!canSave || saving}>
-            {saving ? 'Guardando…' : initial ? 'Guardar cambios' : 'Crear evento'}
+            {eventSaveLabel(saving, initial !== null)}
           </button>
           {initial && (
             <button

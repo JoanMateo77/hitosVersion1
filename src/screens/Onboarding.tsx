@@ -237,7 +237,7 @@ export function Onboarding() {
                   −
                 </button>
                 <strong style={{ minWidth: 110, textAlign: 'center', fontSize: 'var(--fs-lg)' }}>
-                  {minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60 || ''}${minutes % 60 ? ' min' : ''}` : `${minutes} min`}
+                  {minutesLabel(minutes)}
                 </strong>
                 <button type="button" className="iconbtn" aria-label="Sumar 5 minutos" onClick={() => setMinutes((m) => m + 5)}>
                   +
@@ -292,6 +292,13 @@ function stepDotClass(i: number, current: number): string {
   if (i < current) return 'stepper__dot--done'
   if (i === current) return 'stepper__dot--active'
   return ''
+}
+
+/** "45 min", "1 h" o "1 h 30 min". */
+function minutesLabel(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`
+  const rest = minutes % 60
+  return rest ? `${Math.floor(minutes / 60)} h ${rest} min` : `${Math.floor(minutes / 60)} h`
 }
 
 function Interview({

@@ -21,6 +21,11 @@ const SVG_WIDTH = 36
 const NODE_R = 9
 const HALO_R = 16
 
+function stepState(index: number, current: number): 'done' | 'current' | 'upcoming' {
+  if (index < current) return 'done'
+  return index === current ? 'current' : 'upcoming'
+}
+
 /**
  * "El camino": muestra los hitos como pasos conectados por una curva ondulante.
  *
@@ -73,7 +78,7 @@ export function Roadmap({ milestones, currentIndex = 0, onSelect, intro = false 
           strokeDasharray={`${progressPct} 100`}
         />
         {points.map((p, i) => {
-          const state = i < currentIndex ? 'done' : i === currentIndex ? 'current' : 'upcoming'
+          const state = stepState(i, currentIndex)
           return (
             <g
               key={i}
@@ -96,7 +101,7 @@ export function Roadmap({ milestones, currentIndex = 0, onSelect, intro = false 
       </svg>
       <ol className="roadmap__labels">
         {milestones.map((m, i) => {
-          const state = i < currentIndex ? 'done' : i === currentIndex ? 'current' : 'upcoming'
+          const state = stepState(i, currentIndex)
           const top = PADDING_Y + i * STEP_H - 14
           const content = (
             <span className={`roadmap__label roadmap__label--${state}`}>{m}</span>

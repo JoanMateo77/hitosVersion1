@@ -66,7 +66,10 @@ export function useCoachChat({
           // Cambiamos los ids locales por los reales (para marcar propuestas luego).
           if (saved.length === 2) {
             setMessages((prev) =>
-              prev.map((m) => (m.id === mine.id ? { ...m, id: saved[0].id } : m.id === coach.id ? { ...m, id: saved[1].id } : m)),
+              prev.map((m) => {
+                if (m.id === mine.id) return { ...m, id: saved[0].id }
+                return m.id === coach.id ? { ...m, id: saved[1].id } : m
+              }),
             )
           }
         }

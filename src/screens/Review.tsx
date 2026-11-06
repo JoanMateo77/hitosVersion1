@@ -16,6 +16,7 @@ import { PathIllustration } from '@/components/PathIllustration'
 import { NicheGlyph } from '@/components/NicheGlyph'
 import { goalAccent, goalTone } from '@/lib/goalAccent'
 import { getNiche } from '@/domain/niches'
+import { countLabel } from '@/lib/plural'
 
 /**
  * Revisión semanal guiada (Sección 6): recorre tus metas activas una por una y
@@ -106,7 +107,7 @@ function ReviewSummary({
         </h1>
         <p className="muted">
           {reviewedAny
-            ? `Repasaste ${reviewedCount} de ${total} ${total === 1 ? 'meta' : 'metas'}. Así se mantiene el rumbo.`
+            ? `Repasaste ${reviewedCount} de ${countLabel(total, 'meta', 'metas')}. Así se mantiene el rumbo.`
             : 'No revisaste ninguna meta esta vez. Cuando quieras, la retomas desde aquí.'}
         </p>
         {chips.length > 0 && (
@@ -333,7 +334,7 @@ export function Review() {
         </div>
         <span className="fc-card__meta">
           {weekCount > 0
-            ? `${weekCount} ${weekCount === 1 ? 'sesión cumplida' : 'sesiones cumplidas'} esta semana`
+            ? `${countLabel(weekCount, 'sesión cumplida', 'sesiones cumplidas')} esta semana`
             : 'Sin sesiones esta semana'}
         </span>
       </section>

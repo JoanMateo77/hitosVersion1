@@ -46,7 +46,8 @@ function comparePlanItems(a: CalendarEvent, b: CalendarEvent): number {
     if (b.startTime === null) return -1
     return a.startTime < b.startTime ? -1 : 1
   }
-  return a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0
+  if (a.createdAt === b.createdAt) return 0
+  return a.createdAt < b.createdAt ? -1 : 1
 }
 
 /** Cómo se cierra una sesión: cumplida, a medias o "hoy no pude". */

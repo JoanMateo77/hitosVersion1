@@ -24,6 +24,12 @@ export class UserMessageError extends Error {
   }
 }
 
+/** El texto de un error lanzado (Error o string); vacío si es otra cosa. */
+function errorText(err: unknown): string {
+  if (err instanceof Error) return err.message
+  return typeof err === 'string' ? err : ''
+}
+
 /**
  * Traduce errores técnicos (red, sesión expirada, RLS) a un mensaje claro en
  * español. Para todo lo demás devuelve el `fallback` del caller, que ya viene
@@ -31,8 +37,7 @@ export class UserMessageError extends Error {
  */
 export function friendlyError(err: unknown, fallback: string): string {
   if (err instanceof UserMessageError) return err.message
-  const message =
-    err instanceof Error ? err.message : typeof err === 'string' ? err : ''
+  const message = errorText(err)
   const m = message.toLowerCase()
   if (m.includes('failed to fetch') || m.includes('network') || m.includes('load failed'))
     return 'Hubo un problema de conexión. Revisa tu internet e inténtalo de nuevo.'

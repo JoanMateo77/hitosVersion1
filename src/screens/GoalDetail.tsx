@@ -40,6 +40,7 @@ import {
 } from '@/domain/commitment'
 import {
   addDays,
+  formatAmount,
   formatDuration,
   formatLongDate,
   relativeDeadline,
@@ -79,6 +80,7 @@ import { coachNudge } from '@/domain/coachNudge'
 import type { GoalPlanStage } from '@/domain/goalPlan'
 import { GoalCoach } from '@/components/coach/GoalCoach'
 import { WEEKDAY_SHORT } from '@/domain/weekdays'
+import { countLabel } from '@/lib/plural'
 
 /**
  * Saca una meta borrada del cache de sesión: sin esto, /metas y Hoy la pintan
@@ -227,6 +229,13 @@ async function saveProgressNote(
   await setSessionAccomplishment(created.id, appendAccomplishment(null, note))
 }
 
+/** Etiqueta del check de un hábito vinculado: desmarcar, siguiente repetición o marcar. */
+function linkedHabitLabel(title: string, done: boolean, doneCount: number, target: number): string {
+  if (done) return `Desmarcar hábito de hoy: ${title}`
+  if (target > 1) return `Marcar repetición ${doneCount + 1} de ${target}: ${title}`
+  return `Marcar hábito de hoy: ${title}`
+}
+
 /** "Tu compromiso": la agenda de la meta, con editarla o sacarla de la agenda. */
 function CommitmentSection({
   isActive,
@@ -267,66 +276,66 @@ function CommitmentSection({
           </button>
         )}
       </div>
-      {commitDraft === null ? (
-        blocks.length > 0 ? (
-          <>
-            <div className="row wrap">
-              {blocks.map((b) => (
-                <span key={b.id} className="tag">
-                  {WEEKDAY_SHORT[b.weekday]} · {blockTimeLabel(b)}
-                </span>
-              ))}
-            </div>
-            {isActive &&
-              (!confirmUnschedule ? (
-                <button
-                  className="btn--link"
-                  style={{ fontSize: 'var(--fs-xs)', alignSelf: 'flex-start' }}
-                  onClick={() => onConfirmUnschedule(true)}
-                >
-                  Sacar de la agenda
-                </button>
-              ) : (
-                <div className="card card--tight stack stack--sm" style={{ borderColor: 'var(--danger)' }}>
-                  <p className="small" style={{ margin: 0 }}>
-                    La meta queda sin horario; la seguirás viendo arriba en Hoy. Tu historial se conserva.
-                  </p>
-                  <div className="row wrap">
-                    <button
-                      className="btn btn--danger btn--sm"
-                      disabled={updating}
-                      onClick={onUnschedule}
-                    >
-                      Sacar de la agenda
-                    </button>
-                    <button
-                      className="btn btn--secondary btn--sm"
-                      disabled={updating}
-                      onClick={() => onConfirmUnschedule(false)}
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              ))}
-          </>
-        ) : (
-          <>
-            <p className="small muted" style={{ margin: 0 }}>
-              Sin agenda
-            </p>
-            {isActive && (
+      {commitDraft === null && blocks.length > 0 && (
+        <>
+          <div className="row wrap">
+            {blocks.map((b) => (
+              <span key={b.id} className="tag">
+                {WEEKDAY_SHORT[b.weekday]} · {blockTimeLabel(b)}
+              </span>
+            ))}
+          </div>
+          {isActive &&
+            (!confirmUnschedule ? (
               <button
-                className="btn btn--secondary btn--sm"
-                style={{ alignSelf: 'flex-start' }}
-                onClick={onOpenEditor}
+                className="btn--link"
+                style={{ fontSize: 'var(--fs-xs)', alignSelf: 'flex-start' }}
+                onClick={() => onConfirmUnschedule(true)}
               >
-                Agregar agenda
+                Sacar de la agenda
               </button>
-            )}
-          </>
-        )
-      ) : (
+            ) : (
+              <div className="card card--tight stack stack--sm" style={{ borderColor: 'var(--danger)' }}>
+                <p className="small" style={{ margin: 0 }}>
+                  La meta queda sin horario; la seguirás viendo arriba en Hoy. Tu historial se conserva.
+                </p>
+                <div className="row wrap">
+                  <button
+                    className="btn btn--danger btn--sm"
+                    disabled={updating}
+                    onClick={onUnschedule}
+                  >
+                    Sacar de la agenda
+                  </button>
+                  <button
+                    className="btn btn--secondary btn--sm"
+                    disabled={updating}
+                    onClick={() => onConfirmUnschedule(false)}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ))}
+        </>
+      )}
+      {commitDraft === null && blocks.length === 0 && (
+        <>
+          <p className="small muted" style={{ margin: 0 }}>
+            Sin agenda
+          </p>
+          {isActive && (
+            <button
+              className="btn btn--secondary btn--sm"
+              style={{ alignSelf: 'flex-start' }}
+              onClick={onOpenEditor}
+            >
+              Agregar agenda
+            </button>
+          )}
+        </>
+      )}
+      {commitDraft !== null && (
         <>
           <CommitmentStep
             blocks={commitDraft}
@@ -1076,13 +1085,7 @@ export function GoalDetail() {
                       <button
                         className={`check${done ? ' check--done' : ''}`}
                         onClick={() => toggleLinkedHabit(h)}
-                        aria-label={
-                          done
-                            ? `Desmarcar hábito de hoy: ${h.title}`
-                            : target > 1
-                              ? `Marcar repetición ${doneCount + 1} de ${target}: ${h.title}`
-                              : `Marcar hábito de hoy: ${h.title}`
-                        }
+                        aria-label={linkedHabitLabel(h.title, done, doneCount, target)}
                         aria-pressed={done}
                       >
                         <IconCheck size={16} />
@@ -1163,8 +1166,8 @@ export function GoalDetail() {
                       kicker: 'Logré mi meta',
                       title: goal.title,
                       stats: [
-                        progress.total > 0 ? `${progress.done} ${progress.done === 1 ? 'etapa' : 'etapas'}` : null,
-                        stats.done > 0 ? `${stats.done} ${stats.done === 1 ? 'sesión' : 'sesiones'}` : null,
+                        progress.total > 0 ? countLabel(progress.done, 'etapa', 'etapas') : null,
+                        stats.done > 0 ? countLabel(stats.done, 'sesión', 'sesiones') : null,
                         stats.minutes > 0 ? `${formatDuration(stats.minutes)} invertidas` : null,
                       ]
                         .filter(Boolean)
@@ -1219,9 +1222,7 @@ function AdvancesTimeline({ items }: Readonly<{ items: Session[] }>) {
             <span className="timeline__title">{s.accomplishment}</span>
             <span className="faint tiny">
               {formatLongDate(s.date)}
-              {s.actualValue
-                ? ` · ${s.targetKind === 'time' ? formatDuration(s.actualValue) : `${s.actualValue} ${s.unit ?? ''}`}`
-                : ''}
+              {s.actualValue ? ` · ${formatAmount(s.targetKind, s.actualValue, s.unit)}` : ''}
             </span>
           </div>
         </li>

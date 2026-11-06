@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  formatAmount,
   addDays,
   addMonths,
   dayOfMonth,
@@ -67,5 +68,12 @@ describe('meridiem', () => {
     expect(meridiem('11:59')).toBe('am')
     expect(meridiem('12:00')).toBe('pm')
     expect(meridiem('22:30')).toBe('pm')
+  })
+})
+
+describe('formatAmount', () => {
+  it('tiempo en horas y minutos; cantidad con su unidad', () => {
+    expect(formatAmount('time', 90, null)).toBe('1 h 30 min')
+    expect(formatAmount('count', 12, 'páginas')).toBe('12 páginas')
   })
 })
