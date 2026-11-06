@@ -139,6 +139,30 @@ function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`
 }
 
+function sessionsPart(sessions: DayAgendaSession[], day: string, today: string): string | null {
+  const n = sessions.length
+  if (n === 0) return null
+  if (day > today) return plural(n, 'sesión', 'sesiones')
+  // `done` cuenta `done` y `partial` juntos: una sesión parcial cuenta como
+  // cumplida en toda la app (mismo criterio que el encabezado de Hoy).
+  const done = sessions.filter((s) => s.state === 'done' || s.state === 'partial').length
+  if (day < today && done === n) return plural(n, 'sesión cumplida', 'sesiones cumplidas')
+  return `${done} de ${plural(n, 'sesión', 'sesiones')}`
+}
+
+function habitsPart(habits: DayHabitRowItem[], day: string, today: string): string | null {
+  const n = habits.length
+  if (n === 0) return null
+  if (day > today) return plural(n, 'hábito', 'hábitos')
+  return `Hábitos ${habits.filter((h) => h.complete).length} de ${n}`
+}
+
+function deadlinesPart(deadlines: Goal[]): string | null {
+  if (deadlines.length === 1) return `Meta: ${deadlines[0].title}`
+  if (deadlines.length > 1) return `${deadlines.length} metas con fecha`
+  return null
+}
+
 export function weekDaySummary(input: {
   day: string
   today: string
@@ -148,25 +172,12 @@ export function weekDaySummary(input: {
   deadlines: Goal[]
 }): WeekDaySummary {
   const { day, today, sessions, habits, events, deadlines } = input
-  const parts: string[] = []
-
-  if (sessions.length > 0) {
-    const n = sessions.length
-    // `done` cuenta `done` y `partial` juntos: una sesión parcial cuenta como
-    // cumplida en toda la app (mismo criterio que el encabezado de Hoy).
-    const done = sessions.filter((s) => s.state === 'done' || s.state === 'partial').length
-    if (day > today) parts.push(plural(n, 'sesión', 'sesiones'))
-    else if (day < today && done === n) parts.push(`${plural(n, 'sesión cumplida', 'sesiones cumplidas')}`)
-    else parts.push(`${done} de ${plural(n, 'sesión', 'sesiones')}`)
-  }
-  if (habits.length > 0) {
-    const n = habits.length
-    if (day > today) parts.push(plural(n, 'hábito', 'hábitos'))
-    else parts.push(`Hábitos ${habits.filter((h) => h.complete).length} de ${n}`)
-  }
-  if (events.length > 0) parts.push(plural(events.length, 'evento', 'eventos'))
-  if (deadlines.length === 1) parts.push(`Meta: ${deadlines[0].title}`)
-  else if (deadlines.length > 1) parts.push(`${deadlines.length} metas con fecha`)
+  const parts = [
+    sessionsPart(sessions, day, today),
+    habitsPart(habits, day, today),
+    events.length > 0 ? plural(events.length, 'evento', 'eventos') : null,
+    deadlinesPart(deadlines),
+  ].filter((p): p is string => p !== null)
 
   const dots: NicheId[] = []
   for (const s of sessions) {

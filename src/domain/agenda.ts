@@ -68,6 +68,25 @@ const NEAR_MINUTES = 60
  * su lugar de la línea de tiempo (anidarlo lo escondería a otra hora); también
  * quedan sueltos los eventos sin meta o cuya meta no tiene sesión ese día.
  */
+/** La sesión de su meta donde anidar un evento, o undefined si queda suelto. */
+function sessionForEvent(own: AgendaSessionSlot[], e: CalendarEvent): AgendaSessionSlot | undefined {
+  if (e.allDay || !e.startTime) return own[0]
+  const evStart = timeToMinutes(e.startTime)
+  const containing = own.find(
+    (s) => s.start !== null && s.end !== null && evStart >= timeToMinutes(s.start) && evStart < timeToMinutes(s.end),
+  )
+  if (containing) return containing
+  const near = own.find((s) => {
+    if (s.start === null) return false
+    const start = timeToMinutes(s.start)
+    const end = s.end ? timeToMinutes(s.end) : start
+    return evStart >= start - NEAR_MINUTES && evStart < end + NEAR_MINUTES
+  })
+  if (near) return near
+  // Si la meta solo tiene sesiones sin hora, no hay ventana que respetar.
+  return own.some((s) => s.start !== null) ? undefined : own[0]
+}
+
 export function assignEventsToSessions(
   sessions: AgendaSessionSlot[],
   events: CalendarEvent[],
@@ -76,32 +95,7 @@ export function assignEventsToSessions(
   const standalone: CalendarEvent[] = []
   for (const e of events) {
     const own = e.goalId ? sessions.filter((s) => s.goalId === e.goalId) : []
-    if (own.length === 0) {
-      standalone.push(e)
-      continue
-    }
-    const evStart = e.allDay || !e.startTime ? null : timeToMinutes(e.startTime)
-    let target: AgendaSessionSlot | undefined
-    if (evStart === null) {
-      target = own[0]
-    } else {
-      const containing = own.find(
-        (s) =>
-          s.start !== null &&
-          s.end !== null &&
-          evStart >= timeToMinutes(s.start) &&
-          evStart < timeToMinutes(s.end),
-      )
-      const near = own.find((s) => {
-        if (s.start === null) return false
-        const start = timeToMinutes(s.start)
-        const end = s.end ? timeToMinutes(s.end) : start
-        return evStart >= start - NEAR_MINUTES && evStart < end + NEAR_MINUTES
-      })
-      // Si la meta solo tiene sesiones sin hora, no hay ventana que respetar.
-      const anyTimed = own.some((s) => s.start !== null)
-      target = containing ?? near ?? (anyTimed ? undefined : own[0])
-    }
+    const target = own.length > 0 ? sessionForEvent(own, e) : undefined
     if (!target) {
       standalone.push(e)
       continue

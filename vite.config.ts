@@ -1,3 +1,4 @@
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -9,6 +10,30 @@ import { createPlanMetaHandler } from './src/server/planMetaApp'
  * Vercel, así no hace falta `vercel dev`. Lee .env/.env.local SIN filtrar por
  * prefijo (solo en este proceso de Node; el bundle sigue viendo solo VITE_*).
  */
+/** Pasa un pedido de Node al handler Web (Request → Response) y escribe la respuesta. */
+async function forward(
+  handler: (request: Request) => Promise<Response>,
+  req: IncomingMessage & { originalUrl?: string },
+  res: ServerResponse,
+  body: Uint8Array<ArrayBuffer>,
+): Promise<void> {
+  try {
+    const response = await handler(
+      new Request(`http://localhost${req.originalUrl ?? '/api/plan-meta'}`, {
+        method: req.method,
+        headers: req.headers as Record<string, string>,
+        body: req.method === 'POST' ? body : undefined,
+      }),
+    )
+    res.statusCode = response.status
+    response.headers.forEach((value, key) => res.setHeader(key, value))
+    res.end(await response.text())
+  } catch {
+    res.statusCode = 500
+    res.end()
+  }
+}
+
 function localApi(): Plugin {
   return {
     name: 'local-api',
@@ -19,23 +44,7 @@ function localApi(): Plugin {
       server.middlewares.use('/api/plan-meta', (req, res) => {
         const chunks: Buffer[] = []
         req.on('data', (c: Buffer) => chunks.push(c))
-        req.on('end', () => {
-          const request = new Request(`http://localhost${req.originalUrl ?? '/api/plan-meta'}`, {
-            method: req.method,
-            headers: req.headers as Record<string, string>,
-            body: req.method === 'POST' ? Buffer.concat(chunks) : undefined,
-          })
-          handler(request)
-            .then(async (response) => {
-              res.statusCode = response.status
-              response.headers.forEach((value, key) => res.setHeader(key, value))
-              res.end(await response.text())
-            })
-            .catch(() => {
-              res.statusCode = 500
-              res.end()
-            })
-        })
+        req.on('end', () => void forward(handler, req, res, Buffer.concat(chunks)))
       })
     },
   }

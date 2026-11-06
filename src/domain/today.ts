@@ -165,7 +165,7 @@ const KIND_ORDER: Record<LaterItemKind, number> = { session: 0, habit: 1, event:
  * sin hora al final; empate por tipo (sesión, hábito, evento, tarea) y luego
  * por orden de entrada.
  */
-export function laterTodayItems(input: {
+interface LaterTodayInput {
   sessions: { session: Session; goalTitle: string }[]
   habits: Habit[]
   habitChecks: HabitCheck[]
@@ -173,86 +173,72 @@ export function laterTodayItems(input: {
   events: CalendarEvent[]
   today: string
   excludeSessionId?: string | null
-}): LaterItem[] {
-  const items: LaterItem[] = []
+}
 
-  for (const { session, goalTitle } of input.sessions) {
-    if (session.id === input.excludeSessionId) continue
-    if (session.status === 'running' || session.status === 'unconfirmed') continue
-    const span = sessionSpan(session.plannedTime, session.targetKind, session.targetValue)
-    const subtitle = span.start ? rangeLabel(span.start, span.end) : formatCommitted(session)
-    items.push({
-      kind: 'session',
-      id: session.id,
-      title: `Sesión · ${goalTitle}`,
-      subtitle,
-      startMin: session.plannedTime ? toMinutes(session.plannedTime) : null,
-      done: session.status === 'done' || session.status === 'partial' || session.status === 'missed',
-    })
+function sessionItem({ session, goalTitle }: { session: Session; goalTitle: string }): LaterItem {
+  const span = sessionSpan(session.plannedTime, session.targetKind, session.targetValue)
+  return {
+    kind: 'session',
+    id: session.id,
+    title: `Sesión · ${goalTitle}`,
+    subtitle: span.start ? rangeLabel(span.start, span.end) : formatCommitted(session),
+    startMin: session.plannedTime ? toMinutes(session.plannedTime) : null,
+    done: session.status === 'done' || session.status === 'partial' || session.status === 'missed',
   }
+}
 
-  for (const h of input.habits) {
-    const target = habitTarget(h)
-    const doneCount = habitDoneCount(input.habitChecks, h.id, input.today)
-    const next = nextSlot(h, input.habitChecks, input.today)
-    const nextTime = next !== null ? (h.times?.[next] ?? null) : null
-    let subtitle: string
-    let startMin: number | null
-    if (target > 1) {
-      subtitle = `${nextTime ? `próxima ${formatTime12(nextTime)} · ` : ''}${doneCount} de ${target}`
-      startMin = nextTime ? toMinutes(nextTime) : null
-    } else {
-      const soloTime = h.times?.[0] ?? null
-      subtitle = soloTime ? formatTime12(soloTime) : 'Sin hora'
-      startMin = soloTime ? toMinutes(soloTime) : null
-    }
-    items.push({
-      kind: 'habit',
-      id: h.id,
-      title: h.title,
-      subtitle,
-      startMin,
-      done: doneCount >= target,
-    })
+/** Subtítulo y hora de un hábito: el próximo turno si es de varias veces al día. */
+function habitTiming(h: Habit, checks: HabitCheck[], today: string, doneCount: number, target: number) {
+  if (target > 1) {
+    const next = nextSlot(h, checks, today)
+    const nextTime = next === null ? null : (h.times?.[next] ?? null)
+    const prefix = nextTime ? `próxima ${formatTime12(nextTime)} · ` : ''
+    return { subtitle: `${prefix}${doneCount} de ${target}`, startMin: nextTime ? toMinutes(nextTime) : null }
   }
+  const soloTime = h.times?.[0] ?? null
+  return { subtitle: soloTime ? formatTime12(soloTime) : 'Sin hora', startMin: soloTime ? toMinutes(soloTime) : null }
+}
 
-  for (const t of input.tasks) {
-    if (t.source !== 'user' || t.status === 'postponed') continue
-    items.push({
-      kind: 'task',
-      id: t.id,
-      title: t.title,
-      subtitle: 'Sin hora',
-      startMin: null,
-      done: t.status === 'done',
-    })
+function habitItem(h: Habit, checks: HabitCheck[], today: string): LaterItem {
+  const target = habitTarget(h)
+  const doneCount = habitDoneCount(checks, h.id, today)
+  return { kind: 'habit', id: h.id, title: h.title, ...habitTiming(h, checks, today, doneCount, target), done: doneCount >= target }
+}
+
+function eventItem(e: CalendarEvent): LaterItem {
+  const subtitle = e.allDay || !e.startTime ? 'Todo el día' : rangeLabel(e.startTime, eventSpan(e).end)
+  return {
+    kind: 'event',
+    id: e.id,
+    title: e.title,
+    subtitle,
+    startMin: e.startTime ? toMinutes(e.startTime) : null,
+    done: Boolean(e.doneAt),
   }
+}
 
-  for (const e of input.events) {
-    const span = eventSpan(e)
-    const subtitle =
-      e.allDay || !e.startTime ? 'Todo el día' : rangeLabel(e.startTime, span.end)
-    items.push({
-      kind: 'event',
-      id: e.id,
-      title: e.title,
-      subtitle,
-      startMin: e.startTime ? toMinutes(e.startTime) : null,
-      done: Boolean(e.doneAt),
-    })
-  }
+/** Hora ascendente, sin hora al final; empate por tipo y luego por orden de entrada. */
+function compareLater(a: { item: LaterItem; index: number }, b: { item: LaterItem; index: number }): number {
+  const am = a.item.startMin
+  const bm = b.item.startMin
+  if (am !== null && bm !== null && am !== bm) return am - bm
+  if (am !== null && bm === null) return -1
+  if (am === null && bm !== null) return 1
+  return KIND_ORDER[a.item.kind] - KIND_ORDER[b.item.kind] || a.index - b.index
+}
 
-  return items
+export function laterTodayItems(input: LaterTodayInput): LaterItem[] {
+  const sessions = input.sessions
+    .filter(({ session }) => session.id !== input.excludeSessionId)
+    .filter(({ session }) => session.status !== 'running' && session.status !== 'unconfirmed')
+    .map(sessionItem)
+  const habits = input.habits.map((h) => habitItem(h, input.habitChecks, input.today))
+  const tasks = input.tasks
+    .filter((t) => t.source === 'user' && t.status !== 'postponed')
+    .map((t): LaterItem => ({ kind: 'task', id: t.id, title: t.title, subtitle: 'Sin hora', startMin: null, done: t.status === 'done' }))
+  const events = input.events.map(eventItem)
+  return [...sessions, ...habits, ...tasks, ...events]
     .map((item, index) => ({ item, index }))
-    .sort((a, b) => {
-      const am = a.item.startMin
-      const bm = b.item.startMin
-      if (am !== null && bm !== null && am !== bm) return am - bm
-      if (am !== null && bm === null) return -1
-      if (am === null && bm !== null) return 1
-      const kindDiff = KIND_ORDER[a.item.kind] - KIND_ORDER[b.item.kind]
-      if (kindDiff !== 0) return kindDiff
-      return a.index - b.index
-    })
+    .sort(compareLater)
     .map(({ item }) => item)
 }
