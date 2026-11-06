@@ -17,13 +17,6 @@ export function createPlanMetaHandler(env: Record<string, string | undefined>) {
   const verifyUser = createSupabaseVerifier(url, anonKey)
   const loadSignals = createSignalsLoader(url, anonKey)
   const limit = Number(env.AI_DAILY_LIMIT)
-  const quota = createMemoryQuota(Number.isFinite(limit) && limit > 0 ? limit : undefined)
-  return (request: Request) =>
-    handlePlanMeta(request, {
-      planner,
-      verifyUser,
-      takeQuota: quota.take,
-      refundQuota: quota.refund,
-      loadSignals,
-    })
+  const takeQuota = createMemoryQuota(Number.isFinite(limit) && limit > 0 ? limit : undefined)
+  return (request: Request) => handlePlanMeta(request, { planner, verifyUser, takeQuota, loadSignals })
 }

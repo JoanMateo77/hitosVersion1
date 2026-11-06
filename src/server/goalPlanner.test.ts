@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ModelChain, ModelRequest } from './aiChain'
-import { PlannerError, createGoalPlanner } from './goalPlanner'
+import { createGoalPlanner } from './goalPlanner'
+import { PlannerError } from './plannerError'
 
 const input = { title: 'Correr 10K', typeLabel: 'Salud', weeklyMinutes: 60, currentStages: ['Trotar'] }
 // Pide más minutos de los comprometidos: dispara la revisión de realismo.

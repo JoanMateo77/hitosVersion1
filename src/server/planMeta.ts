@@ -24,10 +24,11 @@ export interface PlanMetaDeps {
   /** Devuelve el id del usuario dueño del token, o null si no es válido. */
   verifyUser(accessToken: string): Promise<string | null>
   planner: GoalPlanner | null
-  /** Registra un uso y dice si el usuario sigue dentro del límite diario. */
-  takeQuota(userId: string): boolean
-  /** Devuelve el uso cuando no hubo respuesta: un fallo de la IA no gasta cuota. */
-  refundQuota(userId: string): void
+  /**
+   * Registra un uso. null = el usuario superó el límite diario; si no, una
+   * función que devuelve ESE uso (mismo día) cuando la IA no pudo responder.
+   */
+  takeQuota(userId: string): (() => void) | null
   /** Memoria de comportamiento en frases legibles ([] si no hay o falla). */
   loadSignals(userId: string, accessToken: string): Promise<string[]>
 }
@@ -112,7 +113,8 @@ export async function handlePlanMeta(request: Request, deps: PlanMetaDeps): Prom
     return json(400, { error: { code: 'invalid_body' } })
   }
 
-  if (!deps.takeQuota(userId)) return json(429, { error: { code: 'daily_limit' } })
+  const refundQuota = deps.takeQuota(userId)
+  if (!refundQuota) return json(429, { error: { code: 'daily_limit' } })
 
   try {
     // El tipo solo depende del título: no hace falta la memoria de comportamiento.
@@ -138,32 +140,40 @@ export async function handlePlanMeta(request: Request, deps: PlanMetaDeps): Prom
     return json(200, { plan, signals })
   } catch (err) {
     console.error('[plan-meta] fallo del planner:', err instanceof Error ? err.message : 'desconocido')
-    deps.refundQuota(userId)
+    refundQuota()
     return json(502, { error: { code: 'ai_unavailable' } })
   }
 }
+
+/**
+ * Devoluciones máximas por usuario y día. Sin tope, cuando la cadena entera
+ * falla alguien podría reintentar sin fin a costa de la cuota gratuita de los
+ * proveedores, que es compartida por todos.
+ */
+export const MAX_DAILY_REFUNDS = 10
 
 /**
  * Límite diario EN MEMORIA: válido en local y en una sola instancia. Antes de
  * desplegar se reemplaza por una tabla (las funciones serverless no comparten
  * memoria). Ver el spec 2026-10-31-asistente-ia-etapas-design.md.
  */
-export function createMemoryQuota(limit = DAILY_LIMIT, now = () => new Date()) {
+export function createMemoryQuota(limit = DAILY_LIMIT, now = () => new Date(), maxRefunds = MAX_DAILY_REFUNDS) {
   const used = new Map<string, number>()
-  const keyOf = (userId: string) => `${now().toISOString().slice(0, 10)}:${userId}`
-  return {
-    take(userId: string): boolean {
-      const key = keyOf(userId)
-      const count = used.get(key) ?? 0
-      if (count >= limit) return false
-      used.set(key, count + 1)
-      return true
-    },
-    refund(userId: string): void {
-      const key = keyOf(userId)
-      const count = used.get(key) ?? 0
-      if (count > 0) used.set(key, count - 1)
-    },
+  const refunded = new Map<string, number>()
+  return (userId: string): (() => void) | null => {
+    // La clave se fija al cobrar: una devolución tras medianoche vuelve al día cobrado.
+    const key = `${now().toISOString().slice(0, 10)}:${userId}`
+    const count = used.get(key) ?? 0
+    if (count >= limit) return null
+    used.set(key, count + 1)
+    let done = false
+    return () => {
+      const refunds = refunded.get(key) ?? 0
+      if (done || refunds >= maxRefunds) return
+      done = true
+      refunded.set(key, refunds + 1)
+      used.set(key, Math.max(0, (used.get(key) ?? 0) - 1))
+    }
   }
 }
 

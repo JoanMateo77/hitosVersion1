@@ -3,7 +3,7 @@
  * uno devuelva un JSON que pase el parseo del dominio. Corre SOLO en el
  * servidor. Ver docs/superpowers/specs/2026-11-05-cadena-respaldo-ia-design.md.
  */
-import { PlannerError } from './goalPlanner.js'
+import { PlannerError } from './plannerError.js'
 
 export type ProviderId = 'gemini' | 'groq' | 'openrouter'
 
@@ -35,6 +35,8 @@ export interface ChainOptions {
   budgetMs?: number
   attemptMs?: number
   cooldownMs?: number
+  /** Enfriamiento de un eslabón mal configurado (clave revocada, modelo inexistente). */
+  configCooldownMs?: number
 }
 
 export interface ModelChain {
@@ -73,18 +75,18 @@ const splitList = (value: string | undefined) =>
  * comas) da un eslabón: la cuota de Gemini es por proyecto, no por clave.
  */
 export function parseChain(env: Record<string, string | undefined>): ChainLink[] {
-  const specs = env.AI_CHAIN?.trim() ? splitList(env.AI_CHAIN) : [...DEFAULT_CHAIN]
+  const raw = env.AI_CHAIN?.trim() ? splitList(env.AI_CHAIN) : [...DEFAULT_CHAIN]
   const preferred = env.GEMINI_MODEL?.trim()
-  if (preferred) {
-    const spec = `gemini:${preferred}`
-    specs.splice(0, specs.length, spec, ...specs.filter((s) => s !== spec))
-  }
+  if (preferred) raw.unshift(`gemini:${preferred}`)
+  // Normaliza ("gemini: x" = "gemini:x") y quita repetidos conservando el primero.
+  const seen = new Set<string>()
   const links: ChainLink[] = []
-  for (const spec of specs) {
+  for (const spec of raw) {
     const sep = spec.indexOf(':')
     const provider = spec.slice(0, sep).trim()
     const model = spec.slice(sep + 1).trim()
-    if (sep < 1 || !model || !isProvider(provider)) continue
+    if (sep < 1 || !model || !isProvider(provider) || seen.has(`${provider}:${model}`)) continue
+    seen.add(`${provider}:${model}`)
     splitList(env[KEY_ENV[provider]]).forEach((apiKey, i) => {
       const label = `${provider}:${model}${i > 0 ? `#${i + 1}` : ''}`
       links.push({ provider, model, apiKey, label })
@@ -116,6 +118,8 @@ interface HttpCall {
   /** Texto de la respuesta si terminó normalmente; null si vino cortada o vacía. */
   read(data: unknown): string | null
 }
+
+const REASONING_HEADROOM = 1024
 
 const OPENAI_BASE: Record<Exclude<ProviderId, 'gemini'>, string> = {
   groq: 'https://api.groq.com/openai/v1',
@@ -160,11 +164,14 @@ function buildCall(link: ChainLink, req: ModelRequest): HttpCall {
     // dominio valida igual y una salida fuera de esquema salta al siguiente.
     response_format: { type: 'json_schema', json_schema: { name: 'respuesta', strict: false, schema: toJsonSchema(req.schema) } },
   }
+  // En estos proveedores el razonamiento del modelo cuenta dentro del tope de
+  // salida: sin margen, un plan largo terminaría siempre cortado ("length").
+  const outputCap = maxTokens + REASONING_HEADROOM
   if (link.provider === 'groq') {
-    body.max_completion_tokens = maxTokens
+    body.max_completion_tokens = outputCap
     if (link.model.includes('gpt-oss')) body.reasoning_effort = 'low'
   } else {
-    body.max_tokens = maxTokens
+    body.max_tokens = outputCap
     // Solo proveedores de OpenRouter que respeten response_format.
     body.provider = { require_parameters: true }
   }
@@ -180,14 +187,25 @@ function buildCall(link: ChainLink, req: ModelRequest): HttpCall {
   }
 }
 
+/**
+ * 408/429/5xx: el proveedor está ocupado o caído. 401/403/404: clave o modelo
+ * mal configurados. Otro 4xx (p. ej. 400): el proveedor rechazó ESTE pedido
+ * (esquema, tamaño), no dice nada del eslabón en general.
+ */
 function classifyStatus(status: number): Failure {
-  return status === 408 || status === 429 || status >= 500 ? 'transient' : 'config'
+  if (status === 408 || status === 429 || status >= 500) return 'transient'
+  if (status === 401 || status === 403 || status === 404) return 'config'
+  return 'invalid'
 }
+
+const isTimeout = (err: unknown) =>
+  err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')
 
 export function createModelChain(links: ChainLink[], opts: ChainOptions): ModelChain {
   const budgetMs = opts.budgetMs ?? 45_000
   const attemptMs = opts.attemptMs ?? 20_000
   const cooldownMs = opts.cooldownMs ?? 60_000
+  const configCooldownMs = opts.configCooldownMs ?? 10 * 60_000
   const coolUntil = new Map<string, number>()
 
   async function attempt<T>(
@@ -206,8 +224,7 @@ export function createModelChain(links: ChainLink[], opts: ChainOptions): ModelC
         body: JSON.stringify(call.body),
       })
     } catch (err) {
-      const timeout = err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')
-      return { ok: false, kind: 'transient', reason: timeout ? 'timeout' : 'network' }
+      return { ok: false, kind: 'transient', reason: isTimeout(err) ? 'timeout' : 'network' }
     }
     if (!res.ok) return { ok: false, kind: classifyStatus(res.status), reason: `http_${res.status}` }
     try {
@@ -215,7 +232,9 @@ export function createModelChain(links: ChainLink[], opts: ChainOptions): ModelC
       if (text === null) return { ok: false, kind: 'invalid', reason: 'truncated' }
       const value = parse(JSON.parse(text))
       return value === null ? { ok: false, kind: 'invalid', reason: 'off_schema' } : { ok: true, value }
-    } catch {
+    } catch (err) {
+      // El timeout también puede saltar mientras llega el cuerpo de la respuesta.
+      if (isTimeout(err)) return { ok: false, kind: 'transient', reason: 'timeout' }
       return { ok: false, kind: 'invalid', reason: 'bad_json' }
     }
   }
@@ -225,21 +244,23 @@ export function createModelChain(links: ChainLink[], opts: ChainOptions): ModelC
       const start = opts.now()
       const budget = req.budgetMs ?? budgetMs
       const remaining = () => budget - (opts.now() - start)
-      const fresh = links.filter((l) => (coolUntil.get(l.label) ?? 0) <= opts.now())
-      const order = fresh.length > 0 ? fresh : links
-      const kinds: Failure[] = []
-      let failures = 0
+      // Los eslabones enfriados no se descartan: van al final, por si se recuperaron.
+      const until = (l: ChainLink) => coolUntil.get(l.label) ?? 0
+      const fresh = links.filter((l) => until(l) <= opts.now())
+      const cooled = links.filter((l) => until(l) > opts.now()).sort((a, b) => until(a) - until(b))
+      const order = [...fresh, ...cooled]
+      const failed = new Map<ChainLink, Failure>()
 
       const tryLink = async (link: ChainLink) => {
         const t0 = opts.now()
         const result = await attempt(link, req, parse, Math.min(attemptMs, remaining()))
         if (result.ok) {
-          if (failures > 0) opts.log(`[ai] ok ${link.label} tras ${failures} fallo(s)`)
+          if (failed.size > 0) opts.log(`[ai] ok ${link.label} tras ${failed.size} fallo(s)`)
           return result
         }
-        failures++
-        kinds.push(result.kind)
+        failed.set(link, result.kind)
         if (result.kind === 'transient') coolUntil.set(link.label, opts.now() + cooldownMs)
+        if (result.kind === 'config') coolUntil.set(link.label, opts.now() + configCooldownMs)
         const tag = result.kind === 'config' ? ' (config)' : ''
         opts.log(`[ai] ${link.label} ${result.reason}${tag} ${opts.now() - t0}ms`)
         return result
@@ -250,17 +271,16 @@ export function createModelChain(links: ChainLink[], opts: ChainOptions): ModelC
         const result = await tryLink(link)
         if (result.ok) return result.value
       }
-      // Pasada completa sin éxito: un último intento con el mejor eslabón, tras
-      // una espera corta con jitter (lo que recomienda Google ante 503/429).
-      // No tiene sentido si todo falló por configuración (clave o modelo mal).
-      if (order.length > 0 && kinds.some((k) => k !== 'config')) {
+      // Pasada sin éxito: un último intento con el mejor eslabón que no falló por
+      // configuración (ese fallaría igual), tras una espera corta con jitter (lo
+      // que recomienda Google ante 503/429).
+      const retry = order.find((l) => failed.has(l) && failed.get(l) !== 'config')
+      if (retry) {
         const wait = Math.round(1000 * (0.75 + opts.random() * 0.5))
         if (remaining() > wait) {
           await opts.sleep(wait)
-          if (remaining() > 0) {
-            const result = await tryLink(order[0])
-            if (result.ok) return result.value
-          }
+          const result = await tryLink(retry)
+          if (result.ok) return result.value
         }
       }
       throw new PlannerError(order.length === 0 ? 'No hay modelos configurados' : 'Ningún modelo respondió')

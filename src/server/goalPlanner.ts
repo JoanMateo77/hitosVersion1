@@ -45,7 +45,6 @@ export interface GoalPlanner {
   goalType(title: string, why: string | null): Promise<GoalTypeSuggestion>
 }
 
-export class PlannerError extends Error {}
 
 const TEMPLATE_KEYS = TEMPLATES.map((t) => t.key)
 const TEMPLATE_CATALOG = TEMPLATES.map(({ key, label, description }) => ({ key, label, description }))

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createModelChain, parseChain, toJsonSchema, type ChainLink, type ChainOptions } from './aiChain'
-import { PlannerError } from './goalPlanner'
+import { PlannerError } from './plannerError'
 
 const gemini = (model: string, apiKey = 'g1'): ChainLink => ({ provider: 'gemini', model, apiKey, label: `gemini:${model}` })
 const groq: ChainLink = { provider: 'groq', model: 'openai/gpt-oss-120b', apiKey: 'q1', label: 'groq:openai/gpt-oss-120b' }
@@ -70,6 +70,11 @@ describe('parseChain', () => {
   it('no duplica GEMINI_MODEL si ya está en la cadena', () => {
     const links = parseChain({ AI_CHAIN: 'gemini:a,gemini:b', GEMINI_MODEL: 'b', GEMINI_API_KEY: 'g' })
     expect(links.map((l) => l.model)).toEqual(['b', 'a'])
+  })
+
+  it('normaliza espacios alrededor de ":" antes de quitar repetidos', () => {
+    const links = parseChain({ AI_CHAIN: 'gemini: a , gemini:a,gemini:b', GEMINI_MODEL: 'a', GEMINI_API_KEY: 'g' })
+    expect(links.map((l) => l.label)).toEqual(['gemini:a', 'gemini:b'])
   })
 
   it('sin ninguna clave devuelve una cadena vacía', () => {
@@ -201,6 +206,52 @@ describe('createModelChain', () => {
     await createModelChain([link], h.opts).run(REQ, parseA)
     expect(h.fetchMock.mock.calls[0][0]).toBe('https://openrouter.ai/api/v1/chat/completions')
     expect(bodyOf(h.fetchMock.mock.calls[0]).provider).toEqual({ require_parameters: true })
+  })
+
+  it('el reintento final salta el eslabón que falló por configuración', async () => {
+    const h = harness([status(404), status(503), geminiOk('{"a":"rescate"}')])
+    const chain = createModelChain([gemini('mal'), gemini('m2')], h.opts)
+    expect(await chain.run(REQ, parseA)).toBe('rescate')
+    expect(h.fetchMock.mock.calls[2][0]).toContain('/m2:')
+  })
+
+  it('un eslabón mal configurado se enfría 10 min; un 400 no lo enfría', async () => {
+    const h = harness([status(401), status(400), geminiOk('{"a":"1"}'), geminiOk('{"a":"2"}')])
+    const chain = createModelChain([gemini('clave-mala'), gemini('pedido-raro'), gemini('m3')], h.opts)
+    await chain.run(REQ, parseA)
+    h.advance(5 * 60_000)
+    // Orden nuevo: los frescos (pedido-raro, m3) primero; clave-mala va al final.
+    h.fetchMock.mockClear()
+    await chain.run(REQ, parseA)
+    expect(h.fetchMock.mock.calls[0][0]).toContain('/pedido-raro:')
+  })
+
+  it('si el cuerpo se corta por timeout cuenta como transitorio y enfría', async () => {
+    const timeout = Object.assign(new Error('aborted'), { name: 'TimeoutError' })
+    const slowBody = { ok: true, status: 200, json: async () => Promise.reject(timeout) } as unknown as Response
+    const h = harness([slowBody, geminiOk('{"a":"1"}'), geminiOk('{"a":"2"}')])
+    const chain = createModelChain([gemini('lento'), gemini('m2')], h.opts)
+    await chain.run(REQ, parseA)
+    expect(h.log).toHaveBeenCalledWith(expect.stringContaining('gemini:lento timeout'))
+    await chain.run(REQ, parseA)
+    expect(h.fetchMock.mock.calls[2][0]).toContain('/m2:')
+  })
+
+  it('prueba los eslabones enfriados al final si los frescos fallan', async () => {
+    const h = harness([status(503), geminiOk('{"a":"1"}'), status(429), geminiOk('{"a":"recuperado"}')])
+    const chain = createModelChain([gemini('m1'), gemini('m2')], h.opts)
+    await chain.run(REQ, parseA)
+    // m1 está enfriado; m2 falla; m1 se intenta igual al final de la pasada.
+    expect(await chain.run(REQ, parseA)).toBe('recuperado')
+    expect(h.fetchMock.mock.calls[3][0]).toContain('/m1:')
+  })
+
+  it('da margen de tokens al razonamiento en proveedores compatibles con OpenAI', async () => {
+    const h = harness([openaiOk('{"a":"x"}')])
+    await createModelChain([groq], h.opts).run({ ...REQ, maxOutputTokens: 4096 }, parseA)
+    const body = bodyOf(h.fetchMock.mock.calls[0])
+    expect(body.max_completion_tokens).toBe(4096 + 1024)
+    expect(body.reasoning_effort).toBe('low')
   })
 
   it('una cadena vacía falla con PlannerError', async () => {
