@@ -12,9 +12,9 @@ const files = [
 
 // El SQL se normaliza a espacios simples, así los patrones no necesitan \s+.
 const name = String.raw`(?:public\.)?"?(\w+)"?`
-const createRe = new RegExp(String.raw`create table (?:if not exists )?${name}`, 'gi')
+const createRe = new RegExp(`create table (?:if not exists )?${name}`, 'gi')
 const rlsRe = new RegExp(
-  String.raw`alter table (?:if exists )?(?:only )?${name} enable row level security`,
+  `alter table (?:if exists )?(?:only )?${name} enable row level security`,
   'gi',
 )
 

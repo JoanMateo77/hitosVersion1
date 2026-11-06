@@ -51,10 +51,10 @@ export function ToastProvider({ children }: Readonly<{ children: ReactNode }>) {
     setCurrent({ id, message, tone })
     // Dos tiempos: primero se marca la salida (anima), después se quita del DOM.
     leaveTimer.current = window.setTimeout(() => {
-      setCurrent((prev) => (prev && prev.id === id ? { ...prev, leaving: true } : prev))
+      setCurrent((prev) => (prev?.id === id ? { ...prev, leaving: true } : prev))
     }, AUTO_DISMISS_MS - LEAVE_MS)
     timer.current = window.setTimeout(() => {
-      setCurrent((prev) => (prev && prev.id === id ? null : prev))
+      setCurrent((prev) => (prev?.id === id ? null : prev))
     }, AUTO_DISMISS_MS)
   }, [])
 

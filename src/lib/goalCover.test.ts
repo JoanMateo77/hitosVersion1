@@ -32,6 +32,8 @@ describe('coverDimensions (reducción a 1600 px de lado mayor)', () => {
   it('rechaza dimensiones inválidas', () => {
     expect(() => coverDimensions(0, 100)).toThrow()
     expect(() => coverDimensions(Number.NaN, 100)).toThrow()
+    expect(() => coverDimensions(100, Number.POSITIVE_INFINITY)).toThrow()
+    expect(() => coverDimensions(Number.NaN, 100)).toThrow()
   })
 })
 

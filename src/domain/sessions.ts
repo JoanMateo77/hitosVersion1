@@ -37,7 +37,7 @@ export function isStaleRunning(s: Session, todayISO: string): boolean {
 function hashString(value: string): number {
   let hash = 0x811c9dc5
   for (let i = 0; i < value.length; i++) {
-    hash ^= value.charCodeAt(i)
+    hash ^= value.codePointAt(i) ?? 0
     hash = Math.imul(hash, 0x01000193)
   }
   return hash >>> 0

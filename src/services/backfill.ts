@@ -33,13 +33,11 @@ async function run(userId: string, goals: Goal[]): Promise<void> {
 
   if (goals.some((g) => g.status === 'active' || g.status === 'paused')) {
     const withMilestones = await goalIdsWithMilestones(userId)
-    for (const goal of goalsMissingMilestones(goals, withMilestones)) {
-      await createMilestones(
-        userId,
-        goal.id,
-        buildMilestonesFromTemplate(getTemplate(goal.templateKey), 0),
-      )
-    }
+    await Promise.all(
+      goalsMissingMilestones(goals, withMilestones).map((goal) =>
+        createMilestones(userId, goal.id, buildMilestonesFromTemplate(getTemplate(goal.templateKey), 0)),
+      ),
+    )
   }
 
   try {

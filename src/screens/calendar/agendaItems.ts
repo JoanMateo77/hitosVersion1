@@ -98,9 +98,7 @@ export function sessionStateTitle(state: SessionState): string {
 
 /** ¿Sesión real de hoy, todavía abierta? (la que invita a darle play). */
 export function isOpenToday(it: DayAgendaSession): boolean {
-  return Boolean(
-    it.session && it.session.date === todayISO() && OPEN_STATUSES.includes(it.session.status),
-  )
+  return it.session?.date === todayISO() && OPEN_STATUSES.includes(it.session.status)
 }
 
 /** Aria-label de una sesión: qué es y qué pasa al tocarla. */
