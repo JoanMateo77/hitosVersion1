@@ -123,6 +123,38 @@ function skipError(err: unknown, fallback: string): string {
     : friendlyError(err, fallback)
 }
 
+/** ¿Pantalla de escritorio? Sin matchMedia (entornos raros) se asume móvil. */
+function isDesktopWidth(): boolean {
+  try {
+    return window.matchMedia('(min-width: 1024px)').matches
+  } catch {
+    return false
+  }
+}
+
+/** ?d=YYYY-MM-DD válido, o null. */
+function isoDateParam(value: string | null): string | null {
+  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null
+}
+
+function rangeTitle(view: View, selected: string, week: string[], anchor: string): string {
+  if (view === 'day') return formatWeekday(selected)
+  if (view === 'week') return formatWeekRange(week[0], week[6])
+  return formatMonthYear(anchor)
+}
+
+/** Orientación temporal: deja claro si miras el pasado (lo que hiciste) o el futuro (planificar). */
+function DayContextBanner({ past, onToday }: Readonly<{ past: boolean; onToday: () => void }>) {
+  return (
+    <output className={`alert${past ? '' : ' faint'}`}>
+      {past ? 'Estás viendo un día pasado: esto fue lo que hiciste.' : 'Día futuro: lo que agregues aquí queda planificado.'}{' '}
+      <button type="button" className="btn--link" onClick={onToday}>
+        Volver a hoy
+      </button>
+    </output>
+  )
+}
+
 /**
  * Agenda / calendario propio del usuario (Sección 4): vistas día / semana / mes,
  * eventos con horario opcional y vínculo opcional a una meta. La semana arranca
@@ -138,25 +170,12 @@ export function Calendar() {
 
   const [params] = useSearchParams()
   // ?d=YYYY-MM-DD (p. ej. al tocar un evento en Today) abre ese día directo.
-  const dParam = params.get('d')
-  const initialDate = dParam && /^\d{4}-\d{2}-\d{2}$/.test(dParam) ? dParam : null
+  const initialDate = isoDateParam(params.get('d'))
   // En el teléfono la agenda abre en el DÍA (lo inmediato primero); en
   // escritorio abre en MES, que ahí es la vista de calendario completa.
-  const [view, setView] = useState<View>(() => {
-    try {
-      return window.matchMedia('(min-width: 1024px)').matches ? 'month' : 'day'
-    } catch {
-      return 'day'
-    }
-  })
+  const [view, setView] = useState<View>(() => (isDesktopWidth() ? 'month' : 'day'))
   // En escritorio la semana abre todos los días (hay espacio); en móvil, solo hoy.
-  const [desktop] = useState(() => {
-    try {
-      return window.matchMedia('(min-width: 1024px)').matches
-    } catch {
-      return false
-    }
-  })
+  const [desktop] = useState(isDesktopWidth)
   const [anchor, setAnchor] = useState(initialDate ?? todayISO()) // mes / semana de referencia
   const [selected, setSelected] = useState(initialDate ?? todayISO()) // día activo
   const grid = useMemo(() => monthGrid(anchor), [anchor])
@@ -699,25 +718,10 @@ export function Calendar() {
   // Orientación temporal del día seleccionado (vista día y panel de día del mes):
   // deja claro si estás mirando el pasado (lo que hiciste) o el futuro (planificar).
   const dayContextBanner = selected !== today && (
-    <div
-      className={`alert${selected > today ? ' faint' : ''}`}
-      role="status"
-    >
-      {selected < today
-        ? 'Estás viendo un día pasado: esto fue lo que hiciste.'
-        : 'Día futuro: lo que agregues aquí queda planificado.'}{' '}
-      <button type="button" className="btn--link" onClick={goToday}>
-        Volver a hoy
-      </button>
-    </div>
+    <DayContextBanner past={selected < today} onToday={goToday} />
   )
 
-  const headerTitle =
-    view === 'day'
-      ? formatWeekday(selected)
-      : view === 'week'
-        ? formatWeekRange(week[0], week[6])
-        : formatMonthYear(anchor)
+  const headerTitle = rangeTitle(view, selected, week, anchor)
 
   const dayProps = (day: string) => ({
     day,
@@ -1240,6 +1244,9 @@ function ReorganizeSheet({
       ]),
     ),
   )
+  /** Cambia la hora de la repetición i de un hábito en el borrador. */
+  const setDraftTime = (habitId: string, drafts: string[], i: number, value: string) =>
+    setHabitDrafts((prev) => ({ ...prev, [habitId]: drafts.map((x, j) => (j === i ? value : x)) }))
   const [eventDrafts, setEventDrafts] = useState<Record<string, string>>(() =>
     Object.fromEntries(events.map((e) => [e.id, e.startTime ?? ''])),
   )
@@ -1381,12 +1388,7 @@ function ReorganizeSheet({
                           className="input reorg-row__time"
                           type="time"
                           value={t}
-                          onChange={(e) =>
-                            setHabitDrafts((prev) => ({
-                              ...prev,
-                              [r.habit.id]: drafts.map((x, j) => (j === i ? e.target.value : x)),
-                            }))
-                          }
+                          onChange={(e) => setDraftTime(r.habit.id, drafts, i, e.target.value)}
                           aria-label={`Hora de ${r.habit.title}${
                             drafts.length > 1 ? `, repetición ${i + 1}` : ''
                           }`}
