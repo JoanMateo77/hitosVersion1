@@ -41,7 +41,8 @@ jobs:
       - name: Build
         run: npm run build
       # Interacción real en el navegador contra el backend falso de e2e/mock.ts.
+      # Con el Playwright fijado en package-lock.json (no npx: no instala nada al vuelo).
       - name: Navegador para E2E
-        run: npx playwright install --with-deps chromium
+        run: npm run e2e:install
       - name: E2E del chat del coach
         run: npm run e2e:coach
