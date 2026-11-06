@@ -18,5 +18,5 @@ export function useCoverUrl(path: string | null): string | null {
       alive = false
     }
   }, [path])
-  return resolved && resolved.path === path ? resolved.url : null
+  return resolved?.path === path ? resolved.url : null
 }

@@ -40,13 +40,14 @@ import {
   sessionStateLabel,
   weekDaySummary,
   type DayAgendaSession,
+  monthDots,
+  type DayHabitRowItem,
 } from '@/screens/calendar/agendaItems'
 import { EventCheck } from '@/screens/calendar/EventCheck'
 import { DayAgenda } from '@/screens/calendar/DayAgenda'
 import { WeekDay } from '@/screens/calendar/WeekDay'
 import { AddSheet } from '@/screens/calendar/AddSheet'
 import { BlockEditSection, ScopeSave } from '@/screens/calendar/BlockEditSection'
-import { monthDots, type DayHabitRowItem } from '@/screens/calendar/agendaItems'
 import { dueBlocksForDate } from '@/domain/sessions'
 import { applyScheduleChange, listScheduleForGoal, listScheduleForUser } from '@/services/schedule'
 import {
@@ -357,7 +358,7 @@ export function Calendar() {
       for (const b of dueBlocksForDate(blocks, day)) {
         if (real.some((sx) => sx.scheduleId === b.id)) continue
         const goal = goalById.get(b.goalId)
-        if (!goal || goal.status !== 'active') continue
+        if (goal?.status !== 'active') continue
         items.push({
           key: `p-${b.id}-${day}`,
           goal,
@@ -1727,8 +1728,8 @@ function EventEditor({
       notes: notes.trim() || null,
     })
       .then(() => clearFormDraft(draftKey))
-      .catch((e2: unknown) => {
-        setErr(friendlyError(e2, 'No se pudo guardar.'))
+      .catch((error_: unknown) => {
+        setErr(friendlyError(error_, 'No se pudo guardar.'))
         setSaving(false)
       })
   }
@@ -1738,8 +1739,8 @@ function EventEditor({
     setErr(null)
     onDelete()
       .then(() => clearFormDraft(draftKey))
-      .catch((e2: unknown) => {
-        setErr(friendlyError(e2, 'No se pudo borrar.'))
+      .catch((error_: unknown) => {
+        setErr(friendlyError(error_, 'No se pudo borrar.'))
         setSaving(false)
       })
   }

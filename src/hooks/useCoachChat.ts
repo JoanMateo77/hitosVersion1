@@ -99,7 +99,7 @@ export function useCoachChat({
   const apply = useCallback(
     async (id: string) => {
       const proposal = messagesRef.current.find((m) => m.id === id)?.proposal
-      if (!proposal || proposal.status !== 'pending') return
+      if (proposal?.status !== 'pending') return
       const isProgress = proposal.kind === 'progress'
       try {
         if (proposal.kind === 'progress') {

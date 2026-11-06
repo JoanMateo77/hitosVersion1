@@ -576,7 +576,7 @@ export function GoalDetail() {
     setUpdating(true)
     try {
       const pending = milestones.filter((m) => m.doneAt === null)
-      for (const m of pending) await setMilestoneDone(m.id, true)
+      await Promise.all(pending.map((m) => setMilestoneDone(m.id, true)))
       setMilestones((prev) =>
         prev.map((m) => (m.doneAt === null ? { ...m, doneAt: new Date().toISOString() } : m)),
       )

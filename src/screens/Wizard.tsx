@@ -27,14 +27,19 @@ import { CommitmentStep } from '@/components/wizard/CommitmentStep'
 import { MilestonesStep } from '@/components/wizard/MilestonesStep'
 import { CoachPanel } from '@/components/wizard/CoachPanel'
 import { parseGoalPlan, resolveInsertIndex, type GoalPlan, type GoalPlanStage, type QuestionAnswer } from '@/domain/goalPlan'
-import { applyStageChanges, readStoredProposal, type ChatContext, type StageChange } from '@/domain/coachChat'
+import {
+  applyStageChanges,
+  readStoredProposal,
+  type ChatContext,
+  type CriterionOption,
+  type StageChange,
+} from '@/domain/coachChat'
 import { useCoachChat } from '@/hooks/useCoachChat'
 import { DESKTOP_QUERY, useMediaQuery } from '@/hooks/useMediaQuery'
 import { addCoachMessages, saveGoalAi, type CoachMessage } from '@/services/goalCoach'
 import { Sheet } from '@/components/Sheet'
 import { CoachComposer, CoachOrb, CoachThread } from '@/components/coach/CoachChatView'
 import { CriteriaSuggest } from '@/components/wizard/CriteriaSuggest'
-import type { CriterionOption } from '@/domain/coachChat'
 import { requestGoalType } from '@/services/goalPlan'
 import { NBSP } from '@/lib/format'
 import { TypeStep } from '@/components/wizard/TypeStep'

@@ -33,7 +33,9 @@
         var c = { claro: '#f2f2f7', oscuro: '#000000' }[t]
         var metas = document.querySelectorAll('meta[name="theme-color"]')
         if (c) metas.forEach(function (m) { m.setAttribute('content', c) })
-      } catch (e) {}
+      } catch (e) {
+        // Sin localStorage o matchMedia (modo privado, navegador viejo): queda el tema por defecto del CSS.
+      }
     </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />

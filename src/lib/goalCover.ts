@@ -33,7 +33,9 @@ export function coverDimensions(
   height: number,
   max: number = COVER_MAX_PX,
 ): { width: number; height: number } {
-  if (!(width > 0) || !(height > 0)) throw new UserMessageError('No pudimos leer esa imagen. Prueba con otra foto.')
+  // NaN o infinito (imagen que no se pudo leer) cuentan como inválidos.
+  const valid = (n: number) => Number.isFinite(n) && n > 0
+  if (!valid(width) || !valid(height)) throw new UserMessageError('No pudimos leer esa imagen. Prueba con otra foto.')
   const scale = Math.min(1, max / Math.max(width, height))
   return {
     width: Math.max(1, Math.round(width * scale)),
