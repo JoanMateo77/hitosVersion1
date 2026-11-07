@@ -404,11 +404,11 @@ export function parseCriteria(raw: unknown): CriterionOption[] | null {
 }
 
 /** Lee el historial que manda el cliente (no confiamos en su forma). */
-export function readHistory(value: unknown): ChatTurn[] {
+export function readHistory(value: unknown, maxText = MAX_MESSAGE): ChatTurn[] {
   if (!Array.isArray(value)) return []
   return value
     .filter(isRecord)
-    .map((t) => ({ role: t.role === 'coach' ? 'coach' : 'user', text: str(t.text, MAX_MESSAGE) ?? '' }) as ChatTurn)
+    .map((t) => ({ role: t.role === 'coach' ? 'coach' : 'user', text: str(t.text, maxText) ?? '' }) as ChatTurn)
     .filter((t) => t.text)
     .slice(-MAX_HISTORY)
 }

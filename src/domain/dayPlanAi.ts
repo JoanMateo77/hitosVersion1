@@ -181,6 +181,33 @@ function readQuestions(v: unknown): DayAiReply['questions'] {
     .slice(0, DAY_MAX_QUESTIONS)
 }
 
+const SOURCES = new Set(['new', 'event', 'session', 'habit'])
+
+/** Lee un ítem del contexto que manda el cliente; null si no tiene la forma de DayItem. */
+export function readDayItem(v: unknown): DayItem | null {
+  if (!isRecord(v) || typeof v.ref !== 'string' || !SOURCES.has(v.source as string)) return null
+  const title = clean(v.title, 80)
+  const durationMin = readDuration(v.durationMin)
+  if (!title || durationMin === null) return null
+  const start = readTime(v.start)
+  const item: DayItem = {
+    ref: clean(v.ref, 120),
+    source: v.source as DayItem['source'],
+    title,
+    fixed: v.fixed === true && start !== null,
+    start,
+    durationMin,
+    window: DAY_WINDOWS.includes(v.window as DayWindow) ? (v.window as DayWindow) : null,
+    mode: ATTENTION_MODES.includes(v.mode as AttentionMode) ? (v.mode as AttentionMode) : 'focus',
+    goalId: typeof v.goalId === 'string' ? v.goalId : null,
+    alongside: typeof v.alongside === 'string' ? v.alongside : null,
+    untimed: v.untimed === true,
+  }
+  if ('originalStart' in v) item.originalStart = readTime(v.originalStart)
+  if ('originalEnd' in v) item.originalEnd = readTime(v.originalEnd)
+  return item
+}
+
 /** null si la respuesta no sirve (la cadena prueba el siguiente modelo). */
 export function parseDayReply(raw: unknown, ctx: DayAiContext): DayAiReply | null {
   if (!isRecord(raw)) return null

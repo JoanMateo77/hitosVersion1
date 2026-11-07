@@ -28,6 +28,8 @@ import {
 } from '../domain/coachChat.js'
 import type { ChatContext, ChatTurn, CoachReply, CriterionOption } from '../domain/coachChat.js'
 import { COACH_SYSTEM } from '../domain/planningMethod.js'
+import { DAY_RESPONSE_SCHEMA, DAY_SYSTEM, buildDayPrompt, parseDayReply } from '../domain/dayPlanAi.js'
+import type { DayAiContext, DayAiReply } from '../domain/dayPlanAi.js'
 import { buildTypePrompt, parseTypeSuggestion, typeResponseSchema } from '../domain/goalType.js'
 import type { GoalTypeSuggestion } from '../domain/goalType.js'
 import { TEMPLATES } from '../domain/templates.js'
@@ -43,6 +45,8 @@ export interface GoalPlanner {
   criteria(ctx: ChatContext, hint: string, signals: string[]): Promise<CriterionOption[]>
   /** Tipo de meta (una clave de las plantillas) a partir del título. */
   goalType(title: string, why: string | null): Promise<GoalTypeSuggestion>
+  /** Un turno del asistente de agenda: entiende el día contado en texto libre. */
+  day(ctx: DayAiContext, history: ChatTurn[], message: string): Promise<DayAiReply>
 }
 
 
@@ -59,7 +63,8 @@ export function createGoalPlanner(chain: ModelChain): GoalPlanner {
     schema: object,
     parse: (raw: unknown) => T | null,
     budgetMs?: number,
-  ): Promise<T> => chain.run({ system: COACH_SYSTEM, prompt, schema, budgetMs }, parse)
+    system: string = COACH_SYSTEM,
+  ): Promise<T> => chain.run({ system, prompt, schema, budgetMs }, parse)
 
   /**
    * Genera y, si no pasa la revisión de realismo, pide UNA corrección. Al final
@@ -96,5 +101,7 @@ export function createGoalPlanner(chain: ModelChain): GoalPlanner {
       call(buildTypePrompt(title, why, TEMPLATE_CATALOG), typeResponseSchema(TEMPLATE_KEYS), (raw) =>
         parseTypeSuggestion(raw, TEMPLATE_KEYS),
       ),
+    day: (ctx, history, message) =>
+      call(buildDayPrompt(ctx, history, message), DAY_RESPONSE_SCHEMA, (raw) => parseDayReply(raw, ctx), undefined, DAY_SYSTEM),
   }
 }

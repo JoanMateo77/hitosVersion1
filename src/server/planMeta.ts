@@ -6,10 +6,13 @@
  * Acciones: "questions" (qué falta saber) · "plan" (camino con respuestas) ·
  * "refine" (pulir un plan con un pedido en lenguaje natural) · "chat" (un turno
  * de conversación con propuesta de cambios) · "criteria" (cómo saber que se logró) ·
- * "type" (qué tipo de meta es, según el título).
+ * "type" (qué tipo de meta es, según el título) · "day" (organizar la agenda
+ * de un día a partir de texto libre; no necesita una meta).
  */
 import { parseGoalPlan, type GoalPlanInput, type QuestionAnswer } from '../domain/goalPlan.js'
-import { readHistory, readStages, type ChatContext } from '../domain/coachChat.js'
+import { readHistory, readStages, type ChatContext, type ChatTurn } from '../domain/coachChat.js'
+import { DAY_MAX_ITEMS, DAY_MESSAGE_MAX, readDayItem, type DayAiContext } from '../domain/dayPlanAi.js'
+import { DAY_DEFAULTS, type DayItem } from '../domain/dayPlan.js'
 import type { GoalPlanner } from './goalPlanner.js'
 
 /**
@@ -18,7 +21,7 @@ import type { GoalPlanner } from './goalPlanner.js'
  */
 export const DAILY_LIMIT = 100
 
-const ACTIONS = new Set(['questions', 'plan', 'refine', 'chat', 'criteria', 'type'])
+const ACTIONS = new Set(['questions', 'plan', 'refine', 'chat', 'criteria', 'type', 'day'])
 
 export interface PlanMetaDeps {
   /** Devuelve el id del usuario dueño del token, o null si no es válido. */
@@ -79,6 +82,44 @@ function readChatContext(b: Record<string, unknown>, input: GoalPlanInput): Chat
     // Solo cambia el prompt y si se acepta la nota: registrar el avance lo
     // hace luego la persona con su sesión (RLS), no este servidor.
     canLogProgress: b.canLogProgress === true,
+  }
+}
+
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+/** Lo que ya hay en el día más el borrador: existentes y nuevos, con margen. */
+const DAY_MAX_CONTEXT_ITEMS = 60
+
+/** Pedido de la acción "day", ya validado. */
+interface DayRequest {
+  action: 'day'
+  ctx: DayAiContext
+  history: ChatTurn[]
+  message: string
+}
+
+/** null si el pedido de agenda no es válido. */
+function readDayRequest(b: Record<string, unknown>): DayRequest | null {
+  const date = str(b.date)
+  const now = str(b.now)
+  const message = str(b.message)?.trim() ?? ''
+  if (!date || !ISO_DATE.test(date) || !now || !HHMM.test(now)) return null
+  if (!message || message.length > DAY_MESSAGE_MAX) return null
+  const time = (v: unknown, fallback: string) => (typeof v === 'string' && HHMM.test(v) ? v : fallback)
+  const items = (Array.isArray(b.items) ? b.items : [])
+    .map(readDayItem)
+    .filter((i): i is DayItem => i !== null)
+    .slice(0, DAY_MAX_CONTEXT_ITEMS + DAY_MAX_ITEMS)
+  const goals = (Array.isArray(b.goals) ? b.goals : [])
+    .map((g) => (g != null && typeof g === 'object' ? (g as Record<string, unknown>) : null))
+    .filter((g): g is Record<string, unknown> => g !== null && typeof g.id === 'string' && typeof g.title === 'string')
+    .map((g) => ({ id: g.id as string, title: (g.title as string).slice(0, 120) }))
+    .slice(0, 20)
+  return {
+    action: 'day',
+    ctx: { date, now, dayStart: time(b.dayStart, DAY_DEFAULTS.dayStart), dayEnd: time(b.dayEnd, DAY_DEFAULTS.dayEnd), items, goals },
+    history: readHistory(b.history, DAY_MESSAGE_MAX),
+    message,
   }
 }
 
@@ -146,14 +187,19 @@ export async function handlePlanMeta(request: Request, deps: PlanMetaDeps): Prom
   if (!userId) return json(401, { error: { code: 'unauthenticated' } })
 
   const body = await readBody(request)
-  const req = body && readCoachRequest(body)
+  const req = body && (body.action === 'day' ? readDayRequest(body) : readCoachRequest(body))
   if (!req) return json(400, { error: { code: 'invalid_body' } })
 
   const refundQuota = deps.takeQuota(userId)
   if (!refundQuota) return json(429, { error: { code: 'daily_limit' } })
 
   try {
-    return json(200, await runAction(req, planner, () => deps.loadSignals(userId, token)))
+    if (req.action === 'day') {
+      // La agenda no usa la memoria de comportamiento de metas.
+      const r = req as DayRequest
+      return json(200, await planner.day(r.ctx, r.history, r.message))
+    }
+    return json(200, await runAction(req as CoachRequest, planner, () => deps.loadSignals(userId, token)))
   } catch (err) {
     console.error('[plan-meta] fallo del planner:', err instanceof Error ? err.message : 'desconocido')
     refundQuota()

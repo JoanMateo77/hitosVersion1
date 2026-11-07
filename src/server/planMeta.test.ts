@@ -16,6 +16,7 @@ function deps(over: Partial<PlanMetaDeps> = {}): PlanMetaDeps {
       chat: vi.fn(async () => ({ reply: 'Hola', proposal: null })),
       criteria: vi.fn(async () => [{ text: 'Tengo la moto', why: 'Resultado' }]),
       goalType: vi.fn(async () => ({ key: 'finanzas', reason: 'Quieres comprar algo', alternatives: [] })),
+      day: vi.fn(async () => ({ reply: 'Armé tu día.', items: [], questions: [], assumptions: [] })),
     },
     takeQuota: () => refund,
     loadSignals: vi.fn(async () => ['Completas el 80% de tus sesiones.']),
@@ -171,5 +172,65 @@ describe('createMemoryQuota', () => {
     let left = 0
     while (take('a')) left++
     expect(left).toBe(99)
+  })
+})
+
+describe('acción day', () => {
+  const dayBody = (over: Record<string, unknown> = {}) => ({
+    action: 'day',
+    date: '2026-11-09',
+    now: '08:15',
+    items: [
+      { ref: 'event:e1', source: 'event', title: 'Cita', fixed: true, start: '10:00', durationMin: 30, window: null, mode: 'focus', goalId: null, alongside: null, untimed: false },
+      { ref: 'malo' },
+    ],
+    goals: [{ id: 'g1', title: 'Tesis' }, { id: 3 }],
+    history: [{ role: 'user', text: 'hola' }],
+    message: 'reunión de 9 a 11',
+    ...over,
+  })
+
+  it('day returns the parsed reply without a goal title', async () => {
+    const d = deps()
+    const res = await handlePlanMeta(req(dayBody()), d)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ reply: 'Armé tu día.', items: [], questions: [], assumptions: [] })
+    expect(d.planner?.day).toHaveBeenCalledWith(
+      expect.objectContaining({
+        date: '2026-11-09',
+        now: '08:15',
+        dayStart: '06:00',
+        dayEnd: '22:00',
+        goals: [{ id: 'g1', title: 'Tesis' }],
+        items: [expect.objectContaining({ ref: 'event:e1', start: '10:00' })],
+      }),
+      [{ role: 'user', text: 'hola' }],
+      'reunión de 9 a 11',
+    )
+    expect(d.loadSignals).not.toHaveBeenCalled()
+  })
+
+  it('day without message is 400', async () => {
+    expect((await handlePlanMeta(req(dayBody({ message: ' ' })), deps())).status).toBe(400)
+  })
+
+  it('day with a message over 1500 chars is 400', async () => {
+    expect((await handlePlanMeta(req(dayBody({ message: 'a'.repeat(1501) })), deps())).status).toBe(400)
+  })
+
+  it('day with an invalid date or time is 400', async () => {
+    expect((await handlePlanMeta(req(dayBody({ date: 'mañana' })), deps())).status).toBe(400)
+    expect((await handlePlanMeta(req(dayBody({ now: '8:15' })), deps())).status).toBe(400)
+  })
+
+  it('day charges quota and refunds it when the planner fails', async () => {
+    const take = vi.fn(() => refund)
+    refund.mockClear()
+    const d = deps({ takeQuota: take })
+    ;(d.planner!.day as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('caída'))
+    const res = await handlePlanMeta(req(dayBody()), d)
+    expect(res.status).toBe(502)
+    expect(take).toHaveBeenCalledTimes(1)
+    expect(refund).toHaveBeenCalledTimes(1)
   })
 })

@@ -1,5 +1,8 @@
 import type { Cadence, Goal, GoalTemplate, PreferredMoment, ScheduleBlock, TargetKind } from '@/lib/types'
 import { formatDuration, formatTime12, parseISO } from '@/lib/date'
+import { minutesToTime, timeToMinutes } from '@/domain/clock'
+
+export { minutesToTime, timeToMinutes }
 
 /**
  * Compromiso medible (Fase 1 del spec base-solida).
@@ -58,20 +61,6 @@ export const COUNT_UNITS = [
   'ventas',
   'piezas',
 ] as const
-
-/** "08:30" → 510. Asume formato HH:MM válido (inputs nativos). */
-export function timeToMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number)
-  return h * 60 + m
-}
-
-/** 510 → "08:30". Envuelve sobre medianoche para horas derivadas. */
-export function minutesToTime(total: number): string {
-  const wrapped = ((total % 1440) + 1440) % 1440
-  const h = Math.floor(wrapped / 60)
-  const m = wrapped % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
-}
 
 /**
  * Hora de fin derivada (inicio + duración). Solo aplica a bloques de tiempo

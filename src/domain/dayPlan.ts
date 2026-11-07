@@ -5,8 +5,7 @@
  * imports relativos con .js (runtime ESM de Vercel).
  * Spec: docs/superpowers/specs/2026-11-07-ia-organizar-dia-design.md
  */
-import { freeIntervals } from './agenda.js'
-import { minutesToTime, timeToMinutes } from './commitment.js'
+import { freeIntervals, minutesToTime, timeToMinutes } from './clock.js'
 import { formatDuration, formatTime12 } from './timeFormat.js'
 
 /** Cómo ocupa a la persona: decide qué se puede hacer a la vez. */

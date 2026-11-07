@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DayItem } from '@/domain/dayPlan'
-import { buildDayPrompt, parseDayReply, type DayAiContext } from '@/domain/dayPlanAi'
+import { buildDayPrompt, parseDayReply, readDayItem, type DayAiContext } from '@/domain/dayPlanAi'
 
 const session: DayItem = {
   ref: 'session:k1',
@@ -163,5 +163,27 @@ describe('parseDayReply', () => {
   it('falls back to focus for an unknown mode and null for an unknown window', () => {
     const r = parseDayReply(reply({ items: [newItem({ mode: 'volar', window: 'madrugada' })] }), ctx())
     expect(r?.items.find((i) => i.ref === 'new:1')).toMatchObject({ mode: 'focus', window: null })
+  })
+})
+
+describe('readDayItem', () => {
+  it('reads a well-formed item and keeps original times', () => {
+    expect(readDayItem({ ...session, originalEnd: '19:30' })).toEqual({ ...session, originalEnd: '19:30' })
+  })
+
+  it('rejects unknown sources, missing titles and missing durations', () => {
+    expect(readDayItem({ ...session, source: 'task' })).toBeNull()
+    expect(readDayItem({ ...session, title: ' ' })).toBeNull()
+    expect(readDayItem({ ...session, durationMin: 'mucho' })).toBeNull()
+    expect(readDayItem('x')).toBeNull()
+  })
+
+  it('normalizes invalid times, modes and windows', () => {
+    expect(readDayItem({ ...session, fixed: true, start: '7pm', mode: 'x', window: 'x' })).toMatchObject({
+      fixed: false,
+      start: null,
+      mode: 'focus',
+      window: null,
+    })
   })
 })
