@@ -2,6 +2,9 @@
  * Utilidades de fecha. Todo el plan diario trabaja con fechas locales en
  * formato ISO corto (yyyy-mm-dd) para no arrastrar zonas horarias ni horas.
  */
+import { formatDuration, formatTime12 } from '@/domain/timeFormat'
+
+export { formatDuration, formatTime12 }
 
 /** Fecha local de hoy como yyyy-mm-dd (NO usa UTC para no "saltar" de día). */
 export function todayISO(date: Date = new Date()): string {
@@ -128,29 +131,10 @@ export function dayOfMonth(dateISO: string): number {
   return Number(dateISO.slice(8, 10))
 }
 
-/** Minutos → texto humano: "2 h 30 min", "45 min", "3 h". */
-export function formatDuration(totalMin: number): string {
-  const h = Math.floor(totalMin / 60)
-  const m = totalMin % 60
-  if (h === 0) return `${m} min`
-  if (m === 0) return `${h} h`
-  return `${h} h ${m} min`
-}
-
 /** Lo hecho o comprometido: "1 h 30 min" si es tiempo; "12 páginas" si es cantidad. */
 export function formatAmount(kind: 'time' | 'count', value: number, unit: string | null): string {
   if (kind === 'time') return formatDuration(value)
   return `${value} ${unit ?? ''}`
-}
-
-/** "20:02" → "8:02 pm" (formato 12 horas para mostrar; los inputs siguen nativos). */
-export function formatTime12(hhmm: string): string {
-  const [hStr, mStr] = hhmm.split(':')
-  let h = Number(hStr)
-  const suffix = h >= 12 ? 'pm' : 'am'
-  h = h % 12
-  if (h === 0) h = 12
-  return `${h}:${mStr} ${suffix}`
 }
 
 /**

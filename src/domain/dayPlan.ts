@@ -7,6 +7,7 @@
  */
 import { freeIntervals } from './agenda.js'
 import { minutesToTime, timeToMinutes } from './commitment.js'
+import { formatDuration, formatTime12 } from './timeFormat.js'
 
 /** Cómo ocupa a la persona: decide qué se puede hacer a la vez. */
 export type AttentionMode =
@@ -45,6 +46,8 @@ export interface DayItem {
   untimed: boolean
   /** Hora que tenía un ítem existente antes del borrador (para "Movido de…"). */
   originalStart?: string | null
+  /** Hora de fin que tenía un evento existente (para deshacer el movimiento). */
+  originalEnd?: string | null
 }
 
 export interface PlacedItem {
@@ -235,7 +238,8 @@ function toPlaced(s: Slot, all: Slot[]): PlacedItem {
   const start = minutesToTime(s.startMin)
   const original = s.item.originalStart ?? null
   let status: PlacedItem['status'] = 'new'
-  if (s.item.source !== 'new') status = original && original !== start ? 'moved' : 'same'
+  // Un existente sin hora que recibe una también cuenta como movido (sin "from").
+  if (s.item.source !== 'new') status = original === start ? 'same' : 'moved'
   const out: PlacedItem = {
     ref: s.item.ref,
     start,
@@ -248,4 +252,175 @@ function toPlaced(s: Slot, all: Slot[]): PlacedItem {
   if (status === 'moved' && original) out.from = original
   if (s.outsideWindow) out.outsideWindow = true
   return out
+}
+
+/* ===== Preguntas del algoritmo, efectos y operaciones ===================== */
+
+export type DayEffect =
+  /** "Sí, a la vez". */
+  | { kind: 'alongside'; ref: string; with: string }
+  /** Partir en dos bloques (solo ítems nuevos). */
+  | { kind: 'split'; ref: string }
+  /** Ajustar al hueco libre. */
+  | { kind: 'shorten'; ref: string; minutes: number }
+  /** Dejarlo para otro día (no se agenda). */
+  | { kind: 'drop'; ref: string }
+  /** Dejarlo como tarea sin hora. */
+  | { kind: 'untimed'; ref: string }
+
+export type DayOption =
+  /** Pregunta del algoritmo: se aplica en el cliente, sin gastar IA. */
+  | { label: string; effect: DayEffect }
+  /** Pregunta de la IA: la respuesta vuelve a la IA. */
+  | { label: string; reply: string }
+
+export interface DayQuestion {
+  id: string
+  text: string
+  options: DayOption[]
+  from: 'plan' | 'ai'
+}
+
+/** Minutos mínimos para ofrecer "Hacer solo N min". */
+const MIN_SHORTEN = 15
+
+const halfOf = (min: number) => Math.round(min / 2 / 5) * 5
+
+export function conflictQuestions(plan: DayPlan, items: DayItem[]): DayQuestion[] {
+  const byRef = new Map(items.map((i) => [i.ref, i]))
+  const placedByRef = new Map(plan.placed.map((p) => [p.ref, p]))
+  const questions: DayQuestion[] = []
+  for (const c of plan.conflicts) {
+    if (c.kind === 'fixed_overlap') {
+      const a = byRef.get(c.a)
+      const b = byRef.get(c.b)
+      const pa = placedByRef.get(c.a)
+      const pb = placedByRef.get(c.b)
+      if (!a || !b || !pa || !pb) continue
+      const options: DayOption[] = [{ label: 'Sí, a la vez', effect: { kind: 'alongside', ref: b.ref, with: a.ref } }]
+      if (b.source === 'new') {
+        options.push(
+          { label: `Dejar ${b.title} sin hora`, effect: { kind: 'untimed', ref: b.ref } },
+          { label: `Quitar ${b.title}`, effect: { kind: 'drop', ref: b.ref } },
+        )
+      }
+      questions.push({
+        id: `conflict:fixed_overlap:${b.ref}`,
+        from: 'plan',
+        text: `${a.title} (${formatTime12(pa.start)}–${formatTime12(pa.end)}) y ${b.title} (${formatTime12(pb.start)}) chocan. ¿Puedes hacerlas a la vez?`,
+        options,
+      })
+      continue
+    }
+    const it = byRef.get(c.ref)
+    if (!it) continue
+    const options: DayOption[] = []
+    if (it.source === 'new' && halfOf(it.durationMin) <= c.freeMin) {
+      options.push({ label: 'Partirla en dos bloques', effect: { kind: 'split', ref: it.ref } })
+    }
+    if (c.freeMin >= MIN_SHORTEN) {
+      options.push({ label: `Hacer solo ${c.freeMin} min`, effect: { kind: 'shorten', ref: it.ref, minutes: c.freeMin } })
+    }
+    options.push(
+      { label: 'Dejarla como tarea sin hora', effect: { kind: 'untimed', ref: it.ref } },
+      { label: 'Pasarla a otro día', effect: { kind: 'drop', ref: it.ref } },
+    )
+    questions.push({
+      id: `conflict:no_room:${it.ref}`,
+      from: 'plan',
+      text: `${it.title} (${formatDuration(it.durationMin)}) no cabe completa hoy. ¿Qué hacemos?`,
+      options,
+    })
+  }
+  return questions
+}
+
+export function applyEffect(items: DayItem[], effect: DayEffect): DayItem[] {
+  switch (effect.kind) {
+    case 'alongside':
+      return items.map((i) => {
+        if (i.ref === effect.ref) return { ...i, alongside: effect.with }
+        if (i.ref === effect.with) return { ...i, alongside: effect.ref }
+        return i
+      })
+    case 'split':
+      return items.flatMap((i) => {
+        if (i.ref !== effect.ref || i.source !== 'new') return [i]
+        const half = halfOf(i.durationMin)
+        return [1, 2].map((k) => ({ ...i, ref: `${i.ref}#${k}`, durationMin: half, fixed: false, start: null }))
+      })
+    case 'shorten':
+      return items.map((i) => (i.ref === effect.ref ? { ...i, durationMin: effect.minutes } : i))
+    case 'drop':
+      return items.filter((i) => i.ref !== effect.ref)
+    case 'untimed':
+      return items.map((i) => (i.ref === effect.ref ? { ...i, untimed: true } : i))
+  }
+}
+
+export type DayOp =
+  | { kind: 'createEvent'; ref: string; title: string; start: string; end: string }
+  | { kind: 'createSession'; ref: string; goalId: string; start: string; durationMin: number }
+  | { kind: 'createTask'; ref: string; title: string }
+  | { kind: 'moveEvent'; ref: string; eventId: string; start: string; end: string; prevStart: string | null; prevEnd: string | null }
+  | { kind: 'moveSession'; ref: string; sessionKey: string; start: string; prevStart: string | null }
+  | { kind: 'moveHabit'; ref: string; habitId: string; times: string[]; prevTimes: string[] | null }
+
+/** Horas efectivas de un hábito ese día (con la excepción, si la hay). */
+export interface DayContextHabit {
+  habitId: string
+  times: string[]
+  hasOverride: boolean
+}
+
+const after = (ref: string, prefix: string) => ref.slice(prefix.length)
+
+/** Traduce el borrador a operaciones (spec §3.4). Lo que no cambia no genera nada. */
+export function planToOps(plan: DayPlan, items: DayItem[], habits: DayContextHabit[]): DayOp[] {
+  const byRef = new Map(items.map((i) => [i.ref, i]))
+  const ops: DayOp[] = []
+  const habitTimes = new Map<string, string[]>()
+  for (const p of plan.placed) {
+    const it = byRef.get(p.ref)
+    if (!it || p.status === 'same') continue
+    if (it.source === 'new') {
+      ops.push(
+        it.goalId
+          ? { kind: 'createSession', ref: it.ref, goalId: it.goalId, start: p.start, durationMin: it.durationMin }
+          : { kind: 'createEvent', ref: it.ref, title: it.title, start: p.start, end: p.end },
+      )
+    } else if (it.source === 'event') {
+      ops.push({
+        kind: 'moveEvent',
+        ref: it.ref,
+        eventId: after(it.ref, 'event:'),
+        start: p.start,
+        end: p.end,
+        prevStart: it.originalStart ?? null,
+        prevEnd: it.originalEnd ?? null,
+      })
+    } else if (it.source === 'session') {
+      ops.push({ kind: 'moveSession', ref: it.ref, sessionKey: after(it.ref, 'session:'), start: p.start, prevStart: it.originalStart ?? null })
+    } else {
+      const [habitId, slot] = after(it.ref, 'habit:').split(':')
+      const ctx = habits.find((h) => h.habitId === habitId)
+      if (!ctx) continue
+      const times = habitTimes.get(habitId) ?? [...ctx.times]
+      times[Number(slot)] = p.start
+      habitTimes.set(habitId, times)
+    }
+  }
+  for (const [habitId, times] of habitTimes) {
+    const ctx = habits.find((h) => h.habitId === habitId) as DayContextHabit
+    ops.push({ kind: 'moveHabit', ref: `habit:${habitId}`, habitId, times, prevTimes: ctx.hasOverride ? [...ctx.times] : null })
+  }
+  for (const ref of plan.untimed) {
+    const it = byRef.get(ref)
+    if (it?.source === 'new') ops.push({ kind: 'createTask', ref, title: it.title })
+  }
+  return ops
+}
+
+export function countChanges(ops: DayOp[]): number {
+  return ops.length
 }

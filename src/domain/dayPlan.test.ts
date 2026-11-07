@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { canOverlap, planDay, type DayItem } from '@/domain/dayPlan'
+import {
+  applyEffect,
+  canOverlap,
+  conflictQuestions,
+  countChanges,
+  planDay,
+  planToOps,
+  type DayItem,
+} from '@/domain/dayPlan'
 
 let n = 0
 function item(over: Partial<DayItem> = {}): DayItem {
@@ -158,5 +166,156 @@ describe('planDay', () => {
     expect(placedOf(plan, evening.ref)?.start).toBe('18:00')
     expect(placedOf(plan, long.ref)?.start).toBe('06:00')
     expect(placedOf(plan, short.ref)?.start).toBe('07:40')
+  })
+})
+
+describe('conflictQuestions', () => {
+  it('asks whether two clashing fixed items can be done together', () => {
+    const meeting = item({ fixed: true, start: '09:00', durationMin: 120, title: 'Reunión' })
+    const call = item({ fixed: true, start: '10:00', durationMin: 15, title: 'Llamada al banco' })
+    const items = [meeting, call]
+    const [q] = conflictQuestions(planDay({ items, nowMin: null }), items)
+    expect(q.id).toBe(`conflict:fixed_overlap:${call.ref}`)
+    expect(q.from).toBe('plan')
+    expect(q.text).toBe('Reunión (9:00 am–11:00 am) y Llamada al banco (10:00 am) chocan. ¿Puedes hacerlas a la vez?')
+    expect(q.options.map((o) => o.label)).toEqual([
+      'Sí, a la vez',
+      'Dejar Llamada al banco sin hora',
+      'Quitar Llamada al banco',
+    ])
+  })
+
+  it('only offers "a la vez" when the later item already existed', () => {
+    const meeting = item({ fixed: true, start: '09:00', durationMin: 120, title: 'Reunión' })
+    const event = item({ ref: 'event:e1', source: 'event', fixed: true, start: '10:00', originalStart: '10:00', title: 'Cita' })
+    const items = [meeting, event]
+    const [q] = conflictQuestions(planDay({ items, nowMin: null }), items)
+    expect(q.options.map((o) => o.label)).toEqual(['Sí, a la vez'])
+  })
+
+  it('offers split, shorten, untimed and drop when an item has no room', () => {
+    const a = item({ fixed: true, start: '06:00', durationMin: 420 })
+    const b = item({ fixed: true, start: '14:00', durationMin: 480 })
+    const thesis = item({ durationMin: 120, title: 'Tesis' })
+    const items = [a, b, thesis]
+    const [q] = conflictQuestions(planDay({ items, nowMin: null }), items)
+    expect(q.text).toBe('Tesis (2 h) no cabe completa hoy. ¿Qué hacemos?')
+    // La mitad (60 min) no cabe en el hueco de 40: no se ofrece partirla.
+    expect(q.options.map((o) => o.label)).toEqual([
+      'Hacer solo 40 min',
+      'Dejarla como tarea sin hora',
+      'Pasarla a otro día',
+    ])
+  })
+
+  it('offers splitting when half fits and omits shorten under 15 minutes', () => {
+    const a = item({ fixed: true, start: '06:00', durationMin: 420 })
+    const b = item({ fixed: true, start: '13:30', durationMin: 510 })
+    const thesis = item({ durationMin: 20, title: 'Tesis' })
+    const items = [a, b, thesis]
+    // Hueco 13:00–13:30 con márgenes: 10 min. La mitad (10) cabe; 10 < 15 → sin "Hacer solo".
+    const [q] = conflictQuestions(planDay({ items, nowMin: null }), items)
+    expect(q.options.map((o) => o.label)).toEqual([
+      'Partirla en dos bloques',
+      'Dejarla como tarea sin hora',
+      'Pasarla a otro día',
+    ])
+  })
+})
+
+describe('applyEffect', () => {
+  it('alongside effect resolves the fixed_overlap', () => {
+    const meeting = item({ fixed: true, start: '09:00', durationMin: 120 })
+    const call = item({ fixed: true, start: '10:00', durationMin: 15 })
+    const items = [meeting, call]
+    const [q] = conflictQuestions(planDay({ items, nowMin: null }), items)
+    const opt = q.options[0]
+    if (!('effect' in opt)) throw new Error('expected effect')
+    const next = applyEffect(items, opt.effect)
+    expect(planDay({ items: next, nowMin: null }).conflicts).toEqual([])
+  })
+
+  it('split creates two halves rounded to 5 minutes', () => {
+    const thesis = item({ durationMin: 95, title: 'Tesis' })
+    const next = applyEffect([thesis], { kind: 'split', ref: thesis.ref })
+    expect(next.map((i) => [i.ref, i.durationMin])).toEqual([
+      [`${thesis.ref}#1`, 50],
+      [`${thesis.ref}#2`, 50],
+    ])
+  })
+
+  it('shorten, drop and untimed change the item', () => {
+    const x = item({ durationMin: 90 })
+    expect(applyEffect([x], { kind: 'shorten', ref: x.ref, minutes: 40 })[0].durationMin).toBe(40)
+    expect(applyEffect([x], { kind: 'drop', ref: x.ref })).toEqual([])
+    expect(applyEffect([x], { kind: 'untimed', ref: x.ref })[0].untimed).toBe(true)
+  })
+})
+
+describe('planToOps', () => {
+  const ops = (items: DayItem[], habits: Parameters<typeof planToOps>[2] = []) =>
+    planToOps(planDay({ items, nowMin: null }), items, habits)
+
+  it('creates an event for a new timed item without goal', () => {
+    const gym = item({ fixed: true, start: '07:00', durationMin: 60, title: 'Gimnasio' })
+    expect(ops([gym])).toEqual([{ kind: 'createEvent', ref: gym.ref, title: 'Gimnasio', start: '07:00', end: '08:00' }])
+  })
+
+  it('creates a session for a new item with goal', () => {
+    const thesis = item({ fixed: true, start: '15:00', durationMin: 90, goalId: 'g1' })
+    expect(ops([thesis])).toEqual([{ kind: 'createSession', ref: thesis.ref, goalId: 'g1', start: '15:00', durationMin: 90 }])
+  })
+
+  it('creates a task for an untimed item', () => {
+    const bank = item({ untimed: true, title: 'Llamar al banco' })
+    expect(ops([bank])).toEqual([{ kind: 'createTask', ref: bank.ref, title: 'Llamar al banco' }])
+  })
+
+  it('moves an event keeping its duration and records previous times', () => {
+    const ev = item({
+      ref: 'event:e1',
+      source: 'event',
+      fixed: true,
+      start: '10:00',
+      originalStart: '09:00',
+      originalEnd: '09:45',
+      durationMin: 45,
+    })
+    expect(ops([ev])).toEqual([
+      { kind: 'moveEvent', ref: 'event:e1', eventId: 'e1', start: '10:00', end: '10:45', prevStart: '09:00', prevEnd: '09:45' },
+    ])
+  })
+
+  it('moves a session and gives a time to an existing session that had none', () => {
+    const s1 = item({ ref: 'session:k1', source: 'session', start: '18:00', originalStart: '17:00' })
+    const s2 = item({ ref: 'session:k2', source: 'session', start: null, originalStart: null })
+    const result = ops([s1, s2])
+    expect(result).toContainEqual({ kind: 'moveSession', ref: 'session:k1', sessionKey: 'k1', start: '18:00', prevStart: '17:00' })
+    expect(result).toContainEqual({ kind: 'moveSession', ref: 'session:k2', sessionKey: 'k2', start: '06:00', prevStart: null })
+  })
+
+  it('emits one moveHabit with all times when one of several repetitions moves', () => {
+    const times = ['07:00', '13:00', '20:00']
+    const reps = times.map((t, i) =>
+      item({ ref: `habit:h1:${i}`, source: 'habit', start: i === 1 ? '14:00' : t, originalStart: t, durationMin: 15 }),
+    )
+    expect(ops(reps, [{ habitId: 'h1', times, hasOverride: false }])).toEqual([
+      { kind: 'moveHabit', ref: 'habit:h1', habitId: 'h1', times: ['07:00', '14:00', '20:00'], prevTimes: null },
+    ])
+  })
+
+  it('keeps the previous override as prevTimes', () => {
+    const rep = item({ ref: 'habit:h1:0', source: 'habit', start: '09:00', originalStart: '08:00' })
+    expect(ops([rep], [{ habitId: 'h1', times: ['08:00'], hasOverride: true }])[0]).toMatchObject({
+      prevTimes: ['08:00'],
+      times: ['09:00'],
+    })
+  })
+
+  it('ignores unchanged items and dropped ones', () => {
+    const same = item({ ref: 'event:e2', source: 'event', fixed: true, start: '09:00', originalStart: '09:00' })
+    const dropped = applyEffect([item({ title: 'x' })], { kind: 'drop', ref: `new:${n}` })
+    expect(ops([same, ...dropped])).toEqual([])
+    expect(countChanges([])).toBe(0)
   })
 })
