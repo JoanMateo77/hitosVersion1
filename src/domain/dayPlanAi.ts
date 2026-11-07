@@ -170,8 +170,12 @@ function mergeItem(raw: Record<string, unknown>, base: DayItem | undefined, ref:
   const isNew = !base || base.source === 'new'
   const title = isNew ? clean(raw.title, 80) || base?.title || '' : (base as DayItem).title
   if (!title) return null
-  const start = 'start' in raw && raw.start !== undefined ? readTime(raw.start) : (base?.start ?? null)
-  const fixed = (typeof raw.fixed === 'boolean' ? raw.fixed : (base?.fixed ?? false)) && start !== null
+  // Un evento existente siempre tiene hora y es fijo: la IA puede moverlo de
+  // hora, nunca dejarlo sin hora ni volverlo flexible.
+  const isEvent = base?.source === 'event'
+  const givenStart = 'start' in raw && raw.start !== undefined ? readTime(raw.start) : (base?.start ?? null)
+  const start = isEvent ? (givenStart ?? base.start) : givenStart
+  const fixed = isEvent || ((typeof raw.fixed === 'boolean' ? raw.fixed : (base?.fixed ?? false)) && start !== null)
   const mode = ATTENTION_MODES.includes(raw.mode as AttentionMode) ? (raw.mode as AttentionMode) : (base?.mode ?? 'focus')
   let window: DayWindow | null = base?.window ?? null
   if ('window' in raw) window = DAY_WINDOWS.includes(raw.window as DayWindow) ? (raw.window as DayWindow) : null

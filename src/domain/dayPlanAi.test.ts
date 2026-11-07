@@ -135,6 +135,12 @@ describe('parseDayReply', () => {
     expect(r?.items[0]).toEqual({ ...session, start: '20:00' })
   })
 
+  it('never lets the AI clear the time of an existing event', () => {
+    const ev: DayItem = { ...session, ref: 'event:e1', source: 'event', title: 'Cita', fixed: true, start: '10:00', originalStart: '10:00' }
+    const r = parseDayReply(reply({ items: [{ ref: 'event:e1', title: 'Cita', fixed: false, start: null, mode: 'focus', untimed: false, durationMin: 30 }] }), ctx({ items: [ev] }))
+    expect(r?.items[0]).toMatchObject({ fixed: true, start: '10:00' })
+  })
+
   it('keeps the previous duration of a draft item when the AI omits it', () => {
     const old: DayItem = { ...session, ref: 'new:1', source: 'new', title: 'Tesis', goalId: null, durationMin: 120, originalStart: undefined }
     const r = parseDayReply(reply({ items: [newItem({ title: 'Tesis', durationMin: undefined })] }), ctx({ items: [old] }))
