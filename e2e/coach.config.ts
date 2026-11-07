@@ -9,7 +9,7 @@ const PORT = Number(process.env.COACH_E2E_PORT) || 5198
 
 export default defineConfig({
   testDir: '.',
-  testMatch: ['coach-chat.spec.ts', 'focus.spec.ts'],
+  testMatch: ['coach-chat.spec.ts', 'focus.spec.ts', 'day-planner.spec.ts'],
   outputDir: '../test-results/coach-e2e',
   retries: 0,
   timeout: 90_000,
