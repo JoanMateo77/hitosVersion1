@@ -128,7 +128,10 @@ function slotAt(item: DayItem, startMin: number): Slot {
  */
 export function planDay(input: PlanDayInput): DayPlan {
   const buffer = input.bufferMin ?? DAY_DEFAULTS.bufferMin
-  const timed = input.items.filter((i) => !i.untimed)
+  // Un existente sin hora (p. ej. una sesión sin hora) es contexto: no se le
+  // asigna una sola por abrir la hoja; solo si la IA o la persona se la dan.
+  const isUntimed = (i: DayItem) => i.untimed || (i.source !== 'new' && !i.start)
+  const timed = input.items.filter((i) => !isUntimed(i))
   const fixed = timed.filter((i) => i.fixed && i.start)
   const placed: Slot[] = fixed.map((i) => slotAt(i, timeToMinutes(i.start as string)))
 
@@ -147,8 +150,10 @@ export function planDay(input: PlanDayInput): DayPlan {
     }
   }
 
+  const lower = Math.max(dayStartMin, input.nowMin === null ? dayStartMin : roundUp5(input.nowMin))
+
   // Anclados: un existente solo se mueve si choca con un fijo; uno nuevo con
-  // hora preferida, si choca con cualquier cosa ya colocada.
+  // hora preferida, si choca con cualquier cosa ya colocada o si ya pasó.
   const queue: DayItem[] = []
   // Desplazados por un choque: buscan primero desde su hora de antes, no antes.
   const relocatedFrom = new Map<string, number>()
@@ -157,7 +162,8 @@ export function planDay(input: PlanDayInput): DayPlan {
     const slot = slotAt(it, timeToMinutes(it.start as string))
     const against = it.source === 'new' ? placed : placed.filter((s) => s.item.fixed)
     const clash = against.some((s) => overlaps(s, slot) && !canOverlap(s.item, it))
-    if (clash) {
+    const past = it.source === 'new' && slot.startMin < lower
+    if (clash || past) {
       relocatedFrom.set(it.ref, slot.startMin)
       queue.push({ ...it, window: it.window ?? windowOfMinutes(slot.startMin) })
     }
@@ -169,7 +175,6 @@ export function planDay(input: PlanDayInput): DayPlan {
     return b.durationMin - a.durationMin
   })
 
-  const lower = Math.max(dayStartMin, input.nowMin === null ? dayStartMin : roundUp5(input.nowMin))
   for (const it of flexible) {
     const slot = placeFlexible(it, placed, { lower, dayStartMin, dayEndMin, buffer }, relocatedFrom.get(it.ref))
     if (slot.kind === 'placed') placed.push(slot.slot)
@@ -178,7 +183,7 @@ export function planDay(input: PlanDayInput): DayPlan {
 
   return {
     placed: placed.map((s) => toPlaced(s, placed)),
-    untimed: input.items.filter((i) => i.untimed).map((i) => i.ref),
+    untimed: input.items.filter(isUntimed).map((i) => i.ref),
     conflicts,
   }
 }
@@ -199,11 +204,18 @@ function placeFlexible(
   const [ws, we] = it.window ? WINDOWS[it.window] : [b.dayStartMin, b.dayEndMin]
   const windowRange = { from: Math.max(ws, b.lower), to: Math.min(we ?? b.dayEndMin, b.dayEndMin) }
 
-  // Audio: primero encima de algo que deje libre el oído (no consume hueco).
+  // Audio: primero encima de algo que deje libre el oído (no consume hueco),
+  // dentro de su ventana y sin chocar con nada incompatible ya colocado
+  // (p. ej. otro audio sobre el mismo anfitrión).
   if (it.mode === 'audio') {
     const host = [...placed]
       .sort((x, y) => x.startMin - y.startMin)
-      .find((s) => canOverlap(s.item, it) && s.startMin >= b.lower && s.endMin - s.startMin >= it.durationMin)
+      .find((s) => {
+        if (!canOverlap(s.item, it) || s.endMin - s.startMin < it.durationMin) return false
+        const cand = slotAt(it, s.startMin)
+        if (cand.startMin < windowRange.from || cand.endMin > windowRange.to) return false
+        return !placed.some((o) => overlaps(o, cand) && !canOverlap(o.item, it))
+      })
     if (host) return { kind: 'placed', slot: slotAt(it, host.startMin) }
   }
 
@@ -274,8 +286,10 @@ export type DayEffect =
   | { kind: 'shorten'; ref: string; minutes: number }
   /** Dejarlo para otro día (no se agenda). */
   | { kind: 'drop'; ref: string }
-  /** Dejarlo como tarea sin hora. */
+  /** Dejarlo como tarea sin hora (solo ítems nuevos). */
   | { kind: 'untimed'; ref: string }
+  /** Dejar un existente a su hora de siempre, aunque choque (pasa a fijo). */
+  | { kind: 'pin'; ref: string }
 
 export type DayOption =
   /** Pregunta del algoritmo: se aplica en el cliente, sin gastar IA. */
@@ -314,7 +328,7 @@ export function conflictQuestions(plan: DayPlan, items: DayItem[]): DayQuestion[
         )
       }
       questions.push({
-        id: `conflict:fixed_overlap:${b.ref}`,
+        id: `conflict:fixed_overlap:${a.ref}|${b.ref}`,
         from: 'plan',
         text: `${a.title} (${formatTime12(pa.start)}–${formatTime12(pa.end)}) y ${b.title} (${formatTime12(pb.start)}) chocan. ¿Puedes hacerlas a la vez?`,
         options,
@@ -323,6 +337,18 @@ export function conflictQuestions(plan: DayPlan, items: DayItem[]): DayQuestion[
     }
     const it = byRef.get(c.ref)
     if (!it) continue
+    if (it.source !== 'new') {
+      // De un existente solo se ofrece lo que se puede guardar: dejarlo a su
+      // hora (si choca, la pregunta siguiente ofrece hacerlo a la vez).
+      if (!it.originalStart) continue
+      questions.push({
+        id: `conflict:no_room:${it.ref}`,
+        from: 'plan',
+        text: `${it.title} ya no cabe en otro momento del día. ¿Qué hacemos?`,
+        options: [{ label: 'Dejarla a su hora', effect: { kind: 'pin', ref: it.ref } }],
+      })
+      continue
+    }
     const options: DayOption[] = []
     if (it.source === 'new' && halfOf(it.durationMin) <= c.freeMin) {
       options.push({ label: 'Partirla en dos bloques', effect: { kind: 'split', ref: it.ref } })
@@ -344,6 +370,14 @@ export function conflictQuestions(plan: DayPlan, items: DayItem[]): DayQuestion[
   return questions
 }
 
+/**
+ * Si el cambio de duración se puede guardar: un ítem nuevo o un evento (que
+ * guarda su fin). Las sesiones y los hábitos solo guardan la hora.
+ */
+export function canResize(item: DayItem): boolean {
+  return item.source === 'new' || item.source === 'event'
+}
+
 export function applyEffect(items: DayItem[], effect: DayEffect): DayItem[] {
   switch (effect.kind) {
     case 'alongside':
@@ -359,11 +393,15 @@ export function applyEffect(items: DayItem[], effect: DayEffect): DayItem[] {
         return [1, 2].map((k) => ({ ...i, ref: `${i.ref}#${k}`, durationMin: half, fixed: false, start: null }))
       })
     case 'shorten':
-      return items.map((i) => (i.ref === effect.ref ? { ...i, durationMin: effect.minutes } : i))
+      return items.map((i) => (i.ref === effect.ref && canResize(i) ? { ...i, durationMin: effect.minutes } : i))
     case 'drop':
-      return items.filter((i) => i.ref !== effect.ref)
+      return items.filter((i) => i.ref !== effect.ref || i.source !== 'new')
     case 'untimed':
-      return items.map((i) => (i.ref === effect.ref ? { ...i, untimed: true } : i))
+      return items.map((i) => (i.ref === effect.ref && i.source === 'new' ? { ...i, untimed: true } : i))
+    case 'pin':
+      return items.map((i) =>
+        i.ref === effect.ref && i.source !== 'new' ? { ...i, fixed: true, start: i.originalStart ?? i.start } : i,
+      )
   }
 }
 

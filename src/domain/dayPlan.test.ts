@@ -176,7 +176,7 @@ describe('conflictQuestions', () => {
     const call = item({ fixed: true, start: '10:00', durationMin: 15, title: 'Llamada al banco' })
     const items = [meeting, call]
     const [q] = conflictQuestions(planDay({ items, nowMin: null }), items)
-    expect(q.id).toBe(`conflict:fixed_overlap:${call.ref}`)
+    expect(q.id).toBe(`conflict:fixed_overlap:${meeting.ref}|${call.ref}`)
     expect(q.from).toBe('plan')
     expect(q.text).toBe('Reunión (9:00 am–11:00 am) y Llamada al banco (10:00 am) chocan. ¿Puedes hacerlas a la vez?')
     expect(q.options.map((o) => o.label)).toEqual([
@@ -292,12 +292,9 @@ describe('planToOps', () => {
     expect(ops([ev])[0]).toMatchObject({ kind: 'moveEvent', start: '11:00', end: null, prevEnd: null })
   })
 
-  it('moves a session and gives a time to an existing session that had none', () => {
+  it('moves a session', () => {
     const s1 = item({ ref: 'session:k1', source: 'session', start: '18:00', originalStart: '17:00' })
-    const s2 = item({ ref: 'session:k2', source: 'session', start: null, originalStart: null })
-    const result = ops([s1, s2])
-    expect(result).toContainEqual({ kind: 'moveSession', ref: 'session:k1', sessionKey: 'k1', start: '18:00', prevStart: '17:00' })
-    expect(result).toContainEqual({ kind: 'moveSession', ref: 'session:k2', sessionKey: 'k2', start: '06:00', prevStart: null })
+    expect(ops([s1])).toEqual([{ kind: 'moveSession', ref: 'session:k1', sessionKey: 'k1', start: '18:00', prevStart: '17:00' }])
   })
 
   it('emits one moveHabit with all times when one of several repetitions moves', () => {
@@ -338,5 +335,77 @@ describe('mergeAiItems', () => {
       ['session:k', '18:00'],
       ['new:2', null],
     ])
+  })
+})
+
+describe('review fixes', () => {
+  it('moves a new item with a preferred time before now to after now', () => {
+    const gym = item({ start: '10:00', durationMin: 60 })
+    const p = planDay({ items: [gym], nowMin: 900 }).placed.find((x) => x.ref === gym.ref)
+    expect(p && p.start >= '15:00').toBe(true)
+  })
+
+  it('leaves an existing item without time out of the placement (no phantom change)', () => {
+    const s1 = item({ ref: 'session:k', source: 'session', start: null, originalStart: null })
+    const plan = planDay({ items: [s1], nowMin: null })
+    expect(plan.placed).toEqual([])
+    expect(plan.untimed).toEqual(['session:k'])
+    expect(planToOps(plan, [s1], [])).toEqual([])
+  })
+
+  it('places an existing item without time once the AI gives it one', () => {
+    const s1 = item({ ref: 'session:k', source: 'session', start: '18:00', originalStart: null })
+    expect(planToOps(planDay({ items: [s1], nowMin: null }), [s1], [])).toEqual([
+      { kind: 'moveSession', ref: 'session:k', sessionKey: 'k', start: '18:00', prevStart: null },
+    ])
+  })
+
+  it('does not stack two audio items on the same host', () => {
+    const gym = item({ fixed: true, start: '07:00', durationMin: 60, mode: 'physical' })
+    const a1 = item({ mode: 'audio', durationMin: 30 })
+    const a2 = item({ mode: 'audio', durationMin: 30 })
+    const plan = planDay({ items: [gym, a1, a2], nowMin: null })
+    const p1 = plan.placed.find((x) => x.ref === a1.ref)
+    const p2 = plan.placed.find((x) => x.ref === a2.ref)
+    expect(p1?.start).toBe('07:00')
+    expect(p2?.start).not.toBe('07:00')
+    expect(p2?.overlapsWith ?? []).not.toContain(a1.ref)
+  })
+
+  it('does not put an evening audio item on a morning host', () => {
+    const gym = item({ fixed: true, start: '07:00', durationMin: 60, mode: 'physical' })
+    const pod = item({ mode: 'audio', durationMin: 30, window: 'evening' })
+    const p = planDay({ items: [gym, pod], nowMin: null }).placed.find((x) => x.ref === pod.ref)
+    expect(p?.start).toBe('18:00')
+  })
+
+  it('gives unique ids to two overlap questions about the same later item', () => {
+    const a = item({ ref: 'event:a', source: 'event', fixed: true, start: '09:00', durationMin: 120, originalStart: '09:00' })
+    const b = item({ ref: 'event:b', source: 'event', fixed: true, start: '10:00', durationMin: 120, originalStart: '10:00' })
+    const c = item({ fixed: true, start: '10:30', durationMin: 30 })
+    const items = [a, b, c]
+    const ids = conflictQuestions(planDay({ items, nowMin: null }), items).map((q) => q.id)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('offers only executable options for an existing item with no room', () => {
+    const wall = item({ fixed: true, start: '06:00', durationMin: 960 })
+    const s1 = item({ ref: 'session:k', source: 'session', start: '09:00', originalStart: '09:00', title: 'Inglés' })
+    const items = [wall, s1]
+    const [q] = conflictQuestions(planDay({ items, nowMin: null }), items)
+    expect(q.options.map((o) => o.label)).toEqual(['Dejarla a su hora'])
+    const opt = q.options[0]
+    if (!('effect' in opt)) throw new Error('expected effect')
+    const next = applyEffect(items, opt.effect)
+    expect(next.find((i) => i.ref === 'session:k')).toMatchObject({ fixed: true, start: '09:00' })
+  })
+
+  it('ignores drop, untimed and shorten on existing sessions and habits', () => {
+    const s1 = item({ ref: 'session:k', source: 'session', start: '09:00', originalStart: '09:00', durationMin: 45 })
+    expect(applyEffect([s1], { kind: 'drop', ref: 'session:k' })).toEqual([s1])
+    expect(applyEffect([s1], { kind: 'untimed', ref: 'session:k' })).toEqual([s1])
+    expect(applyEffect([s1], { kind: 'shorten', ref: 'session:k', minutes: 10 })).toEqual([s1])
+    const ev = item({ ref: 'event:e', source: 'event', fixed: true, start: '09:00', originalStart: '09:00', durationMin: 60 })
+    expect(applyEffect([ev], { kind: 'shorten', ref: 'event:e', minutes: 30 })[0].durationMin).toBe(30)
   })
 })
