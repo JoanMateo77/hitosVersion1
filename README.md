@@ -1,154 +1,152 @@
-# Hito ✅
+# Lógralo
 
-App de gestión de metas **con guía**: definí lo que querés lograr y Hito te arma
-un plan corto cada día. La app **guía, no exige** — no necesitás saber cómo
-descomponer una meta, te lleva paso a paso.
+App para lograr metas personales con guía. Defines lo que quieres lograr, un
+coach con IA te ayuda a armar el camino y la app lo convierte en sesiones,
+hábitos y una agenda diaria que sí cabe en tu día.
 
-PWA mobile-first, en español. Pensada para gente que sabe _qué_ quiere pero
-pierde la ejecución diaria. La visión completa del producto está en
-[`idea-app-metas-2.docx`](./idea-app-metas-2.docx).
+**Demo:** [hitos-version1.vercel.app](https://hitos-version1.vercel.app) · PWA
+mobile-first, en español.
 
-> Proyecto personal y pieza de portfolio full-stack. Modelo: gratis, sin paywall
-> en lo esencial.
+| Hoy | Coach de la meta | Organizar el día con IA | Agenda |
+| :-: | :-: | :-: | :-: |
+| <img src="docs/readme/hoy.png" width="200" alt="Pantalla Hoy con metas, racha y siguiente sesión"> | <img src="docs/readme/coach-camino.png" width="200" alt="El coach revisa las etapas de una meta y sugiere una"> | <img src="docs/readme/organizar-dia.png" width="200" alt="La IA arma un borrador del día y pregunta por un choque de horario"> | <img src="docs/readme/agenda.png" width="200" alt="Agenda del día por momentos con tiempo libre"> |
+
+> Proyecto personal y pieza de portafolio full-stack. Las capturas usan datos
+> ficticios.
 
 ## Qué hace
 
-**Núcleo — Wizard + Plantillas + Plan diario (E · F · G)**
+- **Asistente para crear metas.** Pregunta qué, por qué, para cuándo y cómo sabrás
+  que lo lograste. Detecta el tipo de meta y propone etapas, horario semanal y
+  criterio de éxito.
+- **Coach con IA por meta.** Revisa el camino, sugiere etapas que faltan, responde
+  dudas y propone cambios que la persona aplica con un botón.
+- **Hoy.** La siguiente sesión, los hábitos del día, la racha y lo que queda
+  pendiente, en una sola pantalla.
+- **Sesiones guiadas.** Temporizador, pausa y registro de lo que se avanzó.
+- **Hábitos.** Varias veces al día, saltar un día sin romper la racha, pausa y vínculo con una meta.
+- **Agenda por bloques.** Día, semana y mes. Lo que coincide en la misma hora se
+  agrupa, y muestra el tiempo libre entre actividades.
+- **Organizar el día con IA.** La persona cuenta su día con sus palabras. La app
+  arma un borrador sin choques, pregunta lo que falta (duraciones, qué se puede
+  hacer a la vez) y nada se guarda hasta pulsar "Aplicar", que se puede deshacer.
+- **Notas, progreso y lecturas cortas** sobre cómo sostener una meta.
+- **Recordatorios push** con una Edge Function de Supabase.
 
-- **Onboarding guiado** — ¿una meta o varias? + identificación del nicho
-  principal (con mini-entrevista determinística si no lo tenés claro).
-- **Wizard de meta** — 5 preguntas (_qué_, _por qué_, _para cuándo_, _área_,
-  _criterio de éxito_). Detecta la plantilla sola desde el título.
-- **Plantillas por tipo de meta** — cada meta hereda hitos, un pool de acciones
-  concretas y una cadencia. Vos ajustás, no inventás la estructura.
-- **Plan del día automático** — una acción por meta que "toca" hoy, más lo que
-  vos sumes. Botón **"no sé qué hacer, proponé vos"** para días flojos. Vos
-  mandás: editar, posponer o quitar cualquier ítem.
+## Cómo usa la IA
 
-**El camino (hitos)** — cada meta muestra su roadmap y **avanza de verdad**:
-marcás etapas y ves el progreso ("Etapa 2 de 4") en la lista de metas.
+La regla del proyecto es **la IA entiende, el código decide**.
 
-**Recomendación inteligente** (determinística, sin IA en runtime)
-
-- **Ideas para empezar** — si no sabés qué ponerte, sugiere 2-3 metas concretas
-  según tu foco, listas para adoptar con un toque.
-- **Foco de la semana**, **alertas de metas olvidadas** y **próximo paso** al
-  cumplir una meta.
-
-**Agenda / calendario propio** — vistas **día / semana / mes**, eventos con
-horario, **vínculo opcional a una meta** y reportes de tiempo ("esta semana le
-dedicaste 3 h a tu meta de salud"). La agenda del día también aparece en _Hoy_.
-
-**Modo de foco funcional** — _enfocado_ (una meta por vez) vs _multi-meta_
-(reparte entre todas). Editable desde el perfil.
-
-**Revisión guiada** — repasás tus metas activas una por una (seguir / avanzar de
-etapa / pausar), según la frecuencia de revisión de cada plantilla.
+- El modelo interpreta el texto libre y responde en JSON validado con un esquema.
+  Las decisiones con consecuencias son código puro y probado: ubicar actividades
+  en el día, detectar choques, aplicar o deshacer cambios.
+- Las claves de IA viven solo en el servidor (`api/plan-meta.ts`, función de
+  Vercel). El navegador nunca las ve.
+- **Cadena de respaldo:** si un modelo falla (saturación, límite, respuesta
+  inválida), pasa al siguiente: Gemini → Groq → OpenRouter
+  (`src/server/aiChain.ts`).
+- **Límite diario por persona** guardado en Postgres, con cobro atómico y
+  devoluciones solo cuando la IA falla (`supabase/migrations/0020`, `0021`).
+- **Defensa ante engaños:** el texto de la persona va delimitado y sin
+  posibilidad de cerrar sus etiquetas, y el modelo rechaza lo que no es de la app
+  (`src/domain/promptData.ts`).
 
 ## Stack
 
-- **Frontend:** React 19 + TypeScript (estricto) + Vite 6 + React Router 7
-- **PWA:** `vite-plugin-pwa` (instalable, app-shell offline)
-- **Backend:** Supabase (Postgres + Auth) con Row Level Security
-- **Cero dependencias de UI:** sistema de diseño propio (tokens CSS) e íconos SVG inline
+- **Frontend:** React 19, TypeScript estricto, Vite 6, React Router 7, PWA con
+  `vite-plugin-pwa`. Sistema de diseño propio (tokens CSS) e íconos SVG, sin
+  librerías de UI.
+- **Backend:** Supabase (Postgres, Auth, Row Level Security, Edge Functions) y una
+  función serverless en Vercel para la IA.
+- **IA:** Gemini, Groq y OpenRouter, con salida JSON por esquema.
+- **Calidad:** Vitest, Playwright, ESLint con reglas de arquitectura, Conventional
+  Commits, lefthook, GitHub Actions y SonarCloud.
 
 ## Arquitectura
 
 ```
 src/
-├─ lib/          Tipos de dominio · cliente Supabase · utilidades de fecha
-├─ domain/       Lógica pura y testeable (sin I/O):
-│                  niches · templates (F) · dailyPlan (G) · recommendations · calendar
-├─ services/     Acceso a datos tipado: auth · profile · goals · tasks · events
-├─ app/          Sesión (contexto) y estado de autenticación
-├─ hooks/        useAsyncData
-├─ components/   UI reutilizable: BottomNav · Roadmap · TaskItem · OptionRow · íconos…
-├─ screens/      Auth · Onboarding · Wizard · GoalCreated · GoalSuggestions ·
-│                Today · Goals · GoalDetail · Calendar · Review · Profile
-└─ styles/       tokens · base · components
+├─ domain/      Lógica pura y probada, sin I/O: plan del día, agenda, rachas,
+│               plantillas, prompts y lectura de respuestas de la IA
+├─ server/      Handler de la IA: cadena de modelos, cuota y validación
+├─ services/    Acceso a datos tipado (Supabase)
+├─ hooks/       Estado de pantallas y caché de sesión
+├─ screens/     Hoy, Metas, Asistente, Hábitos, Agenda, Notas, Progreso, Perfil…
+├─ components/  UI reutilizable
+└─ styles/      Tokens y estilos
 
-supabase/
-├─ schema.sql      Esquema completo + RLS (idempotente; corré todo de una vez)
-└─ migrations/     Cambios incrementales (agenda, revisión)
+api/            Función de Vercel (/api/plan-meta)
+supabase/       schema.sql, migraciones con RLS y la Edge Function de recordatorios
+e2e/            Pruebas de Playwright con Supabase e IA falsos
 ```
 
-**Regla clave:** la lógica de negocio vive en `domain/` como **funciones puras**,
-separada de la UI y de la base de datos. Determinística por diseño — la
-recomendación no usa un modelo de IA en runtime, para mantener el costo bajo y el
-modelo gratis viable.
+- `domain/` no importa nada de la UI ni de la base de datos; una regla de ESLint lo
+  hace cumplir.
+- Toda tabla nace con RLS y sus políticas en la misma migración; `npm run check:rls`
+  lo verifica.
+
+## Calidad
+
+- Pruebas unitarias del dominio y del servidor (`npm test`) y pruebas e2e de los
+  flujos con IA (`npm run e2e:coach`).
+- CI en cada PR: tipos, lint, RLS, pruebas y build (`.github/workflows/ci.yml`).
+- Hooks de git: lint y RLS antes de cada commit, Conventional Commits, y tipos y
+  pruebas antes de cada push.
 
 ## Puesta en marcha
 
-### 1. Dependencias
+1. Instala las dependencias:
 
-```bash
-npm install
-```
+   ```bash
+   npm install
+   ```
 
-### 2. Base de datos (Supabase) — _tu paso_
+2. Crea un proyecto en [supabase.com](https://supabase.com). En **SQL Editor**,
+   corre [`supabase/schema.sql`](./supabase/schema.sql) y después cada archivo de
+   [`supabase/migrations/`](./supabase/migrations) en orden (0002 a la última).
 
-1. Creá un proyecto gratis en [supabase.com](https://supabase.com).
-2. En **SQL Editor → New query**, pegá y ejecutá todo
-   [`supabase/schema.sql`](./supabase/schema.sql) (ya incluye perfiles, metas,
-   tareas, agenda y progreso de hitos).
-3. En **Authentication → Sign In/Providers → Email**, desactivá _"Confirm email"_
-   (para el MVP, así el registro entra directo).
-4. En **Project Settings → API**, copiá la **Project URL** y la
-   **anon / publishable key**.
+3. Copia las variables de entorno y completa la URL y la `anon key` de Supabase
+   (**Project Settings → API**):
 
-### 3. Claves
+   ```bash
+   cp .env.example .env
+   ```
 
-```bash
-cp .env.example .env   # completá con tus valores
-```
+   La `anon key` es pública por diseño; la seguridad la dan las políticas RLS. Para
+   la IA agrega al menos `GEMINI_API_KEY`. Esas claves solo las lee el servidor.
 
-> La `anon key` es **pública por diseño** (va en el frontend); la seguridad real
-> la dan las políticas RLS del `schema.sql`, no ocultar la clave.
+4. Corre la app. El servidor de desarrollo también monta `/api/plan-meta`:
 
-### 4. Correr
+   ```bash
+   npm run dev
+   ```
 
-```bash
-npm run dev   # también sirve en la LAN: http://192.168.x.x:5173
-```
+Para probarla en el celular, abre la URL **Network** que imprime `npm run dev`
+(misma red Wi-Fi) y usa **Compartir → Agregar a pantalla de inicio**.
 
-## Usarla desde el celular 📱
-
-1. Compu y celular en la **misma red Wi-Fi**.
-2. Abrí en el celu la URL **Network** que imprime `npm run dev`.
-3. **Compartir → Agregar a pantalla de inicio** → se abre como app a pantalla
-   completa, con su ícono.
+Los recordatorios push necesitan desplegar la Edge Function; la guía está en
+[`docs/notificaciones.md`](./docs/notificaciones.md).
 
 ## Scripts
 
-| Comando             | Qué hace                                 |
-| ------------------- | ---------------------------------------- |
-| `npm run dev`       | Servidor de desarrollo (con acceso LAN)  |
-| `npm run build`     | Typecheck estricto + build de producción |
-| `npm run preview`   | Sirve el build de producción             |
-| `npm run typecheck` | Solo chequeo de tipos                    |
-| `npm run lint`      | ESLint, con reglas de arquitectura (`domain/` puro) y de secretos en el cliente |
-| `npm test`          | Tests (Vitest)                           |
-| `npm run check:rls` | Falla si una tabla de `supabase/` no activa RLS en su mismo archivo |
+| Comando | Qué hace |
+| --- | --- |
+| `npm run dev` | Servidor de desarrollo, con la función de IA y acceso desde la red local |
+| `npm run build` | Chequeo de tipos y build de producción |
+| `npm test` | Pruebas unitarias (Vitest) |
+| `npm run e2e:coach` | Pruebas e2e de los flujos con IA (Playwright) |
+| `npm run lint` | ESLint, con reglas de arquitectura y de secretos en el cliente |
+| `npm run check:rls` | Falla si una tabla no activa RLS en su mismo archivo |
+| `npm run check:api` | Verifica que la función de Vercel cargue en Node |
+| `npm run shots` | Capturas de todas las pantallas con datos ficticios |
 
-### Validaciones automáticas
+## Lo que viene
 
-- **Hooks de git** (`lefthook.yml`, se instalan con `npm install`): lint de lo que entra al commit y RLS si cambia
-  SQL (pre-commit), Conventional Commits (`commitlint.config.js`), tipos y tests antes de cada push.
-- **CI** (`.github/workflows/ci.yml`): tipos, lint, RLS, tests y build en cada PR y en `master`.
-- **Claude Code** (`.claude/settings.json`): tras cada edición en `src/` corre `eslint --fix` y le devuelve los
-  errores que queden.
+- Dictar el día por voz en el organizador de la agenda.
+- Que el organizador recuerde el horario habitual y las combinaciones que la
+  persona ya confirmó.
+- Replanificar el día en vivo cuando algo se atrasa.
 
-## Roadmap (fuera de alcance por ahora)
+---
 
-- **Sincronización con Google Calendar** — el calendario propio ya está; el sync
-  bidireccional queda para una próxima iteración.
-- **Push real / recordatorios** — necesita un backend que agende notificaciones;
-  hoy hay recordatorios _in-app_ (la agenda del día en _Hoy_).
-- **Mensajes contextuales** e **histórico de reflexiones** — en la visión, a
-  definir más adelante.
-- **Tests automatizados** de `domain/` — las funciones ya son puras y están
-  listas para testear.
-
-## Licencia
-
-A definir (sugerencia: MIT). Hecho por Joan Mateo Cardona.
+Hecho por [Joan Mateo Cardona](https://github.com/JoanMateo77).
