@@ -1,7 +1,7 @@
 -- ============================================================================
---  Hito — esquema de base de datos
---  Cómo correrlo: Supabase Dashboard → SQL Editor → New query → pegá TODO esto
---  → Run. Es idempotente: lo podés correr de nuevo sin romper nada.
+--  Lógralo — esquema base de datos (después corre supabase/migrations en orden)
+--  Cómo correrlo: Supabase Dashboard → SQL Editor → New query → pega TODO esto
+--  → Run. Es idempotente: se puede correr de nuevo sin romper nada.
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
