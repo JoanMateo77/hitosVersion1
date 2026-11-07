@@ -3005,6 +3005,131 @@ select.input:focus {
   transition: color var(--dur-tap) var(--ease-out);
 }
 
+/* ---- Organizar el día con IA (2026-11) ------------------------------------
+   Chat + preguntas en línea + borrador. Mismo lenguaje que "Reorganizar":
+   filas planas, kicker por grupo, tokens. Lo cambiado lleva la barra de acción. */
+.dayplan-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  padding: var(--s3);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.dayplan-error {
+  display: block;
+  color: var(--text-muted);
+}
+.dayplan-question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s3);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  animation: coach-rise var(--dur-layout) var(--ease-out) both;
+}
+.dayplan-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  padding-left: calc(24px + var(--s2)); /* alinea con el texto, pasado el orbe */
+}
+.dayplan-block {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+}
+.dayplan-block + .dayplan-block {
+  margin-top: var(--s1);
+}
+.dayplan-item {
+  border-left: 3px solid transparent;
+  padding-left: var(--s2);
+}
+.dayplan-item--changed {
+  border-left-color: var(--action);
+}
+.dayplan-item__main {
+  display: grid;
+  /* Columna de horas fija: los títulos quedan alineados entre filas. */
+  grid-template-columns: 9.5em 1fr;
+  column-gap: var(--s3);
+  width: 100%;
+  padding: var(--s2) 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+}
+.dayplan-item__main:disabled {
+  cursor: default;
+}
+.dayplan-item__time {
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  padding-top: 2px;
+  white-space: nowrap;
+}
+.dayplan-item__title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dayplan-item__tags {
+  grid-column: 2;
+  font-size: var(--fs-xs);
+  color: var(--action);
+}
+.dayplan-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--s3);
+  padding: 0 0 var(--s3);
+}
+.dayplan-editor__field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dayplan-editor__field .input {
+  width: 120px;
+}
+.dayplan-editor__check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 40px;
+}
+.dayplan-assumptions {
+  margin: 0;
+  padding-left: var(--s4);
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+/* Pie fijo: Aplicar siempre a mano, aunque el borrador sea largo. Se pega al
+   borde real del panel (cubre su padding inferior) para que nada asome debajo. */
+.dayplan-footer {
+  --dayplan-pad: calc(var(--safe-bottom) + var(--s5));
+  position: sticky;
+  bottom: calc(-1 * var(--dayplan-pad));
+  display: flex;
+  gap: var(--s2);
+  justify-content: flex-end;
+  margin-bottom: calc(-1 * var(--dayplan-pad));
+  padding: var(--s3) 0 var(--dayplan-pad);
+  background: var(--bg-elev);
+}
+
 /* ==== Agenda: cronología del día (2026-09) =================================
    Filas del mismo alto separadas por hairline, sin tarjeta ni sombra. La
    sesión se distingue por forma (barra del área + título 600 + ▶), no por

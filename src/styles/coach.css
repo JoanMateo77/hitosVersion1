@@ -220,7 +220,8 @@
 .coach-composer:focus-within {
   border-color: var(--action);
 }
-.coach-composer input {
+.coach-composer input,
+.coach-composer textarea {
   flex: 1;
   min-width: 0;
   font: inherit;
@@ -231,7 +232,19 @@
   outline: none;
   padding: var(--s2) 0;
 }
-.coach-composer input::placeholder {
+.coach-composer textarea {
+  resize: none;
+  line-height: 1.4;
+  max-height: 40vh;
+}
+/* Multilínea: esquinas suaves (no píldora) y el botón abajo, junto al texto. */
+.coach-composer--multiline {
+  align-items: flex-end;
+  border-radius: 18px;
+  padding: 6px 6px 6px var(--s4);
+}
+.coach-composer input::placeholder,
+.coach-composer textarea::placeholder {
   color: var(--text-muted);
 }
 .coach-composer button {

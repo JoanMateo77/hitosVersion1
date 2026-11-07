@@ -16,6 +16,7 @@ function deps(over: Partial<PlanMetaDeps> = {}): PlanMetaDeps {
       chat: vi.fn(async () => ({ reply: 'Hola', proposal: null })),
       criteria: vi.fn(async () => [{ text: 'Tengo la moto', why: 'Resultado' }]),
       goalType: vi.fn(async () => ({ key: 'finanzas', reason: 'Quieres comprar algo', alternatives: [] })),
+      day: vi.fn(async () => ({ reply: 'Armé tu día.', items: [], questions: [], assumptions: [] })),
     },
     takeQuota: () => refund,
     loadSignals: vi.fn(async () => ['Completas el 80% de tus sesiones.']),
@@ -116,11 +117,32 @@ describe('handlePlanMeta', () => {
   it('503 si no hay clave configurada y 502 si el modelo falla', async () => {
     expect((await handlePlanMeta(req({ title: 'x' }), deps({ planner: null }))).status).toBe(503)
     const boom = async () => Promise.reject(new Error('boom'))
-    const failing = deps({ planner: { plan: boom, questions: boom, refine: boom, chat: boom, criteria: boom, goalType: boom } })
+    const failing = deps({ planner: { plan: boom, questions: boom, refine: boom, chat: boom, criteria: boom, goalType: boom, day: boom } })
     vi.spyOn(console, 'error').mockImplementation(() => {})
     expect((await handlePlanMeta(req({ title: 'x' }), failing)).status).toBe(502)
     // El fallo de la IA no le gasta el uso a la persona.
     expect(refund).toHaveBeenCalledTimes(1)
+  })
+
+  it('cobra con el token de la persona y espera la devolución asíncrona antes de responder', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let refunded = false
+    const take = vi.fn(async () => async () => {
+      await Promise.resolve()
+      refunded = true
+    })
+    const boom = async () => Promise.reject(new Error('boom'))
+    const d = deps({ takeQuota: take })
+    d.planner!.plan = boom
+    const res = await handlePlanMeta(req({ title: 'x' }), d)
+    expect(res.status).toBe(502)
+    expect(take).toHaveBeenCalledWith('user-1', 'ok')
+    expect(refunded).toBe(true)
+  })
+
+  it('el límite diario guardado (asíncrono) también corta con 429', async () => {
+    const res = await handlePlanMeta(req({ title: 'x' }), deps({ takeQuota: async () => null }))
+    expect(res.status).toBe(429)
   })
 
   it('no devuelve cuota cuando la respuesta sale bien', async () => {
@@ -171,5 +193,74 @@ describe('createMemoryQuota', () => {
     let left = 0
     while (take('a')) left++
     expect(left).toBe(99)
+  })
+})
+
+describe('acción day', () => {
+  const dayBody = (over: Record<string, unknown> = {}) => ({
+    action: 'day',
+    date: '2026-11-09',
+    now: '08:15',
+    items: [
+      { ref: 'event:e1', source: 'event', title: 'Cita', fixed: true, start: '10:00', durationMin: 30, window: null, mode: 'focus', goalId: null, alongside: null, untimed: false },
+      { ref: 'malo' },
+    ],
+    goals: [{ id: 'g1', title: 'Tesis' }, { id: 3 }],
+    history: [{ role: 'user', text: 'hola' }],
+    message: 'reunión de 9 a 11',
+    ...over,
+  })
+
+  it('day returns the parsed reply without a goal title', async () => {
+    const d = deps()
+    const res = await handlePlanMeta(req(dayBody()), d)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ reply: 'Armé tu día.', items: [], questions: [], assumptions: [] })
+    expect(d.planner?.day).toHaveBeenCalledWith(
+      expect.objectContaining({
+        date: '2026-11-09',
+        now: '08:15',
+        dayStart: '06:00',
+        dayEnd: '22:00',
+        goals: [{ id: 'g1', title: 'Tesis' }],
+        items: [expect.objectContaining({ ref: 'event:e1', start: '10:00' })],
+      }),
+      [{ role: 'user', text: 'hola' }],
+      'reunión de 9 a 11',
+    )
+    expect(d.loadSignals).not.toHaveBeenCalled()
+  })
+
+  it('day drops item goals that are not among the active goals and caps goal ids', async () => {
+    const d = deps()
+    const items = [{ ...(dayBody().items as object[])[0], goalId: 'ajena' }]
+    await handlePlanMeta(req(dayBody({ items, goals: [{ id: 'x'.repeat(5000), title: 'Larga' }] })), d)
+    const ctx = (d.planner!.day as ReturnType<typeof vi.fn>).mock.calls[0][0]
+    expect(ctx.items[0].goalId).toBeNull()
+    expect(ctx.goals[0].id.length).toBeLessThanOrEqual(120)
+  })
+
+  it('day without message is 400', async () => {
+    expect((await handlePlanMeta(req(dayBody({ message: ' ' })), deps())).status).toBe(400)
+  })
+
+  it('day with a message over 1500 chars is 400', async () => {
+    expect((await handlePlanMeta(req(dayBody({ message: 'a'.repeat(1501) })), deps())).status).toBe(400)
+  })
+
+  it('day with an invalid date or time is 400', async () => {
+    expect((await handlePlanMeta(req(dayBody({ date: 'mañana' })), deps())).status).toBe(400)
+    expect((await handlePlanMeta(req(dayBody({ now: '8:15' })), deps())).status).toBe(400)
+  })
+
+  it('day charges quota and refunds it when the planner fails', async () => {
+    const take = vi.fn(() => refund)
+    refund.mockClear()
+    const d = deps({ takeQuota: take })
+    ;(d.planner!.day as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('caída'))
+    const res = await handlePlanMeta(req(dayBody()), d)
+    expect(res.status).toBe(502)
+    expect(take).toHaveBeenCalledTimes(1)
+    expect(refund).toHaveBeenCalledTimes(1)
   })
 })

@@ -3,6 +3,7 @@
  * fija (las plantillas): el modelo solo elige claves de esa lista y el
  * servidor descarta cualquier otra. Imports relativos: corre en el servidor.
  */
+import { asData } from './promptData.js'
 
 export interface GoalTypeOption {
   key: string
@@ -25,8 +26,6 @@ const MAX_ALTERNATIVES = 2
 export const TYPE_REASON_MAX = 120
 
 const clean = (text: string, max: number) => text.replaceAll(/\s+/g, ' ').trim().slice(0, max)
-/** Texto de la persona dentro del prompt: sin < ni > no puede cerrar la etiqueta que lo envuelve. */
-const asData = (text: string, max: number) => clean(text, max).replaceAll('<', '‹').replaceAll('>', '›')
 
 export function typeResponseSchema(keys: readonly string[]): object {
   return {

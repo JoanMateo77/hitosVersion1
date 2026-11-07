@@ -1,6 +1,9 @@
 import type { CalendarEvent, TargetKind } from '@/lib/types'
 import { blockEndTime, timeToMinutes } from '@/domain/commitment'
 import { formatDuration, formatTime12 } from '@/lib/date'
+import { freeIntervals } from '@/domain/clock'
+
+export { freeIntervals }
 
 /**
  * Agenda como bloques (0014): lógica pura para pintar sesiones con rango de

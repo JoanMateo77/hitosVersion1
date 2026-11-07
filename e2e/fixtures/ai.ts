@@ -40,6 +40,19 @@ const PLAN = {
 
 export const WIZARD_PLAN = PLAN
 
+/** Respuesta de la acción "day" (forma de src/domain/dayPlanAi.ts): un choque y una pregunta. */
+const DAY_REPLY = {
+  reply: 'Entendí tu reunión, la llamada al banco y la tesis por la tarde.',
+  items: [
+    { ref: 'new:1', source: 'new', title: 'Reunión', fixed: true, start: '09:00', durationMin: 120, window: null, mode: 'focus', goalId: null, alongside: null, untimed: false },
+    { ref: 'new:2', source: 'new', title: 'Llamada al banco', fixed: true, start: '10:00', durationMin: 15, window: null, mode: 'focus', goalId: null, alongside: null, untimed: false },
+    { ref: 'new:3', source: 'new', title: 'Tesis', fixed: false, start: null, durationMin: 120, window: 'afternoon', mode: 'focus', goalId: null, alongside: null, untimed: false },
+  ],
+  questions: [{ text: '¿Cuánto tiempo quieres dedicarle a la tesis?', options: ['1 h', '2 h'] }],
+  assumptions: ['Supuse 2 h para la tesis'],
+  removed: [],
+}
+
 export function aiResponse(action: string): unknown {
   switch (action) {
     case 'questions':
@@ -62,6 +75,8 @@ export function aiResponse(action: string): unknown {
           { text: 'Correr 10 km tres veces en un mes', why: 'Mide constancia.' },
         ],
       }
+    case 'day':
+      return DAY_REPLY
     case 'type':
       return { type: { key: 'emprender', reason: 'Hablas de lanzar un producto propio.', alternatives: ['crear_publicar', 'carrera'] } }
     default:

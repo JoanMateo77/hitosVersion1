@@ -5,6 +5,7 @@
  * vite.config.ts, donde el alias no existe todavía.
  */
 import { areaGuide } from './planningMethod.js'
+import { asData } from './promptData.js'
 
 export interface GoalPlanStage {
   title: string
@@ -127,7 +128,7 @@ function clean(text: string | null | undefined, max = MAX_TEXT): string {
 
 function currentStages(input: GoalPlanInput): string[] {
   return (input.currentStages ?? [])
-    .map((t) => clean(t))
+    .map((t) => asData(t))
     .filter(Boolean)
     .slice(0, 12)
 }
@@ -154,7 +155,7 @@ function stageRules(input: GoalPlanInput): string[] {
  */
 export function timeData(targetDate: string | null | undefined, today: Date): string[] {
   const lines = [`<hoy>${today.toISOString().slice(0, 10)}</hoy>`]
-  const date = clean(targetDate, 10)
+  const date = asData(targetDate, 10)
   if (date) lines.push(`<fecha_limite>${date}</fecha_limite>`)
   const weeks = weeksUntil(date, today)
   if (weeks !== null) lines.push(`<semanas_disponibles>${weeks}</semanas_disponibles>`)
@@ -163,16 +164,16 @@ export function timeData(targetDate: string | null | undefined, today: Date): st
 
 /** Bloque de datos de la meta, siempre delimitado: el modelo lo trata como datos. */
 function goalData(input: GoalPlanInput, signalLines: string[], today: Date): string[] {
-  const lines = [`<meta>${clean(input.title)}</meta>`, `<tipo>${clean(input.typeLabel)}</tipo>`]
-  const why = clean(input.why)
+  const lines = [`<meta>${asData(input.title)}</meta>`, `<tipo>${asData(input.typeLabel)}</tipo>`]
+  const why = asData(input.why)
   if (why) lines.push(`<motivo>${why}</motivo>`)
   lines.push(...timeData(input.targetDate, today))
   if (input.weeklyMinutes && input.weeklyMinutes > 0) {
     lines.push(`<tiempo_semanal_comprometido>${Math.round(input.weeklyMinutes)} minutos</tiempo_semanal_comprometido>`)
   }
   for (const a of (input.answers ?? []).slice(0, MAX_QUESTIONS + 1)) {
-    const q = clean(a.question)
-    const ans = clean(a.answer)
+    const q = asData(a.question)
+    const ans = asData(a.answer)
     if (q && ans) lines.push(`<respuesta pregunta="${q.replaceAll('"', "'")}">${ans}</respuesta>`)
   }
   const current = currentStages(input)
@@ -181,7 +182,7 @@ function goalData(input: GoalPlanInput, signalLines: string[], today: Date): str
     lines.push(`<etapas_actuales>${numbered}</etapas_actuales>`)
   }
   if (signalLines.length > 0) {
-    lines.push(`<historial_en_la_app>${signalLines.map((l) => clean(l, 160)).join(' ')}</historial_en_la_app>`)
+    lines.push(`<historial_en_la_app>${signalLines.map((l) => asData(l, 160)).join(' ')}</historial_en_la_app>`)
   }
   return lines
 }
@@ -231,8 +232,8 @@ export function buildRefinePrompt(
     ...PLAN_RULES,
     'Devuelve todas las sugerencias actualizadas y en changeNote una frase que diga qué cambió.',
     ...goalData(input, signalLines, today),
-    `<plan_actual>${JSON.stringify({ summary: plan.summary, weeklyMinutes: plan.weeklyMinutes, stages: plan.stages })}</plan_actual>`,
-    `<pedido>${clean(instruction, 300)}</pedido>`,
+    `<plan_actual>${JSON.stringify({ summary: plan.summary, weeklyMinutes: plan.weeklyMinutes, stages: plan.stages }).replaceAll('<', '‹').replaceAll('>', '›')}</plan_actual>`,
+    `<pedido>${asData(instruction, 300)}</pedido>`,
   ].join('\n')
 }
 

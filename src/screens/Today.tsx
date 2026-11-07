@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type SubmitEvent } from 'react'
+import { IconSparkle } from '@/components/icons'
 import { Link, useNavigate } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import type { CalendarEvent, Goal, Habit, HabitCheck, HabitSkip, ScheduleBlock, Session, Task } from '@/lib/types'
@@ -708,6 +709,14 @@ export function Today() {
 
       {/* La ruta de la Agenda es /calendario (el nombre visible "Agenda" no es la URL). */}
       <WeekStrip today={today} stateOf={stripState} onOpenDay={(d) => navigate(`/calendario?d=${d}`)} />
+
+      <button
+        type="button"
+        className="btn btn--secondary btn--block today-organize"
+        onClick={() => navigate(`/calendario?d=${today}&organizar=1`)}
+      >
+        <IconSparkle size={16} /> Organizar mi día con IA
+      </button>
 
       <section className="today-section" aria-label="Tu siguiente paso">
         <span className="section-title">Tu siguiente paso</span>

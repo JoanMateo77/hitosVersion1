@@ -756,3 +756,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Entrada a "Organizar el día con IA": una fila, sin competir con el siguiente paso. */
+.today-organize {
+  gap: var(--s2);
+}
