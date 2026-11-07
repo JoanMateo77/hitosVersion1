@@ -271,6 +271,13 @@ abierta; no se persiste en esta fase.
 - Privacidad: los títulos del día viajan al proveedor. En el nivel gratuito de
   Gemini se usan para entrenar; para usuarios reales, cuenta de pago primero.
 
+- Deshacer el movimiento de una sesión proyectada le devuelve la hora, pero la
+  deja materializada (fila real), como "Reorganizar el día" a mano: si después
+  cambia el bloque semanal, ese día ya no lo sigue.
+- Un existente que no cabe solo ofrece "Dejarla a su hora" (no se borra ni se
+  pasa a otro día en esta fase); su duración no se edita salvo en eventos.
+  Un existente sin hora no recibe una por abrir la hoja.
+
 ## 9. Pendiente del usuario (fuera de esta fase)
 
 - Cuota diaria persistente (migración; la de memoria no se comparte entre instancias).
