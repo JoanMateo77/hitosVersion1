@@ -84,3 +84,17 @@ async function undoOne({ op, createdId }: DoneOp, ex: DayOpExecutors): Promise<v
 export async function undoOps(done: DoneOp[], ex: DayOpExecutors): Promise<void> {
   for (const d of [...done].reverse()) await undoOne(d, ex)
 }
+
+/**
+ * Título de lo que no se pudo guardar, para decírselo a la persona. Las altas
+ * traen su título; los movimientos lo buscan por ref (un hábito, por su primera
+ * repetición). null si no se encuentra.
+ */
+export function failedOpTitle(op: DayOp, titles: Map<string, string>): string | null {
+  if ('title' in op) return op.title
+  if (op.kind === 'moveHabit') {
+    for (const [ref, title] of titles) if (ref.startsWith(`${op.ref}:`)) return title
+    return null
+  }
+  return titles.get(op.ref) ?? null
+}

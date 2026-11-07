@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { minutesToTime } from '@/domain/clock'
 import {
   DAY_DEFAULTS,
@@ -14,7 +14,7 @@ import {
   type DayQuestion,
 } from '@/domain/dayPlan'
 import { DAY_MAX_QUESTIONS, type DayAiReply } from '@/domain/dayPlanAi'
-import { runOps, undoOps, type DayOpExecutors, type DoneOp } from '@/domain/dayOps'
+import { failedOpTitle, runOps, undoOps, type DayOpExecutors, type DoneOp } from '@/domain/dayOps'
 import { requestDayPlan } from '@/services/goalPlan'
 
 export interface DayMessage {
@@ -56,11 +56,13 @@ export function useDayPlanner({ date, nowMin, baseItems, habits, goals, executor
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<DoneOp[] | null>(null)
 
-  // Lo último enviado/recibido, para no depender de cierres viejos al enviar.
+  // Lo último confirmado, para no depender de cierres viejos al enviar.
   const itemsRef = useRef(items)
-  itemsRef.current = items
   const messagesRef = useRef(messages)
-  messagesRef.current = messages
+  useEffect(() => {
+    itemsRef.current = items
+    messagesRef.current = messages
+  }, [items, messages])
 
   const plan = useMemo(() => planDay({ items, nowMin }), [items, nowMin])
   const ops = useMemo(() => planToOps(plan, items, habits), [plan, items, habits])
@@ -75,10 +77,11 @@ export function useDayPlanner({ date, nowMin, baseItems, habits, goals, executor
     return [...conflictQuestions(plan, items), ...fromAi].slice(0, DAY_MAX_QUESTIONS)
   }, [plan, items, aiQuestions])
 
+  /** true si la IA respondió (la respuesta ya está en el borrador). */
   const send = useCallback(
-    async (text: string) => {
+    async (text: string): Promise<boolean> => {
       const clean = text.trim()
-      if (!clean || pending) return
+      if (!clean || pending) return false
       const history = messagesRef.current.map((m) => ({ role: m.role, text: m.text }))
       setMessages((prev) => [...prev, { id: nextId(), role: 'user', text: clean }])
       setPending(true)
@@ -100,8 +103,10 @@ export function useDayPlanner({ date, nowMin, baseItems, habits, goals, executor
         setAiQuestions(reply.questions)
         setAssumptions(reply.assumptions)
         setMessages((prev) => [...prev, { id: nextId(), role: 'coach', text: reply.reply }])
+        return true
       } catch (err) {
         setError(err instanceof Error ? err.message : 'No pudimos organizar tu día ahora.')
+        return false
       } finally {
         setPending(false)
       }
@@ -115,9 +120,11 @@ export function useDayPlanner({ date, nowMin, baseItems, habits, goals, executor
         setItems((prev) => applyEffect(prev, option.effect))
         return
       }
-      // Respuesta a una pregunta de la IA: vuelve a la IA como mensaje de la persona.
-      setAiQuestions((prev) => prev.filter((q) => q.text !== question.text))
-      void send(option.reply)
+      // Respuesta a una pregunta de la IA: vuelve a la IA como mensaje de la
+      // persona. La pregunta solo se va si la IA respondió (si falla, sigue).
+      void send(option.reply).then((ok) => {
+        if (ok) setAiQuestions((prev) => prev.filter((q) => q.text !== question.text))
+      })
     },
     [send],
   )
@@ -141,12 +148,15 @@ export function useDayPlanner({ date, nowMin, baseItems, habits, goals, executor
       const result = await runOps(ops, executors)
       setDone(result.done)
       if (result.failed) {
-        setError('No se pudo guardar todo. Lo que sí se guardó lo puedes deshacer.')
+        const title = failedOpTitle(result.failed, new Map(items.map((i) => [i.ref, i.title])))
+        setError(
+          `No se pudo guardar ${title ? `«${title}»` : 'un cambio'}. Lo que sí se guardó lo puedes deshacer.`,
+        )
       }
     } finally {
       setSaving(false)
     }
-  }, [done, executors, ops, saving])
+  }, [done, executors, items, ops, saving])
 
   const undo = useCallback(async () => {
     if (!done || saving) return

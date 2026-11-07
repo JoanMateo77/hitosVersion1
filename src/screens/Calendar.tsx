@@ -261,6 +261,9 @@ export function Calendar() {
   )
   // Sesiones proyectadas que la IA materializó: clave del borrador → id real
   // (la clave "p-…" deja de existir al materializar; deshacer la necesita).
+  // Deshacer devuelve la hora pero la sesión queda materializada (fila real):
+  // si luego cambia el bloque semanal, ese día ya no lo sigue. Igual que
+  // "Reorganizar el día" a mano.
   const plannedSessionIds = useRef(new Map<string, string>())
   // Día para el que se está sumando una sesión espontánea desde la agenda.
   const [planning, setPlanning] = useState<string | null>(null)

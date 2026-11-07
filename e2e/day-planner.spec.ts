@@ -121,3 +121,49 @@ test('closing with unapplied changes asks first', async ({ browser }) => {
   await expect(sheet).toHaveCount(0)
   await context.close()
 })
+
+test('an AI question stays when its answer fails to send, and manual reorganize asks first', async ({ browser }) => {
+  const { context, page } = await openPlanner(browser, { width: 390, height: 700 })
+  const sheet = page.getByRole('dialog', { name: /Organizar el/ })
+  await sheet.getByLabel('Cuéntame tu día').fill('Reunión de 9 a 11 y tesis')
+  await sheet.getByLabel('Cuéntame tu día').press('Enter')
+  const question = sheet.getByText('¿Cuánto tiempo quieres dedicarle a la tesis?')
+  await expect(question).toBeVisible()
+
+  // La siguiente llamada a la IA falla: la pregunta no se pierde.
+  await page.route('**/api/plan-meta', (route) =>
+    route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({ error: { code: 'ai_unavailable' } }) }),
+  )
+  await sheet.getByRole('button', { name: '1 h', exact: true }).click()
+  await expect(sheet.getByRole('button', { name: 'Reorganizar a mano' })).toBeVisible()
+  await expect(question).toBeVisible()
+
+  // Con borrador sin aplicar, "Reorganizar a mano" también pregunta.
+  await sheet.getByRole('button', { name: 'Reorganizar a mano' }).click()
+  await expect(sheet.getByText('¿Salir sin aplicar? Se perderá el borrador.')).toBeVisible()
+  await sheet.getByRole('button', { name: 'Salir', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: /Reorganizar el/ })).toBeVisible()
+  await context.close()
+})
+
+test('draft items cannot be edited while the AI responds', async ({ browser }) => {
+  const { context, page } = await openPlanner(browser, { width: 390, height: 700 })
+  const sheet = page.getByRole('dialog', { name: /Organizar el/ })
+  const input = sheet.getByLabel('Cuéntame tu día')
+  await input.fill('Reunión de 9 a 11')
+  await input.press('Enter')
+  await expect(sheet.getByText('Entendí tu reunión')).toBeVisible()
+  let release: () => void = () => {}
+  const gate = new Promise<void>((r) => (release = r))
+  await page.route('**/api/plan-meta', async (route) => {
+    await gate
+    await route.fallback()
+  })
+  await input.fill('y almuerzo a la 1')
+  await input.press('Enter')
+  const row = sheet.getByRole('region', { name: 'Borrador del día' }).getByRole('button', { name: /Reunión/ })
+  await expect(row).toBeDisabled()
+  release()
+  await expect(row).toBeEnabled()
+  await context.close()
+})

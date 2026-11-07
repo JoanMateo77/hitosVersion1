@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { DayOp } from '@/domain/dayPlan'
-import { runOps, undoOps, type DayOpExecutors } from '@/domain/dayOps'
+import { failedOpTitle, runOps, undoOps, type DayOpExecutors } from '@/domain/dayOps'
 
 function executors(failOn?: DayOp['kind']) {
   const calls: string[] = []
@@ -87,5 +87,15 @@ describe('undoOps', () => {
     const create: DayOp = { kind: 'createSession', ref: 'new:3', goalId: 'g1', start: '15:00', durationMin: 60 }
     await undoOps([{ op: create, createdId: 's9' }], ex)
     expect(calls).toEqual(['deleteSession:s9'])
+  })
+})
+
+describe('failedOpTitle', () => {
+  it('names the item of the failed operation', () => {
+    const titles = new Map([['session:k1', 'Inglés'], ['habit:h1:0', 'Meditar']])
+    expect(failedOpTitle(ops[0], titles)).toBe('Gimnasio')
+    expect(failedOpTitle(ops[1], titles)).toBe('Inglés')
+    expect(failedOpTitle({ kind: 'moveHabit', ref: 'habit:h1', habitId: 'h1', times: [], prevTimes: null }, titles)).toBe('Meditar')
+    expect(failedOpTitle({ kind: 'moveEvent', ref: 'event:x', eventId: 'x', start: '09:00', end: null, prevStart: null, prevEnd: null }, titles)).toBeNull()
   })
 })

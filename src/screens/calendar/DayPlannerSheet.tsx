@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { groupIntoBlocks } from '@/domain/agenda'
-import type { DayContextHabit, DayItem, DayQuestion, PlacedItem } from '@/domain/dayPlan'
+import { canResize, type DayContextHabit, type DayItem, type DayQuestion, type PlacedItem } from '@/domain/dayPlan'
 import { DAY_MESSAGE_MAX } from '@/domain/dayPlanAi'
 import type { DayOpExecutors } from '@/domain/dayOps'
 import { useDayPlanner, type DayPlanner } from '@/hooks/useDayPlanner'
@@ -36,9 +36,23 @@ export function DayPlannerSheet({
   /** Cierra esta hoja y abre "Reorganizar el día" (a mano). */
   onManual: () => void
 }>) {
-  const planner = useDayPlanner({ date: day, nowMin, baseItems, habits, goals, executors })
-  const [confirmExit, setConfirmExit] = useState(false)
+  const planner = useDayPlanner({
+    date: day,
+    nowMin,
+    baseItems,
+    habits,
+    goals,
+    executors,
+  })
+  // A dónde iba la persona cuando se le pidió confirmar: cerrar o reorganizar a mano.
+  const [confirmExit, setConfirmExit] = useState<'close' | 'manual' | null>(null)
   const dirty = planner.changes > 0 && !planner.applied
+  /** Salir solo si no hay borrador sin aplicar (si lo hay, pregunta primero). */
+  const leave = (to: 'close' | 'manual') => {
+    if (!dirty) return true
+    setConfirmExit(to)
+    return false
+  }
   const weekday = formatWeekday(day)
   const title = `Organizar el ${weekday.charAt(0).toLowerCase()}${weekday.slice(1)}`
 
@@ -48,11 +62,8 @@ export function DayPlannerSheet({
       label={title}
       panelClassName="stack stack--lg dayplan"
       side
-      guard={() => {
-        if (!dirty) return true
-        setConfirmExit(true)
-        return false
-      }}
+      // Mientras guarda no se cierra: el "Deshacer" se perdería a medias.
+      guard={() => !planner.saving && leave('close')}
     >
       {(close, forceClose) => (
         <>
@@ -68,19 +79,26 @@ export function DayPlannerSheet({
 
           {confirmExit && (
             <div className="dayplan-confirm" role="alertdialog" aria-label="¿Salir sin aplicar?">
-              <p className="small" style={{ margin: 0 }}>¿Salir sin aplicar? Se perderá el borrador.</p>
+              <p className="small" style={{ margin: 0 }}>
+                ¿Salir sin aplicar? Se perderá el borrador.
+              </p>
               <div className="row row--sm">
-                <button type="button" className="btn btn--secondary btn--sm" onClick={() => setConfirmExit(false)}>
+                <button type="button" className="btn btn--secondary btn--sm" onClick={() => setConfirmExit(null)}>
                   Seguir
                 </button>
-                <button type="button" className="btn btn--primary btn--sm" onClick={forceClose}>
+                <button
+                  type="button"
+                  className="btn btn--primary btn--sm"
+                  disabled={planner.saving}
+                  onClick={confirmExit === 'manual' ? onManual : forceClose}
+                >
                   Salir
                 </button>
               </div>
             </div>
           )}
 
-          <Thread planner={planner} onManual={onManual} />
+          <Thread planner={planner} onManual={() => leave('manual') && onManual()} />
 
           {!planner.applied && planner.questions.length > 0 && (
             <div className="stack stack--sm" aria-label="Preguntas para armar tu día">
@@ -102,11 +120,15 @@ export function DayPlannerSheet({
 
           <Draft planner={planner} />
 
-
           <div className="dayplan-footer">
             {planner.applied ? (
               <>
-                <button type="button" className="btn btn--secondary" disabled={planner.saving} onClick={() => void planner.undo()}>
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  disabled={planner.saving}
+                  onClick={() => void planner.undo()}
+                >
                   Deshacer
                 </button>
                 <button type="button" className="btn btn--primary" onClick={forceClose}>
@@ -120,7 +142,9 @@ export function DayPlannerSheet({
                 disabled={planner.changes === 0 || planner.saving || planner.pending}
                 onClick={() => void planner.apply()}
               >
-                {planner.saving ? 'Guardando…' : `Aplicar (${planner.changes} ${planner.changes === 1 ? 'cambio' : 'cambios'})`}
+                {planner.saving
+                  ? 'Guardando…'
+                  : `Aplicar (${planner.changes} ${planner.changes === 1 ? 'cambio' : 'cambios'})`}
               </button>
             )}
           </div>
@@ -218,7 +242,13 @@ function Draft({ planner }: Readonly<{ planner: DayPlanner }>) {
   const [editing, setEditing] = useState<string | null>(null)
   const byRef = new Map(planner.items.map((i) => [i.ref, i]))
   const placedByRef = new Map(planner.plan.placed.map((p) => [p.ref, p]))
-  const blocks = groupIntoBlocks(planner.plan.placed.map((p) => ({ key: p.ref, start: p.start, end: p.end })))
+  const blocks = groupIntoBlocks(
+    planner.plan.placed.map((p) => ({
+      key: p.ref,
+      start: p.start,
+      end: p.end,
+    })),
+  )
   const unplaced = planner.plan.conflicts.flatMap((c) => (c.kind === 'no_room' ? [c.ref] : []))
 
   if (planner.items.length === 0) {
@@ -242,7 +272,8 @@ function Draft({ planner }: Readonly<{ planner: DayPlanner }>) {
                   type="button"
                   className="dayplan-item__main"
                   aria-expanded={open}
-                  disabled={planner.applied}
+                  // Mientras la IA responde no se edita: su respuesta lo pisaría.
+                  disabled={planner.applied || planner.pending}
                   onClick={() => setEditing(open ? null : it.ref)}
                 >
                   <span className="dayplan-item__time">
@@ -251,7 +282,7 @@ function Draft({ planner }: Readonly<{ planner: DayPlanner }>) {
                   <span className="dayplan-item__title">{it.title}</span>
                   {tags.length > 0 && <span className="dayplan-item__tags">{tags.join(' · ')}</span>}
                 </button>
-                {open && <ItemEditor item={it} start={p.start} planner={planner} />}
+                {open && !planner.pending && <ItemEditor item={it} start={p.start} planner={planner} />}
               </div>
             )
           })}
@@ -292,7 +323,9 @@ function Draft({ planner }: Readonly<{ planner: DayPlanner }>) {
 }
 
 function ItemEditor({ item, start, planner }: Readonly<{ item: DayItem; start: string; planner: DayPlanner }>) {
-  const durations = DURATIONS.includes(item.durationMin) ? DURATIONS : [...DURATIONS, item.durationMin].sort((a, b) => a - b)
+  const durations = DURATIONS.includes(item.durationMin)
+    ? DURATIONS
+    : [...DURATIONS, item.durationMin].sort((a, b) => a - b)
   return (
     <div className="dayplan-editor">
       <label className="dayplan-editor__field">
@@ -304,25 +337,36 @@ function ItemEditor({ item, start, planner }: Readonly<{ item: DayItem; start: s
           onChange={(e) => planner.editItem(item.ref, { start: e.target.value || null })}
         />
       </label>
-      <label className="dayplan-editor__field">
-        <span className="tiny muted">Duración</span>
-        <select
-          className="input"
-          value={item.durationMin}
-          onChange={(e) => planner.editItem(item.ref, { durationMin: Number(e.target.value) })}
-        >
-          {durations.map((d) => (
-            <option key={d} value={d}>
-              {formatDuration(d)}
-            </option>
-          ))}
-        </select>
-      </label>
+      {canResize(item) && (
+        <label className="dayplan-editor__field">
+          <span className="tiny muted">Duración</span>
+          <select
+            className="input"
+            value={item.durationMin}
+            onChange={(e) =>
+              planner.editItem(item.ref, {
+                durationMin: Number(e.target.value),
+              })
+            }
+          >
+            {durations.map((d) => (
+              <option key={d} value={d}>
+                {formatDuration(d)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <label className="dayplan-editor__check">
         <input
           type="checkbox"
           checked={item.fixed}
-          onChange={(e) => planner.editItem(item.ref, { fixed: e.target.checked, start: item.start ?? start })}
+          onChange={(e) =>
+            planner.editItem(item.ref, {
+              fixed: e.target.checked,
+              start: item.start ?? start,
+            })
+          }
         />
         <span className="small">Hora fija</span>
       </label>
