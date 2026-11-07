@@ -5,6 +5,7 @@ import {
   eventSpan,
   freeGaps,
   freeGapsMinutes,
+  freeIntervals,
   gapLabel,
   groupIntoBlocks,
   nowLineIndex,
@@ -353,5 +354,44 @@ describe('groupIntoBlocks', () => {
     ])
     // largo: fin 09:00; corto y sin-fin: fin efectivo 08:30 (empate) → por clave
     expect(b.items.map((i) => i.key)).toEqual(['largo', 'corto', 'sin-fin'])
+  })
+})
+
+describe('freeIntervals', () => {
+  it('returns the whole day when nothing is busy', () => {
+    expect(freeIntervals([], 360, 1320)).toEqual([{ startMin: 360, endMin: 1320 }])
+  })
+  it('includes the gap before the first and after the last item', () => {
+    expect(freeIntervals([{ startMin: 540, endMin: 660 }], 360, 1320)).toEqual([
+      { startMin: 360, endMin: 540 },
+      { startMin: 660, endMin: 1320 },
+    ])
+  })
+  it('merges overlapping busy ranges and ignores order', () => {
+    expect(
+      freeIntervals(
+        [
+          { startMin: 600, endMin: 700 },
+          { startMin: 540, endMin: 620 },
+        ],
+        360,
+        1320,
+      ),
+    ).toEqual([
+      { startMin: 360, endMin: 540 },
+      { startMin: 700, endMin: 1320 },
+    ])
+  })
+  it('clips busy ranges outside the day', () => {
+    expect(
+      freeIntervals(
+        [
+          { startMin: 300, endMin: 400 },
+          { startMin: 1300, endMin: 1400 },
+        ],
+        360,
+        1320,
+      ),
+    ).toEqual([{ startMin: 400, endMin: 1300 }])
   })
 })
