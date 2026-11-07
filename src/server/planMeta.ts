@@ -11,7 +11,7 @@
  */
 import { parseGoalPlan, type GoalPlanInput, type QuestionAnswer } from '../domain/goalPlan.js'
 import { readHistory, readStages, type ChatContext, type ChatTurn } from '../domain/coachChat.js'
-import { DAY_MAX_ITEMS, DAY_MESSAGE_MAX, readDayItem, type DayAiContext } from '../domain/dayPlanAi.js'
+import { DAY_MAX_ITEMS, DAY_MESSAGE_MAX, MAX_ID, readDayItem, type DayAiContext } from '../domain/dayPlanAi.js'
 import { DAY_DEFAULTS, type DayItem } from '../domain/dayPlan.js'
 import type { GoalPlanner } from './goalPlanner.js'
 
@@ -106,15 +106,23 @@ function readDayRequest(b: Record<string, unknown>): DayRequest | null {
   if (!date || !ISO_DATE.test(date) || !now || !HHMM.test(now)) return null
   if (!message || message.length > DAY_MESSAGE_MAX) return null
   const time = (v: unknown, fallback: string) => (typeof v === 'string' && HHMM.test(v) ? v : fallback)
-  const items = (Array.isArray(b.items) ? b.items : [])
-    .map(readDayItem)
-    .filter((i): i is DayItem => i !== null)
-    .slice(0, DAY_MAX_CONTEXT_ITEMS + DAY_MAX_ITEMS)
   const goals = (Array.isArray(b.goals) ? b.goals : [])
     .map((g) => (g != null && typeof g === 'object' ? (g as Record<string, unknown>) : null))
     .filter((g): g is Record<string, unknown> => g !== null && typeof g.id === 'string' && typeof g.title === 'string')
-    .map((g) => ({ id: g.id as string, title: (g.title as string).slice(0, 120) }))
+    .map((g) => ({ id: (g.id as string).slice(0, MAX_ID), title: (g.title as string).slice(0, 120) }))
     .slice(0, 20)
+  const goalIds = new Set(goals.map((g) => g.id))
+  const read = (Array.isArray(b.items) ? b.items : [])
+    .map(readDayItem)
+    .filter((i): i is DayItem => i !== null)
+    .slice(0, DAY_MAX_CONTEXT_ITEMS + DAY_MAX_ITEMS)
+  const refs = new Set(read.map((i) => i.ref))
+  // Solo metas activas recibidas y "a la vez" con ítems que existen.
+  const items = read.map((i) => ({
+    ...i,
+    goalId: i.goalId && goalIds.has(i.goalId) ? i.goalId : null,
+    alongside: i.alongside && refs.has(i.alongside) ? i.alongside : null,
+  }))
   return {
     action: 'day',
     ctx: { date, now, dayStart: time(b.dayStart, DAY_DEFAULTS.dayStart), dayEnd: time(b.dayEnd, DAY_DEFAULTS.dayEnd), items, goals },

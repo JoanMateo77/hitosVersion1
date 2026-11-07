@@ -210,6 +210,12 @@ describe('readDayItem', () => {
     expect(readDayItem('x')).toBeNull()
   })
 
+  it('caps goalId and alongside lengths', () => {
+    const r = readDayItem({ ...session, goalId: 'g'.repeat(5000), alongside: 'a'.repeat(5000) })
+    expect(r?.goalId?.length).toBeLessThanOrEqual(120)
+    expect(r?.alongside?.length).toBeLessThanOrEqual(120)
+  })
+
   it('normalizes invalid times, modes and windows', () => {
     expect(readDayItem({ ...session, fixed: true, start: '7pm', mode: 'x', window: 'x' })).toMatchObject({
       fixed: false,

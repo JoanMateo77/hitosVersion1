@@ -93,10 +93,14 @@ function weekdayOf(dateISO: string): string {
 function itemLine(i: DayItem): string {
   const when = i.untimed ? 'sin hora' : (i.start ?? 'sin hora definida')
   const kind = i.fixed ? 'fija' : 'flexible'
-  const extra = [i.window && `momento ${i.window}`, i.goalId && `meta ${i.goalId}`, i.alongside && `a la vez con ${i.alongside}`]
+  const extra = [
+    i.window && `momento ${i.window}`,
+    i.goalId && `meta ${clean(i.goalId, MAX_ID)}`,
+    i.alongside && `a la vez con ${clean(i.alongside, MAX_ID)}`,
+  ]
     .filter(Boolean)
     .join(', ')
-  return `- ${i.ref} | ${clean(i.title, 80)} | ${when} | ${i.durationMin} min | ${kind} | ${i.mode}${extra ? ` | ${extra}` : ''}`
+  return `- ${clean(i.ref, MAX_ID)} | ${clean(i.title, 80)} | ${when} | ${i.durationMin} min | ${kind} | ${i.mode}${extra ? ` | ${extra}` : ''}`
 }
 
 const RULES = [
@@ -119,7 +123,7 @@ const RULES = [
 ]
 
 export function buildDayPrompt(ctx: DayAiContext, history: ChatTurn[], message: string): string {
-  const goals = ctx.goals.slice(0, 20).map((g) => `- ${g.id} | ${clean(g.title, 80)}`)
+  const goals = ctx.goals.slice(0, 20).map((g) => `- ${clean(g.id, MAX_ID)} | ${clean(g.title, 80)}`)
   const turns = history.map((t) => (t.role === 'user' ? `<persona>${clean(t.text, DAY_MESSAGE_MAX)}</persona>` : `<asistente>${clean(t.text, 600)}</asistente>`))
   return [
     `<hoy>fecha ${ctx.date} (${weekdayOf(ctx.date)}), hora actual ${ctx.now}</hoy>`,
@@ -204,6 +208,9 @@ function readQuestions(v: unknown): DayAiReply['questions'] {
     .slice(0, DAY_MAX_QUESTIONS)
 }
 
+/** Largo máximo de un id o ref que viaja al prompt. */
+export const MAX_ID = 120
+
 const SOURCES = new Set(['new', 'event', 'session', 'habit'])
 
 /** Lee un ítem del contexto que manda el cliente; null si no tiene la forma de DayItem. */
@@ -222,8 +229,8 @@ export function readDayItem(v: unknown): DayItem | null {
     durationMin,
     window: DAY_WINDOWS.includes(v.window as DayWindow) ? (v.window as DayWindow) : null,
     mode: ATTENTION_MODES.includes(v.mode as AttentionMode) ? (v.mode as AttentionMode) : 'focus',
-    goalId: typeof v.goalId === 'string' ? v.goalId : null,
-    alongside: typeof v.alongside === 'string' ? v.alongside : null,
+    goalId: typeof v.goalId === 'string' ? clean(v.goalId, MAX_ID) || null : null,
+    alongside: typeof v.alongside === 'string' ? clean(v.alongside, MAX_ID) || null : null,
     untimed: v.untimed === true,
   }
   if ('originalStart' in v) item.originalStart = readTime(v.originalStart)

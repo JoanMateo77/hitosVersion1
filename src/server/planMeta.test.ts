@@ -210,6 +210,15 @@ describe('acción day', () => {
     expect(d.loadSignals).not.toHaveBeenCalled()
   })
 
+  it('day drops item goals that are not among the active goals and caps goal ids', async () => {
+    const d = deps()
+    const items = [{ ...(dayBody().items as object[])[0], goalId: 'ajena' }]
+    await handlePlanMeta(req(dayBody({ items, goals: [{ id: 'x'.repeat(5000), title: 'Larga' }] })), d)
+    const ctx = (d.planner!.day as ReturnType<typeof vi.fn>).mock.calls[0][0]
+    expect(ctx.items[0].goalId).toBeNull()
+    expect(ctx.goals[0].id.length).toBeLessThanOrEqual(120)
+  })
+
   it('day without message is 400', async () => {
     expect((await handlePlanMeta(req(dayBody({ message: ' ' })), deps())).status).toBe(400)
   })
