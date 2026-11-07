@@ -291,7 +291,7 @@ export async function createSpontaneousSession(
   userId: string,
   goalId: string,
   dateISO: string,
-  target: { targetKind: TargetKind; targetValue: number; unit: string | null },
+  target: { targetKind: TargetKind; targetValue: number; unit: string | null; plannedTime?: string | null },
 ): Promise<Session> {
   const { data, error } = await supabase
     .from('sessions')
@@ -303,6 +303,8 @@ export async function createSpontaneousSession(
       target_kind: target.targetKind,
       target_value: target.targetValue,
       unit: target.unit,
+      // Con hora en el mismo insert: una sola escritura (antes eran dos).
+      planned_time: target.plannedTime ?? null,
     })
     .select('*')
     .single()

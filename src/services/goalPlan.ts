@@ -1,6 +1,7 @@
 import type { ClarifyingQuestion, GoalPlan, GoalPlanInput } from '@/domain/goalPlan'
 import type { ChatContext, ChatTurn, CoachReply, CriterionOption } from '@/domain/coachChat'
 import type { GoalTypeSuggestion } from '@/domain/goalType'
+import type { DayAiContext, DayAiReply } from '@/domain/dayPlanAi'
 import { getSession } from '@/services/auth'
 
 /** Mensajes por código de error del servidor (lo que ve la persona). */
@@ -27,7 +28,7 @@ interface CoachResponse {
  * Llama al coach del servidor. La clave de la IA vive en el servidor; aquí solo
  * viaja el token de sesión para que el servidor sepa quién pide.
  */
-async function callCoach(body: Record<string, unknown>): Promise<CoachResponse> {
+async function callCoach<T extends { error?: { code?: string } } = CoachResponse>(body: Record<string, unknown>): Promise<T> {
   const session = await getSession()
   const res = await fetch('/api/plan-meta', {
     method: 'POST',
@@ -38,7 +39,7 @@ async function callCoach(body: Record<string, unknown>): Promise<CoachResponse> 
     body: JSON.stringify(body),
   }).catch(() => null)
   if (!res) throw new Error(FALLBACK)
-  const data = (await res.json().catch(() => null)) as CoachResponse | null
+  const data = (await res.json().catch(() => null)) as T | null
   if (res.ok && data) return data
   throw new Error(ERRORS[data?.error?.code ?? ''] ?? FALLBACK)
 }
@@ -86,4 +87,11 @@ export async function requestGoalType(title: string): Promise<GoalTypeSuggestion
   const data = await callCoach({ title, why: null, action: 'type' })
   if (!data.type) throw new Error(FALLBACK)
   return data.type
+}
+
+/** Un turno del asistente de agenda: entiende el día contado en texto libre. */
+export async function requestDayPlan(ctx: DayAiContext, history: ChatTurn[], message: string): Promise<DayAiReply> {
+  const data = await callCoach<Partial<DayAiReply> & { error?: { code?: string } }>({ ...ctx, action: 'day', history, message })
+  if (!data.reply) throw new Error(FALLBACK)
+  return { reply: data.reply, items: data.items ?? [], questions: data.questions ?? [], assumptions: data.assumptions ?? [] }
 }
