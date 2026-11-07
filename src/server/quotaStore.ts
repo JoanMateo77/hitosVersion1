@@ -1,9 +1,10 @@
 /**
- * Límite diario de IA guardado en Supabase (migración 0020): las funciones
- * serverless no comparten memoria, así que el conteo vive en la tabla
- * `ai_usage`. Se llama con el token de la persona (sin service_role); las
- * funciones `ai_quota_take` / `ai_quota_refund` cobran y devuelven de forma
- * atómica y solo sobre su propia fila.
+ * Límite diario de IA guardado en Supabase (migraciones 0020 y 0021): las
+ * funciones serverless no comparten memoria, así que el conteo vive en la
+ * tabla `ai_usage`. Se llama con el token de la persona (sin service_role).
+ * `ai_quota_take` cobra de forma atómica y devuelve el id secreto del cobro;
+ * solo el servidor lo conoce, y `ai_quota_refund` lo exige: nadie puede
+ * devolverse usos llamando a la función por su cuenta.
  *
  * Si la base no responde (o la migración aún no corre), se usa el límite en
  * memoria: la IA sigue funcionando con el control por instancia de antes.
@@ -15,6 +16,7 @@ export type MemoryTake = (userId: string) => QuotaRefund | null
 export type TakeQuota = (userId: string, accessToken: string) => Promise<QuotaRefund | null>
 
 const TIMEOUT_MS = 5_000
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export function createSupabaseQuota(supabaseUrl: string, anonKey: string, limit: number, fallback: MemoryTake): TakeQuota {
   async function rpc(name: string, accessToken: string, body: object): Promise<unknown> {
@@ -30,21 +32,22 @@ export function createSupabaseQuota(supabaseUrl: string, anonKey: string, limit:
   }
 
   return async (userId, accessToken) => {
-    let day: unknown
+    let charge: unknown
     try {
-      day = await rpc('ai_quota_take', accessToken, { p_limit: limit })
+      charge = await rpc('ai_quota_take', accessToken, { p_limit: limit })
+      // null = ya usó todo lo del día.
+      if (charge === null) return null
+      if (typeof charge !== 'string' || !UUID.test(charge)) throw new Error('respuesta inesperada (¿falta la migración 0021?)')
     } catch (err) {
       console.error('[plan-meta] cuota en memoria (la base no respondió):', err instanceof Error ? err.message : 'desconocido')
       return fallback(userId)
     }
-    // null = ya usó todo lo del día.
-    if (typeof day !== 'string') return null
     let done = false
     return async () => {
       if (done) return
       done = true
       try {
-        await rpc('ai_quota_refund', accessToken, { p_day: day })
+        await rpc('ai_quota_refund', accessToken, { p_charge: charge })
       } catch (err) {
         console.error('[plan-meta] no se pudo devolver el uso:', err instanceof Error ? err.message : 'desconocido')
       }

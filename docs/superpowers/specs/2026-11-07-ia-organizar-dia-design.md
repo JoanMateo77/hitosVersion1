@@ -17,7 +17,8 @@ Decisiones tomadas (con la recomendación aceptada):
 - La IA puede **mover** lo que ya está en el día (sesiones, hábitos, eventos con
   hora), no solo agregar. Todo movimiento se ve en el borrador como
   "movido de 7:00 a 8:30".
-- Única migración: `0020_ai_quota.sql` (límite diario de IA guardado en la base).
+- Migraciones: `0020_ai_quota.sql` (límite diario de IA guardado en la base) y
+  `0021_ai_quota_comprobante.sql` (las devoluciones exigen el comprobante secreto del cobro).
 
 Fuera de alcance: voz, memoria del horario de la persona, marca de origen IA en
 eventos, replanificar en vivo, crear hábitos nuevos, mover tareas existentes.
@@ -279,9 +280,8 @@ abierta; no se persiste en esta fase.
 
 ## 9. Pendiente del usuario (fuera de esta fase)
 
-- Correr la migración `0020_ai_quota.sql` (tabla `ai_usage` + funciones
-  `ai_quota_take` / `ai_quota_refund`). Mientras no corra, el servidor usa el
-  límite en memoria por instancia (como antes).
+- Correr la migración `0021_ai_quota_comprobante.sql` (0020 ya corrió). Mientras
+  no corra, el servidor usa el límite en memoria por instancia.
 - Fase 2 (voz): usa la `GROQ_API_KEY` que ya tiene la cadena; probar en iPhone real.
 - Gemini de pago antes de abrir a usuarios reales (en pruebas, nivel gratuito con
   datos ficticios).
