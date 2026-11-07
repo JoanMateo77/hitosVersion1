@@ -8,6 +8,15 @@ import type { Novedad } from '@/domain/novedades'
  */
 export const NOVEDADES: Novedad[] = [
   {
+    id: '2026-11-07',
+    titulo: 'Organiza tu día con IA',
+    items: [
+      'Cuéntale a la app tu día con tus palabras y te arma un borrador ordenado.',
+      'Te pregunta lo que falta (duraciones, choques de horario) y te avisa qué puedes hacer a la vez.',
+      'Nada se guarda sin tu sí, y puedes deshacerlo. Entra desde Hoy o con el botón ✦ de la Agenda.',
+    ],
+  },
+  {
     id: '2026-10-28',
     titulo: 'Metas más flexibles y una pestaña de Notas',
     items: [
