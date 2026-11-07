@@ -18,33 +18,63 @@ export function CoachComposer({
   disabled = false,
   placeholder = 'Cuéntale con tus palabras…',
   autoFocus = false,
-}: Readonly<{ onSend: (text: string) => void; disabled?: boolean; placeholder?: string; autoFocus?: boolean }>) {
+  multiline = false,
+  maxLength = 600,
+  label = 'Escríbele al coach',
+}: Readonly<{
+  onSend: (text: string) => void
+  /** Solo deshabilita el botón: el campo sigue usable mientras la IA responde. */
+  disabled?: boolean
+  placeholder?: string
+  autoFocus?: boolean
+  /** Textarea de 3 líneas: Enter envía y Shift+Enter hace salto de línea. */
+  multiline?: boolean
+  maxLength?: number
+  label?: string
+}>) {
   const [text, setText] = useState('')
   // Foco por ref y no con el atributo autoFocus (accesibilidad, regla de Sonar).
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus()
   }, [autoFocus])
+  const submit = () => {
+    if (!text.trim() || disabled) return
+    onSend(text)
+    setText('')
+  }
+  const common = {
+    'aria-label': label,
+    placeholder,
+    value: text,
+    maxLength,
+    ref: inputRef,
+    enterKeyHint: 'send' as const,
+    autoCapitalize: 'sentences',
+  }
   return (
     <form
-      className="coach-composer"
+      className={`coach-composer${multiline ? ' coach-composer--multiline' : ''}`}
       onSubmit={(e) => {
         e.preventDefault()
-        if (!text.trim() || disabled) return
-        onSend(text)
-        setText('')
+        submit()
       }}
     >
-      <input
-        aria-label="Escríbele al coach"
-        placeholder={placeholder}
-        value={text}
-        maxLength={600}
-        ref={inputRef}
-        enterKeyHint="send"
-        autoCapitalize="sentences"
-        onChange={(e) => setText(e.target.value)}
-      />
+      {multiline ? (
+        <textarea
+          {...common}
+          rows={3}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault()
+              submit()
+            }
+          }}
+        />
+      ) : (
+        <input {...common} onChange={(e) => setText(e.target.value)} />
+      )}
       <button type="submit" aria-label="Enviar" disabled={disabled || !text.trim()}>
         <IconArrowUp size={16} />
       </button>

@@ -361,7 +361,8 @@ export type DayOp =
   | { kind: 'createEvent'; ref: string; title: string; start: string; end: string }
   | { kind: 'createSession'; ref: string; goalId: string; start: string; durationMin: number }
   | { kind: 'createTask'; ref: string; title: string }
-  | { kind: 'moveEvent'; ref: string; eventId: string; start: string; end: string; prevStart: string | null; prevEnd: string | null }
+  /** end null = el evento no tiene hora de fin (se conserva así al moverlo). */
+  | { kind: 'moveEvent'; ref: string; eventId: string; start: string; end: string | null; prevStart: string | null; prevEnd: string | null }
   /** start null = la sesión vuelve a quedar sin hora (al deshacer). */
   | { kind: 'moveSession'; ref: string; sessionKey: string; start: string | null; prevStart: string | null }
   | { kind: 'moveHabit'; ref: string; habitId: string; times: string[]; prevTimes: string[] | null }
@@ -395,7 +396,7 @@ export function planToOps(plan: DayPlan, items: DayItem[], habits: DayContextHab
         ref: it.ref,
         eventId: after(it.ref, 'event:'),
         start: p.start,
-        end: p.end,
+        end: it.originalEnd === null ? null : p.end,
         prevStart: it.originalStart ?? null,
         prevEnd: it.originalEnd ?? null,
       })

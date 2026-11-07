@@ -68,6 +68,13 @@ describe('undoOps', () => {
     expect(ex.moveEvent).toHaveBeenCalledWith({ ...move, start: '09:00', end: '09:45', prevStart: '10:00', prevEnd: '10:45' })
   })
 
+  it('undo of a moved event that had no end restores no end', async () => {
+    const { ex } = executors()
+    const move: DayOp = { kind: 'moveEvent', ref: 'event:e1', eventId: 'e1', start: '10:00', end: null, prevStart: '09:00', prevEnd: null }
+    await undoOps([{ op: move }], ex)
+    expect(ex.moveEvent).toHaveBeenCalledWith({ ...move, start: '09:00', end: null, prevStart: '10:00', prevEnd: null })
+  })
+
   it('undo of a habit move without previous override clears it', async () => {
     const { ex } = executors()
     const move: DayOp = { kind: 'moveHabit', ref: 'habit:h1', habitId: 'h1', times: ['08:00'], prevTimes: null }

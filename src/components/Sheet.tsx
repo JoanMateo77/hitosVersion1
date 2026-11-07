@@ -36,6 +36,7 @@ export function Sheet({
   style,
   onSubmit,
   side = false,
+  guard,
   children,
 }: Readonly<{
   onClose: () => void
@@ -48,8 +49,14 @@ export function Sheet({
   onSubmit?: FormEventHandler<HTMLFormElement>
   /** En escritorio entra como panel lateral derecho (chat del coach). */
   side?: boolean
+  /**
+   * Se consulta antes de cerrar por fondo, Escape, arrastre o `close()`. Si
+   * devuelve false la hoja sigue abierta (p. ej. para confirmar dentro de ella);
+   * `forceClose`, el segundo argumento de children, cierra sin preguntar.
+   */
+  guard?: () => boolean
   /** Recibe `close()` para los botones propios de la hoja. */
-  children: (close: () => void) => ReactNode
+  children: (close: () => void, forceClose: () => void) => ReactNode
 }>) {
   const panelRef = useRef<HTMLElement | null>(null)
   // Un callback estable sirve al <div> y al <form> sin castear el ref.
@@ -62,7 +69,15 @@ export function Sheet({
     onCloseRef.current = onClose
   })
 
-  const close = useCallback(() => setClosing(true), [])
+  const guardRef = useRef(guard)
+  useEffect(() => {
+    guardRef.current = guard
+  })
+  const forceClose = useCallback(() => setClosing(true), [])
+  const close = useCallback(() => {
+    if (guardRef.current && !guardRef.current()) return
+    setClosing(true)
+  }, [])
   // Escape cierra por el mismo camino que el botón ✕: animando.
   useFocusTrap(panelRef, close)
 
@@ -108,7 +123,7 @@ export function Sheet({
     drag.current = null
     if (panel) panel.style.transition = ''
     // Si cierra, el transform inline queda como punto de partida de sheet-down.
-    if (dy > DISMISS_AT) close()
+    if (dy > DISMISS_AT && (!guardRef.current || guardRef.current())) setClosing(true)
     else if (panel) panel.style.transform = ''
   }
 
@@ -149,12 +164,12 @@ export function Sheet({
       {as === 'form' ? (
         <form ref={setPanel} {...panelProps} onSubmit={onSubmit}>
           {grabber}
-          {children(close)}
+          {children(close, forceClose)}
         </form>
       ) : (
         <div ref={setPanel} {...panelProps}>
           {grabber}
-          {children(close)}
+          {children(close, forceClose)}
         </div>
       )}
     </div>

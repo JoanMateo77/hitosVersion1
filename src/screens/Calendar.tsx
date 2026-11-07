@@ -47,6 +47,10 @@ import { EventCheck } from '@/screens/calendar/EventCheck'
 import { DayAgenda } from '@/screens/calendar/DayAgenda'
 import { WeekDay } from '@/screens/calendar/WeekDay'
 import { AddSheet } from '@/screens/calendar/AddSheet'
+import { DayPlannerSheet } from '@/screens/calendar/DayPlannerSheet'
+import { buildDayPlannerContext } from '@/screens/calendar/dayPlannerItems'
+import type { DayOpExecutors } from '@/domain/dayOps'
+import { createUserTask, deleteTask } from '@/services/tasks'
 import { BlockEditSection, ScopeSave } from '@/screens/calendar/BlockEditSection'
 import { dueBlocksForDate } from '@/domain/sessions'
 import { applyScheduleChange, listScheduleForGoal, listScheduleForUser } from '@/services/schedule'
@@ -84,6 +88,7 @@ import {
   IconClose,
   IconPencil,
   IconPlus,
+  IconSparkle,
 } from '@/components/icons'
 import { Sheet } from '@/components/Sheet'
 import { NicheIcon } from '@/components/NicheGlyph'
@@ -250,6 +255,13 @@ export function Calendar() {
   const [blockSheet, setBlockSheet] = useState<{ sessionKey: string; day: string } | null>(null)
   // Día abierto en la hoja "Reorganizar el día" (horas solo de esa fecha).
   const [reorganizing, setReorganizing] = useState<string | null>(null)
+  // Día abierto en "Organizar con IA" (?organizar=1 desde Hoy lo abre al entrar).
+  const [organizing, setOrganizing] = useState<string | null>(() =>
+    params.get('organizar') === '1' ? (initialDate ?? todayISO()) : null,
+  )
+  // Sesiones proyectadas que la IA materializó: clave del borrador → id real
+  // (la clave "p-…" deja de existir al materializar; deshacer la necesita).
+  const plannedSessionIds = useRef(new Map<string, string>())
   // Día para el que se está sumando una sesión espontánea desde la agenda.
   const [planning, setPlanning] = useState<string | null>(null)
   // Día para el que se abrió la hoja del "+".
@@ -704,6 +716,87 @@ export function Calendar() {
     setEvents((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
   }
 
+  /** Hábitos del día con sus horas efectivas (para reorganizar a mano o con IA). */
+  function reorganizeHabitRows(day: string): ReorganizeHabitRow[] {
+    return habitsDueOn(habits, day, habitSkipSet).map((h) => ({
+      habit: h,
+      effective: habitWithDayTimes(h, overrideFor(h.id, day)),
+      hasOverride: overrideFor(h.id, day) !== null,
+    }))
+  }
+
+  /** Sesiones abiertas y eventos con hora: lo que se puede mover en un día. */
+  const movableSessions = (day: string) => daySessions(day).filter((s) => !CLOSED_STATES.includes(s.state))
+  const timedEvents = (day: string) => (eventsByDate.get(day) ?? []).filter((e) => !e.allDay && e.startTime)
+
+  /** Cómo "Organizar con IA" escribe en la agenda (y cómo deshace). */
+  function dayExecutors(day: string): DayOpExecutors {
+    const setPlanned = async (sessionId: string, time: string | null) => {
+      const updated = await setSessionPlannedTime(sessionId, time)
+      setSessions((prev) => prev.map((sx) => (sx.id === updated.id ? updated : sx)))
+    }
+    return {
+      createEvent: async (op) => {
+        const ev = await createEvent(userId, {
+          title: op.title,
+          date: day,
+          allDay: false,
+          startTime: op.start,
+          endTime: op.end,
+          goalId: null,
+          notes: null,
+        })
+        setEvents((prev) => [...prev, ev])
+        return ev.id
+      },
+      createSession: async (op) => {
+        const created = await createSpontaneousSession(userId, op.goalId, day, {
+          targetKind: 'time',
+          targetValue: op.durationMin,
+          unit: null,
+          plannedTime: op.start,
+        })
+        setSessions((prev) => [...prev, created])
+        return created.id
+      },
+      createTask: async (op) => (await createUserTask(userId, op.title, day)).id,
+      moveEvent: async (op) => {
+        const e = events.find((x) => x.id === op.eventId)
+        if (!e) throw new Error('event_not_found')
+        const updated = await updateEvent(e.id, {
+          title: e.title,
+          date: e.date,
+          allDay: false,
+          startTime: op.start,
+          endTime: op.end,
+          goalId: e.goalId,
+          notes: e.notes,
+        })
+        setEvents((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
+      },
+      moveSession: async (op) => {
+        const known = plannedSessionIds.current.get(op.sessionKey)
+        if (known) return setPlanned(known, op.start)
+        const it = daySessions(day).find((x) => x.key === op.sessionKey)
+        const session = it ? await materializeSession(it, day) : null
+        if (!session) throw new Error('session_not_found')
+        plannedSessionIds.current.set(op.sessionKey, session.id)
+        await setPlanned(session.id, op.start)
+      },
+      moveHabit: (op) =>
+        op.times.length > 0 ? saveHabitDayTimes(op.habitId, day, op.times) : clearHabitOverride(op.habitId, day),
+      deleteEvent: async (id) => {
+        await deleteEvent(id)
+        setEvents((prev) => prev.filter((x) => x.id !== id))
+      },
+      deleteSession: async (id) => {
+        await deleteSession(id)
+        setSessions((prev) => prev.filter((x) => x.id !== id))
+      },
+      deleteTask,
+    }
+  }
+
   /** Toca un hueco libre → editor "Con horario" prellenado al inicio del hueco. */
   function planGap(day: string, gapStartMin: number, gapEndMin: number) {
     const start = Math.ceil(gapStartMin / 5) * 5 // al múltiplo de 5 min siguiente
@@ -777,6 +870,17 @@ export function Calendar() {
           <h1 className="screen__title">{headerTitle}</h1>
         </div>
         <div className="row row--sm ag-hdr__actions">
+          {selected >= today && (
+            <button
+              type="button"
+              className="iconbtn iconbtn--sm"
+              onClick={() => setOrganizing(selected)}
+              aria-label="Organizar con IA"
+              title="Organizar con IA"
+            >
+              <IconSparkle size={16} />
+            </button>
+          )}
           {selected >= today && (
             <button
               className="iconbtn iconbtn--sm"
@@ -995,6 +1099,37 @@ export function Calendar() {
           )
         })()}
 
+      {organizing &&
+        ready &&
+        (() => {
+          const day = organizing
+          const ctx = buildDayPlannerContext({
+            sessions: movableSessions(day),
+            habitRows: reorganizeHabitRows(day),
+            events: timedEvents(day),
+          })
+          return (
+            <DayPlannerSheet
+              key={day}
+              day={day}
+              nowMin={day === today ? now.getHours() * 60 + now.getMinutes() : null}
+              baseItems={ctx.items}
+              habits={ctx.habits}
+              goals={goals.filter((g) => g.status === 'active').map((g) => ({ id: g.id, title: g.title }))}
+              executors={dayExecutors(day)}
+              onClose={() => {
+                setOrganizing(null)
+                // Sin ?organizar=1: recargar o volver no reabre la hoja.
+                if (params.get('organizar')) navigate(`/calendario?d=${day}`, { replace: true })
+              }}
+              onManual={() => {
+                setOrganizing(null)
+                setReorganizing(day)
+              }}
+            />
+          )
+        })()}
+
       {reorganizing &&
         (() => {
           const day = reorganizing
@@ -1002,13 +1137,9 @@ export function Calendar() {
             <ReorganizeSheet
               key={day}
               day={day}
-              sessions={daySessions(day).filter((s) => !CLOSED_STATES.includes(s.state))}
-              habitRows={habitsDueOn(habits, day, habitSkipSet).map((h) => ({
-                habit: h,
-                effective: habitWithDayTimes(h, overrideFor(h.id, day)),
-                hasOverride: overrideFor(h.id, day) !== null,
-              }))}
-              events={(eventsByDate.get(day) ?? []).filter((e) => !e.allDay && e.startTime)}
+              sessions={movableSessions(day)}
+              habitRows={reorganizeHabitRows(day)}
+              events={timedEvents(day)}
               onClose={() => setReorganizing(null)}
               onSessionTime={(it, time) => setDaySessionTime(it, day, time)}
               onHabitTimes={(habitId, times) => saveHabitDayTimes(habitId, day, times)}

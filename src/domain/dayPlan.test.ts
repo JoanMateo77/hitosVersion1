@@ -286,6 +286,11 @@ describe('planToOps', () => {
     ])
   })
 
+  it('keeps an event without end without end when it moves', () => {
+    const ev = item({ ref: 'event:e3', source: 'event', fixed: true, start: '11:00', originalStart: '10:00', originalEnd: null })
+    expect(ops([ev])[0]).toMatchObject({ kind: 'moveEvent', start: '11:00', end: null, prevEnd: null })
+  })
+
   it('moves a session and gives a time to an existing session that had none', () => {
     const s1 = item({ ref: 'session:k1', source: 'session', start: '18:00', originalStart: '17:00' })
     const s2 = item({ ref: 'session:k2', source: 'session', start: null, originalStart: null })

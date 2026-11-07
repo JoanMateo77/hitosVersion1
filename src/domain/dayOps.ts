@@ -70,7 +70,7 @@ async function undoOne({ op, createdId }: DoneOp, ex: DayOpExecutors): Promise<v
       if (createdId) await ex.deleteTask(createdId)
       return
     case 'moveEvent':
-      await ex.moveEvent({ ...op, start: op.prevStart ?? op.start, end: op.prevEnd ?? op.end, prevStart: op.start, prevEnd: op.end })
+      await ex.moveEvent({ ...op, start: op.prevStart ?? op.start, end: op.prevEnd, prevStart: op.start, prevEnd: op.end })
       return
     case 'moveSession':
       await ex.moveSession({ ...op, start: op.prevStart, prevStart: op.start })
