@@ -362,7 +362,8 @@ export type DayOp =
   | { kind: 'createSession'; ref: string; goalId: string; start: string; durationMin: number }
   | { kind: 'createTask'; ref: string; title: string }
   | { kind: 'moveEvent'; ref: string; eventId: string; start: string; end: string; prevStart: string | null; prevEnd: string | null }
-  | { kind: 'moveSession'; ref: string; sessionKey: string; start: string; prevStart: string | null }
+  /** start null = la sesión vuelve a quedar sin hora (al deshacer). */
+  | { kind: 'moveSession'; ref: string; sessionKey: string; start: string | null; prevStart: string | null }
   | { kind: 'moveHabit'; ref: string; habitId: string; times: string[]; prevTimes: string[] | null }
 
 /** Horas efectivas de un hábito ese día (con la excepción, si la hay). */
