@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import type { Goal, NicheId, Note } from '@/lib/types'
 import { listNotes } from '@/services/notes'
+import { useOnAppReturn } from '@/hooks/useOnAppReturn'
 import { listGoals } from '@/services/goals'
 import { visibleNotes, type NoteView } from '@/domain/notes'
 import { SkeletonList } from '@/components/Skeleton'
@@ -97,6 +98,11 @@ export function Notes() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [sheet, setSheet] = useState<SheetState>(null)
 
+  // Al volver a la app se recarga (reload): otro dispositivo pudo cambiar las
+  // notas, y abrir una versión vieja y guardarla pisaría esos cambios.
+  const [reload, setReload] = useState(0)
+  useOnAppReturn(() => setReload((n) => n + 1))
+
   useEffect(() => {
     let active = true
     Promise.all([listNotes(userId), listGoals(userId).catch(() => [] as Goal[])])
@@ -104,6 +110,7 @@ export function Notes() {
         if (!active) return
         setNotes(loadedNotes)
         setGoals(loadedGoals)
+        setLoadError(null)
       })
       .catch((err: unknown) => {
         if (active) setLoadError(noteErrorMessage(err, 'No se pudieron cargar tus notas.'))
@@ -111,7 +118,7 @@ export function Notes() {
     return () => {
       active = false
     }
-  }, [userId])
+  }, [userId, reload])
 
   const shown = useMemo(() => visibleNotes(notes ?? [], view, query), [notes, view, query])
   const inboxCount = useMemo(() => visibleNotes(notes ?? [], 'inbox', '').length, [notes])

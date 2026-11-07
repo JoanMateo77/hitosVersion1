@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSession } from '@/app/session'
 import type { Goal, Note } from '@/lib/types'
 import { listNotes } from '@/services/notes'
+import { useOnAppReturn } from '@/hooks/useOnAppReturn'
 import { listGoals } from '@/services/goals'
 import { notesForGoal } from '@/domain/notes'
 import { IconPlus } from '@/components/icons'
@@ -21,6 +22,10 @@ export function GoalNotes({ goalId }: Readonly<{ goalId: string }>) {
   // undefined = cerrada; null = nota nueva; Note = editar.
   const [open, setOpen] = useState<Note | null | undefined>(undefined)
 
+  // Al volver a la app se recarga: otro dispositivo pudo cambiar las notas.
+  const [reload, setReload] = useState(0)
+  useOnAppReturn(() => setReload((n) => n + 1))
+
   useEffect(() => {
     let active = true
     void Promise.all([
@@ -34,7 +39,7 @@ export function GoalNotes({ goalId }: Readonly<{ goalId: string }>) {
     return () => {
       active = false
     }
-  }, [userId])
+  }, [userId, reload])
 
   const mine = useMemo(() => notesForGoal(notes, goalId), [notes, goalId])
 

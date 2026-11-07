@@ -198,6 +198,36 @@ export function NoteSheet({
     saveOnLeaveRef.current = saveOnLeave
   })
 
+  /**
+   * La app pasa a segundo plano con la hoja abierta (otra app, bloqueo): se
+   * guarda ya, porque el sistema puede cerrarla sin que la hoja llegue a
+   * cerrarse. La hoja sigue abierta; al salir se vuelve a guardar si cambió algo.
+   */
+  function saveInBackground() {
+    if (skipSaveRef.current || leftRef.current) return
+    const text = written
+    ensureSaved(text).catch(() => {
+      saveNoteDraft({
+        noteId: savedRef.current?.id ?? null,
+        goalId: newGoalId,
+        title: text.title,
+        body: text.body,
+        items: text.items,
+      })
+    })
+  }
+  const saveInBackgroundRef = useRef(saveInBackground)
+  useEffect(() => {
+    saveInBackgroundRef.current = saveInBackground
+  })
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') saveInBackgroundRef.current()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [])
+
   // Desmontaje sin animación de cierre (atrás de Android/PWA, cambio de ruta).
   useEffect(
     () => () => {
