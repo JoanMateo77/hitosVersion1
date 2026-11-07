@@ -3054,7 +3054,8 @@ select.input:focus {
 }
 .dayplan-item__main {
   display: grid;
-  grid-template-columns: auto 1fr;
+  /* Columna de horas fija: los títulos quedan alineados entre filas. */
+  grid-template-columns: 9.5em 1fr;
   column-gap: var(--s3);
   width: 100%;
   padding: var(--s2) 0;
@@ -3115,14 +3116,17 @@ select.input:focus {
   font-size: var(--fs-xs);
   color: var(--text-faint);
 }
-/* Pie fijo: Aplicar siempre a mano, aunque el borrador sea largo. */
+/* Pie fijo: Aplicar siempre a mano, aunque el borrador sea largo. Se pega al
+   borde real del panel (cubre su padding inferior) para que nada asome debajo. */
 .dayplan-footer {
+  --dayplan-pad: calc(var(--safe-bottom) + var(--s5));
   position: sticky;
-  bottom: 0;
+  bottom: calc(-1 * var(--dayplan-pad));
   display: flex;
   gap: var(--s2);
   justify-content: flex-end;
-  padding: var(--s3) 0 0;
+  margin-bottom: calc(-1 * var(--dayplan-pad));
+  padding: var(--s3) 0 var(--dayplan-pad);
   background: var(--bg-elev);
 }
 

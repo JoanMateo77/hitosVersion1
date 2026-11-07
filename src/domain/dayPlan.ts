@@ -253,6 +253,16 @@ function toPlaced(s: Slot, all: Slot[]): PlacedItem {
   return out
 }
 
+/**
+ * Borrador tras una respuesta de la IA: lo existente que no devolvió queda como
+ * estaba (nunca se pierde lo que ya había en el día); lo nuevo es lo que devolvió.
+ */
+export function mergeAiItems(prev: DayItem[], next: DayItem[]): DayItem[] {
+  const byRef = new Map(next.map((i) => [i.ref, i]))
+  const existing = prev.filter((i) => i.source !== 'new').map((i) => byRef.get(i.ref) ?? i)
+  return [...existing, ...next.filter((i) => i.source === 'new')]
+}
+
 /* ===== Preguntas del algoritmo, efectos y operaciones ===================== */
 
 export type DayEffect =

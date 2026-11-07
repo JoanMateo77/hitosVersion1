@@ -4,6 +4,7 @@ import {
   canOverlap,
   conflictQuestions,
   countChanges,
+  mergeAiItems,
   planDay,
   planToOps,
   type DayItem,
@@ -322,5 +323,20 @@ describe('planToOps', () => {
     const dropped = applyEffect([item({ title: 'x' })], { kind: 'drop', ref: `new:${n}` })
     expect(ops([same, ...dropped])).toEqual([])
     expect(countChanges([])).toBe(0)
+  })
+})
+
+describe('mergeAiItems', () => {
+  it('keeps existing items the reply left out and replaces new ones', () => {
+    const ev = item({ ref: 'event:e1', source: 'event', fixed: true, start: '09:00', originalStart: '09:00' })
+    const oldNew = item({ ref: 'new:1' })
+    const moved = { ...item({ ref: 'session:k', source: 'session', start: '18:00', originalStart: '17:00' }) }
+    const prev = [ev, oldNew, { ...moved, start: '17:00' }]
+    const fresh = item({ ref: 'new:2' })
+    expect(mergeAiItems(prev, [fresh, moved]).map((i) => [i.ref, i.start])).toEqual([
+      ['event:e1', '09:00'],
+      ['session:k', '18:00'],
+      ['new:2', null],
+    ])
   })
 })

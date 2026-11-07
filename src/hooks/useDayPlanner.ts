@@ -3,6 +3,7 @@ import { minutesToTime } from '@/domain/clock'
 import {
   DAY_DEFAULTS,
   applyEffect,
+  mergeAiItems,
   conflictQuestions,
   countChanges,
   planDay,
@@ -95,7 +96,7 @@ export function useDayPlanner({ date, nowMin, baseItems, habits, goals, executor
           history,
           clean,
         )
-        setItems(reply.items)
+        setItems((prev) => mergeAiItems(prev, reply.items))
         setAiQuestions(reply.questions)
         setAssumptions(reply.assumptions)
         setMessages((prev) => [...prev, { id: nextId(), role: 'coach', text: reply.reply }])

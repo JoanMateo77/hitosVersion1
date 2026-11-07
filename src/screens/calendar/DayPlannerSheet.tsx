@@ -39,7 +39,8 @@ export function DayPlannerSheet({
   const planner = useDayPlanner({ date: day, nowMin, baseItems, habits, goals, executors })
   const [confirmExit, setConfirmExit] = useState(false)
   const dirty = planner.changes > 0 && !planner.applied
-  const title = `Organizar el ${formatWeekday(day)}`
+  const weekday = formatWeekday(day)
+  const title = `Organizar el ${weekday.charAt(0).toLowerCase()}${weekday.slice(1)}`
 
   return (
     <Sheet
@@ -89,8 +90,6 @@ export function DayPlannerSheet({
             </div>
           )}
 
-          <Draft planner={planner} />
-
           <CoachComposer
             onSend={(t) => void planner.send(t)}
             disabled={planner.pending || planner.applied}
@@ -100,6 +99,9 @@ export function DayPlannerSheet({
             placeholder="Ej.: reunión de 9 a 11, gimnasio, recoger a los niños a las 4…"
             autoFocus
           />
+
+          <Draft planner={planner} />
+
 
           <div className="dayplan-footer">
             {planner.applied ? (
