@@ -169,17 +169,22 @@ se informa cuál, y "Deshacer" revierte las que sí se hicieron.
 - Respuesta de la IA (esquema estilo Gemini, validado en código):
   ```
   { reply: string,                       // 1–2 frases, español neutro
-    items: [{ ref, title, fixed, start, durationMin, window, mode, goalId, untimed, alongside }],
+    items: [{ ref, title, fixed, start, end, durationMin, window, mode, goalId, untimed, alongside }],
     questions: [{ text, options: string[] }],   // 0–3, 2–4 opciones
-    assumptions: string[] }              // "Supuse 1 h para el gimnasio"
+    assumptions: string[],               // "Supuse 1 h para el gimnasio"
+    removed: string[] }                  // refs "new:N" que la persona pidió quitar
   ```
-  `items` es la lista completa de lo nuevo más los existentes que cambian (por
-  `ref`). Así una corrección ("quita eso", "en realidad es a las 7") reemplaza el
-  borrador sin ambigüedad.
+  `items` trae solo lo nuevo y lo que cambia (por `ref`); lo que no se menciona
+  queda igual y solo sale del borrador lo que viene en `removed`. (Primero se
+  pidió la lista completa, pero en la prueba con el modelo real una corrección
+  devolvía solo lo cambiado y el borrador perdía el resto.) `durationMin` es
+  obligatoria en el esquema; si viene un rango `start`–`end`, la duración sale
+  de ahí. Algo con meta, ventana u hora fija nunca queda como tarea sin hora.
 - `parseDayReply(raw, ctx)`: horas `HH:MM` válidas, duración 5–600, `ref`
   existente o `new:N`, `goalId` dentro de las metas recibidas (si no, null), un
-  `fixed` sin hora pasa a flexible, máx. 20 ítems, máx. 3 preguntas, títulos
-  recortados. Inválido → `null` → la cadena prueba el siguiente modelo.
+  `fixed` sin hora pasa a flexible, máx. 20 ítems nuevos, máx. 3 preguntas,
+  títulos recortados. Inválido → `null` → la cadena prueba el siguiente modelo.
+  El cliente además conserva siempre los ítems existentes (`mergeAiItems`).
 - Cuenta 1 de cuota por turno, con devolución si falla (igual que el resto).
 
 ### 4.1 Prompt (reglas clave)
