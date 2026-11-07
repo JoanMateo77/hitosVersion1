@@ -117,11 +117,32 @@ describe('handlePlanMeta', () => {
   it('503 si no hay clave configurada y 502 si el modelo falla', async () => {
     expect((await handlePlanMeta(req({ title: 'x' }), deps({ planner: null }))).status).toBe(503)
     const boom = async () => Promise.reject(new Error('boom'))
-    const failing = deps({ planner: { plan: boom, questions: boom, refine: boom, chat: boom, criteria: boom, goalType: boom } })
+    const failing = deps({ planner: { plan: boom, questions: boom, refine: boom, chat: boom, criteria: boom, goalType: boom, day: boom } })
     vi.spyOn(console, 'error').mockImplementation(() => {})
     expect((await handlePlanMeta(req({ title: 'x' }), failing)).status).toBe(502)
     // El fallo de la IA no le gasta el uso a la persona.
     expect(refund).toHaveBeenCalledTimes(1)
+  })
+
+  it('cobra con el token de la persona y espera la devolución asíncrona antes de responder', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let refunded = false
+    const take = vi.fn(async () => async () => {
+      await Promise.resolve()
+      refunded = true
+    })
+    const boom = async () => Promise.reject(new Error('boom'))
+    const d = deps({ takeQuota: take })
+    d.planner!.plan = boom
+    const res = await handlePlanMeta(req({ title: 'x' }), d)
+    expect(res.status).toBe(502)
+    expect(take).toHaveBeenCalledWith('user-1', 'ok')
+    expect(refunded).toBe(true)
+  })
+
+  it('el límite diario guardado (asíncrono) también corta con 429', async () => {
+    const res = await handlePlanMeta(req({ title: 'x' }), deps({ takeQuota: async () => null }))
+    expect(res.status).toBe(429)
   })
 
   it('no devuelve cuota cuando la respuesta sale bien', async () => {

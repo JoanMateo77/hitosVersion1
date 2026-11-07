@@ -14,6 +14,7 @@ import { readHistory, readStages, type ChatContext, type ChatTurn } from '../dom
 import { DAY_MAX_ITEMS, DAY_MESSAGE_MAX, MAX_ID, readDayItem, type DayAiContext } from '../domain/dayPlanAi.js'
 import { DAY_DEFAULTS, type DayItem } from '../domain/dayPlan.js'
 import type { GoalPlanner } from './goalPlanner.js'
+import type { MemoryTake, QuotaRefund } from './quotaStore.js'
 
 /**
  * Cada acción cuenta (preguntas, plan, pulidos, mensajes de chat). Generoso a
@@ -31,7 +32,7 @@ export interface PlanMetaDeps {
    * Registra un uso. null = el usuario superó el límite diario; si no, una
    * función que devuelve ESE uso (mismo día) cuando la IA no pudo responder.
    */
-  takeQuota(userId: string): (() => void) | null
+  takeQuota(userId: string, accessToken: string): QuotaRefund | null | Promise<QuotaRefund | null>
   /** Memoria de comportamiento en frases legibles ([] si no hay o falla). */
   loadSignals(userId: string, accessToken: string): Promise<string[]>
 }
@@ -198,7 +199,7 @@ export async function handlePlanMeta(request: Request, deps: PlanMetaDeps): Prom
   const req = body && (body.action === 'day' ? readDayRequest(body) : readCoachRequest(body))
   if (!req) return json(400, { error: { code: 'invalid_body' } })
 
-  const refundQuota = deps.takeQuota(userId)
+  const refundQuota = await deps.takeQuota(userId, token)
   if (!refundQuota) return json(429, { error: { code: 'daily_limit' } })
 
   try {
@@ -210,7 +211,8 @@ export async function handlePlanMeta(request: Request, deps: PlanMetaDeps): Prom
     return json(200, await runAction(req as CoachRequest, planner, () => deps.loadSignals(userId, token)))
   } catch (err) {
     console.error('[plan-meta] fallo del planner:', err instanceof Error ? err.message : 'desconocido')
-    refundQuota()
+    // Se espera: en serverless lo pendiente tras responder puede no correr.
+    await refundQuota()
     return json(502, { error: { code: 'ai_unavailable' } })
   }
 }
@@ -223,11 +225,10 @@ export async function handlePlanMeta(request: Request, deps: PlanMetaDeps): Prom
 export const MAX_DAILY_REFUNDS = 10
 
 /**
- * Límite diario EN MEMORIA: válido en local y en una sola instancia. Antes de
- * desplegar se reemplaza por una tabla (las funciones serverless no comparten
- * memoria). Ver el spec 2026-10-31-asistente-ia-etapas-design.md.
+ * Límite diario EN MEMORIA: vale por instancia. En producción manda la tabla
+ * `ai_usage` (quotaStore.ts); este queda de respaldo si la base no responde.
  */
-export function createMemoryQuota(limit = DAILY_LIMIT, now = () => new Date(), maxRefunds = MAX_DAILY_REFUNDS) {
+export function createMemoryQuota(limit = DAILY_LIMIT, now = () => new Date(), maxRefunds = MAX_DAILY_REFUNDS): MemoryTake {
   const used = new Map<string, number>()
   const refunded = new Map<string, number>()
   return (userId: string): (() => void) | null => {

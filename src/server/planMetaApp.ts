@@ -4,7 +4,8 @@
  */
 import { createModelChain, parseChain, realChainOptions } from './aiChain.js'
 import { createGoalPlanner } from './goalPlanner.js'
-import { createMemoryQuota, createSupabaseVerifier, handlePlanMeta } from './planMeta.js'
+import { DAILY_LIMIT, createMemoryQuota, createSupabaseVerifier, handlePlanMeta } from './planMeta.js'
+import { createSupabaseQuota } from './quotaStore.js'
 import { createSignalsLoader } from './userSignalsLoader.js'
 
 export function createPlanMetaHandler(env: Record<string, string | undefined>) {
@@ -16,7 +17,9 @@ export function createPlanMetaHandler(env: Record<string, string | undefined>) {
   const anonKey = env.VITE_SUPABASE_ANON_KEY ?? ''
   const verifyUser = createSupabaseVerifier(url, anonKey)
   const loadSignals = createSignalsLoader(url, anonKey)
-  const limit = Number(env.AI_DAILY_LIMIT)
-  const takeQuota = createMemoryQuota(Number.isFinite(limit) && limit > 0 ? limit : undefined)
+  const parsed = Number(env.AI_DAILY_LIMIT)
+  const limit = Number.isInteger(parsed) && parsed > 0 ? parsed : DAILY_LIMIT
+  // Cuenta en la tabla ai_usage; si la base no responde, en memoria por instancia.
+  const takeQuota = createSupabaseQuota(url, anonKey, limit, createMemoryQuota(limit))
   return (request: Request) => handlePlanMeta(request, { planner, verifyUser, takeQuota, loadSignals })
 }
