@@ -7,6 +7,7 @@
  */
 import { ATTENTION_MODES, DAY_DEFAULTS, DAY_WINDOWS, type AttentionMode, type DayItem, type DayWindow } from './dayPlan.js'
 import type { ChatTurn } from './coachChat.js'
+import { timeToMinutes } from './clock.js'
 
 export interface DayAiContext {
   date: string
@@ -46,6 +47,7 @@ const ITEM_SCHEMA = {
     title: { type: 'STRING' },
     fixed: { type: 'BOOLEAN' },
     start: { type: 'STRING' },
+    end: { type: 'STRING' },
     durationMin: { type: 'INTEGER' },
     window: { type: 'STRING', enum: [...DAY_WINDOWS] },
     mode: { type: 'STRING', enum: [...ATTENTION_MODES] },
@@ -53,7 +55,9 @@ const ITEM_SCHEMA = {
     untimed: { type: 'BOOLEAN' },
     alongside: { type: 'STRING' },
   },
-  required: ['ref', 'title', 'fixed', 'mode', 'untimed'],
+  // durationMin obligatoria: sin ella los modelos rápidos la omiten aunque la
+  // persona dé el rango ("de 9 a 11") y el día queda con 30 min por defecto.
+  required: ['ref', 'title', 'fixed', 'durationMin', 'mode', 'untimed'],
 } as const
 
 export const DAY_RESPONSE_SCHEMA = {
@@ -70,8 +74,9 @@ export const DAY_RESPONSE_SCHEMA = {
       },
     },
     assumptions: { type: 'ARRAY', items: { type: 'STRING' } },
+    removed: { type: 'ARRAY', items: { type: 'STRING' } },
   },
-  required: ['reply', 'items', 'questions', 'assumptions'],
+  required: ['reply', 'items', 'questions', 'assumptions', 'removed'],
 } as const
 
 const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
@@ -96,18 +101,21 @@ function itemLine(i: DayItem): string {
 
 const RULES = [
   'Reglas:',
-  '- Devuelve en "items" la lista COMPLETA de actividades nuevas (ref "new:1", "new:2"…; conserva el ref de las que ya estaban en el borrador) y, de las que ya existían en el día, solo las que cambian (con su mismo ref). Si la persona pide quitar algo nuevo, no lo incluyas.',
+  '- En "items" devuelve solo lo nuevo (ref "new:N" con un número que no esté en <dia_actual>) y lo que cambia (con su mismo ref). Lo que no menciones se queda igual.',
+  '- Si la persona pide quitar algo del borrador (ref "new:N"), pon su ref en "removed". Lo que ya existía en el día no se puede quitar desde aquí.',
   '- fixed=true solo si tiene hora exacta que no se mueve ("a las 4", "de 9 a 11", "recoger a los niños a las 4", citas, reuniones). "Quiero", "avanzar", "en algún momento" son flexibles (fixed=false, sin start).',
   '- "Por la mañana/tarde/noche" es window (morning/afternoon/evening), no una hora.',
-  '- start en formato HH:MM de 24 horas. durationMin en minutos (de "9 a 11" son 120).',
-  '- untimed=true para lo que no necesita hora ("llamar al banco cuando pueda").',
+  '- start y end en formato HH:MM de 24 horas; si la persona da un rango ("de 9 a 11") pon start y end. durationMin SIEMPRE, en minutos (de "9 a 11" son 120); si la persona no la dijo, estímala y anótala en "assumptions".',
+  '- Ejemplo: "reunión de 9 a 11" → {"ref":"new:1","title":"Reunión","fixed":true,"start":"09:00","end":"11:00","durationMin":120,"mode":"focus","untimed":false}.',
+  '- untimed=true SOLO para pendientes sueltos y cortos que la persona hará "cuando pueda" (llamar, pagar, enviar algo). Todo lo que ocupa un bloque de tiempo (gimnasio, estudio, trabajo, traslados, comidas) va con untimed=false aunque no tenga hora.',
+  '- Si la persona da contexto de cuándo ("después de la reunión", "al trabajo", "antes de dormir"), tradúcelo a window (un traslado al trabajo suele ser morning).',
   '- mode: focus (pide toda la atención: reunión, estudiar, escribir, llamada), physical (ocupa el cuerpo y deja libre el oído: gimnasio, manejar, caminar, cocinar), routine (mecánica: lavar platos, ordenar), audio (solo escuchar: pódcast, audiolibro).',
   '- No decidas qué se hace a la vez: eso lo hace la app. Usa alongside solo si la persona dijo explícitamente que hace dos cosas juntas (ref de la otra).',
   '- goalId: solo si la actividad es claramente trabajo de una de <metas> (usa su id exacto).',
   '- No toques lo que ya existía salvo que la persona lo pida.',
   `- Preguntas: máximo ${DAY_MAX_QUESTIONS}, en un solo turno, cada una con 2 a ${MAX_OPTIONS} opciones cortas. Pregunta solo lo que falta y cambia el día. Pregunta SIEMPRE la duración de un bloque de trabajo profundo sin duración (tesis, estudio, proyecto). Nunca preguntes lo que la persona ya dijo.`,
   '- Si hay un supuesto razonable (duración de una comida, de un traslado), úsalo y escríbelo en "assumptions" ("Supuse 1 h para el gimnasio") en vez de preguntar.',
-  '- reply: 1 o 2 frases que resuman lo que entendiste. Sin listas ni horas inventadas.',
+  '- reply: 1 o 2 frases que resuman lo que entendiste. Sin listas ni horas inventadas. Si mencionas una hora, en formato de 12 horas ("7:00 pm").',
 ]
 
 export function buildDayPrompt(ctx: DayAiContext, history: ChatTurn[], message: string): string {
@@ -134,9 +142,23 @@ function readTime(v: unknown): string | null {
   return typeof v === 'string' && HHMM.test(v) ? v : null
 }
 
+/** Minutos entre dos horas válidas, o null si no forman un rango. */
+function rangeOf(start: unknown, end: unknown): number | null {
+  const a = readTime(start)
+  const b = readTime(end)
+  if (!a || !b) return null
+  const diff = timeToMinutes(b) - timeToMinutes(a)
+  return diff > 0 ? diff : null
+}
+
 function readDuration(v: unknown): number | null {
   if (typeof v !== 'number' || !Number.isFinite(v)) return null
   return Math.min(MAX_DURATION, Math.max(MIN_DURATION, Math.round(v)))
+}
+
+/** La duración que dio la IA: explícita o, si no, la del rango start–end. */
+function givenDuration(raw: Record<string, unknown>): number | null {
+  return readDuration(raw.durationMin) ?? readDuration(rangeOf(raw.start, raw.end))
 }
 
 /** Une un ítem de la IA sobre su versión del contexto (o los valores por defecto). */
@@ -160,12 +182,13 @@ function mergeItem(raw: Record<string, unknown>, base: DayItem | undefined, ref:
     title,
     fixed,
     start,
-    durationMin: readDuration(raw.durationMin) ?? base?.durationMin ?? DAY_DEFAULTS.durationMin,
+    durationMin: givenDuration(raw) ?? base?.durationMin ?? DAY_DEFAULTS.durationMin,
     window,
     mode,
     goalId,
     alongside,
-    untimed: isNew ? raw.untimed === true : (base as DayItem).untimed,
+    // Lo que tiene meta, momento del día u hora fija ocupa tiempo: nunca es tarea suelta.
+    untimed: isNew ? raw.untimed === true && !fixed && !window && !goalId : (base as DayItem).untimed,
   }
 }
 
@@ -224,25 +247,29 @@ export function parseDayReply(raw: unknown, ctx: DayAiContext): DayAiReply | nul
     : []
 
   const returned = new Map<string, DayItem>()
-  let newCount = 0
+  let newCount = ctx.items.filter((i) => i.source === 'new').length
   for (const r of rawItems) {
     if (!validRef(r.ref) || returned.has(r.ref)) continue
     const base = byRef.get(r.ref)
-    const isNew = !base || base.source === 'new'
-    if (isNew && newCount >= DAY_MAX_ITEMS) continue
+    // Tope de ítems nuevos: los del borrador ya cuentan; editarlos no suma.
+    if (!base && newCount >= DAY_MAX_ITEMS) continue
     const merged = mergeItem(r, base, r.ref, refs, goalIds)
     if (!merged) continue
-    if (isNew) newCount += 1
+    if (!base) newCount += 1
     returned.set(r.ref, merged)
-    const guessed = readDuration(r.durationMin) === null && base?.durationMin === undefined
+    const guessed = givenDuration(r) === null && base?.durationMin === undefined
     const named = assumptions.some((a) => a.toLowerCase().includes(merged.title.toLowerCase()))
     if (guessed && !named && assumptions.length < MAX_ASSUMPTIONS) {
       assumptions.push(`Supuse ${DAY_DEFAULTS.durationMin} min para ${merged.title}`)
     }
   }
 
-  // Lo existente que la IA no devolvió queda igual; lo nuevo que no devolvió, se quitó.
+  // Lo que la IA no menciona queda igual (los modelos no siempre repiten la
+  // lista entera); solo sale del borrador lo nuevo que pidió quitar en "removed".
+  const removed = new Set(Array.isArray(raw.removed) ? raw.removed.filter((r): r is string => typeof r === 'string') : [])
   const existing = ctx.items.filter((i) => i.source !== 'new').map((i) => returned.get(i.ref) ?? i)
-  const fresh = [...returned.values()].filter((i) => i.source === 'new')
+  const kept = ctx.items.filter((i) => i.source === 'new' && !removed.has(i.ref)).map((i) => returned.get(i.ref) ?? i)
+  const added = [...returned.values()].filter((i) => i.source === 'new' && !byRef.has(i.ref))
+  const fresh = [...kept, ...added].filter((i) => !removed.has(i.ref)).slice(0, DAY_MAX_ITEMS)
   return { reply, items: [...existing, ...fresh], questions: readQuestions(raw.questions), assumptions }
 }

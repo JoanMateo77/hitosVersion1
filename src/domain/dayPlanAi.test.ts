@@ -82,6 +82,12 @@ describe('parseDayReply', () => {
     expect(r?.assumptions).toEqual(['Supuse 1 h para el gimnasio'])
   })
 
+  it('derives the duration from start and end when the AI gives a range', () => {
+    const r = parseDayReply(reply({ items: [newItem({ durationMin: undefined, start: '09:00', end: '11:00' })] }), ctx())
+    expect(r?.items.find((i) => i.ref === 'new:1')?.durationMin).toBe(120)
+    expect(r?.assumptions).toEqual([])
+  })
+
   it('rejects invalid times and clamps durations to 5–600', () => {
     const r = parseDayReply(
       reply({ items: [newItem({ start: '25:00', fixed: false, durationMin: 2 }), newItem({ ref: 'new:2', start: '9:00', fixed: false, durationMin: 900 })] }),
@@ -112,10 +118,16 @@ describe('parseDayReply', () => {
     expect(r?.items[0]).toEqual(session)
   })
 
-  it('drops previous new items the AI did not return', () => {
+  it('keeps previous new items the AI did not return', () => {
     const old: DayItem = { ...session, ref: 'new:7', source: 'new', title: 'Llamada', goalId: null, originalStart: undefined }
     const r = parseDayReply(reply(), ctx({ items: [session, old] }))
-    expect(r?.items.map((i) => i.ref)).toEqual(['session:k1', 'new:1'])
+    expect(r?.items.map((i) => i.ref)).toEqual(['session:k1', 'new:7', 'new:1'])
+  })
+
+  it('removes draft items listed in removed, never existing ones', () => {
+    const old: DayItem = { ...session, ref: 'new:7', source: 'new', title: 'Llamada', goalId: null, originalStart: undefined }
+    const r = parseDayReply(reply({ items: [], removed: ['new:7', 'session:k1'] }), ctx({ items: [session, old] }))
+    expect(r?.items.map((i) => i.ref)).toEqual(['session:k1'])
   })
 
   it('merges a returned existing item over its context version', () => {
@@ -152,6 +164,26 @@ describe('parseDayReply', () => {
     expect(r?.items.filter((i) => i.source === 'new')).toHaveLength(20)
     expect(r?.questions.map((q) => q.text)).toEqual(['b', 'c', 'd'])
     expect(r?.questions[0].options).toHaveLength(4)
+  })
+
+  it('never leaves untimed an item with a goal, a window or a fixed time', () => {
+    const r = parseDayReply(
+      reply({
+        items: [
+          newItem({ ref: 'new:1', fixed: false, start: undefined, window: 'afternoon', untimed: true }),
+          newItem({ ref: 'new:2', fixed: false, start: undefined, goalId: 'g1', untimed: true }),
+          newItem({ ref: 'new:3', untimed: true }),
+          newItem({ ref: 'new:4', title: 'Llamar al banco', fixed: false, start: undefined, untimed: true }),
+        ],
+      }),
+      ctx(),
+    )
+    expect(r?.items.filter((i) => i.source === 'new').map((i) => [i.ref, i.untimed])).toEqual([
+      ['new:1', false],
+      ['new:2', false],
+      ['new:3', false],
+      ['new:4', true],
+    ])
   })
 
   it('returns null for empty reply or non-object input', () => {

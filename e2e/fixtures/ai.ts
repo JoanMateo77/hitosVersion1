@@ -50,6 +50,7 @@ const DAY_REPLY = {
   ],
   questions: [{ text: '¿Cuánto tiempo quieres dedicarle a la tesis?', options: ['1 h', '2 h'] }],
   assumptions: ['Supuse 2 h para la tesis'],
+  removed: [],
 }
 
 export function aiResponse(action: string): unknown {
