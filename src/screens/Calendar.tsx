@@ -876,12 +876,12 @@ export function Calendar() {
           {selected >= today && (
             <button
               type="button"
-              className="iconbtn iconbtn--sm"
+              className="btn btn--ai btn--sm ag-hdr__ai"
               onClick={() => setOrganizing(selected)}
               aria-label="Organizar con IA"
               title="Organizar con IA"
             >
-              <IconSparkle size={16} />
+              <IconSparkle size={16} /> IA
             </button>
           )}
           {selected >= today && (

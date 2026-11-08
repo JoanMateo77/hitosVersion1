@@ -167,6 +167,14 @@ fieldset.row {
   border-color: var(--border);
   color: var(--text);
 }
+/* Entradas a la IA ("Organizar con IA"): tinte azul suave para que se
+   reconozcan, sin el relleno del principal (una sola acción principal por vista). */
+.btn--ai {
+  background: var(--primary-soft);
+  border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+  color: var(--action-text);
+  font-weight: 650;
+}
 /* Destructivo como enlace ("Eliminar meta"): texto en --danger-text, que
    cumple ≥ 4.5:1 sobre --bg y --surface en ambos temas. La confirmación
    posterior sí usa el botón relleno (.btn--danger). */
@@ -1819,6 +1827,9 @@ select.input {
   .btn--ghost:hover:not(:disabled) {
     border-color: var(--text-faint);
   }
+  .btn--ai:hover:not(:disabled) {
+    border-color: var(--primary);
+  }
   .btn--danger-link:hover:not(:disabled) {
     text-decoration: underline;
   }
@@ -3381,12 +3392,17 @@ button.ag-row:active,
 /* Cabecera de la agenda: fecha a la izquierda, acciones (✎, +) a la derecha. */
 .ag-hdr {
   display: flex;
+  flex-wrap: wrap; /* en pantallas angostas las acciones bajan bajo la fecha */
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--s3);
 }
 .ag-hdr__actions {
   padding-top: var(--s2);
+}
+.ag-hdr__ai {
+  gap: 6px;
+  padding-inline: 12px;
 }
 /* Línea "Ahora": punto + hairline en color de acción; solo hoy. */
 .ag-now {
