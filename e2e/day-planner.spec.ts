@@ -28,6 +28,8 @@ async function openPlanner(browser: Browser, viewport: { width: number; height: 
     ({ key, session }) => {
       localStorage.setItem(key, JSON.stringify(session))
       sessionStorage.setItem('logralo.backfill-v1', '1')
+      // El tour tiene su propia prueba (ia-tour.spec.ts); aquí ya se vio.
+      localStorage.setItem('logralo.tour.organizar-ia', '1')
     },
     { key: SESSION_STORAGE_KEY, session: mockSession() },
   )
@@ -41,6 +43,10 @@ for (const viewport of [
 ]) {
   test(`organizes the day from text and applies it (${viewport.width}px)`, async ({ browser }) => {
     const { context, page } = await openPlanner(browser, viewport)
+    const eventPosts: Array<Record<string, unknown>> = []
+    page.on('request', (req) => {
+      if (req.method() === 'POST' && new URL(req.url()).pathname === '/rest/v1/events') eventPosts.push(req.postDataJSON())
+    })
     const sheet = page.getByRole('dialog', { name: /Organizar el/ })
     const input = sheet.getByLabel('Cuéntame tu día')
     await expect(input).toBeVisible()
@@ -66,6 +72,14 @@ for (const viewport of [
 
     await sheet.getByRole('button', { name: 'Aplicar (3 cambios)' }).click()
     await expect(sheet.getByRole('button', { name: 'Deshacer' })).toBeVisible()
+    // Cada evento se guarda con el área que eligió la IA (su color en la agenda).
+    expect(eventPosts.map((b) => [b.title, b.area])).toEqual(
+      expect.arrayContaining([
+        ['Reunión', 'carrera'],
+        ['Llamada al banco', 'finanzas'],
+        ['Tesis', 'aprendizaje'],
+      ]),
+    )
     await settle(page)
     await page.screenshot({ path: test.info().outputPath(`applied-${viewport.width}.png`) })
 

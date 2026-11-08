@@ -6,8 +6,9 @@ const PREFIX = 'hito.hint.'
  * Hints "primera vez" persistidos en localStorage. La idea: la app se explica
  * sola con texto contextual que aparece una sola vez por dispositivo.
  *
- * Reglas: nunca tour, nunca modal, nunca obligatorio. El usuario lo descarta
- * y no vuelve a verlo. Cada hint tiene un id único; cambiar el id "resetea" para
+ * Reglas: nunca modal, nunca obligatorio. El usuario lo descarta y no vuelve a
+ * verlo. La única guía paso a paso es la de "Organizar con IA"
+ * (components/tour), pedida expresamente; lo demás se explica con hints. Cada hint tiene un id único; cambiar el id "resetea" para
  * todos los usuarios (útil cuando reescribimos un microcopy).
  */
 export function useFirstTimeHint(id: string): {

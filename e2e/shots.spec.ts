@@ -67,6 +67,8 @@ for (const route of selectRoutes(process.env.SHOTS_ROUTES)) {
             else localStorage.removeItem(sessionKey)
             // Los datos de prueba ya traen etapas: no hace falta la migración perezosa.
             sessionStorage.setItem('logralo.backfill-v1', '1')
+            // Las capturas muestran la pantalla, no el tour (que tiene su e2e).
+            localStorage.setItem('logralo.tour.organizar-ia', '1')
             if (draft) sessionStorage.setItem('logralo.wizard-draft-v2', JSON.stringify(draft))
           },
           {

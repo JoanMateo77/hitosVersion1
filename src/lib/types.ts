@@ -100,6 +100,8 @@ export interface Task {
   status: TaskStatus
   createdAt: string
   doneAt: string | null
+  /** Área (color) de una tarea suelta (0022). null/ausente = sin elegir. */
+  area?: NicheId | null
 }
 
 /** Plantilla pre-armada por tipo de meta (Mecanismo F). */
@@ -140,6 +142,8 @@ export interface CalendarEvent {
   /** Cuándo se marcó como hecho, o null si sigue pendiente (0014). */
   doneAt: string | null
   createdAt: string
+  /** Área (color) de un evento sin meta (0022). null/ausente = sin elegir. */
+  area?: NicheId | null
 }
 
 /** Cómo se mide una sesión: tiempo (minutos) o cantidad (páginas, km…). */

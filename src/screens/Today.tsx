@@ -713,6 +713,7 @@ export function Today() {
       <button
         type="button"
         className="btn btn--ai btn--block today-organize"
+        data-tour="ia-entry"
         onClick={() => navigate(`/calendario?d=${today}&organizar=1`)}
       >
         <IconSparkle size={16} /> Organizar mi día con IA

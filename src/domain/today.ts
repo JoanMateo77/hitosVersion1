@@ -1,6 +1,7 @@
 import type { CalendarEvent, Habit, HabitCheck, NicheId, Session, Task } from '@/lib/types'
 import { eventSpan, rangeLabel, sessionSpan } from '@/domain/agenda'
 import { frameForStreak } from '@/domain/frames'
+import { looseArea } from '@/domain/looseArea'
 import { habitDoneCount, habitTarget, nextSlot } from '@/domain/habits'
 import { elapsedSeconds, formatClock } from '@/domain/sessions'
 import { formatTime12, parseISO } from '@/lib/date'
@@ -148,6 +149,8 @@ export interface LaterItem {
   subtitle: string
   startMin: number | null
   done: boolean
+  /** Color de una tarea o evento suelto (nunca 'otra'); sesiones y hábitos traen el suyo. */
+  area?: NicheId
 }
 
 /** "HH:MM" -> minutos desde medianoche. */
@@ -214,6 +217,7 @@ function eventItem(e: CalendarEvent): LaterItem {
     subtitle,
     startMin: e.startTime ? toMinutes(e.startTime) : null,
     done: Boolean(e.doneAt),
+    area: looseArea(e.title, e.area),
   }
 }
 
@@ -235,7 +239,7 @@ export function laterTodayItems(input: LaterTodayInput): LaterItem[] {
   const habits = input.habits.map((h) => habitItem(h, input.habitChecks, input.today))
   const tasks = input.tasks
     .filter((t) => t.source === 'user' && t.status !== 'postponed')
-    .map((t): LaterItem => ({ kind: 'task', id: t.id, title: t.title, subtitle: 'Sin hora', startMin: null, done: t.status === 'done' }))
+    .map((t): LaterItem => ({ kind: 'task', id: t.id, title: t.title, subtitle: 'Sin hora', startMin: null, done: t.status === 'done', area: looseArea(t.title, t.area) }))
   const events = input.events.map(eventItem)
   return [...sessions, ...habits, ...tasks, ...events]
     .map((item, index) => ({ item, index }))

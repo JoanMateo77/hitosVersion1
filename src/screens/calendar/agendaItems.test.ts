@@ -3,6 +3,7 @@ import {
   canSkip,
   goalWeekdays,
   monthDots,
+  rowTone,
   weekDaySummary,
   type DayAgendaSession,
   type DayHabitRowItem,
@@ -142,3 +143,22 @@ describe('monthDots', () => {
     expect(monthDots({ sessions: 0, deadline: null })).toEqual([])
   })
 })
+
+describe('rowTone of loose events', () => {
+  const row = (event: CalendarEvent) => ({ kind: 'event' as const, key: event.id, start: null, end: null, event, goal: null })
+
+  it('uses the area saved with the event', () => {
+    expect(rowTone(row(ev({ area: 'salud' })))).toBe('salud')
+  })
+
+  it('never paints a loose event grey, even without area', () => {
+    for (const title of ['Organizar un poco la casa', 'Revisar la moto', 'Planear mi día de trabajo mañana']) {
+      expect(rowTone(row(ev({ title })))).not.toBe('otra')
+    }
+  })
+
+  it('the goal color wins over the event area', () => {
+    expect(rowTone({ ...row(ev({ area: 'salud' })), goal: goal() })).toBe('aprendizaje')
+  })
+})
+

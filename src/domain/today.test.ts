@@ -259,6 +259,23 @@ describe('frameCaption', () => {
 describe('laterTodayItems', () => {
   const today = '2026-09-21'
 
+  it('gives loose tasks and events a color area, never the grey one', () => {
+    const items = laterTodayItems({
+      sessions: [],
+      habits: [],
+      habitChecks: [],
+      tasks: [task({ id: 't1', area: 'finanzas' }), task({ id: 't2', title: 'Revisar la moto' })],
+      events: [event({ id: 'e1', area: 'salud' }), event({ id: 'e2', title: 'Organizar la casa' })],
+      today,
+    })
+    const area = (id: string) => items.find((i) => i.id === id)?.area
+    expect(area('t1')).toBe('finanzas')
+    expect(area('e1')).toBe('salud')
+    expect(area('t2')).toBeDefined()
+    expect(area('t2')).not.toBe('otra')
+    expect(area('e2')).not.toBe('otra')
+  })
+
   it('ordena por hora ascendente y deja sin hora al final', () => {
     const s1 = session({ id: 's1', plannedTime: '15:00' })
     const s2 = session({ id: 's2', plannedTime: '08:00' })

@@ -2,6 +2,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { BottomNav } from '@/components/BottomNav'
 import { SideNav } from '@/components/SideNav'
 import { TopBar } from '@/components/TopBar'
+import { TourLayer } from '@/components/tour/TourLayer'
 
 /** "/metas/<id>" (detalle), no "/metas" a secas. */
 const GOAL_DETAIL_PATH = /^\/metas\/[^/]+/
@@ -32,6 +33,7 @@ export function AppShell() {
         </main>
       </div>
       <BottomNav />
+      <TourLayer />
     </div>
   )
 }
