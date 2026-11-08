@@ -1,5 +1,6 @@
-import type { Task, TaskSource, TaskStatus } from '@/lib/types'
+import type { NicheId, Task, TaskSource, TaskStatus } from '@/lib/types'
 import { supabase } from '@/lib/supabase'
+import { isMissingColumn, readArea, withoutArea } from '@/services/areaColumn'
 
 interface TaskRow {
   id: string
@@ -11,6 +12,8 @@ interface TaskRow {
   status: string
   created_at: string
   done_at: string | null
+  /** Ausente hasta que se aplique la migración 0022. */
+  area?: string | null
 }
 
 function mapTask(row: TaskRow): Task {
@@ -24,6 +27,7 @@ function mapTask(row: TaskRow): Task {
     status: row.status as TaskStatus,
     createdAt: row.created_at,
     doneAt: row.done_at,
+    area: readArea(row.area),
   }
 }
 
@@ -43,12 +47,13 @@ export async function createUserTask(
   userId: string,
   title: string,
   planDate: string,
+  area: NicheId | null = null,
 ): Promise<Task> {
-  const { data, error } = await supabase
-    .from('tasks')
-    .insert({ user_id: userId, title, plan_date: planDate, source: 'user' })
-    .select('*')
-    .single()
+  const insert = (row: Record<string, unknown>) => supabase.from('tasks').insert(row).select('*').single()
+  const row = { user_id: userId, title, plan_date: planDate, source: 'user', ...(area ? { area } : {}) }
+  let { data, error } = await insert(row)
+  // Sin la migración 0022 se guarda sin área: la tarea importa más que su color.
+  if (error && 'area' in row && isMissingColumn(error)) ({ data, error } = await insert(withoutArea(row)))
   if (error) throw new Error(error.message)
   return mapTask(data as TaskRow)
 }

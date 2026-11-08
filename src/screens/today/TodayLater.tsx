@@ -2,6 +2,7 @@ import type { ReactNode, RefObject, SubmitEvent } from 'react'
 import type { Goal, Habit, Session, Task } from '@/lib/types'
 import type { LaterItem } from '@/domain/today'
 import { goalAccent } from '@/lib/goalAccent'
+import { nicheAccent } from '@/lib/nicheAccent'
 import { Disclosure } from '@/components/Disclosure'
 import { Hint } from '@/components/Hint'
 import { HabitIcon } from '@/components/HabitIcon'
@@ -17,7 +18,7 @@ function laterGlyph(kind: LaterItem['kind']) {
 
 /**
  * El hábito muestra su propio azulejo de identidad (icono + color); la sesión,
- * el color del área de su meta; el resto, el glifo genérico gris de la fila.
+ * el color del área de su meta; tareas y eventos, su glifo con el color de su área.
  */
 function ItemGlyph({ item, habit, goal }: Readonly<{ item: LaterItem; habit?: Habit; goal?: Goal }>) {
   if (habit) return <HabitIcon habit={habit} size="sm" />
@@ -29,7 +30,11 @@ function ItemGlyph({ item, habit, goal }: Readonly<{ item: LaterItem; habit?: Ha
     )
   }
   return (
-    <span className="today-item__glyph" aria-hidden="true">
+    <span
+      className={`today-item__glyph${item.area ? ' today-item__glyph--goal' : ''}`}
+      style={item.area ? nicheAccent(item.area) : undefined}
+      aria-hidden="true"
+    >
       {laterGlyph(item.kind)}
     </span>
   )

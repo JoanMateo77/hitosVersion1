@@ -4,6 +4,7 @@ import { rangeLabel } from '@/domain/agenda'
 import type { HabitDayRow } from '@/domain/habits'
 import { formatDuration, todayISO } from '@/lib/date'
 import { goalTone } from '@/lib/goalAccent'
+import { looseArea } from '@/domain/looseArea'
 
 /**
  * Tipos y helpers de los ítems que pinta la agenda de un día. Sin React ni
@@ -117,11 +118,11 @@ export function rowTitle(item: AgendaRowItem): string {
   return item.event.title
 }
 
-/** Área para teñir la fila; los eventos sueltos usan el gris neutro. */
+/** Área para teñir la fila; un evento suelto usa su área (nunca el gris). */
 export function rowTone(item: AgendaRowItem): NicheId {
   if (item.kind === 'session') return goalTone(item.session.goal)
   if (item.kind === 'habit') return item.habit.habit.area
-  return item.goal ? goalTone(item.goal) : 'otra'
+  return item.goal ? goalTone(item.goal) : looseArea(item.event.title, item.event.area)
 }
 
 /* ---- Resumen de un día para el acordeón de la semana --------------------- */

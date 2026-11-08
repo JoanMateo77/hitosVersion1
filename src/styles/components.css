@@ -167,6 +167,14 @@ fieldset.row {
   border-color: var(--border);
   color: var(--text);
 }
+/* Entradas a la IA ("Organizar con IA"): tinte azul suave para que se
+   reconozcan, sin el relleno del principal (una sola acción principal por vista). */
+.btn--ai {
+  background: var(--primary-soft);
+  border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+  color: var(--action-text);
+  font-weight: 650;
+}
 /* Destructivo como enlace ("Eliminar meta"): texto en --danger-text, que
    cumple ≥ 4.5:1 sobre --bg y --surface en ambos temas. La confirmación
    posterior sí usa el botón relleno (.btn--danger). */
@@ -1819,6 +1827,9 @@ select.input {
   .btn--ghost:hover:not(:disabled) {
     border-color: var(--text-faint);
   }
+  .btn--ai:hover:not(:disabled) {
+    border-color: var(--primary);
+  }
   .btn--danger-link:hover:not(:disabled) {
     text-decoration: underline;
   }
@@ -3052,6 +3063,9 @@ select.input:focus {
 .dayplan-item--changed {
   border-left-color: var(--action);
 }
+.dayplan-item--area {
+  border-left-color: var(--niche);
+}
 .dayplan-item__main {
   display: grid;
   /* Columna de horas fija: los títulos quedan alineados entre filas. */
@@ -3381,12 +3395,17 @@ button.ag-row:active,
 /* Cabecera de la agenda: fecha a la izquierda, acciones (✎, +) a la derecha. */
 .ag-hdr {
   display: flex;
+  flex-wrap: wrap; /* en pantallas angostas las acciones bajan bajo la fecha */
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--s3);
 }
 .ag-hdr__actions {
   padding-top: var(--s2);
+}
+.ag-hdr__ai {
+  gap: 6px;
+  padding-inline: 12px;
 }
 /* Línea "Ahora": punto + hairline en color de acción; solo hoy. */
 .ag-now {
@@ -3682,4 +3701,97 @@ button.ag-row:active,
 .wk-day__wrap > .wk-day__body {
   min-height: 0;
   overflow: hidden;
+}
+
+/* ---- Tour guiado ("Organizar con IA") ------------------------------------
+   Oscurece todo salvo el elemento del paso (sombra gigante del recorte) y
+   pone un globo al lado. No bloquea toques: el elemento señalado se usa. */
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  pointer-events: none;
+}
+.tour-spot {
+  position: fixed;
+  border-radius: var(--radius);
+  box-shadow:
+    0 0 0 3px var(--primary),
+    0 0 0 9999px rgba(10, 12, 30, 0.55);
+  transition:
+    top var(--dur-state) var(--ease-out),
+    left var(--dur-state) var(--ease-out),
+    width var(--dur-state) var(--ease-out),
+    height var(--dur-state) var(--ease-out);
+}
+.tour-bubble {
+  position: fixed;
+  pointer-events: auto;
+  padding: var(--s4);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  /* Las sombras del sistema son planas; el globo flota sobre la capa oscura. */
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  animation: tour-in var(--dur-state) var(--ease-out) both;
+}
+.tour-bubble__count {
+  margin: 0 0 4px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--action-text);
+}
+.tour-bubble__title {
+  margin: 0 0 4px;
+  font-weight: 700;
+}
+.tour-bubble__body {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.tour-bubble__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-top: var(--s3);
+}
+.tour-bubble__skip {
+  min-height: 40px;
+}
+.tour-bubble__hint {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--action-text);
+}
+@keyframes tour-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-spot {
+    transition: none;
+  }
+  .tour-bubble {
+    animation: none;
+  }
+}
+
+/* Ejemplos para empezar en "Organizar el día": se tocan y llenan el cuadro. */
+.dayplan-examples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+.dayplan-example {
+  text-align: left;
+  white-space: normal;
+  height: auto;
+  line-height: 1.35;
+  padding-block: 8px;
 }

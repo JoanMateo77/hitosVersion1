@@ -5,7 +5,7 @@
  * dayPlan.ts. Corre en el servidor: imports relativos con .js.
  * Spec: docs/superpowers/specs/2026-11-07-ia-organizar-dia-design.md §4
  */
-import { ATTENTION_MODES, DAY_DEFAULTS, DAY_WINDOWS, type AttentionMode, type DayItem, type DayWindow } from './dayPlan.js'
+import { ATTENTION_MODES, DAY_AREAS, DAY_DEFAULTS, DAY_WINDOWS, type AttentionMode, type DayArea, type DayItem, type DayWindow } from './dayPlan.js'
 import type { ChatTurn } from './coachChat.js'
 import { timeToMinutes } from './clock.js'
 import { asData } from './promptData.js'
@@ -57,6 +57,7 @@ const ITEM_SCHEMA = {
     goalId: { type: 'STRING' },
     untimed: { type: 'BOOLEAN' },
     alongside: { type: 'STRING' },
+    area: { type: 'STRING', enum: [...DAY_AREAS] },
   },
   // durationMin obligatoria: sin ella los modelos rápidos la omiten aunque la
   // persona dé el rango ("de 9 a 11") y el día queda con 30 min por defecto.
@@ -118,6 +119,7 @@ const RULES = [
   '- Si la persona da contexto de cuándo ("después de la reunión", "al trabajo", "antes de dormir"), tradúcelo a window (un traslado al trabajo suele ser morning).',
   '- mode: focus (pide toda la atención: reunión, estudiar, escribir, llamada), physical (ocupa el cuerpo y deja libre el oído: gimnasio, manejar, caminar, cocinar), routine (mecánica: lavar platos, ordenar), audio (solo escuchar: pódcast, audiolibro).',
   '- No decidas qué se hace a la vez: eso lo hace la app. Usa alongside solo si la persona dijo explícitamente que hace dos cosas juntas (ref de la otra).',
+  '- area: el área de vida de cada actividad nueva, para darle color: salud (cuerpo, ejercicio, médico, comida), finanzas (pagos, banco, compras, trámites de dinero), carrera (trabajo, clientes, estudios formales, planear el trabajo), aprendizaje (idiomas, cursos, lecturas, practicar algo), relaciones (familia, amigos, pareja, llamadas), creatividad (proyectos propios, apps, música, escribir), bienestar (casa, orden, descanso, planear la vida, mantenimiento como revisar la moto). Elige la más cercana; nunca la dejes vacía.',
   '- goalId: solo si la actividad es claramente trabajo de una de <metas> (usa su id exacto).',
   '- No toques lo que ya existía salvo que la persona lo pida.',
   `- Preguntas: máximo ${DAY_MAX_QUESTIONS}, en un solo turno, cada una con 2 a ${MAX_OPTIONS} opciones cortas. Pregunta solo lo que falta y cambia el día. Pregunta SIEMPRE la duración de un bloque de trabajo profundo sin duración (tesis, estudio, proyecto). Nunca preguntes lo que la persona ya dijo.`,
@@ -139,6 +141,10 @@ export function buildDayPrompt(ctx: DayAiContext, history: ChatTurn[], message: 
   ]
     .filter(Boolean)
     .join('\n')
+}
+
+function readArea(v: unknown): DayArea | null {
+  return DAY_AREAS.includes(v as DayArea) ? (v as DayArea) : null
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => v != null && typeof v === 'object' && !Array.isArray(v)
@@ -198,6 +204,8 @@ function mergeItem(raw: Record<string, unknown>, base: DayItem | undefined, ref:
     mode,
     goalId,
     alongside,
+    // Solo lo nuevo lleva área: lo existente ya tiene su color (meta, hábito, evento).
+    ...(isNew ? { area: 'area' in raw ? readArea(raw.area) : (base?.area ?? null) } : {}),
     // Lo que tiene meta, momento del día u hora fija ocupa tiempo: nunca es tarea suelta.
     untimed: isNew ? raw.untimed === true && !fixed && !window && !goalId : (base as DayItem).untimed,
   }
@@ -240,6 +248,7 @@ export function readDayItem(v: unknown): DayItem | null {
     alongside: typeof v.alongside === 'string' ? clean(v.alongside, MAX_ID) || null : null,
     untimed: v.untimed === true,
   }
+  if (item.source === 'new') item.area = readArea(v.area)
   if ('originalStart' in v) item.originalStart = readTime(v.originalStart)
   if ('originalEnd' in v) item.originalEnd = readTime(v.originalEnd)
   return item

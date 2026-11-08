@@ -8,8 +8,17 @@ import { formatDuration, formatTime12, formatWeekday } from '@/lib/date'
 import { Sheet } from '@/components/Sheet'
 import { CoachComposer, CoachOrb } from '@/components/coach/CoachChatView'
 import { IconClose } from '@/components/icons'
+import { iaTour } from '@/components/tour/iaTour'
+import { looseArea } from '@/domain/looseArea'
+import { nicheAccent } from '@/lib/nicheAccent'
 
 const DURATIONS = [15, 30, 45, 60, 90, 120, 180]
+
+/** Ejemplos que se tocan para empezar: muestran que sirve decir duraciones y horas. */
+const DAY_EXAMPLES = [
+  'Desde ahora: ordenar la casa 1 h, revisar la moto 45 min y estudiar inglés 30 min',
+  'Reunión de 9 a 11, gimnasio 1 h en la tarde y llamar al banco cuando pueda',
+]
 
 /**
  * Hoja "Organizar el día": la persona cuenta su día, la IA lo entiende, la app
@@ -46,6 +55,8 @@ export function DayPlannerSheet({
   })
   // A dónde iba la persona cuando se le pidió confirmar: cerrar o reorganizar a mano.
   const [confirmExit, setConfirmExit] = useState<'close' | 'manual' | null>(null)
+  // Ejemplo tocado: llena el cuadro para que la persona lo ajuste antes de enviar.
+  const [example, setExample] = useState<{ text: string } | null>(null)
   const dirty = planner.changes > 0 && !planner.applied
   /** Salir solo si no hay borrador sin aplicar (si lo hay, pregunta primero). */
   const leave = (to: 'close' | 'manual') => {
@@ -74,7 +85,10 @@ export function DayPlannerSheet({
             </button>
           </div>
           <p className="small muted" style={{ margin: 0 }}>
-            Cuéntame qué tienes y qué quieres hacer. Nada se guarda sin tu sí.
+            Cuéntame qué tienes y qué quieres hacer. Nada se guarda sin tu sí.{' '}
+            <button type="button" className="btn--link" onClick={() => iaTour().start('ia-composer')}>
+              ¿Cómo funciona?
+            </button>
           </p>
 
           {confirmExit && (
@@ -108,15 +122,28 @@ export function DayPlannerSheet({
             </div>
           )}
 
-          <CoachComposer
-            onSend={(t) => void planner.send(t)}
-            disabled={planner.pending || planner.applied}
-            multiline
-            maxLength={DAY_MESSAGE_MAX}
-            label="Cuéntame tu día"
-            placeholder="Ej.: reunión de 9 a 11, gimnasio, recoger a los niños a las 4…"
-            autoFocus
-          />
+          <div className="stack stack--sm" data-tour="ia-composer">
+            <CoachComposer
+              onSend={(t) => void planner.send(t)}
+              disabled={planner.pending || planner.applied}
+              multiline
+              maxLength={DAY_MESSAGE_MAX}
+              label="Cuéntame tu día"
+              placeholder="Ej.: reunión de 9 a 11, gimnasio, recoger a los niños a las 4…"
+              autoFocus
+              prefill={example}
+            />
+            {planner.messages.length === 0 && !planner.pending && (
+              <div className="dayplan-examples" aria-label="Ejemplos para empezar">
+                <span className="tiny muted">Prueba con un ejemplo:</span>
+                {DAY_EXAMPLES.map((ex) => (
+                  <button key={ex} type="button" className="chip chip--quiet dayplan-example" onClick={() => setExample({ text: ex })}>
+                    {ex}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <Draft planner={planner} />
 
@@ -139,6 +166,7 @@ export function DayPlannerSheet({
               <button
                 type="button"
                 className="btn btn--primary btn--block"
+                data-tour="ia-apply"
                 disabled={planner.changes === 0 || planner.saving || planner.pending}
                 onClick={() => void planner.apply()}
               >
@@ -267,7 +295,12 @@ function Draft({ planner }: Readonly<{ planner: DayPlanner }>) {
             const tags = tagsOf(p, byRef)
             const open = editing === it.ref
             return (
-              <div key={it.ref} className={`dayplan-item${p.status === 'same' ? '' : ' dayplan-item--changed'}`}>
+              <div
+                key={it.ref}
+                className={`dayplan-item${p.status === 'same' ? '' : ' dayplan-item--changed'}${it.source === 'new' ? ' dayplan-item--area' : ''}`}
+                // Lo nuevo se ve con el color del área que eligió la IA: el mismo que tendrá en la agenda.
+                style={it.source === 'new' ? nicheAccent(looseArea(it.title, it.area)) : undefined}
+              >
                 <button
                   type="button"
                   className="dayplan-item__main"

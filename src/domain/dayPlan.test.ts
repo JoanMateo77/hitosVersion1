@@ -259,7 +259,16 @@ describe('planToOps', () => {
 
   it('creates an event for a new timed item without goal', () => {
     const gym = item({ fixed: true, start: '07:00', durationMin: 60, title: 'Gimnasio' })
-    expect(ops([gym])).toEqual([{ kind: 'createEvent', ref: gym.ref, title: 'Gimnasio', start: '07:00', end: '08:00' }])
+    expect(ops([gym])).toEqual([{ kind: 'createEvent', ref: gym.ref, title: 'Gimnasio', start: '07:00', end: '08:00', area: null }])
+  })
+
+  it('carries the area the AI chose into new events and tasks', () => {
+    const gym = item({ fixed: true, start: '07:00', durationMin: 60, title: 'Gimnasio', area: 'salud' })
+    const bank = item({ ref: 'new:2', untimed: true, title: 'Pagar la luz', area: 'finanzas' })
+    expect(ops([gym, bank])).toEqual([
+      { kind: 'createEvent', ref: gym.ref, title: 'Gimnasio', start: '07:00', end: '08:00', area: 'salud' },
+      { kind: 'createTask', ref: bank.ref, title: 'Pagar la luz', area: 'finanzas' },
+    ])
   })
 
   it('creates a session for a new item with goal', () => {
@@ -269,7 +278,7 @@ describe('planToOps', () => {
 
   it('creates a task for an untimed item', () => {
     const bank = item({ untimed: true, title: 'Llamar al banco' })
-    expect(ops([bank])).toEqual([{ kind: 'createTask', ref: bank.ref, title: 'Llamar al banco' }])
+    expect(ops([bank])).toEqual([{ kind: 'createTask', ref: bank.ref, title: 'Llamar al banco', area: null }])
   })
 
   it('moves an event keeping its duration and records previous times', () => {

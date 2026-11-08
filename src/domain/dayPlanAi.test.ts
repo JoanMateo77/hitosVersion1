@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DayItem } from '@/domain/dayPlan'
-import { DAY_SYSTEM, buildDayPrompt, parseDayReply, readDayItem, type DayAiContext } from '@/domain/dayPlanAi'
+import { DAY_RESPONSE_SCHEMA, DAY_SYSTEM, buildDayPrompt, parseDayReply, readDayItem, type DayAiContext } from '@/domain/dayPlanAi'
 
 const session: DayItem = {
   ref: 'session:k1',
@@ -254,3 +254,29 @@ describe('prompt injection', () => {
     expect(DAY_SYSTEM).toMatch(/solo ayudas a organizar/i)
   })
 })
+
+describe('area of new items', () => {
+  it('keeps a valid area chosen by the AI', () => {
+    const out = parseDayReply({ reply: 'Listo.', items: [newItem({ area: 'aprendizaje' })], questions: [], assumptions: [], removed: [] }, ctx())
+    expect(out?.items.find((i) => i.ref === 'new:1')?.area).toBe('aprendizaje')
+  })
+
+  it('drops an unknown area and the grey "otra"', () => {
+    for (const area of ['hogar', 'otra', 7]) {
+      const out = parseDayReply({ reply: 'Listo.', items: [newItem({ area })], questions: [], assumptions: [], removed: [] }, ctx())
+      expect(out?.items.find((i) => i.ref === 'new:1')?.area).toBeNull()
+    }
+  })
+
+  it('asks the model for an area in the schema and the rules', () => {
+    const prompt = buildDayPrompt(ctx(), [], 'Revisar la moto')
+    expect(prompt).toContain('area:')
+    expect(JSON.stringify(DAY_RESPONSE_SCHEMA)).toContain('"area"')
+  })
+
+  it('reads the area of a draft item sent back by the client', () => {
+    expect(readDayItem({ ...newItem(), source: 'new', area: 'salud' })?.area).toBe('salud')
+    expect(readDayItem({ ...newItem(), source: 'new', area: 'nope' })?.area).toBeNull()
+  })
+})
+

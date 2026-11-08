@@ -22,6 +22,10 @@ export type AttentionMode =
 export const ATTENTION_MODES: readonly AttentionMode[] = ['focus', 'physical', 'routine', 'audio']
 
 export type DayItemSource = 'new' | 'event' | 'session' | 'habit'
+
+/** Áreas que la IA puede asignar a algo nuevo (las de NicheId sin 'otra', que es gris). */
+export const DAY_AREAS = ['salud', 'finanzas', 'carrera', 'aprendizaje', 'relaciones', 'creatividad', 'bienestar'] as const
+export type DayArea = (typeof DAY_AREAS)[number]
 export type DayWindow = 'morning' | 'afternoon' | 'evening'
 export const DAY_WINDOWS: readonly DayWindow[] = ['morning', 'afternoon', 'evening']
 
@@ -43,6 +47,8 @@ export interface DayItem {
   alongside: string | null
   /** "Cuando pueda", sin hora: se guarda como tarea. */
   untimed: boolean
+  /** Área que eligió la IA para algo nuevo: le da su color en la agenda. */
+  area?: DayArea | null
   /** Hora que tenía un ítem existente antes del borrador (para "Movido de…"). */
   originalStart?: string | null
   /** Hora de fin que tenía un evento existente (para deshacer el movimiento). */
@@ -406,9 +412,9 @@ export function applyEffect(items: DayItem[], effect: DayEffect): DayItem[] {
 }
 
 export type DayOp =
-  | { kind: 'createEvent'; ref: string; title: string; start: string; end: string }
+  | { kind: 'createEvent'; ref: string; title: string; start: string; end: string; area: DayArea | null }
   | { kind: 'createSession'; ref: string; goalId: string; start: string; durationMin: number }
-  | { kind: 'createTask'; ref: string; title: string }
+  | { kind: 'createTask'; ref: string; title: string; area: DayArea | null }
   /** end null = el evento no tiene hora de fin (se conserva así al moverlo). */
   | { kind: 'moveEvent'; ref: string; eventId: string; start: string; end: string | null; prevStart: string | null; prevEnd: string | null }
   /** start null = la sesión vuelve a quedar sin hora (al deshacer). */
@@ -436,7 +442,7 @@ export function planToOps(plan: DayPlan, items: DayItem[], habits: DayContextHab
       ops.push(
         it.goalId
           ? { kind: 'createSession', ref: it.ref, goalId: it.goalId, start: p.start, durationMin: it.durationMin }
-          : { kind: 'createEvent', ref: it.ref, title: it.title, start: p.start, end: p.end },
+          : { kind: 'createEvent', ref: it.ref, title: it.title, start: p.start, end: p.end, area: it.area ?? null },
       )
     } else if (it.source === 'event') {
       ops.push({
@@ -465,7 +471,7 @@ export function planToOps(plan: DayPlan, items: DayItem[], habits: DayContextHab
   }
   for (const ref of plan.untimed) {
     const it = byRef.get(ref)
-    if (it?.source === 'new') ops.push({ kind: 'createTask', ref, title: it.title })
+    if (it?.source === 'new') ops.push({ kind: 'createTask', ref, title: it.title, area: it.area ?? null })
   }
   return ops
 }

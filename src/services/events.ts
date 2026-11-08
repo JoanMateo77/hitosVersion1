@@ -1,5 +1,6 @@
-import type { CalendarEvent } from '@/lib/types'
+import type { CalendarEvent, NicheId } from '@/lib/types'
 import { supabase } from '@/lib/supabase'
+import { isMissingColumn, readArea, withoutArea } from '@/services/areaColumn'
 
 interface EventRow {
   id: string
@@ -14,6 +15,8 @@ interface EventRow {
   /** Ausente hasta que se aplique la migración 0014. */
   done_at?: string | null
   created_at: string
+  /** Ausente hasta que se aplique la migración 0022. */
+  area?: string | null
 }
 
 /** Normaliza "HH:MM:SS" (tipo time de Postgres) a "HH:MM" para la UI. */
@@ -34,12 +37,8 @@ function mapEvent(row: EventRow): CalendarEvent {
     allDay: row.all_day,
     doneAt: row.done_at ?? null,
     createdAt: row.created_at,
+    area: readArea(row.area),
   }
-}
-
-/** La columna aún no existe en la base (migración 0014 sin aplicar). */
-function isMissingColumn(error: { code?: string } | null): boolean {
-  return error?.code === '42703' || error?.code === 'PGRST204'
 }
 
 /**
@@ -72,11 +71,14 @@ export interface EventInput {
   endTime: string | null
   goalId: string | null
   notes: string | null
+  /** Área (color). Ausente = no se toca la que tenga guardada. */
+  area?: NicheId | null
 }
 
 /** Aplana el input a columnas; un evento de día completo no guarda horas. */
 function toRow(input: EventInput) {
   return {
+    ...(input.area === undefined ? {} : { area: input.area }),
     title: input.title,
     event_date: input.date,
     all_day: input.allDay,
@@ -105,22 +107,20 @@ export async function listEventsInRange(
 }
 
 export async function createEvent(userId: string, input: EventInput): Promise<CalendarEvent> {
-  const { data, error } = await supabase
-    .from('events')
-    .insert({ user_id: userId, ...toRow(input) })
-    .select('*')
-    .single()
+  const insert = (row: Record<string, unknown>) => supabase.from('events').insert(row).select('*').single()
+  const row = { user_id: userId, ...toRow(input) }
+  let { data, error } = await insert(row)
+  // Sin la migración 0022 se guarda sin área: el evento importa más que su color.
+  if (error && 'area' in row && isMissingColumn(error)) ({ data, error } = await insert(withoutArea(row)))
   if (error) throw new Error(error.message)
   return mapEvent(data as EventRow)
 }
 
 export async function updateEvent(id: string, input: EventInput): Promise<CalendarEvent> {
-  const { data, error } = await supabase
-    .from('events')
-    .update(toRow(input))
-    .eq('id', id)
-    .select('*')
-    .single()
+  const update = (row: Record<string, unknown>) => supabase.from('events').update(row).eq('id', id).select('*').single()
+  const row = toRow(input)
+  let { data, error } = await update(row)
+  if (error && 'area' in row && isMissingColumn(error)) ({ data, error } = await update(withoutArea(row)))
   if (error) throw new Error(error.message)
   return mapEvent(data as EventRow)
 }

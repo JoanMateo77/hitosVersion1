@@ -47,6 +47,8 @@ import { EventCheck } from '@/screens/calendar/EventCheck'
 import { DayAgenda } from '@/screens/calendar/DayAgenda'
 import { WeekDay } from '@/screens/calendar/WeekDay'
 import { AddSheet } from '@/screens/calendar/AddSheet'
+import { AreaColorPicker } from '@/screens/calendar/AreaColorPicker'
+import { DAY_AREAS, type DayArea } from '@/domain/dayPlan'
 import { DayPlannerSheet } from '@/screens/calendar/DayPlannerSheet'
 import { buildDayPlannerContext } from '@/screens/calendar/dayPlannerItems'
 import type { DayOpExecutors } from '@/domain/dayOps'
@@ -748,6 +750,7 @@ export function Calendar() {
           endTime: op.end,
           goalId: null,
           notes: null,
+          area: op.area,
         })
         setEvents((prev) => [...prev, ev])
         return ev.id
@@ -762,7 +765,7 @@ export function Calendar() {
         setSessions((prev) => [...prev, created])
         return created.id
       },
-      createTask: async (op) => (await createUserTask(userId, op.title, day)).id,
+      createTask: async (op) => (await createUserTask(userId, op.title, day, op.area)).id,
       moveEvent: async (op) => {
         const e = events.find((x) => x.id === op.eventId)
         if (!e) throw new Error('event_not_found')
@@ -876,12 +879,13 @@ export function Calendar() {
           {selected >= today && (
             <button
               type="button"
-              className="iconbtn iconbtn--sm"
+              className="btn btn--ai btn--sm ag-hdr__ai"
+              data-tour="ia-entry"
               onClick={() => setOrganizing(selected)}
               aria-label="Organizar con IA"
               title="Organizar con IA"
             >
-              <IconSparkle size={16} />
+              <IconSparkle size={16} /> IA
             </button>
           )}
           {selected >= today && (
@@ -1777,6 +1781,7 @@ function EventEditor({
       endTime: string
       goalId: string
       notes: string
+      area: string | null
     }>(draftKey),
   )
   const [title, setTitle] = useState(
@@ -1800,6 +1805,11 @@ function EventEditor({
   const [notes, setNotes] = useState(
     typeof draft?.notes === 'string' ? draft.notes : (initial?.notes ?? ''),
   )
+  // null = sin elegir: la agenda usa un color estable por el título.
+  const [area, setArea] = useState<DayArea | null>(() => {
+    const saved = draft && 'area' in draft ? draft.area : (initial?.area ?? null)
+    return DAY_AREAS.includes(saved as DayArea) ? (saved as DayArea) : null
+  })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   // Cerrar a propósito (✕, fondo, Escape, arrastre) tira el borrador: lo corre
@@ -1810,9 +1820,9 @@ function EventEditor({
   }
 
   useEffect(() => {
-    saveFormDraft(draftKey, { title, eventDate, allDay, startTime, endTime, goalId, notes })
+    saveFormDraft(draftKey, { title, eventDate, allDay, startTime, endTime, goalId, notes, area })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, eventDate, allDay, startTime, endTime, goalId, notes])
+  }, [title, eventDate, allDay, startTime, endTime, goalId, notes, area])
 
   /** Fija la hora de inicio y, si el fin está vacío, lo prellena a inicio + 1 h. */
   function pickStartTime(value: string) {
@@ -1860,6 +1870,8 @@ function EventEditor({
       endTime: allDay ? null : endTime || null,
       goalId: goalId || null,
       notes: notes.trim() || null,
+      // Con meta manda el color de la meta; el área solo se guarda si se eligió.
+      ...(goalId || area === null ? {} : { area }),
     })
       .then(() => clearFormDraft(draftKey))
       .catch((error_: unknown) => {
@@ -1979,6 +1991,8 @@ function EventEditor({
               </select>
             </div>
           )}
+
+          {!goalId && <AreaColorPicker title={title} value={area} onChange={setArea} />}
 
           <div className="field">
             <span className="field__label">Notas</span>

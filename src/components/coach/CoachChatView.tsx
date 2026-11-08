@@ -21,6 +21,7 @@ export function CoachComposer({
   multiline = false,
   maxLength = 600,
   label = 'Escríbele al coach',
+  prefill = null,
 }: Readonly<{
   onSend: (text: string) => void
   /** Solo deshabilita el botón: el campo sigue usable mientras la IA responde. */
@@ -31,6 +32,8 @@ export function CoachComposer({
   multiline?: boolean
   maxLength?: number
   label?: string
+  /** Texto que se pone en el cuadro (un objeto nuevo cada vez: tocar el mismo ejemplo dos veces también lo pone). */
+  prefill?: { text: string } | null
 }>) {
   const [text, setText] = useState('')
   // Foco por ref y no con el atributo autoFocus (accesibilidad, regla de Sonar).
@@ -38,6 +41,11 @@ export function CoachComposer({
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus()
   }, [autoFocus])
+  useEffect(() => {
+    if (!prefill) return
+    setText(prefill.text.slice(0, maxLength))
+    inputRef.current?.focus()
+  }, [prefill, maxLength])
   const submit = () => {
     if (!text.trim() || disabled) return
     onSend(text)
