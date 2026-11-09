@@ -1975,6 +1975,35 @@ select.input:focus {
   border-color: color-mix(in srgb, var(--warning) 40%, transparent);
   color: var(--text);
 }
+/* Con acción ("Deshacer"): se puede tocar, mensaje y botón en una fila. */
+.toast--action {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding-right: var(--s2);
+  pointer-events: auto;
+}
+.toast__message {
+  min-width: 0;
+}
+.toast__action {
+  flex: none;
+  min-height: 44px;
+  padding: 0 var(--s3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--action-text);
+  font: inherit;
+  font-weight: 750;
+  transition: background-color var(--dur-tap) var(--ease-out);
+}
+.toast__action:hover {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+.toast__action:active {
+  transform: scale(0.97);
+}
 @keyframes toast-in {
   from {
     opacity: 0;
