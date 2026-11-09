@@ -280,3 +280,27 @@ describe('area of new items', () => {
   })
 })
 
+describe('honest reply', () => {
+  const ask = (reply: string) => parseDayReply({ reply, items: [], questions: [], assumptions: [], removed: [] }, ctx())?.reply
+
+  it('never claims the day was already saved', () => {
+    expect(ask('He programado la conversación de 8:30 a 10:30 pm.')).toBe('Te propongo la conversación de 8:30 a 10:30 pm.')
+    expect(ask('Agendé el gimnasio a las 7:00 pm.')).toBe('Te propongo el gimnasio a las 7:00 pm.')
+    expect(ask('Listo, ya agregué la reunión y guardé el resto.')).not.toMatch(/agregué|guardé/i)
+  })
+
+  it('leaves a proposal as it is', () => {
+    expect(ask('Te propongo la reunión a las 9:00 am.')).toBe('Te propongo la reunión a las 9:00 am.')
+    expect(ask('Quedaría un día organizado y tu puesto de trabajo libre a las 5:00 pm.')).toBe(
+      'Quedaría un día organizado y tu puesto de trabajo libre a las 5:00 pm.',
+    )
+  })
+
+  it('tells the model to propose and to join tasks the person does together', () => {
+    const prompt = buildDayPrompt(ctx(), [], 'pruebas de seguridad mientras desarrollo')
+    expect(prompt).toMatch(/nada está guardado/i)
+    expect(prompt).toMatch(/mientras/)
+    expect(prompt).toMatch(/aunque las dos pidan concentración/)
+  })
+})
+

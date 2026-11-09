@@ -6,6 +6,7 @@ import {
   mergeAiItems,
   conflictQuestions,
   countChanges,
+  isAddOnly,
   planDay,
   planToOps,
   type DayContextHabit,
@@ -33,6 +34,16 @@ interface UseDayPlannerOptions {
   executors: DayOpExecutors
 }
 
+const AUTO_KEY = 'logralo.dayplan.auto'
+
+function readAuto(): boolean {
+  try {
+    return localStorage.getItem(AUTO_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 let localId = 0
 const nextId = () => `day-${++localId}`
 
@@ -55,6 +66,16 @@ export function useDayPlanner({ date, nowMin, baseItems, habits, goals, executor
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<DoneOp[] | null>(null)
+  // Modo "Aplicar solo": se recuerda en el dispositivo (spec 2026-11-08 §5).
+  const [auto, setAutoState] = useState(readAuto)
+  const setAuto = useCallback((on: boolean) => {
+    try {
+      localStorage.setItem(AUTO_KEY, on ? '1' : '0')
+    } catch {
+      /* sin almacenamiento: vale para esta vez */
+    }
+    setAutoState(on)
+  }, [])
 
   // Lo último confirmado, para no depender de cierres viejos al enviar.
   const itemsRef = useRef(items)
@@ -172,8 +193,29 @@ export function useDayPlanner({ date, nowMin, baseItems, habits, goals, executor
     }
   }, [done, executors, saving])
 
+  // En automático se aplica en cuanto la IA respondió y no queda nada por
+  // preguntar, solo si el borrador únicamente agrega: mover lo que la persona
+  // ya tenía siempre lo revisa ella.
+  // Una sola vez por respuesta de la IA: tras "Deshacer" no se vuelve a aplicar
+  // solo hasta que llegue otra respuesta.
+  const addOnly = isAddOnly(ops)
+  const answered = messages.at(-1)?.role === 'coach'
+  const [autoUsedAt, setAutoUsedAt] = useState(-1)
+  const autoReady =
+    auto && answered && autoUsedAt !== messages.length && addOnly && questions.length === 0 && !pending && !saving && !done && !error
+  useEffect(() => {
+    if (!autoReady) return
+    setAutoUsedAt(messages.length)
+    void apply()
+  }, [autoReady, apply, messages.length])
+
   return {
     messages,
+    ops,
+    auto,
+    setAuto,
+    /** En automático, el borrador mueve algo existente y espera que la persona guarde. */
+    needsReview: auto && answered && !addOnly && ops.length > 0 && !done,
     items,
     plan,
     questions,
