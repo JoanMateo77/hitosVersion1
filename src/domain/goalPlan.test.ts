@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MAX_STAGES,
   anchorSuggestions,
   buildGoalPlanPrompt,
   buildQuestionsPrompt,
@@ -37,13 +38,13 @@ describe('parseGoalPlan', () => {
     ).toBeNull()
   })
 
-  it('recorta a 6 etapas y a 3 acciones por etapa', () => {
-    const many = Array.from({ length: 8 }, (_, i) => ({
+  it('recorta al máximo de etapas y a 3 acciones por etapa', () => {
+    const many = Array.from({ length: MAX_STAGES + 3 }, (_, i) => ({
       ...stage(`E${i}`),
       firstActions: ['a', 'b', 'c', 'd'],
     }))
     const plan = parseGoalPlan({ summary: 'x', weeklyMinutes: 60, stages: many })
-    expect(plan?.stages).toHaveLength(6)
+    expect(plan?.stages).toHaveLength(MAX_STAGES)
     expect(plan?.stages[0].firstActions).toEqual(['a', 'b', 'c'])
   })
 

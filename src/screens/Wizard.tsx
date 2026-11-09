@@ -214,6 +214,7 @@ export function Wizard() {
       stages: milestones.map((m) => ({ title: m.title })),
       // Todavía no hay meta donde guardar un avance: el coach no lo propone.
       canLogProgress: false,
+      designing: true,
     }),
     [title, typeLabel, area, why, targetDate, weeklyMinutes, aiAnswers, criteria, milestones],
   )

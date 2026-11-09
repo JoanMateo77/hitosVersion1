@@ -9,6 +9,7 @@ import { ATTENTION_MODES, DAY_AREAS, DAY_DEFAULTS, DAY_WINDOWS, type AttentionMo
 import type { ChatTurn } from './coachChat.js'
 import { timeToMinutes } from './clock.js'
 import { asData } from './promptData.js'
+import { honestReply } from './honestReply.js'
 
 export interface DayAiContext {
   date: string
@@ -162,24 +163,6 @@ export function buildDayPrompt(ctx: DayAiContext, history: ChatTurn[], message: 
 
 function readArea(v: unknown): DayArea | null {
   return DAY_AREAS.includes(v as DayArea) ? (v as DayArea) : null
-}
-
-// Verbos con los que un modelo da por hecho algo que todavía es un borrador.
-// Participios solo con "he" ("un día organizado" no afirma nada); pretéritos solos.
-// "puse/organicé/creé" solo con "ya" (sin él suelen describir el borrador).
-const CLAIM =
-  '(?:(?:ya\\s+)?(?:(?:te\\s+)?he\\s+(?:programado|agendado|guardado|agregado|añadido|organizado|puesto|creado|reservado|anotado|configurado|agrupado)|programé|agendé|guardé|agregué|añadí|reservé|anoté|configuré)|ya\\s+(?:puse|organicé|creé)|quedó\\s+(?:agendad|guardad|programad|reservad)[ao]s?|quedaron\\s+(?:agendad|guardad|programad|reservad)[ao]s)'
-// \b no entiende tildes ("agendé"): los bordes de palabra se miran con \p{L}.
-const LEADING_CLAIM = new RegExp(`^(?:listo|hecho|perfecto)?[,.!]?\\s*${CLAIM}(?!\\p{L})`, 'iu')
-const ANY_CLAIM = new RegExp(`(?<!\\p{L})${CLAIM}(?!\\p{L})`, 'giu')
-
-/**
- * Nada se guarda hasta "Aplicar": la respuesta propone, no informa lo hecho.
- * Si el modelo dice "programé/agregué…", se reescribe como propuesta.
- */
-export function honestReply(reply: string): string {
-  if (!new RegExp(ANY_CLAIM.source, 'iu').test(reply)) return reply
-  return reply.replace(LEADING_CLAIM, 'Te propongo').replace(ANY_CLAIM, 'propongo').replace(/^propongo/u, 'Te propongo')
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => v != null && typeof v === 'object' && !Array.isArray(v)
