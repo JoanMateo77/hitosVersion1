@@ -205,7 +205,8 @@ export function planDay(input: PlanDayInput): DayPlan {
 
 /**
  * Lo que la persona hace a la vez con otra cosa ya colocada empieza con ella,
- * aunque las dos pidan concentración (lo pidió). null si no tiene pareja
+ * aunque las dos pidan concentración (lo pidió). Ignora su propia ventana a
+ * propósito: "a la vez" manda sobre "por la tarde". null si no tiene pareja
  * colocada, si se sale del día o si choca con algo más.
  */
 function besidePartner(it: DayItem, placed: Slot[], lower: number, dayEndMin: number): Slot | null {

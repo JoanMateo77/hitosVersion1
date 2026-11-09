@@ -12,6 +12,8 @@ export interface TourStep {
   body: string
   /** El paso avanza al tocar el elemento señalado (no muestra "Siguiente"). */
   advanceOnTargetClick?: boolean
+  /** La persona va a escribir aquí: el globo no le quita el foco. */
+  typing?: boolean
 }
 
 export interface Tour {
@@ -32,6 +34,7 @@ export const IA_TOUR: Tour = {
       target: 'ia-composer',
       title: 'Cuéntale tu día con tus palabras',
       body: 'Escribe qué tienes que hacer y, si lo sabes, cuánto dura. O toca un ejemplo para probar.',
+      typing: true,
     },
     {
       target: 'ia-apply',

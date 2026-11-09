@@ -143,6 +143,31 @@ describe('planDay', () => {
     expect(placed?.start).not.toBe('09:00')
   })
 
+  it('a task done together follows its partner after the partner was moved by a clash', () => {
+    const block = item({ fixed: true, start: '09:00', durationMin: 60 })
+    const study = item({ start: '09:00', durationMin: 60 }) // nuevo con hora preferida: choca y se mueve
+    const music = item({ durationMin: 30, alongside: study.ref })
+    const plan = planDay({ items: [block, study, music], nowMin: null })
+    expect(placedOf(plan, music.ref)?.start).toBe(placedOf(plan, study.ref)?.start)
+    expect(placedOf(plan, study.ref)?.start).not.toBe('09:00')
+  })
+
+  it('does not join when it would run past the end of the day', () => {
+    const late = item({ fixed: true, start: '21:45', durationMin: 15 })
+    const long = item({ durationMin: 60, alongside: late.ref })
+    const plan = planDay({ items: [late, long], nowMin: null })
+    expect(placedOf(plan, long.ref)?.start).not.toBe('21:45')
+  })
+
+  it('places a task normally when its partner did not fit', () => {
+    const allDay = item({ fixed: true, start: '06:00', durationMin: 960 }) // 06–22
+    const partner = item({ durationMin: 120 }) // no cabe
+    const other = item({ durationMin: 30, alongside: partner.ref, mode: 'audio' })
+    const plan = planDay({ items: [allDay, partner, other], nowMin: null })
+    expect(placedOf(plan, partner.ref)).toBeUndefined()
+    expect(plan.conflicts).toContainEqual(expect.objectContaining({ kind: 'no_room', ref: partner.ref }))
+  })
+
   it('reports no_room with the largest free gap', () => {
     const a = item({ fixed: true, start: '06:00', durationMin: 420 }) // 06–13
     const b = item({ fixed: true, start: '14:00', durationMin: 480 }) // 14–22

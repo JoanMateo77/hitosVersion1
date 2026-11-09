@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { planDay, planToOps, type DayItem } from '@/domain/dayPlan'
-import { appliedLabel, applyLabel, draftSections, isAddOnly } from '@/screens/calendar/dayDraftView'
+import { isAddOnly, planDay, planToOps, type DayItem } from '@/domain/dayPlan'
+import { appliedLabel, applyLabel, draftSections } from '@/screens/calendar/dayDraftView'
 
 let n = 0
 function item(over: Partial<DayItem> = {}): DayItem {

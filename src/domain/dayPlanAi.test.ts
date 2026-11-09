@@ -287,6 +287,15 @@ describe('honest reply', () => {
     expect(ask('He programado la conversación de 8:30 a 10:30 pm.')).toBe('Te propongo la conversación de 8:30 a 10:30 pm.')
     expect(ask('Agendé el gimnasio a las 7:00 pm.')).toBe('Te propongo el gimnasio a las 7:00 pm.')
     expect(ask('Listo, ya agregué la reunión y guardé el resto.')).not.toMatch(/agregué|guardé/i)
+    expect(ask('Quedó agendada la reunión a las 9:00 am.')).toBe('Te propongo la reunión a las 9:00 am.')
+    expect(ask('Reservé 1 h para la tesis.')).toBe('Te propongo 1 h para la tesis.')
+    expect(ask('Anoté llamar al banco.')).toBe('Te propongo llamar al banco.')
+    expect(ask('Ya puse el gimnasio a las 7:00 pm.')).toBe('Te propongo el gimnasio a las 7:00 pm.')
+  })
+
+  it('does not touch "puse" or "organicé" when they describe the draft', () => {
+    expect(ask('Te propongo esto: puse el gimnasio como fijo.')).toBe('Te propongo esto: puse el gimnasio como fijo.')
+    expect(ask('Supuse 1 h para la tesis.')).toBe('Supuse 1 h para la tesis.')
   })
 
   it('leaves a proposal as it is', () => {

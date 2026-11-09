@@ -12,6 +12,13 @@ interface Rect {
 const PAD = 6
 const GAP = 12
 const MARGIN = 12
+/** Seguir cada fotograma al empezar un paso (la hoja entra en ~320 ms). */
+const BURST_MS = 700
+/** …y un rato después de cada scroll o cambio de tamaño. */
+const WAKE_MS = 300
+const POLL_MS = 250
+/** Lo que dura el deslizamiento del recuadro entre pasos (--dur-layout). */
+const MOVE_MS = 320
 
 /** Elemento visible con ese `data-tour`, o null si no está en pantalla. */
 function findTarget(target: string): HTMLElement | null {
@@ -46,10 +53,14 @@ export function TourLayer() {
   const bubbleRef = useRef<HTMLDivElement>(null)
   const primaryRef = useRef<HTMLButtonElement>(null)
 
-  // Sigue la posición del elemento (scroll, animación de la hoja, teclado).
+  // Sigue la posición del elemento. Cada fotograma solo en ráfagas cortas (al
+  // cambiar de paso, mientras entra la hoja, al hacer scroll o cambiar el
+  // tamaño); el resto del tiempo basta mirar cada 250 ms.
   useEffect(() => {
     if (!step) return
     let frame = 0
+    let timer = 0
+    let burstUntil = performance.now() + BURST_MS
     let last: Rect | null = null
     const later = IA_TOUR.steps.slice((index ?? 0) + 1)
     const tick = () => {
@@ -67,11 +78,35 @@ export function TourLayer() {
         last = next
         setRect(next)
       }
+      if (performance.now() < burstUntil) frame = requestAnimationFrame(tick)
+      else timer = window.setTimeout(tick, POLL_MS)
+    }
+    const wake = () => {
+      const idle = performance.now() >= burstUntil
+      burstUntil = performance.now() + WAKE_MS
+      if (!idle) return
+      window.clearTimeout(timer)
       frame = requestAnimationFrame(tick)
     }
     tick()
-    return () => cancelAnimationFrame(frame)
+    window.addEventListener('scroll', wake, { capture: true, passive: true })
+    window.addEventListener('resize', wake)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.clearTimeout(timer)
+      window.removeEventListener('scroll', wake, { capture: true })
+      window.removeEventListener('resize', wake)
+    }
   }, [step, index])
+
+  // El recuadro se desliza solo al cambiar de paso; al seguir un scroll va pegado.
+  const [moving, setMoving] = useState(false)
+  useEffect(() => {
+    if (index === null) return
+    setMoving(true)
+    const t = window.setTimeout(() => setMoving(false), MOVE_MS)
+    return () => window.clearTimeout(t)
+  }, [index])
 
   // Tocar el elemento señalado avanza (paso 1: abre la hoja y sigue adentro).
   useEffect(() => {
@@ -105,7 +140,7 @@ export function TourLayer() {
   }, [index, visible])
   // Foco en el globo al llegar a un paso, salvo donde la persona va a escribir.
   useEffect(() => {
-    if (visible && step?.target !== 'ia-composer') primaryRef.current?.focus({ preventScroll: true })
+    if (visible && !step?.typing) primaryRef.current?.focus({ preventScroll: true })
   }, [visible, step])
 
   if (!step || !rect || index === null) return null
@@ -121,18 +156,21 @@ export function TourLayer() {
   const titleId = 'tour-title'
 
   return (
-    <div className="tour" aria-live="polite">
+    // Sin aria-live: el globo es un diálogo y recibe el foco (se anunciaría dos veces).
+    <div className="tour">
       <div
-        className="tour-spot"
+        className={`tour-spot${moving ? ' tour-spot--moving' : ''}`}
         aria-hidden="true"
+        // Posición por transform (compositor); el tamaño solo cambia entre pasos.
         style={{
-          top: rect.top - PAD,
-          left: rect.left - PAD,
+          transform: `translate(${rect.left - PAD}px, ${rect.top - PAD}px)`,
           width: rect.width + PAD * 2,
           height: rect.height + PAD * 2,
         }}
       />
       <div
+        // Un globo por paso: la entrada se repite al avanzar.
+        key={index}
         ref={bubbleRef}
         className={`tour-bubble${fitsBelow ? '' : ' tour-bubble--above'}`}
         role="dialog"

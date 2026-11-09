@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { canResize, type DayContextHabit, type DayItem, type DayQuestion } from '@/domain/dayPlan'
 import { appliedLabel, applyLabel, draftSections, type DraftRow } from '@/screens/calendar/dayDraftView'
 import { DAY_MESSAGE_MAX } from '@/domain/dayPlanAi'
@@ -7,7 +7,7 @@ import { useDayPlanner, type DayPlanner } from '@/hooks/useDayPlanner'
 import { formatDuration, formatTime12, formatWeekday } from '@/lib/date'
 import { Sheet } from '@/components/Sheet'
 import { CoachComposer, CoachOrb } from '@/components/coach/CoachChatView'
-import { IconClose } from '@/components/icons'
+import { IconChevronRight, IconClose } from '@/components/icons'
 import { iaTour } from '@/components/tour/iaTour'
 import { looseArea } from '@/domain/looseArea'
 import { nicheAccent } from '@/lib/nicheAccent'
@@ -78,16 +78,16 @@ export function DayPlannerSheet({
     >
       {(close, forceClose) => (
         <>
-          <div className="row row--between">
+          <div className="row row--between dayplan-head">
             <h2 style={{ fontSize: 'var(--fs-lg)' }}>{title}</h2>
             <button type="button" className="iconbtn iconbtn--sm" onClick={close} aria-label="Cerrar">
               <IconClose />
             </button>
           </div>
+          {/* Texto fijo: el detalle del modo automático vive en su interruptor. */}
           <p className="small muted" style={{ margin: 0 }}>
             Cuéntame qué tienes y qué quieres hacer.{' '}
-            {planner.auto ? 'Lo que agrego se guarda al momento y lo puedes deshacer.' : 'Nada se guarda sin tu sí.'}{' '}
-            <button type="button" className="btn--link" onClick={() => iaTour().start('ia-composer')}>
+            <button type="button" className="btn--link dayplan-help" onClick={() => iaTour().start('ia-composer')}>
               ¿Cómo funciona?
             </button>
           </p>
@@ -126,7 +126,8 @@ export function DayPlannerSheet({
           <div className="stack stack--sm" data-tour="ia-composer">
             <CoachComposer
               onSend={(t) => void planner.send(t)}
-              disabled={planner.pending || planner.applied}
+              // Ni mientras guarda: un mensaje nuevo cambiaría el borrador ya guardado.
+              disabled={planner.pending || planner.saving || planner.applied}
               multiline
               maxLength={DAY_MESSAGE_MAX}
               label="Cuéntame tu día"
@@ -151,22 +152,23 @@ export function DayPlannerSheet({
           <Draft planner={planner} />
 
           <div className="dayplan-footer" data-tour="ia-apply">
+            {/* Región viva siempre montada: así el lector de pantalla anuncia el cambio. */}
+            <p className="dayplan-footer__status" role="status">
+              {footerStatus(planner)}
+            </p>
             {planner.applied ? (
-              <div className="dayplan-applied" role="status">
-                <p className="dayplan-applied__text">{appliedLabel(planner.ops)}</p>
-                <div className="row row--sm">
-                  <button
-                    type="button"
-                    className="btn btn--secondary"
-                    disabled={planner.saving}
-                    onClick={() => void planner.undo()}
-                  >
-                    Deshacer
-                  </button>
-                  <button type="button" className="btn btn--primary" onClick={forceClose}>
-                    Listo
-                  </button>
-                </div>
+              <div className="row row--sm dayplan-applied">
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  disabled={planner.saving}
+                  onClick={() => void planner.undo()}
+                >
+                  Deshacer
+                </button>
+                <button type="button" className="btn btn--primary" onClick={forceClose}>
+                  Listo
+                </button>
               </div>
             ) : (
               <ApplyButton planner={planner} />
@@ -250,14 +252,21 @@ function QuestionCard({ question, planner }: Readonly<{ question: DayQuestion; p
   )
 }
 
+/** Texto de la región viva del pie: lo guardado o lo que espera revisión. */
+function footerStatus(planner: DayPlanner): string {
+  if (planner.applied) return appliedLabel(planner.ops)
+  if (planner.needsReview) return 'Esto mueve cosas que ya tenías: revísalo y guarda.'
+  return ''
+}
+
 /** Interruptor "Aplicar solo": la IA guarda lo que agrega sin pasar por el botón. */
 function AutoSwitch({ planner }: Readonly<{ planner: DayPlanner }>) {
-  if (planner.applied) return null
+  // Ya aplicado se queda a la vista (deshabilitado): desmontarlo movería la hoja.
   return (
     <div className="dayplan-auto">
       <span className="small">
-        Aplicar solo
-        <span className="field__hint" style={{ display: 'block' }}>
+        <span id="dayplan-auto-label">Aplicar solo</span>
+        <span id="dayplan-auto-hint" className="field__hint" style={{ display: 'block' }}>
           Lo que la IA agrega se guarda al momento y lo puedes deshacer. Si tiene dudas, te pregunta primero.
         </span>
       </span>
@@ -265,8 +274,10 @@ function AutoSwitch({ planner }: Readonly<{ planner: DayPlanner }>) {
         type="button"
         role="switch"
         aria-checked={planner.auto}
-        aria-label="Aplicar solo"
+        aria-labelledby="dayplan-auto-label"
+        aria-describedby="dayplan-auto-hint"
         className="switch"
+        disabled={planner.applied}
         onClick={() => planner.setAuto(!planner.auto)}
       >
         <span className="switch__thumb" />
@@ -277,31 +288,36 @@ function AutoSwitch({ planner }: Readonly<{ planner: DayPlanner }>) {
 
 /** Botón principal: dice qué pasa al tocarlo. Sin cambios no hay botón, solo la pista. */
 function ApplyButton({ planner }: Readonly<{ planner: DayPlanner }>) {
+  // El pulso se repite solo cuando hay MÁS por guardar (no al bajar ni al volver de "Guardando…").
+  const [pulse, setPulse] = useState(0)
+  const prev = useRef(planner.changes)
+  useEffect(() => {
+    if (planner.changes > prev.current) setPulse((n) => n + 1)
+    prev.current = planner.changes
+  }, [planner.changes])
+
   if (planner.changes === 0) {
+    // Al empezar ya están los ejemplos: la pista solo aparece cuando hubo conversación.
+    if (planner.messages.length === 0) return null
     return <p className="small muted dayplan-footer__hint">Cuando la IA proponga algo, aquí lo guardas en tu agenda.</p>
   }
   return (
-    <div className="stack stack--sm" style={{ width: '100%' }}>
-      {planner.needsReview && (
-        <p className="small dayplan-footer__note">Esto mueve cosas que ya tenías: revísalo y guarda.</p>
-      )}
-      <button
-        // Nueva clave con cada cantidad: el pulso avisa que el borrador cambió.
-        key={planner.changes}
-        type="button"
-        className="btn btn--primary btn--block dayplan-apply"
-        disabled={planner.saving || planner.pending}
-        onClick={() => void planner.apply()}
-      >
-        {planner.saving ? 'Guardando…' : applyLabel(planner.ops)}
-      </button>
-    </div>
+    <button
+      type="button"
+      className="btn btn--primary btn--block dayplan-apply"
+      disabled={planner.saving || planner.pending}
+      onClick={() => void planner.apply()}
+    >
+      {pulse > 0 && <span key={pulse} className="dayplan-apply__pulse" aria-hidden="true" />}
+      {planner.saving ? 'Guardando…' : applyLabel(planner.ops)}
+    </button>
   )
 }
 
 function DraftCard({
   row,
   tag,
+  index,
   planner,
   byRef,
   editing,
@@ -309,6 +325,7 @@ function DraftCard({
 }: Readonly<{
   row: DraftRow
   tag: string
+  index: number
   planner: DayPlanner
   byRef: Map<string, DayItem>
   editing: string | null
@@ -321,12 +338,15 @@ function DraftCard({
     return other ? [`A la vez con ${other.title}`] : []
   })
   const notes = [...together, ...(row.placed.outsideWindow ? ['Fuera de su momento'] : [])]
+  const time = `${formatTime12(row.start)} – ${formatTime12(row.end)}`
+  const label = [`Editar ${it.title}`, tag, time, row.from ? `antes ${formatTime12(row.from)}` : '', ...notes].filter(Boolean).join(', ')
   return (
-    <div className="dayplan-card" style={it.source === 'new' ? nicheAccent(looseArea(it.title, it.area)) : undefined}>
+    <div className="dayplan-card" style={cardStyle(it, index)}>
       <button
         type="button"
         className="dayplan-card__main"
         aria-expanded={open}
+        aria-label={label}
         // Mientras la IA responde no se edita: su respuesta lo pisaría.
         disabled={planner.applied || planner.pending}
         onClick={() => onEdit(open ? null : it.ref)}
@@ -334,7 +354,7 @@ function DraftCard({
         <span className="dayplan-card__tag">{tag}</span>
         <span className="dayplan-card__title">{it.title}</span>
         <span className="dayplan-card__time">
-          {formatTime12(row.start)} – {formatTime12(row.end)}
+          {time}
           {row.from ? ` · antes ${formatTime12(row.from)}` : ''}
         </span>
         {notes.length > 0 && <span className="dayplan-card__notes">{notes.join(' · ')}</span>}
@@ -344,6 +364,14 @@ function DraftCard({
   )
 }
 
+/** Color del área (solo lo nuevo; lo movido usa el azul de acción) y orden de entrada. */
+function cardStyle(item: DayItem, index: number): CSSProperties {
+  const accent = item.source === 'new' ? nicheAccent(looseArea(item.title, item.area)) : {}
+  return { ...accent, '--i': Math.min(index, 5) } as CSSProperties
+}
+
+const prefersReducedMotion = () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+
 function Draft({ planner }: Readonly<{ planner: DayPlanner }>) {
   const [editing, setEditing] = useState<string | null>(null)
   const [showRest, setShowRest] = useState(false)
@@ -352,43 +380,52 @@ function Draft({ planner }: Readonly<{ planner: DayPlanner }>) {
   const s = draftSections(planner.plan, planner.items)
   const hasChanges = s.added.length + s.addedUntimed.length + s.moved.length + s.unplaced.length > 0
 
-  // Al llegar cambios nuevos, la vista baja a ellos: lo nuevo no se pierde.
-  const count = planner.changes
+  // Cuando la IA responde, la vista baja a lo que cambia: lo nuevo no se pierde.
+  // Solo por respuestas (no al editar una hora a mano) y sin animar si se pidió menos movimiento.
+  const replies = planner.messages.filter((m) => m.role === 'coach').length
   useEffect(() => {
-    if (count > 0) changesRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-  }, [count])
+    if (replies === 0) return
+    changesRef.current?.scrollIntoView({ block: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+  }, [replies])
 
   if (planner.items.length === 0) {
-    return <p className="faint small">Tu día está libre. Cuéntame qué quieres hacer.</p>
+    return <p className="muted small">Tu día está libre. Cuéntame qué quieres hacer.</p>
   }
 
+  const done = planner.applied
+  const newTag = done ? 'Agregado' : 'Nuevo'
   const cardProps = { planner, byRef, editing, onEdit: setEditing }
+  let order = 0
   return (
     <section className="stack stack--sm" aria-label="Borrador del día">
       {hasChanges && (
-        <section ref={changesRef} className="dayplan-changes stack stack--sm" aria-label={planner.applied ? 'Lo que se guardó' : 'Lo que cambia'}>
+        <section
+          ref={changesRef}
+          className={`dayplan-changes stack stack--sm${done ? ' dayplan-changes--saved' : ''}`}
+          aria-label={done ? 'Lo que se guardó' : 'Lo que cambia'}
+        >
           {(s.added.length > 0 || s.addedUntimed.length > 0) && (
-            <p className="reorg-kicker">{planner.applied ? 'Se agregó a tu día' : 'Esto se agregará a tu día'}</p>
+            <p className="reorg-kicker">{done ? 'Se agregó a tu día' : 'Esto se agregará a tu día'}</p>
           )}
           {s.added.map((r) => (
-            <DraftCard key={r.item.ref} row={r} tag="Nuevo" {...cardProps} />
+            <DraftCard key={r.item.ref} row={r} tag={newTag} index={order++} {...cardProps} />
           ))}
           {s.addedUntimed.map((i) => (
-            <div key={i.ref} className="dayplan-card" style={nicheAccent(looseArea(i.title, i.area))}>
-              <div className="dayplan-card__main">
-                <span className="dayplan-card__tag">Nuevo</span>
+            <div key={i.ref} className="dayplan-card" style={cardStyle(i, order++)}>
+              <div className="dayplan-card__main dayplan-card__main--static">
+                <span className="dayplan-card__tag">{newTag}</span>
                 <span className="dayplan-card__title">{i.title}</span>
                 <span className="dayplan-card__time">Sin hora · cuando puedas</span>
               </div>
             </div>
           ))}
-          {s.moved.length > 0 && <p className="reorg-kicker">{planner.applied ? 'Cambió de hora' : 'Esto cambia de hora'}</p>}
+          {s.moved.length > 0 && <p className="reorg-kicker">{done ? 'Cambió de hora' : 'Esto cambia de hora'}</p>}
           {s.moved.map((r) => (
-            <DraftCard key={r.item.ref} row={r} tag="Movido" {...cardProps} />
+            <DraftCard key={r.item.ref} row={r} tag="Movido" index={order++} {...cardProps} />
           ))}
           {s.unplaced.length > 0 && (
             <>
-              <p className="reorg-kicker">No cupo hoy</p>
+              <p className="reorg-kicker">No cupo este día</p>
               {s.unplaced.map((i) => (
                 <p key={i.ref} className="small muted" style={{ margin: 0 }}>
                   {i.title}
@@ -409,11 +446,19 @@ function Draft({ planner }: Readonly<{ planner: DayPlanner }>) {
 
       {s.rest.length > 0 && (
         <div className="dayplan-rest">
-          <button type="button" className="dayplan-rest__toggle" aria-expanded={showRest} onClick={() => setShowRest((v) => !v)}>
+          <button
+            type="button"
+            className="dayplan-rest__toggle"
+            aria-expanded={showRest}
+            aria-controls="dayplan-rest-list"
+            onClick={() => setShowRest((v) => !v)}
+          >
             {showRest ? 'Ocultar el resto de tu día' : `Ver el resto de tu día (${s.rest.length})`}
+            <IconChevronRight size={16} className="dayplan-rest__chevron" />
           </button>
-          {showRest && (
-            <ul className="dayplan-rest__list">
+          {/* Siempre montada para animar la altura; cerrada es inert (ni foco ni lector). */}
+          <div className="dayplan-rest__body" data-open={showRest} inert={!showRest}>
+            <ul id="dayplan-rest-list" className="dayplan-rest__list">
               {s.rest.map((r) => (
                 <li key={r.key}>
                   <span className="dayplan-rest__time">{r.starts.map(formatTime12).join(', ')}</span>
@@ -421,7 +466,7 @@ function Draft({ planner }: Readonly<{ planner: DayPlanner }>) {
                 </li>
               ))}
             </ul>
-          )}
+          </div>
         </div>
       )}
     </section>

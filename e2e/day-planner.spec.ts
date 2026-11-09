@@ -63,7 +63,7 @@ for (const viewport of [
     await expect(changes.getByText('Tesis', { exact: true })).toBeVisible()
     await expect(sheet.getByText('Supuse 2 h para la tesis')).toBeVisible()
     // Lo que ya había sigue en el borrador, plegado (no se pierde).
-    await expect(draft.getByText('Meditar 10 minutos al día')).toHaveCount(0)
+    await expect(draft.getByText('Meditar 10 minutos al día')).toBeHidden()
     await draft.getByRole('button', { name: /Ver el resto de tu día/ }).click()
     await expect(draft.getByText('Meditar 10 minutos al día')).toBeVisible()
 
@@ -279,9 +279,15 @@ test('auto mode waits while there are questions', async ({ browser }) => {
   await context.close()
 })
 
-test('without changes there is no apply button, only a hint', async ({ browser }) => {
+test('without changes there is no apply button: examples at first, a hint after talking', async ({ browser }) => {
   const { context, page } = await openPlanner(browser, { width: 390, height: 800 })
+  await aiSays(page, { reply: '¿Qué te gustaría hacer hoy?', items: [], questions: [], assumptions: [], removed: [] })
   const sheet = page.getByRole('dialog', { name: /Organizar el/ })
+  await expect(sheet.getByRole('button', { name: /ordenar la casa/ })).toBeVisible()
+  await expect(sheet.getByRole('button', { name: /Agregar .* a mi agenda|Guardar/ })).toHaveCount(0)
+  await expect(sheet.getByText('Cuando la IA proponga algo, aquí lo guardas en tu agenda.')).toHaveCount(0)
+  await sheet.getByLabel('Cuéntame tu día').fill('Hola')
+  await sheet.getByLabel('Cuéntame tu día').press('Enter')
   await expect(sheet.getByText('Cuando la IA proponga algo, aquí lo guardas en tu agenda.')).toBeVisible()
   await expect(sheet.getByRole('button', { name: /Agregar .* a mi agenda|Guardar/ })).toHaveCount(0)
   await context.close()

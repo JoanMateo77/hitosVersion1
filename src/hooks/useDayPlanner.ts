@@ -15,6 +15,7 @@ import {
   type DayQuestion,
 } from '@/domain/dayPlan'
 import { DAY_MAX_QUESTIONS, type DayAiReply } from '@/domain/dayPlanAi'
+import { autoDecision } from '@/domain/dayAuto'
 import { failedOpTitle, runOps, undoOps, type DayOpExecutors, type DoneOp } from '@/domain/dayOps'
 import { requestDayPlan } from '@/services/goalPlan'
 
@@ -55,7 +56,9 @@ const minutesNow = () => {
 /**
  * Estado de la hoja "Organizar el día": conversación con la IA, borrador,
  * preguntas (las del algoritmo primero), aplicar y deshacer. Nada se guarda
- * hasta `apply()`. Spec: docs/superpowers/specs/2026-11-07-ia-organizar-dia-design.md §5
+ * hasta `apply()`, salvo en modo "Aplicar solo" (domain/dayAuto.ts).
+ * Specs: docs/superpowers/specs/2026-11-07-ia-organizar-dia-design.md §5 y
+ * 2026-11-08-organizar-dia-claridad-y-auto-design.md
  */
 export function useDayPlanner({ date, nowMin, baseItems, habits, goals, executors }: UseDayPlannerOptions) {
   const [messages, setMessages] = useState<DayMessage[]>([])
@@ -102,7 +105,8 @@ export function useDayPlanner({ date, nowMin, baseItems, habits, goals, executor
   const send = useCallback(
     async (text: string): Promise<boolean> => {
       const clean = text.trim()
-      if (!clean || pending) return false
+      // Ni mientras guarda ni ya aplicado: el borrador dejaría de ser lo guardado.
+      if (!clean || pending || saving || done) return false
       const history = messagesRef.current.map((m) => ({ role: m.role, text: m.text }))
       setMessages((prev) => [...prev, { id: nextId(), role: 'user', text: clean }])
       setPending(true)
@@ -132,7 +136,7 @@ export function useDayPlanner({ date, nowMin, baseItems, habits, goals, executor
         setPending(false)
       }
     },
-    [date, goals, pending],
+    [date, goals, pending, saving, done],
   )
 
   const choose = useCallback(
@@ -196,18 +200,25 @@ export function useDayPlanner({ date, nowMin, baseItems, habits, goals, executor
   // En automático se aplica en cuanto la IA respondió y no queda nada por
   // preguntar, solo si el borrador únicamente agrega: mover lo que la persona
   // ya tenía siempre lo revisa ella.
-  // Una sola vez por respuesta de la IA: tras "Deshacer" no se vuelve a aplicar
-  // solo hasta que llegue otra respuesta.
-  const addOnly = isAddOnly(ops)
-  const answered = messages.at(-1)?.role === 'coach'
   const [autoUsedAt, setAutoUsedAt] = useState(-1)
-  const autoReady =
-    auto && answered && autoUsedAt !== messages.length && addOnly && questions.length === 0 && !pending && !saving && !done && !error
+  const autoState = autoDecision({
+    auto,
+    lastFromAi: messages.at(-1)?.role === 'coach',
+    messageCount: messages.length,
+    usedAt: autoUsedAt,
+    addOnly: isAddOnly(ops),
+    changes: ops.length,
+    questions: questions.length,
+    pending,
+    saving,
+    applied: done !== null,
+    error: error !== null,
+  })
   useEffect(() => {
-    if (!autoReady) return
+    if (!autoState.apply) return
     setAutoUsedAt(messages.length)
     void apply()
-  }, [autoReady, apply, messages.length])
+  }, [autoState.apply, apply, messages.length])
 
   return {
     messages,
@@ -215,7 +226,7 @@ export function useDayPlanner({ date, nowMin, baseItems, habits, goals, executor
     auto,
     setAuto,
     /** En automático, el borrador mueve algo existente y espera que la persona guarde. */
-    needsReview: auto && answered && !addOnly && ops.length > 0 && !done,
+    needsReview: autoState.needsReview,
     items,
     plan,
     questions,

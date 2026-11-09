@@ -149,8 +149,9 @@ function readArea(v: unknown): DayArea | null {
 
 // Verbos con los que un modelo da por hecho algo que todavía es un borrador.
 // Participios solo con "he" ("un día organizado" no afirma nada); pretéritos solos.
+// "puse/organicé/creé" solo con "ya" (sin él suelen describir el borrador).
 const CLAIM =
-  '(?:ya\\s+)?(?:(?:te\\s+)?he\\s+(?:programado|agendado|guardado|agregado|añadido|organizado|puesto|creado)|programé|agendé|guardé|agregué|añadí|organicé|puse|creé)'
+  '(?:(?:ya\\s+)?(?:(?:te\\s+)?he\\s+(?:programado|agendado|guardado|agregado|añadido|organizado|puesto|creado|reservado|anotado)|programé|agendé|guardé|agregué|añadí|reservé|anoté)|ya\\s+(?:puse|organicé|creé)|quedó\\s+(?:agendad|guardad|programad|reservad)[ao]s?|quedaron\\s+(?:agendad|guardad|programad|reservad)[ao]s)'
 // \b no entiende tildes ("agendé"): los bordes de palabra se miran con \p{L}.
 const LEADING_CLAIM = new RegExp(`^(?:listo|hecho|perfecto)?[,.!]?\\s*${CLAIM}(?!\\p{L})`, 'iu')
 const ANY_CLAIM = new RegExp(`(?<!\\p{L})${CLAIM}(?!\\p{L})`, 'giu')

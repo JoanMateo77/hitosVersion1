@@ -62,8 +62,6 @@ export function draftSections(plan: DayPlan, items: DayItem[]): DraftSections {
   }
 }
 
-export { isAddOnly }
-
 const things = (n: number) => `${n} ${n === 1 ? 'cosa' : 'cosas'}`
 const changes = (n: number) => `${n} ${n === 1 ? 'cambio' : 'cambios'}`
 
