@@ -62,7 +62,7 @@ export function NoteCard({
           {titled && <strong className="note-card__title">{name}</strong>}
         </button>
         {preview && preview.total > 0 && (
-          <span className="note-card__count" aria-label={`${preview.done} de ${preview.total} hechos`}>
+          <span className="note-card__count" role="img" aria-label={`${preview.done} de ${preview.total} hechos`}>
             {preview.done}/{preview.total}
           </span>
         )}

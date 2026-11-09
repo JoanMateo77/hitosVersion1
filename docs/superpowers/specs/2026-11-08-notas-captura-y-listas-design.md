@@ -45,7 +45,8 @@ no se ve cuándo quedó guardado. Todo lo de aquí se hace sin SQL: `items` ya e
 
 ## 3. Deshacer y captura
 
-- El toast acepta una acción y una duración: "Deshacer" durante 5 s.
+- El toast acepta una acción y una duración: "Deshacer" durante 6 s, que se
+  detienen mientras el puntero o el foco están encima.
 - Eliminar ya no pide confirmación. Borra al instante y "Deshacer" vuelve a
   insertar la misma nota (mismo id y fechas).
 - Archivar y quitar un elemento con texto también ofrecen "Deshacer".

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import type { Goal, NicheId, Note } from '@/lib/types'
@@ -104,19 +104,32 @@ export function Notes() {
   const [notes, setNotes] = useState<Note[] | null>(null)
   const [goals, setGoals] = useState<Goal[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [sheet, setSheet] = useState<SheetState>(() => readNew(params.get('nueva')))
+  const [sheet, setSheet] = useState<SheetState>(null)
+  // La hoja abierta ahora: un "Deshacer" que llega con la hoja ya cerrada no
+  // debe marcar como recién creada una tarjeta que no lo es.
+  const sheetRef = useRef<SheetState>(null)
+  useEffect(() => {
+    sheetRef.current = sheet
+  }, [sheet])
   /** Nota creada en la hoja abierta; al cerrarla, su tarjeta entra animada. */
   const [createdId, setCreatedId] = useState<string | null>(null)
   const [freshId, setFreshId] = useState<string | null>(null)
 
-  // El acceso directo abre la hoja una vez: el parámetro se quita para que
-  // volver o recargar no la abra de nuevo.
+  // El acceso directo abre la hoja (también con Notas ya abierta) una vez: el
+  // parámetro se quita para que volver o recargar no la abra de nuevo.
+  const requested = params.get('nueva')
+  const [handledNew, setHandledNew] = useState<string | null>(null)
+  if (requested !== handledNew) {
+    setHandledNew(requested)
+    const opened = readNew(requested)
+    if (opened) setSheet(opened)
+  }
   useEffect(() => {
-    if (!params.has('nueva')) return
+    if (requested === null) return
     const next = new URLSearchParams(params)
     next.delete('nueva')
     setParams(next, { replace: true })
-  }, [params, setParams])
+  }, [requested, params, setParams])
 
   // Al volver a la app se recarga (reload): otro dispositivo pudo cambiar las
   // notas, y abrir una versión vieja y guardarla pisaría esos cambios.
@@ -331,7 +344,7 @@ export function Notes() {
           startAsList={sheet.asList}
           goals={goals}
           onChange={(note) => {
-            if (sheet.note === null) setCreatedId(note.id)
+            if (sheet.note === null && sheetRef.current === sheet) setCreatedId(note.id)
             upsert(note)
           }}
           onRemove={remove}

@@ -24,7 +24,7 @@ import {
   type EditItem,
   type RemovedItem,
 } from '@/domain/noteItems'
-import { clearNoteDraft, draftMatches, loadNoteDraft } from '@/lib/noteDraft'
+import { draftMatches, loadNoteDraft } from '@/lib/noteDraft'
 import { seedWizardDraft } from '@/lib/wizardDraft'
 import { todayISO } from '@/lib/date'
 import { Sheet } from '@/components/Sheet'
@@ -103,7 +103,7 @@ export function NoteSheet({
       : null,
   }
 
-  const { saved, savedRef, status, ensureSaved, remember, leave, skipLeave } = useNoteSave({
+  const { saved, status, ensureSaved, remember, leave, skipLeave, clearDraft } = useNoteSave({
     note,
     newGoalId,
     recovered: recovered !== null,
@@ -199,18 +199,24 @@ export function NoteSheet({
     })
   }
 
-  /** Eliminar sin preguntar: "Deshacer" vuelve a insertar la misma nota. */
+  /**
+   * Eliminar sin preguntar: "Deshacer" vuelve a insertar la misma nota. Antes se
+   * guarda lo escrito (esperando lo que esté en fila): así una nota recién
+   * creada no reaparece y "Deshacer" recupera la última versión.
+   */
   function removeNote(close: () => void) {
-    const current = savedRef.current
-    if (current === null) {
-      if (recovered) clearNoteDraft()
-      finish(close)
-      return
-    }
+    skipLeave()
     setBusy(true)
-    deleteNote(current.id)
-      .then(() => {
-        if (recovered) clearNoteDraft()
+    setError(null)
+    ensureSaved()
+      .then(async (current) => {
+        if (current === null) {
+          clearDraft()
+          finish(close)
+          return
+        }
+        await deleteNote(current.id)
+        clearDraft()
         onRemove(current.id)
         toast('Nota eliminada', 'default', {
           action: {
@@ -225,6 +231,7 @@ export function NoteSheet({
         finish(close)
       })
       .catch((err: unknown) => {
+        skipLeave(false)
         setError(noteErrorMessage(err, 'No se pudo eliminar la nota.'))
         setBusy(false)
       })
@@ -232,6 +239,8 @@ export function NoteSheet({
 
   // --- Lista ----------------------------------------------------------------
   function toggleList() {
+    // El "Deshacer" de un elemento quitado ya no tiene dónde volver.
+    if (itemUndoToast.current !== null) dismiss(itemUndoToast.current)
     if (items) {
       // Lista → texto sin perder marcas ni sangría ("✓ ", tabulación).
       setBody(itemsToLines(written.items ?? []))

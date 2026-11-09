@@ -58,7 +58,10 @@ export function NoteChecklist({
   const handles = useRef(new Map<string, HTMLButtonElement>())
   const addRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
-  const pendingFocus = useRef<{ id: string; caret: number } | { handle: string } | null>(null)
+  const checks = useRef(new Map<string, HTMLButtonElement>())
+  const pendingFocus = useRef<
+    { id: string; caret: number } | { handle: string } | { check: string } | null
+  >(null)
   const [settling, setSettling] = useState<ReadonlySet<string>>(new Set())
   const [doneOpen, setDoneOpen] = useState(true)
 
@@ -85,6 +88,10 @@ export function NoteChecklist({
     pendingFocus.current = null
     if ('handle' in target) {
       handles.current.get(target.handle)?.focus()
+      return
+    }
+    if ('check' in target) {
+      checks.current.get(target.check)?.focus()
       return
     }
     const input = inputs.current.get(target.id)
@@ -116,18 +123,29 @@ export function NoteChecklist({
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, text } : it)))
   }
 
+  /**
+   * Marcar o desmarcar. La fila cambia de grupo (arriba ↔ Marcados) y se vuelve
+   * a montar: si la casilla tenía el foco, el foco la sigue. Lo recién marcado
+   * (con sus hijos) se queda arriba tachado un instante y después baja.
+   */
   function toggle(index: number) {
     const item = items[index]
+    const next = toggleItem(items, index)
     setItems((prev) => toggleItem(prev, index))
-    if (item.done || reducedMotion()) return
-    // Recién marcado: se queda arriba tachado un instante y después baja.
-    setSettling((prev) => new Set(prev).add(item.id))
+    const focused = document.activeElement === checks.current.get(item.id)
+    if (item.done || reducedMotion()) {
+      if (focused) pendingFocus.current = { check: item.id }
+      return
+    }
+    const marked = next.filter((it, i) => it.done && !items[i].done).map((it) => it.id)
+    setSettling((prev) => new Set([...prev, ...marked]))
     timers.current.push(
       window.setTimeout(() => {
+        if (document.activeElement === checks.current.get(item.id)) pendingFocus.current = { check: item.id }
         setSettling((prev) => {
-          const next = new Set(prev)
-          next.delete(item.id)
-          return next
+          const rest = new Set(prev)
+          for (const id of marked) rest.delete(id)
+          return rest
         })
       }, SETTLE_MS),
     )
@@ -152,7 +170,8 @@ export function NoteChecklist({
         setItems((prev) => setIndented(prev, index, false))
         return
       }
-      const group = item.done ? done : open
+      // El grupo en que se ve (uno recién marcado sigue arriba un instante).
+      const group = open.includes(index) ? open : done
       const prev = group[group.indexOf(index) - 1]
       if (prev === undefined) return
       e.preventDefault()
@@ -253,9 +272,12 @@ export function NoteChecklist({
       .join(' ')
   }
 
+  // Numeración según se ve (arriba y luego Marcados), no según el orden guardado.
+  const shownOrder = [...open, ...done]
   const row = (index: number, group: 'open' | 'done') => {
     const it = items[index]
-    const label = it.text.trim() || `elemento ${index + 1}`
+    const position = shownOrder.indexOf(index) + 1
+    const label = it.text.trim() || `elemento ${position}`
     return (
       <li key={it.id} className={rowClass(it, group)} data-item-id={group === 'open' ? it.id : undefined}>
         {group === 'open' && (
@@ -276,6 +298,10 @@ export function NoteChecklist({
         )}
         <button
           type="button"
+          ref={(el) => {
+            if (el) checks.current.set(it.id, el)
+            else checks.current.delete(it.id)
+          }}
           className={`check note-items__check${it.done ? ' check--done' : ''}`}
           aria-label={it.done ? `Desmarcar: ${label}` : `Marcar: ${label}`}
           aria-pressed={it.done}
@@ -291,7 +317,7 @@ export function NoteChecklist({
           }}
           rows={1}
           className={`note-items__text note-items__multi${it.done ? ' is-done' : ''}`}
-          aria-label={`Elemento ${index + 1}`}
+          aria-label={`Elemento ${position}`}
           enterKeyHint="next"
           value={it.text}
           onChange={(e) => patch(index, e.target.value.replace(/\r?\n/g, ' '))}

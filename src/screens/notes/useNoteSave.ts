@@ -70,6 +70,17 @@ export function useNoteSave({
   const queue = useRef<Promise<unknown>>(Promise.resolve())
   /** true: ya se guardó al salir, o una acción dejó todo listo (no volver a guardar). */
   const doneRef = useRef(false)
+  /**
+   * Hay un borrador en sessionStorage de esta hoja (rescatado al abrir o escrito
+   * por un guardado que falló): el primer guardado que funcione lo borra, para
+   * que no vuelva a aparecer ni pise lo que ya quedó en la base.
+   */
+  const draftPending = useRef(recovered)
+  function clearDraft() {
+    if (!draftPending.current) return
+    draftPending.current = false
+    clearNoteDraft()
+  }
   const createdHere = note === null
 
   function remember(next: Note) {
@@ -90,7 +101,7 @@ export function useNoteSave({
       const blank = isBlankNote(content)
       if (current === null && blank) {
         // Borrar todo el texto rescatado también es descartarlo.
-        if (recovered) clearNoteDraft()
+        clearDraft()
         return null
       }
       if (current !== null && (sameContent(current, content) || (keepBlank && blank && createdHere))) {
@@ -102,7 +113,7 @@ export function useNoteSave({
         : await updateNote(current.id, content)
       remember(result)
       setStatus('saved')
-      if (recovered) clearNoteDraft()
+      clearDraft()
       return result
     })
     queue.current = run.catch(() => undefined)
@@ -118,6 +129,7 @@ export function useNoteSave({
     ensureSaved(text, keepBlank).catch(() => {
       setStatus('error')
       saveNoteDraft(draftOf(text))
+      draftPending.current = true
       onFail?.()
     })
   }
@@ -167,7 +179,7 @@ export function useNoteSave({
         await deleteNote(current.id)
         onRemove(current.id)
       }).catch(() => undefined)
-      if (recovered) clearNoteDraft()
+      clearDraft()
       return
     }
     persist(text, false, () =>
@@ -180,19 +192,26 @@ export function useNoteSave({
     leaveRef.current = leave
   })
   // Desmontaje sin animación de cierre (atrás de Android/PWA, cambio de ruta).
-  useEffect(
-    () => () => {
-      leaveRef.current()
-      // StrictMode monta dos veces: el segundo montaje vuelve a habilitar la salida.
-      doneRef.current = false
-    },
-    [],
-  )
+  // Se guarda en el tick siguiente: si es el desmontaje de prueba de StrictMode,
+  // el montaje que sigue lo cancela (si no, una nota rescatada se crearía al abrir).
+  const pendingLeave = useRef<number | null>(null)
+  useEffect(() => {
+    if (pendingLeave.current !== null) {
+      window.clearTimeout(pendingLeave.current)
+      pendingLeave.current = null
+    }
+    return () => {
+      pendingLeave.current = window.setTimeout(() => leaveRef.current(), 0)
+    }
+  }, [])
 
-  /** Una acción ya dejó todo guardado (o eliminado): salir no vuelve a guardar. */
-  function skipLeave() {
-    doneRef.current = true
+  /**
+   * Una acción va a dejar todo guardado (o eliminado): ni el guardado
+   * automático ni la salida vuelven a guardar. `false` lo deshace si la acción falla.
+   */
+  function skipLeave(skip = true) {
+    doneRef.current = skip
   }
 
-  return { saved, savedRef, status, ensureSaved, remember, leave, skipLeave }
+  return { saved, status, ensureSaved, remember, leave, skipLeave, clearDraft }
 }

@@ -136,11 +136,11 @@ test('list items can be checked from the card without opening the note', async (
   await open(page, '/notas?vista=goals')
 
   const card = page.locator('.note-card', { hasText: LIST_NOTE })
-  await expect(card.getByLabel('2 de 3 hechos')).toBeVisible()
+  await expect(card.getByRole('img', { name: '2 de 3 hechos' })).toBeVisible()
   await card.getByRole('button', { name: `Marcar: ${OPEN_ITEM}` }).click()
 
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(card.getByLabel('3 de 3 hechos')).toBeVisible()
+  await expect(card.getByRole('img', { name: '3 de 3 hechos' })).toBeVisible()
   await expect.poll(() => writes.filter((w) => w.method === 'PATCH').length).toBe(1)
   expect(itemTexts(writes[0].body)).toContain(`✓${OPEN_ITEM}`)
   await page.close()
@@ -307,5 +307,163 @@ test('removing an item can be undone while the note is open', async ({ browser }
   await expect(dialog.getByRole('button', { name: `Marcar: ${OPEN_ITEM}` })).toHaveCount(0)
   await page.getByRole('button', { name: 'Deshacer' }).click()
   await expect(dialog.getByRole('button', { name: `Marcar: ${OPEN_ITEM}` })).toBeVisible()
+  await page.close()
+})
+
+test('after a failed save works again, reopening shows the newest text, not the old rescue', async ({ browser }) => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 800 } })
+  await open(page, '/notas?vista=ideas')
+
+  let failing = true
+  await page.route('**/rest/v1/notes**', (route) =>
+    failing && route.request().method() === 'PATCH'
+      ? route.fulfill({ status: 503, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: '{"message":"offline"}' })
+      : route.fallback(),
+  )
+  await page.getByText('Idea: un recordatorio').click()
+  const dialog = page.getByRole('dialog')
+  const body = dialog.getByRole('textbox', { name: 'Nota' })
+  await body.press('End')
+  await body.pressSequentially(' uno')
+  await expect(dialog.getByText('Sin guardar')).toBeVisible()
+
+  failing = false
+  await body.pressSequentially(' dos')
+  await expect(dialog.getByText('Guardado')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Listo' }).click()
+  await expect(dialog).toBeHidden()
+
+  await page.getByText('Idea: un recordatorio').click()
+  await expect(page.getByRole('dialog').getByRole('textbox', { name: 'Nota' })).toHaveValue(/ uno dos/)
+  await page.close()
+})
+
+test('deleting a new note while its first save is in flight does not bring it back', async ({ browser }) => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 800 } })
+  const writes = noteWrites(page)
+  await open(page)
+  await page.route('**/rest/v1/notes**', async (route) => {
+    if (route.request().method() === 'POST') await new Promise((r) => setTimeout(r, 1500))
+    await route.fallback()
+  })
+
+  await page.getByRole('button', { name: 'Nueva nota' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('textbox', { name: 'Nota' }).pressSequentially('nota fugaz')
+  await expect.poll(() => writes.some((w) => w.method === 'POST')).toBe(true)
+  await dialog.getByRole('button', { name: 'Más' }).click()
+  await dialog.getByRole('button', { name: 'Eliminar nota' }).click()
+
+  await expect(dialog).toBeHidden()
+  await expect.poll(() => writes.some((w) => w.method === 'DELETE')).toBe(true)
+  await page.waitForTimeout(300)
+  await expect(page.getByText('nota fugaz')).toHaveCount(0)
+  await page.close()
+})
+
+test('checking with the keyboard keeps focus on the checkbox when it moves to Marcados', async ({ browser }) => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 800 } })
+  await open(page, '/notas?vista=goals')
+  await page.locator('.note-card', { hasText: LIST_NOTE }).getByRole('button', { name: LIST_NOTE }).click()
+  const dialog = page.getByRole('dialog')
+
+  // Numerados como se ven: el único sin marcar es el primero, aunque se guardó tercero.
+  await expect(dialog.getByRole('textbox', { name: 'Elemento 1' })).toHaveValue(OPEN_ITEM)
+  await dialog.getByRole('button', { name: `Marcar: ${OPEN_ITEM}` }).focus()
+  await page.keyboard.press('Space')
+  await expect(dialog.getByRole('button', { name: 'Marcados (3)' })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: `Desmarcar: ${OPEN_ITEM}` })).toBeFocused()
+
+  await page.keyboard.press('Space')
+  await expect(dialog.getByRole('button', { name: `Marcar: ${OPEN_ITEM}` })).toBeFocused()
+  await page.close()
+})
+
+test('a checked parent waits above with its children, and Backspace still merges while it waits', async ({ browser }) => {
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } })
+  await open(page)
+  await page.getByRole('button', { name: 'Nueva lista' }).click()
+  const dialog = page.getByRole('dialog')
+  await paste(dialog.getByRole('textbox', { name: 'Agregar elemento' }), 'padre\nhijo\notro')
+  await dialog.getByRole('textbox', { name: 'Elemento 2' }).focus()
+  await page.keyboard.press('Home')
+  await page.keyboard.press('Tab')
+
+  await dialog.getByRole('button', { name: 'Marcar: padre' }).click()
+  // Padre e hijo siguen arriba un instante (nada en Marcados todavía).
+  await expect(dialog.getByRole('button', { name: 'Desmarcar: hijo' })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: /^Marcados/ })).toHaveCount(0)
+
+  await dialog.getByRole('button', { name: 'Marcar: otro' }).click()
+  const otro = dialog.getByRole('textbox', { name: 'Elemento 3' })
+  await otro.focus()
+  await page.keyboard.press('Home')
+  await page.keyboard.press('Backspace')
+  await expect(dialog.getByRole('textbox', { name: 'Elemento 2' })).toHaveValue('hijootro')
+  await page.close()
+})
+
+test('the item Undo goes away when the list becomes text', async ({ browser }) => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 800 } })
+  await open(page, '/notas?vista=goals')
+  await page.locator('.note-card', { hasText: LIST_NOTE }).getByRole('button', { name: LIST_NOTE }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('button', { name: `Quitar: ${OPEN_ITEM}` }).click()
+  await expect(page.getByRole('button', { name: 'Deshacer' })).toBeVisible()
+  await dialog.getByRole('button', { name: 'Lista' }).click()
+  await expect(page.getByRole('button', { name: 'Deshacer' })).toHaveCount(0)
+  await page.close()
+})
+
+test('a shortcut also opens the sheet when Notas is already on screen', async ({ browser }) => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 800 } })
+  await open(page)
+  await expect(page.getByRole('button', { name: 'Nueva nota' })).toBeVisible()
+  await page.evaluate(() => {
+    history.pushState({}, '', '/notas?nueva=nota')
+    dispatchEvent(new PopStateEvent('popstate'))
+  })
+  await expect(page.getByRole('dialog').getByRole('textbox', { name: 'Nota' })).toBeVisible()
+  await expect(page).toHaveURL(/\/notas$/)
+  await page.close()
+})
+
+test('undoing a delete after closing does not mark another card as new', async ({ browser }) => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 800 } })
+  await open(page)
+
+  await page.getByRole('button', { name: 'Nueva nota' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('textbox', { name: 'Nota' }).pressSequentially('recuperable')
+  await expect(dialog.getByText('Guardado')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Más' }).click()
+  await dialog.getByRole('button', { name: 'Eliminar nota' }).click()
+  await expect(dialog).toBeHidden()
+  await page.getByRole('button', { name: 'Deshacer' }).click()
+  const card = page.locator('.note-card', { hasText: 'recuperable' })
+  await expect(card).toBeVisible()
+
+  // Abrir y cerrar otra nota no hace "entrar" la recuperada como nueva.
+  await card.getByRole('button', { name: 'recuperable' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Listo' }).click()
+  await expect(page.getByRole('dialog')).toBeHidden()
+  await expect(card).not.toHaveClass(/note-card--fresh/)
+  await page.close()
+})
+
+test('a rescued draft of a new note is not saved just by opening the sheet', async ({ browser }) => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 800 } })
+  const writes = noteWrites(page)
+  await page.addInitScript(() => {
+    sessionStorage.setItem(
+      'logralo.note-draft-v1',
+      JSON.stringify({ noteId: null, goalId: null, title: '', body: 'texto rescatado', items: null }),
+    )
+  })
+  await open(page)
+  await page.getByRole('button', { name: 'Nueva nota' }).click()
+  await expect(page.getByRole('dialog').getByRole('textbox', { name: 'Nota' })).toHaveValue('texto rescatado')
+  await page.waitForTimeout(1200)
+  expect(writes.filter((w) => w.method === 'POST')).toHaveLength(0)
   await page.close()
 })
