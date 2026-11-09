@@ -117,13 +117,8 @@ function readDayRequest(b: Record<string, unknown>): DayRequest | null {
     .map(readDayItem)
     .filter((i): i is DayItem => i !== null)
     .slice(0, DAY_MAX_CONTEXT_ITEMS + DAY_MAX_ITEMS)
-  const refs = new Set(read.map((i) => i.ref))
-  // Solo metas activas recibidas y "a la vez" con ítems que existen.
-  const items = read.map((i) => ({
-    ...i,
-    goalId: i.goalId && goalIds.has(i.goalId) ? i.goalId : null,
-    alongside: i.alongside && refs.has(i.alongside) ? i.alongside : null,
-  }))
+  // Solo metas activas recibidas.
+  const items = read.map((i) => ({ ...i, goalId: i.goalId && goalIds.has(i.goalId) ? i.goalId : null }))
   return {
     action: 'day',
     ctx: { date, now, dayStart: time(b.dayStart, DAY_DEFAULTS.dayStart), dayEnd: time(b.dayEnd, DAY_DEFAULTS.dayEnd), items, goals },

@@ -14,7 +14,7 @@ import {
   type DayOption,
   type DayQuestion,
 } from '@/domain/dayPlan'
-import { DAY_MAX_QUESTIONS, type DayAiReply } from '@/domain/dayPlanAi'
+import { DAY_MAX_QUESTIONS, applyLimits, type DayAiReply } from '@/domain/dayPlanAi'
 import { autoDecision } from '@/domain/dayAuto'
 import { failedOpTitle, runOps, undoOps, type DayOpExecutors, type DoneOp } from '@/domain/dayOps'
 import { requestDayPlan } from '@/services/goalPlan'
@@ -65,6 +65,8 @@ export function useDayPlanner({ date, nowMin, baseItems, habits, goals, executor
   const [items, setItems] = useState<DayItem[]>(baseItems)
   const [aiQuestions, setAiQuestions] = useState<DayAiReply['questions']>([])
   const [assumptions, setAssumptions] = useState<string[]>([])
+  // Límites del día que dio la persona en la conversación ("hasta las 5:30").
+  const [limits, setLimits] = useState<{ dayStart: string; dayEnd: string }>({ dayStart: DAY_DEFAULTS.dayStart, dayEnd: DAY_DEFAULTS.dayEnd })
   const [pending, setPending] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -83,12 +85,14 @@ export function useDayPlanner({ date, nowMin, baseItems, habits, goals, executor
   // Lo último confirmado, para no depender de cierres viejos al enviar.
   const itemsRef = useRef(items)
   const messagesRef = useRef(messages)
+  const limitsRef = useRef(limits)
   useEffect(() => {
     itemsRef.current = items
     messagesRef.current = messages
-  }, [items, messages])
+    limitsRef.current = limits
+  }, [items, messages, limits])
 
-  const plan = useMemo(() => planDay({ items, nowMin }), [items, nowMin])
+  const plan = useMemo(() => planDay({ items, nowMin, ...limits }), [items, nowMin, limits])
   const ops = useMemo(() => planToOps(plan, items, habits), [plan, items, habits])
 
   const questions = useMemo<DayQuestion[]>(() => {
@@ -116,8 +120,7 @@ export function useDayPlanner({ date, nowMin, baseItems, habits, goals, executor
           {
             date,
             now: minutesToTime(minutesNow()),
-            dayStart: DAY_DEFAULTS.dayStart,
-            dayEnd: DAY_DEFAULTS.dayEnd,
+            ...limitsRef.current,
             items: itemsRef.current,
             goals,
           },
@@ -125,6 +128,7 @@ export function useDayPlanner({ date, nowMin, baseItems, habits, goals, executor
           clean,
         )
         setItems((prev) => mergeAiItems(prev, reply.items))
+        setLimits((prev) => applyLimits(prev, reply.limits))
         setAiQuestions(reply.questions)
         setAssumptions(reply.assumptions)
         setMessages((prev) => [...prev, { id: nextId(), role: 'coach', text: reply.reply }])

@@ -43,8 +43,13 @@ export interface DayItem {
   mode: AttentionMode
   /** Solo ids de metas activas recibidas en el contexto. */
   goalId: string | null
-  /** Ref del ítem con el que la persona confirmó que lo hace a la vez. */
-  alongside: string | null
+  /**
+   * Grupo "a la vez" ('g1'): todos los del mismo grupo pueden compartir tiempo,
+   * sean dos o más. Lo decide la persona o la IA con una razón que ella dio.
+   */
+  together: string | null
+  /** Exclusivo: no comparte tiempo con nada (lo hace a mano, pide toda su atención). */
+  solo?: boolean
   /** "Cuando pueda", sin hora: se guarda como tarea. */
   untimed: boolean
   /** Área que eligió la IA para algo nuevo: le da su color en la agenda. */
@@ -77,6 +82,8 @@ export interface DayPlan {
   placed: PlacedItem[]
   untimed: string[]
   conflicts: DayConflict[]
+  /** Hora límite que puso la persona ('HH:MM'); null con el fin del día por defecto. */
+  limitEnd: string | null
 }
 
 export const DAY_DEFAULTS = { dayStart: '06:00', dayEnd: '22:00', bufferMin: 10, durationMin: 30 } as const
@@ -91,7 +98,8 @@ export const WINDOWS: Record<DayWindow, [number, number | null]> = {
 const LAST_MINUTE = 1439
 
 export function canOverlap(a: DayItem, b: DayItem): boolean {
-  if (a.alongside === b.ref || b.alongside === a.ref) return true
+  if (a.solo || b.solo) return false
+  if (a.together !== null && a.together === b.together) return true
   const pair = (x: AttentionMode, y: AttentionMode) =>
     (a.mode === x && b.mode === y) || (a.mode === y && b.mode === x)
   return pair('audio', 'physical') || pair('audio', 'routine') || pair('routine', 'routine')
@@ -141,9 +149,10 @@ export function planDay(input: PlanDayInput): DayPlan {
   const fixed = timed.filter((i) => i.fixed && i.start)
   const placed: Slot[] = fixed.map((i) => slotAt(i, timeToMinutes(i.start as string)))
 
-  // Los límites se amplían solos para incluir cualquier fijo fuera del rango.
+  // El inicio se amplía para incluir un fijo más temprano. El fin no: es el
+  // límite de la persona y nada flexible va después, aunque un fijo sí.
   const dayStartMin = Math.min(timeToMinutes(input.dayStart ?? DAY_DEFAULTS.dayStart), ...placed.map((s) => s.startMin))
-  const dayEndMin = Math.max(timeToMinutes(input.dayEnd ?? DAY_DEFAULTS.dayEnd), ...placed.map((s) => s.endMin))
+  const dayEndMin = timeToMinutes(input.dayEnd ?? DAY_DEFAULTS.dayEnd)
 
   const conflicts: DayConflict[] = []
   const byStart = [...placed].sort((a, b) => a.startMin - b.startMin)
@@ -180,10 +189,17 @@ export function planDay(input: PlanDayInput): DayPlan {
     if (Boolean(a.window) !== Boolean(b.window)) return a.window ? -1 : 1
     return b.durationMin - a.durationMin
   })
-  // Lo que se hace "a la vez" con otro flexible va después de él, para ubicarse a su lado.
-  const flexRefs = new Set(sorted.map((i) => i.ref))
-  const follows = (i: DayItem) => i.alongside !== null && flexRefs.has(i.alongside)
-  const flexible = [...sorted.filter((i) => !follows(i)), ...sorted.filter(follows)]
+  // De cada grupo "a la vez" se ubica primero un líder (o ya hay un miembro
+  // colocado); los demás van después, para empezar con él.
+  const leaders = new Set(placed.map((s) => s.item.together).filter((g): g is string => g !== null))
+  const follows = (i: DayItem) => {
+    if (i.together === null) return false
+    if (leaders.has(i.together)) return true
+    leaders.add(i.together)
+    return false
+  }
+  const followers = new Set(sorted.filter(follows).map((i) => i.ref))
+  const flexible = [...sorted.filter((i) => !followers.has(i.ref)), ...sorted.filter((i) => followers.has(i.ref))]
 
   for (const it of flexible) {
     const together = besidePartner(it, placed, lower, dayEndMin)
@@ -200,17 +216,21 @@ export function planDay(input: PlanDayInput): DayPlan {
     placed: placed.map((s) => toPlaced(s, placed)),
     untimed: input.items.filter(isUntimed).map((i) => i.ref),
     conflicts,
+    limitEnd: input.dayEnd && input.dayEnd !== DAY_DEFAULTS.dayEnd ? input.dayEnd : null,
   }
 }
 
 /**
- * Lo que la persona hace a la vez con otra cosa ya colocada empieza con ella,
- * aunque las dos pidan concentración (lo pidió). Ignora su propia ventana a
- * propósito: "a la vez" manda sobre "por la tarde". null si no tiene pareja
- * colocada, si se sale del día o si choca con algo más.
+ * Lo que va en un grupo "a la vez" empieza con el primer miembro ya colocado,
+ * aunque los dos pidan concentración (lo pidió la persona). Ignora su propia
+ * ventana a propósito: "a la vez" manda sobre "por la tarde". null si no hay
+ * miembro colocado, si se sale del día o si choca con algo más.
  */
 function besidePartner(it: DayItem, placed: Slot[], lower: number, dayEndMin: number): Slot | null {
-  const partner = placed.find((s) => s.item.ref === it.alongside || s.item.alongside === it.ref)
+  if (it.together === null || it.solo) return null
+  const partner = placed
+    .filter((s) => s.item.together === it.together)
+    .sort((a, b) => a.startMin - b.startMin)[0]
   if (!partner) return null
   const slot = slotAt(it, Math.max(partner.startMin, lower))
   if (slot.endMin > dayEndMin) return null
@@ -308,7 +328,7 @@ export function mergeAiItems(prev: DayItem[], next: DayItem[]): DayItem[] {
 /* ===== Preguntas del algoritmo, efectos y operaciones ===================== */
 
 export type DayEffect =
-  /** "Sí, a la vez". */
+  /** "Sí, a la vez": los dos quedan en el mismo grupo. */
   | { kind: 'alongside'; ref: string; with: string }
   /** Partir en dos bloques (solo ítems nuevos). */
   | { kind: 'split'; ref: string }
@@ -384,7 +404,8 @@ export function conflictQuestions(plan: DayPlan, items: DayItem[]): DayQuestion[
       options.push({ label: 'Partirla en dos bloques', effect: { kind: 'split', ref: it.ref } })
     }
     if (c.freeMin >= MIN_SHORTEN) {
-      options.push({ label: `Hacer solo ${c.freeMin} min`, effect: { kind: 'shorten', ref: it.ref, minutes: c.freeMin } })
+      // La persona decide si le alcanza: la estimación de la IA no manda.
+      options.push({ label: `Me alcanza con ${c.freeMin} min`, effect: { kind: 'shorten', ref: it.ref, minutes: c.freeMin } })
     }
     options.push(
       { label: 'Dejarla como tarea sin hora', effect: { kind: 'untimed', ref: it.ref } },
@@ -393,7 +414,7 @@ export function conflictQuestions(plan: DayPlan, items: DayItem[]): DayQuestion[
     questions.push({
       id: `conflict:no_room:${it.ref}`,
       from: 'plan',
-      text: `${it.title} (${formatDuration(it.durationMin)}) no cabe completa hoy. ¿Qué hacemos?`,
+      text: `${it.title} (${formatDuration(it.durationMin)}) no cabe completa ${plan.limitEnd ? `antes de las ${formatTime12(plan.limitEnd)}` : 'hoy'}. ¿Qué hacemos?`,
       options,
     })
   }
@@ -408,14 +429,23 @@ export function canResize(item: DayItem): boolean {
   return item.source === 'new' || item.source === 'event'
 }
 
+/** Un id de grupo ('gN') que no usa ningún ítem. */
+function freeGroupId(items: DayItem[]): string {
+  const used = new Set(items.map((i) => i.together))
+  let n = 1
+  while (used.has(`g${n}`)) n += 1
+  return `g${n}`
+}
+
 export function applyEffect(items: DayItem[], effect: DayEffect): DayItem[] {
   switch (effect.kind) {
-    case 'alongside':
-      return items.map((i) => {
-        if (i.ref === effect.ref) return { ...i, alongside: effect.with }
-        if (i.ref === effect.with) return { ...i, alongside: effect.ref }
-        return i
-      })
+    case 'alongside': {
+      const pair = items.filter((i) => i.ref === effect.ref || i.ref === effect.with)
+      const group = pair.find((i) => i.together)?.together ?? freeGroupId(items)
+      return items.map((i) =>
+        i.ref === effect.ref || i.ref === effect.with ? { ...i, together: group, solo: false } : i,
+      )
+    }
     case 'split':
       return items.flatMap((i) => {
         if (i.ref !== effect.ref || i.source !== 'new') return [i]

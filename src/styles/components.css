@@ -3325,6 +3325,17 @@ select.input:focus {
   gap: var(--s2);
   min-height: 40px;
 }
+/* Hora límite que puso la persona: etiqueta compacta, no un campo. */
+.dayplan-limit {
+  align-self: flex-start;
+  margin: 0;
+  padding: 2px var(--s3);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
 .dayplan-assumptions {
   margin: 0;
   padding-left: var(--s4);

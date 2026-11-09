@@ -3,8 +3,10 @@
  * mueve, arriba; el resto del día, aparte y compacto. También el texto del
  * botón y del aviso al aplicar. Spec:
  * docs/superpowers/specs/2026-11-08-organizar-dia-claridad-y-auto-design.md §3–4
+ * y 2026-11-09-organizar-dia-razonar-y-limite-design.md §3
  */
 import { isAddOnly, type DayItem, type DayOp, type DayPlan, type PlacedItem } from '@/domain/dayPlan'
+import { formatTime12 } from '@/lib/date'
 
 export interface DraftRow {
   item: DayItem
@@ -73,4 +75,27 @@ export function applyLabel(ops: DayOp[]): string {
 /** Aviso después de aplicar: lo que ya quedó en la agenda. */
 export function appliedLabel(ops: DayOp[]): string {
   return isAddOnly(ops) ? `Agregué ${things(ops.length)} a tu día.` : `Guardé ${changes(ops.length)} en tu día.`
+}
+
+/** "A, B y C". */
+function joinNames(names: string[]): string {
+  return names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} y ${names.at(-1)}`
+}
+
+/**
+ * Notas de una tarjeta del borrador: con qué va a la vez (todo el grupo en una
+ * línea), si es exclusiva y si quedó fuera de su momento del día.
+ */
+export function cardNotes(item: DayItem, placed: PlacedItem, byRef: Map<string, DayItem>): string[] {
+  const together = placed.overlapsWith.flatMap((ref) => byRef.get(ref)?.title ?? [])
+  return [
+    ...(together.length > 0 ? [`A la vez con ${joinNames(together)}`] : []),
+    ...(item.solo ? ['Solo para ti'] : []),
+    ...(placed.outsideWindow ? ['Fuera de su momento'] : []),
+  ]
+}
+
+/** Hora límite que puso la persona, para mostrarla sobre el borrador. */
+export function limitLabel(plan: DayPlan): string | null {
+  return plan.limitEnd ? `Hasta las ${formatTime12(plan.limitEnd)}` : null
 }

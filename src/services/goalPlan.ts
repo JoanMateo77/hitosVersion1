@@ -93,5 +93,11 @@ export async function requestGoalType(title: string): Promise<GoalTypeSuggestion
 export async function requestDayPlan(ctx: DayAiContext, history: ChatTurn[], message: string): Promise<DayAiReply> {
   const data = await callCoach<Partial<DayAiReply> & { error?: { code?: string } }>({ ...ctx, action: 'day', history, message })
   if (!data.reply) throw new Error(FALLBACK)
-  return { reply: data.reply, items: data.items ?? [], questions: data.questions ?? [], assumptions: data.assumptions ?? [] }
+  return {
+    reply: data.reply,
+    items: data.items ?? [],
+    questions: data.questions ?? [],
+    assumptions: data.assumptions ?? [],
+    limits: data.limits ?? null,
+  }
 }

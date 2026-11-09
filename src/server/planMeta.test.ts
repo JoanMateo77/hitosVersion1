@@ -202,7 +202,7 @@ describe('acción day', () => {
     date: '2026-11-09',
     now: '08:15',
     items: [
-      { ref: 'event:e1', source: 'event', title: 'Cita', fixed: true, start: '10:00', durationMin: 30, window: null, mode: 'focus', goalId: null, alongside: null, untimed: false },
+      { ref: 'event:e1', source: 'event', title: 'Cita', fixed: true, start: '10:00', durationMin: 30, window: null, mode: 'focus', goalId: null, together: null, untimed: false },
       { ref: 'malo' },
     ],
     goals: [{ id: 'g1', title: 'Tesis' }, { id: 3 }],
