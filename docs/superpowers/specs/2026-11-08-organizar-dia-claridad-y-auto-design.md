@@ -46,11 +46,15 @@ desarrollo").
   dispositivo (`localStorage`, sin SQL).
 - Encendido: cuando la IA responde y no quedan preguntas, se aplica solo.
   Si hay preguntas, espera las respuestas y aplica al quedar sin preguntas.
-- Mover o cambiar de hora algo que ya existía no se aplica solo: se pregunta
-  ("¿Muevo X a las 5:00 pm?"). Sin respuesta, no se mueve.
+- Mover o cambiar de hora algo que ya existía no se aplica solo: el borrador lo
+  muestra en "Esto cambia de hora", avisa "Esto mueve cosas que ya tenías:
+  revísalo y guarda" y espera el botón "Guardar N cambios".
+- Se aplica una sola vez por respuesta de la IA: después de "Deshacer" no se
+  vuelve a aplicar solo hasta la siguiente respuesta.
 - Al aplicar, aviso fijo en la hoja: "Agregué N a tu día · Deshacer" (no se borra
   solo). Deshacer revierte todo lo aplicado en esa tanda.
-- Lo agregado sigue editable: un nuevo mensaje arma otra tanda.
+- Como en el modo normal, aplicar cierra la conversación ("Deshacer" o "Listo");
+  para agregar más se vuelve a abrir la hoja.
 
 ## Fuera de alcance
 
