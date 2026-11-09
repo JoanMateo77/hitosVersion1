@@ -141,11 +141,27 @@ describe('linesToItems / itemsToLines', () => {
   it('vuelve a texto una línea por elemento, sin los vacíos', () => {
     expect(
       itemsToLines([
-        { text: 'pan', done: true },
+        { text: 'pan', done: false },
         { text: ' ', done: false },
         { text: 'leche', done: false },
       ]),
     ).toBe('pan\nleche')
+  })
+
+  it('no pierde las marcas ni la sangría al pasar a texto y volver', () => {
+    const items = [
+      { text: 'pan', done: true },
+      { text: 'integral', done: false, indented: true },
+      { text: 'leche', done: true, indented: true },
+      { text: 'huevos', done: false },
+    ]
+    const text = itemsToLines(items)
+    expect(text).toBe('✓ pan\n\tintegral\n\t✓ leche\nhuevos')
+    expect(linesToItems(text)).toEqual(items)
+  })
+
+  it('el primero nunca queda con sangría', () => {
+    expect(linesToItems('\tpan')).toEqual([{ text: 'pan', done: false }])
   })
 })
 

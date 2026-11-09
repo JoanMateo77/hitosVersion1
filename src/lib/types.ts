@@ -305,6 +305,8 @@ export type NotePlace = 'inbox' | 'goal' | 'area' | 'ideas'
 export interface NoteItem {
   text: string
   done: boolean
+  /** Un nivel de sangría (hijo del elemento anterior). Solo se guarda si es true. */
+  indented?: boolean
 }
 
 export interface Note {
