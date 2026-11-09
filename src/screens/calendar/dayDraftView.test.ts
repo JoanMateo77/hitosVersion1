@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isAddOnly, planDay, planToOps, type DayItem } from '@/domain/dayPlan'
-import { appliedLabel, applyLabel, draftSections } from '@/screens/calendar/dayDraftView'
+import { appliedLabel, applyLabel, cardNotes, draftSections, limitLabel } from '@/screens/calendar/dayDraftView'
 
 let n = 0
 function item(over: Partial<DayItem> = {}): DayItem {
@@ -15,7 +15,7 @@ function item(over: Partial<DayItem> = {}): DayItem {
     window: null,
     mode: 'focus',
     goalId: null,
-    alongside: null,
+    together: null,
     untimed: false,
     ...over,
   }
@@ -71,5 +71,35 @@ describe('apply labels', () => {
   it('names what was done after applying', () => {
     expect(appliedLabel(opsOf([gym]))).toBe('Agregué 1 cosa a tu día.')
     expect(appliedLabel(opsOf([gym, ev]))).toBe('Guardé 2 cambios en tu día.')
+  })
+})
+
+describe('cardNotes', () => {
+  const titles = (items: DayItem[]) => new Map(items.map((i) => [i.ref, i]))
+
+  it('names everything done at the same time in one note', () => {
+    const a = item({ title: 'Auditoría con IA', together: 'g1' })
+    const b = item({ title: 'Hallazgos de QA', together: 'g1' })
+    const c = item({ title: 'Pruebas', together: 'g1' })
+    const items = [a, b, c]
+    const plan = planDay({ items, nowMin: 12 * 60 })
+    const row = plan.placed.find((p) => p.ref === a.ref)
+    expect(row && cardNotes(a, row, titles(items))).toEqual(['A la vez con Hallazgos de QA y Pruebas'])
+  })
+
+  it('marks a solo item and an item outside its moment', () => {
+    const demo = item({ title: 'Revisar demo', solo: true })
+    const plan = planDay({ items: [demo], nowMin: null })
+    expect(cardNotes(demo, { ...plan.placed[0], outsideWindow: true }, titles([demo]))).toEqual([
+      'Solo para ti',
+      'Fuera de su momento',
+    ])
+  })
+})
+
+describe('limitLabel', () => {
+  it('shows the day limit the person set, and nothing by default', () => {
+    expect(limitLabel(planDay({ items: [], nowMin: null, dayEnd: '17:30' }))).toBe('Hasta las 5:30 pm')
+    expect(limitLabel(planDay({ items: [], nowMin: null }))).toBeNull()
   })
 })

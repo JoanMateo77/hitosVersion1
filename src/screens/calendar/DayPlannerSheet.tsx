@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { canResize, type DayContextHabit, type DayItem, type DayQuestion } from '@/domain/dayPlan'
-import { appliedLabel, applyLabel, draftSections, type DraftRow } from '@/screens/calendar/dayDraftView'
+import { appliedLabel, applyLabel, cardNotes, draftSections, limitLabel, type DraftRow } from '@/screens/calendar/dayDraftView'
 import { DAY_MESSAGE_MAX } from '@/domain/dayPlanAi'
 import type { DayOpExecutors } from '@/domain/dayOps'
 import { useDayPlanner, type DayPlanner } from '@/hooks/useDayPlanner'
@@ -333,11 +333,7 @@ function DraftCard({
 }>) {
   const it = row.item
   const open = editing === it.ref
-  const together = row.placed.overlapsWith.flatMap((ref) => {
-    const other = byRef.get(ref)
-    return other ? [`A la vez con ${other.title}`] : []
-  })
-  const notes = [...together, ...(row.placed.outsideWindow ? ['Fuera de su momento'] : [])]
+  const notes = cardNotes(it, row.placed, byRef)
   const time = `${formatTime12(row.start)} – ${formatTime12(row.end)}`
   const label = [`Editar ${it.title}`, tag, time, row.from ? `antes ${formatTime12(row.from)}` : '', ...notes].filter(Boolean).join(', ')
   return (
@@ -395,9 +391,11 @@ function Draft({ planner }: Readonly<{ planner: DayPlanner }>) {
   const done = planner.applied
   const newTag = done ? 'Agregado' : 'Nuevo'
   const cardProps = { planner, byRef, editing, onEdit: setEditing }
+  const limit = limitLabel(planner.plan)
   let order = 0
   return (
     <section className="stack stack--sm" aria-label="Borrador del día">
+      {limit && <p className="dayplan-limit">{limit}</p>}
       {hasChanges && (
         <section
           ref={changesRef}
@@ -425,7 +423,7 @@ function Draft({ planner }: Readonly<{ planner: DayPlanner }>) {
           ))}
           {s.unplaced.length > 0 && (
             <>
-              <p className="reorg-kicker">No cupo este día</p>
+              <p className="reorg-kicker">{planner.plan.limitEnd ? `No cupo antes de las ${formatTime12(planner.plan.limitEnd)}` : 'No cupo este día'}</p>
               {s.unplaced.map((i) => (
                 <p key={i.ref} className="small muted" style={{ margin: 0 }}>
                   {i.title}

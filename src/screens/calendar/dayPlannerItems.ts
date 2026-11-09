@@ -17,7 +17,7 @@ export interface DayPlannerHabitRow {
   hasOverride: boolean
 }
 
-const base = { window: null, mode: 'focus', alongside: null, untimed: false } as const
+const base = { window: null, mode: 'focus', together: null, untimed: false } as const
 
 function sessionMinutes(s: DayAgendaSession): number {
   const target = s.session ?? s.block

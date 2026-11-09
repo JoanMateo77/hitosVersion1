@@ -37,7 +37,7 @@ describe('buildDayPlannerContext', () => {
       window: null,
       mode: 'focus',
       goalId: 'g1',
-      alongside: null,
+      together: null,
       untimed: false,
     })
   })

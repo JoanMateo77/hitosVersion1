@@ -198,8 +198,8 @@ async function aiSays(page: Page, reply: Record<string, unknown>) {
 const CLEAR_REPLY = {
   reply: 'Te propongo las pruebas de seguridad mientras desarrollas.',
   items: [
-    { ref: 'new:1', source: 'new', title: 'Pruebas de seguridad', fixed: true, start: '12:00', durationMin: 120, window: null, mode: 'focus', goalId: null, alongside: null, untimed: false, area: 'carrera' },
-    { ref: 'new:2', source: 'new', title: 'Desarrollar funcionalidades', fixed: false, start: null, durationMin: 90, window: null, mode: 'focus', goalId: null, alongside: 'new:1', untimed: false, area: 'carrera' },
+    { ref: 'new:1', source: 'new', title: 'Pruebas de seguridad', fixed: true, start: '12:00', durationMin: 120, window: null, mode: 'focus', goalId: null, together: 'g1', untimed: false, area: 'carrera' },
+    { ref: 'new:2', source: 'new', title: 'Desarrollar funcionalidades', fixed: false, start: null, durationMin: 90, window: null, mode: 'focus', goalId: null, together: 'g1', untimed: false, area: 'carrera' },
   ],
   questions: [],
   assumptions: [],
@@ -293,3 +293,54 @@ test('without changes there is no apply button: examples at first, a hint after 
   await context.close()
 })
 
+
+const AFTERNOON_REPLY = {
+  reply: 'Te propongo juntar la auditoría con los hallazgos de QA porque los agentes trabajan mientras tú avanzas, y dejar la demo de Hunter sola para que la leas con calma.',
+  items: [
+    { ref: 'new:1', source: 'new', title: 'Hallazgos de QA', fixed: false, start: null, durationMin: 120, window: 'afternoon', mode: 'focus', goalId: null, together: 'g1', untimed: false, area: 'carrera' },
+    { ref: 'new:2', source: 'new', title: 'Auditoría con IA', fixed: false, start: null, durationMin: 90, window: 'afternoon', mode: 'focus', goalId: null, together: 'g1', untimed: false, area: 'carrera' },
+    { ref: 'new:3', source: 'new', title: 'Gestor de gastos', fixed: false, start: null, durationMin: 60, window: 'afternoon', mode: 'focus', goalId: null, together: 'g1', untimed: false, area: 'creatividad' },
+    { ref: 'new:4', source: 'new', title: 'Revisar demo de Hunter', fixed: false, start: null, durationMin: 60, window: 'afternoon', mode: 'focus', goalId: null, together: null, solo: true, untimed: false, area: 'carrera' },
+    { ref: 'new:5', source: 'new', title: 'Pulir demo de inglés', fixed: false, start: null, durationMin: 300, window: 'afternoon', mode: 'focus', goalId: null, together: null, untimed: false, area: 'aprendizaje' },
+  ],
+  questions: [],
+  assumptions: [],
+  removed: [],
+  limits: { start: null, end: '17:30' },
+}
+
+for (const viewport of [
+  { width: 390, height: 800 },
+  { width: 1280, height: 800 },
+]) {
+  test(`respects the day limit, groups tasks and keeps solo ones apart (${viewport.width}px)`, async ({ browser }) => {
+    const { context, page } = await openPlanner(browser, viewport)
+    await aiSays(page, AFTERNOON_REPLY)
+    const sheet = page.getByRole('dialog', { name: /Organizar el/ })
+    await sheet.getByLabel('Cuéntame tu día').fill('De aquí a las 5:30; los agentes auditan mientras hago QA; la demo la leo yo')
+    await sheet.getByLabel('Cuéntame tu día').press('Enter')
+
+    const draft = sheet.getByRole('region', { name: 'Borrador del día' })
+    await expect(draft.getByText('Hasta las 5:30 pm')).toBeVisible()
+    const changes = sheet.getByRole('region', { name: 'Lo que cambia' })
+    await expect(changes.getByText('A la vez con Auditoría con IA y Gestor de gastos')).toBeVisible()
+    await expect(changes.getByText('Solo para ti')).toBeVisible()
+    // Lo que no cabe antes del límite no se ubica después: se pregunta.
+    await expect(sheet.getByText('Pulir demo de inglés (5 h) no cabe completa antes de las 5:30 pm. ¿Qué hacemos?')).toBeVisible()
+    await expect(changes.getByText('No cupo antes de las 5:30 pm')).toBeVisible()
+    // Ningún bloque termina después de las 5:30 pm.
+    const times = await changes.locator('.dayplan-card__time').allTextContents()
+    const endMin = (t: string) => {
+      const m = /– (\d{1,2}):(\d\d) (am|pm)/.exec(t)
+      if (!m) return null
+      return ((Number(m[1]) % 12) + (m[3] === 'pm' ? 12 : 0)) * 60 + Number(m[2])
+    }
+    const ends = times.map(endMin).filter((m): m is number => m !== null)
+    expect(ends.length).toBe(4)
+    for (const end of ends) expect(end).toBeLessThanOrEqual(17 * 60 + 30)
+
+    await settle(page)
+    await page.screenshot({ path: test.info().outputPath(`limit-${viewport.width}.png`) })
+    await context.close()
+  })
+}

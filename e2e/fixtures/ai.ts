@@ -44,9 +44,9 @@ export const WIZARD_PLAN = PLAN
 const DAY_REPLY = {
   reply: 'Entendí tu reunión, la llamada al banco y la tesis por la tarde.',
   items: [
-    { ref: 'new:1', source: 'new', title: 'Reunión', fixed: true, start: '09:00', durationMin: 120, window: null, mode: 'focus', goalId: null, alongside: null, untimed: false, area: 'carrera' },
-    { ref: 'new:2', source: 'new', title: 'Llamada al banco', fixed: true, start: '10:00', durationMin: 15, window: null, mode: 'focus', goalId: null, alongside: null, untimed: false, area: 'finanzas' },
-    { ref: 'new:3', source: 'new', title: 'Tesis', fixed: false, start: null, durationMin: 120, window: 'afternoon', mode: 'focus', goalId: null, alongside: null, untimed: false, area: 'aprendizaje' },
+    { ref: 'new:1', source: 'new', title: 'Reunión', fixed: true, start: '09:00', durationMin: 120, window: null, mode: 'focus', goalId: null, together: null, untimed: false, area: 'carrera' },
+    { ref: 'new:2', source: 'new', title: 'Llamada al banco', fixed: true, start: '10:00', durationMin: 15, window: null, mode: 'focus', goalId: null, together: null, untimed: false, area: 'finanzas' },
+    { ref: 'new:3', source: 'new', title: 'Tesis', fixed: false, start: null, durationMin: 120, window: 'afternoon', mode: 'focus', goalId: null, together: null, untimed: false, area: 'aprendizaje' },
   ],
   questions: [{ text: '¿Cuánto tiempo quieres dedicarle a la tesis?', options: ['1 h', '2 h'] }],
   assumptions: ['Supuse 2 h para la tesis'],

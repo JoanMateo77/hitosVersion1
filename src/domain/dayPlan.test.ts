@@ -23,7 +23,7 @@ function item(over: Partial<DayItem> = {}): DayItem {
     window: null,
     mode: 'focus',
     goalId: null,
-    alongside: null,
+    together: null,
     untimed: false,
     ...over,
   }
@@ -40,13 +40,19 @@ describe('canOverlap', () => {
     expect(canOverlap(item({ mode: 'focus' }), audio)).toBe(false)
   })
 
-  it('two routine items can overlap; two focus cannot unless alongside', () => {
+  it('two routine items can overlap; two focus cannot unless in the same group', () => {
     expect(canOverlap(item({ mode: 'routine' }), item({ mode: 'routine' }))).toBe(true)
     const a = item({ mode: 'focus' })
     const b = item({ mode: 'focus' })
     expect(canOverlap(a, b)).toBe(false)
-    expect(canOverlap(a, { ...b, alongside: a.ref })).toBe(true)
-    expect(canOverlap({ ...a, alongside: b.ref }, b)).toBe(true)
+    expect(canOverlap({ ...a, together: 'g1' }, { ...b, together: 'g1' })).toBe(true)
+    expect(canOverlap({ ...a, together: 'g1' }, { ...b, together: 'g2' })).toBe(false)
+  })
+
+  it('a solo item shares time with nothing, not even audio or its group', () => {
+    const solo = item({ mode: 'physical', solo: true, together: 'g1' })
+    expect(canOverlap(solo, item({ mode: 'audio' }))).toBe(false)
+    expect(canOverlap(solo, item({ together: 'g1' }))).toBe(false)
   })
 })
 
@@ -109,8 +115,8 @@ describe('planDay', () => {
   })
 
   it('does not report fixed_overlap when the person confirmed doing both', () => {
-    const meeting = item({ fixed: true, start: '09:00', durationMin: 120 })
-    const call = item({ fixed: true, start: '10:00', durationMin: 15, alongside: meeting.ref })
+    const meeting = item({ fixed: true, start: '09:00', durationMin: 120, together: 'g1' })
+    const call = item({ fixed: true, start: '10:00', durationMin: 15, together: 'g1' })
     const plan = planDay({ items: [call, meeting], nowMin: null })
     expect(plan.conflicts).toEqual([])
     expect(placedOf(plan, call.ref)?.overlapsWith).toEqual([meeting.ref])
@@ -118,8 +124,8 @@ describe('planDay', () => {
 
   it('puts two focus tasks the person does together at the same time', () => {
     // Las pruebas van en la tarde; sin "a la vez", desarrollar iría temprano.
-    const tests = item({ title: 'Pruebas de seguridad', durationMin: 120, window: 'afternoon' })
-    const dev = item({ title: 'Desarrollar funcionalidades', durationMin: 90, alongside: tests.ref })
+    const tests = item({ title: 'Pruebas de seguridad', durationMin: 120, window: 'afternoon', together: 'g1' })
+    const dev = item({ title: 'Desarrollar funcionalidades', durationMin: 90, together: 'g1' })
     const meeting = item({ fixed: true, start: '06:00', durationMin: 60 })
     const plan = planDay({ items: [dev, meeting, tests], nowMin: null })
     expect(placedOf(plan, dev.ref)?.start).toBe(placedOf(plan, tests.ref)?.start)
@@ -128,16 +134,16 @@ describe('planDay', () => {
   })
 
   it('a task done together with a fixed one goes at its time', () => {
-    const meeting = item({ fixed: true, start: '15:00', durationMin: 60, title: 'Reunión' })
-    const notes = item({ durationMin: 30, alongside: meeting.ref, title: 'Tomar notas' })
+    const meeting = item({ fixed: true, start: '15:00', durationMin: 60, title: 'Reunión', together: 'g1' })
+    const notes = item({ durationMin: 30, together: 'g1', title: 'Tomar notas' })
     const plan = planDay({ items: [notes, meeting], nowMin: null })
     expect(placedOf(plan, notes.ref)?.start).toBe('15:00')
   })
 
   it('falls back to a free slot when the partner time clashes with something else', () => {
-    const meeting = item({ fixed: true, start: '09:00', durationMin: 60 })
+    const meeting = item({ fixed: true, start: '09:00', durationMin: 60, together: 'g1' })
     const call = item({ fixed: true, start: '09:00', durationMin: 30 })
-    const notes = item({ durationMin: 30, alongside: meeting.ref })
+    const notes = item({ durationMin: 30, together: 'g1' })
     const plan = planDay({ items: [meeting, call, notes], nowMin: null })
     const placed = placedOf(plan, notes.ref)
     expect(placed?.start).not.toBe('09:00')
@@ -145,27 +151,53 @@ describe('planDay', () => {
 
   it('a task done together follows its partner after the partner was moved by a clash', () => {
     const block = item({ fixed: true, start: '09:00', durationMin: 60 })
-    const study = item({ start: '09:00', durationMin: 60 }) // nuevo con hora preferida: choca y se mueve
-    const music = item({ durationMin: 30, alongside: study.ref })
+    const study = item({ start: '09:00', durationMin: 60, together: 'g1' }) // nuevo con hora preferida: choca y se mueve
+    const music = item({ durationMin: 30, together: 'g1' })
     const plan = planDay({ items: [block, study, music], nowMin: null })
     expect(placedOf(plan, music.ref)?.start).toBe(placedOf(plan, study.ref)?.start)
     expect(placedOf(plan, study.ref)?.start).not.toBe('09:00')
   })
 
   it('does not join when it would run past the end of the day', () => {
-    const late = item({ fixed: true, start: '21:45', durationMin: 15 })
-    const long = item({ durationMin: 60, alongside: late.ref })
+    const late = item({ fixed: true, start: '21:45', durationMin: 15, together: 'g1' })
+    const long = item({ durationMin: 60, together: 'g1' })
     const plan = planDay({ items: [late, long], nowMin: null })
     expect(placedOf(plan, long.ref)?.start).not.toBe('21:45')
   })
 
   it('places a task normally when its partner did not fit', () => {
     const allDay = item({ fixed: true, start: '06:00', durationMin: 960 }) // 06–22
-    const partner = item({ durationMin: 120 }) // no cabe
-    const other = item({ durationMin: 30, alongside: partner.ref, mode: 'audio' })
+    const partner = item({ durationMin: 120, together: 'g1' }) // no cabe
+    const other = item({ durationMin: 30, together: 'g1', mode: 'audio' })
     const plan = planDay({ items: [allDay, partner, other], nowMin: null })
     expect(placedOf(plan, partner.ref)).toBeUndefined()
     expect(plan.conflicts).toContainEqual(expect.objectContaining({ kind: 'no_room', ref: partner.ref }))
+  })
+
+  it('starts every member of a group of three together', () => {
+    const audit = item({ title: 'Auditoría con IA', durationMin: 90, together: 'g1' })
+    const qa = item({ title: 'Hallazgos de QA', durationMin: 120, together: 'g1' })
+    const tests = item({ title: 'Pruebas', durationMin: 60, together: 'g1' })
+    const plan = planDay({ items: [audit, qa, tests], nowMin: 12 * 60 })
+    const starts = [audit, qa, tests].map((i) => placedOf(plan, i.ref)?.start)
+    expect(starts).toEqual(['12:00', '12:00', '12:00'])
+    expect(placedOf(plan, tests.ref)?.overlapsWith.sort()).toEqual([audit.ref, qa.ref].sort())
+  })
+
+  it('keeps a solo item apart from an audio that could ride on it', () => {
+    const walk = item({ title: 'Leer la demo', mode: 'physical', durationMin: 60, solo: true, start: '09:00', fixed: true })
+    const podcast = item({ mode: 'audio', durationMin: 30 })
+    const plan = planDay({ items: [walk, podcast], nowMin: 9 * 60 })
+    expect(placedOf(plan, podcast.ref)?.start).toBe('10:10')
+  })
+
+  it('never places a flexible item past the end of the day, even after a late fixed one', () => {
+    const dinner = item({ fixed: true, start: '20:00', durationMin: 60 })
+    const work = item({ durationMin: 60 })
+    const plan = planDay({ items: [dinner, work], nowMin: 17 * 60, dayEnd: '17:30' })
+    expect(placedOf(plan, dinner.ref)).toMatchObject({ start: '20:00', end: '21:00' })
+    expect(placedOf(plan, work.ref)).toBeUndefined()
+    expect(plan.conflicts).toContainEqual(expect.objectContaining({ kind: 'no_room', ref: work.ref }))
   })
 
   it('reports no_room with the largest free gap', () => {
@@ -255,18 +287,26 @@ describe('conflictQuestions', () => {
     expect(q.text).toBe('Tesis (2 h) no cabe completa hoy. ¿Qué hacemos?')
     // La mitad (60 min) no cabe en el hueco de 40: no se ofrece partirla.
     expect(q.options.map((o) => o.label)).toEqual([
-      'Hacer solo 40 min',
+      'Me alcanza con 40 min',
       'Dejarla como tarea sin hora',
       'Pasarla a otro día',
     ])
   })
 
-  it('offers splitting when half fits and omits shorten under 15 minutes', () => {
+  it('names the day limit when the person set one', () => {
+    const qa = item({ durationMin: 120, title: 'Hallazgos de QA' })
+    const items = [qa]
+    const [q] = conflictQuestions(planDay({ items, nowMin: 16 * 60, dayEnd: '17:30' }), items)
+    expect(q.text).toBe('Hallazgos de QA (2 h) no cabe completa antes de las 5:30 pm. ¿Qué hacemos?')
+    expect(q.options.map((o) => o.label)).toContain('Me alcanza con 90 min')
+  })
+
+  it('offers splitting when half fits and omits the shorter version under 15 minutes', () => {
     const a = item({ fixed: true, start: '06:00', durationMin: 420 })
     const b = item({ fixed: true, start: '13:30', durationMin: 510 })
     const thesis = item({ durationMin: 20, title: 'Tesis' })
     const items = [a, b, thesis]
-    // Hueco 13:00–13:30 con márgenes: 10 min. La mitad (10) cabe; 10 < 15 → sin "Hacer solo".
+    // Hueco 13:00–13:30 con márgenes: 10 min. La mitad (10) cabe; 10 < 15 → sin "Me alcanza con".
     const [q] = conflictQuestions(planDay({ items, nowMin: null }), items)
     expect(q.options.map((o) => o.label)).toEqual([
       'Partirla en dos bloques',
@@ -277,7 +317,7 @@ describe('conflictQuestions', () => {
 })
 
 describe('applyEffect', () => {
-  it('alongside effect resolves the fixed_overlap', () => {
+  it('"a la vez" puts both items in one group and resolves the fixed_overlap', () => {
     const meeting = item({ fixed: true, start: '09:00', durationMin: 120 })
     const call = item({ fixed: true, start: '10:00', durationMin: 15 })
     const items = [meeting, call]
@@ -286,6 +326,26 @@ describe('applyEffect', () => {
     if (!('effect' in opt)) throw new Error('expected effect')
     const next = applyEffect(items, opt.effect)
     expect(planDay({ items: next, nowMin: null }).conflicts).toEqual([])
+  })
+
+  it('"a la vez" joins the group one of the items already had, and drops solo', () => {
+    const a = item({ together: 'g3' })
+    const b = item({ solo: true })
+    const c = item({ together: 'g1' })
+    const next = applyEffect([a, b, c], { kind: 'alongside', ref: b.ref, with: a.ref })
+    expect(next.find((i) => i.ref === b.ref)).toMatchObject({ together: 'g3', solo: false })
+    expect(next.find((i) => i.ref === a.ref)?.together).toBe('g3')
+  })
+
+  it('"a la vez" creates a group id not used by any other item', () => {
+    const a = item()
+    const b = item()
+    const other = item({ together: 'g1' })
+    const next = applyEffect([a, b, other], { kind: 'alongside', ref: b.ref, with: a.ref })
+    const group = next.find((i) => i.ref === a.ref)?.together
+    expect(group).toBeTruthy()
+    expect(group).not.toBe('g1')
+    expect(next.find((i) => i.ref === b.ref)?.together).toBe(group)
   })
 
   it('split creates two halves rounded to 5 minutes', () => {
