@@ -580,3 +580,37 @@ export function IconNote({ size = 24, className, style, filled = false }: Readon
     </svg>
   )
 }
+
+/** Lista con casillas — modo lista de una nota. */
+export function IconChecklist({ size = 20, className, style }: Readonly<IconProps>) {
+  return (
+    <svg {...base(size)} className={className} style={style} aria-hidden="true">
+      <rect x="3.5" y="4.5" width="5" height="5" rx="1.2" />
+      <path d="M4.8 16.8l1.4 1.4 2.6-2.8M12 7h8.5M12 17h8.5" />
+    </svg>
+  )
+}
+
+/** Carpeta con flecha — "Mover a…". */
+export function IconFolderMove({ size = 20, className, style }: Readonly<IconProps>) {
+  return (
+    <svg {...base(size)} className={className} style={style} aria-hidden="true">
+      <path d="M3.5 7.5a2 2 0 0 1 2-2h3.6l2 2.2h7.4a2 2 0 0 1 2 2v7.8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" />
+      <path d="M10 13.5h5.5M13.5 11.3l2.2 2.2-2.2 2.2" />
+    </svg>
+  )
+}
+
+/** Asa de arrastre (seis puntos) — reordenar elementos de una lista. */
+export function IconGrip({ size = 18, className, style }: Readonly<IconProps>) {
+  return (
+    <svg {...base(size)} className={className} style={style} aria-hidden="true">
+      {[7, 12, 17].map((y) => (
+        <g key={y}>
+          <circle cx="9" cy={y} r="1.3" fill="currentColor" stroke="none" />
+          <circle cx="15" cy={y} r="1.3" fill="currentColor" stroke="none" />
+        </g>
+      ))}
+    </svg>
+  )
+}

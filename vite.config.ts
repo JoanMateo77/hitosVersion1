@@ -93,6 +93,20 @@ export default defineConfig({
             icons: [{ src: 'icon-192.png?v=5', sizes: '192x192' }],
           },
           {
+            name: 'Nueva nota',
+            short_name: 'Nota',
+            description: 'Escribir una nota',
+            url: '/notas?nueva=nota',
+            icons: [{ src: 'icon-192.png?v=5', sizes: '192x192' }],
+          },
+          {
+            name: 'Nueva lista',
+            short_name: 'Lista',
+            description: 'Empezar una lista con casillas',
+            url: '/notas?nueva=lista',
+            icons: [{ src: 'icon-192.png?v=5', sizes: '192x192' }],
+          },
+          {
             name: 'Nueva meta',
             short_name: 'Meta',
             description: 'Crear una meta nueva',

@@ -50,10 +50,9 @@ export async function listNotes(userId: string): Promise<Note[]> {
     .select('*')
     .eq('user_id', userId)
     .order('updated_at', { ascending: false })
-  if (error) {
-    if (isMissingTable(error)) return []
-    throw new Error(error.message)
-  }
+  // Sin la tabla (migración 0017 sin aplicar) se avisa con su mensaje: una
+  // lista vacía haría creer que no hay notas.
+  if (error) throw failure(error)
   return (data as NoteRow[]).map(mapNote)
 }
 
@@ -126,4 +125,28 @@ export function setNoteArchived(id: string, archived: boolean): Promise<Note> {
 export async function deleteNote(id: string): Promise<void> {
   const { error } = await supabase.from('notes').delete().eq('id', id)
   if (error) throw failure(error)
+}
+
+/** Deshacer un borrado: vuelve a insertar la misma nota (mismo id y fechas). */
+export async function restoreNote(note: Note): Promise<Note> {
+  const { data, error } = await supabase
+    .from('notes')
+    .insert({
+      id: note.id,
+      user_id: note.userId,
+      title: note.title,
+      body: note.body,
+      items: note.items,
+      place: note.place,
+      goal_id: note.goalId,
+      area: note.area,
+      pinned: note.pinned,
+      archived_at: note.archivedAt,
+      created_at: note.createdAt,
+      updated_at: note.updatedAt,
+    })
+    .select('*')
+    .single()
+  if (error) throw failure(error)
+  return mapNote(data as NoteRow)
 }
