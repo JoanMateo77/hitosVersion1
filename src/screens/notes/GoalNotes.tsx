@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSession } from '@/app/session'
 import type { Goal, Note } from '@/lib/types'
 import { listNotes } from '@/services/notes'
@@ -8,6 +8,7 @@ import { notesForGoal } from '@/domain/notes'
 import { IconPlus } from '@/components/icons'
 import { NoteCard } from '@/screens/notes/NoteCard'
 import { NoteSheet } from '@/screens/notes/NoteSheet'
+import { useCardToggle } from '@/screens/notes/useCardToggle'
 import '@/styles/notes.css'
 
 /**
@@ -43,13 +44,14 @@ export function GoalNotes({ goalId }: Readonly<{ goalId: string }>) {
 
   const mine = useMemo(() => notesForGoal(notes, goalId), [notes, goalId])
 
-  function upsert(note: Note) {
+  const upsert = useCallback((note: Note) => {
     setNotes((prev) =>
       prev.some((n) => n.id === note.id)
         ? prev.map((n) => (n.id === note.id ? note : n))
         : [note, ...prev],
     )
-  }
+  }, [])
+  const toggleItem = useCardToggle(upsert)
 
   return (
     <div>
@@ -65,7 +67,13 @@ export function GoalNotes({ goalId }: Readonly<{ goalId: string }>) {
         <ul className="notes-list">
           {mine.map((note) => (
             <li key={note.id}>
-              <NoteCard note={note} goals={goals} withPlace={false} onOpen={() => setOpen(note)} />
+              <NoteCard
+                note={note}
+                goals={goals}
+                withPlace={false}
+                onOpen={() => setOpen(note)}
+                onToggleItem={(index) => toggleItem(note, index)}
+              />
             </li>
           ))}
         </ul>

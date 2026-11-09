@@ -163,9 +163,48 @@
   margin-bottom: var(--lip);
   transition: transform var(--dur-tap) var(--ease-out), box-shadow var(--dur-tap) var(--ease-out);
 }
-.note-card:active {
+.note-card {
+  position: relative;
+}
+/* Toda la tarjeta abre la nota (el botón del título la cubre con ::after);
+   las casillas quedan encima y marcan sin abrirla. */
+.note-card:has(.note-card__open:active) {
   transform: translateY(var(--lip));
   box-shadow: 0 0 0 transparent;
+}
+.note-card:has(.note-card__open:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.note-card__open {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 1.35em;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.note-card__open::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.note-card__open:focus-visible {
+  outline: none;
+}
+/* Recién creada: entra al cerrar la hoja (así se ve dónde quedó). */
+.note-card--fresh {
+  animation: note-card-in var(--dur-focal) var(--ease-spring);
+}
+@keyframes note-card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
 }
 .note-card--area {
   position: relative;
@@ -208,6 +247,77 @@
   overflow: hidden;
   overflow-wrap: anywhere;
 }
+.note-card__count {
+  flex: none;
+  font-size: var(--fs-xs);
+  font-weight: 750;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35rem;
+}
+
+/* Lista en la tarjeta: casilla tocable (44 px de ancho, 36 de alto) y texto. */
+.note-card__items {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin: 0 0 0 -10px;
+  padding: 0;
+  list-style: none;
+}
+.note-card__item {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+}
+.note-card__item.is-indented {
+  padding-left: 22px;
+}
+.note-card__check {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: 44px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+}
+.note-card__box {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  color: transparent;
+  transition: background-color var(--dur-tap) var(--ease-out), border-color var(--dur-tap) var(--ease-out),
+    transform var(--dur-tap) var(--ease-out);
+}
+.note-card__check:active .note-card__box {
+  transform: scale(0.86);
+}
+.note-card__check.is-done .note-card__box {
+  background: var(--state-ok);
+  border-color: var(--state-ok);
+  color: var(--state-ok-ink);
+  animation: check-pop var(--dur-state) var(--ease-spring);
+}
+.note-card__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.note-card__text.is-done {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
 .note-card__place {
   display: inline-flex;
   align-items: center;
@@ -245,34 +355,283 @@
   color: var(--vivid-ink);
 }
 
-/* ---- Hoja ---------------------------------------------------------------- */
-.note-body {
-  min-height: 140px;
+/* ---- Barra de captura ----------------------------------------------------
+   Lo primero de la pantalla: escribir. Parece un campo (no un botón azul) y
+   abre la hoja ya con el foco puesto; el botón de al lado abre una lista. */
+.notes-capture {
+  display: flex;
+  gap: var(--s2);
+  margin-bottom: var(--s4);
+}
+.notes-capture__write {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 52px;
+  padding: 0 var(--s4);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-md);
+  text-align: left;
+  transition: border-color var(--dur-tap) var(--ease-out), transform var(--dur-tap) var(--ease-out);
+}
+.notes-capture__list {
+  flex: none;
+  width: 52px;
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  transition: border-color var(--dur-tap) var(--ease-out), transform var(--dur-tap) var(--ease-out);
+}
+.notes-capture__write:hover,
+.notes-capture__list:hover {
+  border-color: var(--focus-ring);
+}
+.notes-capture__write:active,
+.notes-capture__list:active {
+  transform: scale(0.98);
 }
 
-.note-items {
+/* ---- Hoja ----------------------------------------------------------------
+   Se ve como una nota, no como un formulario: una sola superficie con el
+   título y el cuerpo sin bordes propios. */
+.note-sheet__head {
+  gap: var(--s2);
+}
+.note-sheet__head h2 {
+  margin-right: auto;
+}
+.note-status {
+  font-size: var(--fs-xs);
+  font-weight: 650;
+  color: var(--text-muted);
+  transition: opacity var(--dur-state) var(--ease-out);
+}
+.note-status--idle {
+  opacity: 0;
+}
+.note-status--error {
+  color: var(--danger-text);
+}
+
+.note-editor {
   display: flex;
   flex-direction: column;
   gap: var(--s2);
+  padding: var(--s3) var(--s4) var(--s4);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  transition: border-color var(--dur-tap) var(--ease-out);
+}
+.note-editor:focus-within {
+  border-color: var(--focus-ring);
+}
+.note-title,
+.note-body,
+.note-items__text {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+.note-title:focus,
+.note-body:focus,
+.note-items__text:focus {
+  outline: none;
+}
+.note-title::placeholder,
+.note-body::placeholder,
+.note-items__text::placeholder {
+  color: var(--text-muted);
+}
+.note-title {
+  min-height: 40px;
+  font-size: var(--fs-lg);
+  font-weight: 650;
+}
+.note-body {
+  min-height: 180px;
+  resize: none;
+  font-size: var(--fs-md);
+  line-height: 1.55;
+  field-sizing: content;
+  max-height: 55dvh;
+}
+
+/* ---- Lista ---------------------------------------------------------------- */
+.note-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+.note-items {
+  display: flex;
+  flex-direction: column;
   list-style: none;
-  margin: 0;
+  margin: 0 0 0 -8px;
   padding: 0;
 }
 .note-items__row {
   display: flex;
   align-items: center;
-  gap: var(--s2);
+  gap: 4px;
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
 }
+.note-items__row.is-indented {
+  padding-left: 28px;
+}
+/* Fila nueva (o que cambió de grupo): entra corta, sin empujar de golpe. */
+.note-items__row.is-new {
+  animation: note-item-in var(--dur-state) var(--ease-out);
+}
+@keyframes note-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+.note-items__text {
+  flex: 1 1 auto;
+  min-height: 40px;
+  font-size: var(--fs-md);
+  transition: color var(--dur-state) var(--ease-out);
+}
+/* Al marcar: tachado y el color se atenúa con transición. */
 .note-items__text.is-done {
-  text-decoration: line-through;
   color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--text-muted) 80%, transparent);
+}
+.note-items__check {
+  margin: 0 8px 0 0;
+}
+/* Elemento largo: crece en líneas (sin barra ni asa de tamaño). */
+.note-items__multi {
+  resize: none;
+  overflow: hidden;
+  field-sizing: content;
+  padding: 10px 0;
+  line-height: 1.35;
+}
+.note-items__row:has(.note-items__multi) {
+  align-items: flex-start;
+}
+.note-items__row:has(.note-items__multi) > .note-items__check {
+  margin-top: 8px;
+}
+.note-items__row:has(.note-items__multi) > .note-items__grip,
+.note-items__row:has(.note-items__multi) > .note-items__remove {
+  margin-top: 0;
+  align-self: flex-start;
+}
+.note-items__remove {
+  background: transparent;
+  color: var(--text-muted);
+}
+.note-items__remove:hover {
+  color: var(--text);
+}
+.note-items__grip {
+  flex: none;
+  width: 28px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  cursor: grab;
+  /* El gesto es del asa: sin esto el navegador se lo queda para el scroll. */
+  touch-action: none;
+}
+.note-items__grip:active {
+  cursor: grabbing;
+}
+.note-items--done .note-items__row {
+  padding-left: 28px;
+}
+.note-items--done .note-items__row.is-indented {
+  padding-left: 56px;
+}
+.note-items__add {
+  padding-left: 28px;
 }
 .note-items__plus {
   flex: none;
   width: 28px;
+  margin-right: 8px;
   display: inline-flex;
   justify-content: center;
   color: var(--text-muted);
+}
+/* Arrastre: la fila tomada se levanta; las demás se corren con transición. */
+.note-items--dragging .note-items__row {
+  transition: transform var(--dur-state) var(--ease-out);
+}
+.note-items--dragging .note-items__row.is-dragging {
+  position: relative;
+  z-index: 2;
+  transition: none;
+  box-shadow: var(--shadow);
+}
+
+/* Marcados: plegable, abierto por defecto. */
+.note-done {
+  border-top: 1px solid var(--border-soft);
+  padding-top: var(--s2);
+}
+.note-done__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 var(--s2) 0 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+.note-done__chevron {
+  transition: transform var(--dur-state) var(--ease-out);
+}
+.note-done__toggle[aria-expanded='true'] .note-done__chevron {
+  transform: rotate(90deg);
+}
+.note-done__body {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition: grid-template-rows var(--dur-layout) var(--ease-ios), visibility 0s linear var(--dur-layout);
+}
+.note-done__body.is-open {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition: grid-template-rows var(--dur-layout) var(--ease-ios), visibility 0s;
+}
+.note-done__body > .note-items {
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* "Elegir otra opción" del paso ¿En qué meta?: enlace a la izquierda. */
@@ -280,18 +639,98 @@
   align-self: flex-start;
 }
 
-/* Acciones de la hoja: rejilla pareja (2 columnas) en vez de una
-   fila que se parte a destiempo. Eliminar queda aparte, debajo. */
-.note-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+/* ---- Acciones ---------------------------------------------------------------
+   Fila de íconos con su nombre: lo de todos los días a un toque y el resto en
+   "Más", sin cinco botones del mismo peso compitiendo con lo escrito. */
+.note-tools-wrap {
+  display: flex;
+  flex-direction: column;
   gap: var(--s2);
 }
-.note-actions .btn {
-  width: 100%;
+.note-tools {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
 }
-.note-actions .note-actions__delete {
-  grid-column: 1 / -1;
-  justify-self: start;
-  width: auto;
+.note-tool {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 56px;
+  padding: 6px 2px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  transition: background-color var(--dur-tap) var(--ease-out), transform var(--dur-tap) var(--ease-out);
+}
+.note-tool:hover {
+  background: var(--surface-2);
+}
+.note-tool:active {
+  transform: scale(0.94);
+}
+.note-tool:disabled {
+  opacity: 0.5;
+}
+.note-tool[aria-pressed='true'],
+.note-tool[aria-expanded='true'] {
+  background: var(--surface-2);
+  color: var(--action-text);
+}
+/* Fijar: la chincheta da un salto corto al clavarse. */
+.note-tool[aria-pressed='true'] svg {
+  animation: check-pop var(--dur-state) var(--ease-spring);
+}
+.note-tool__label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-xs);
+  font-weight: 650;
+}
+/* 320 px: cinco nombres caben enteros con una letra un punto menor. */
+@media (max-width: 359px) {
+  .note-tools {
+    gap: 0;
+  }
+  .note-tool__label {
+    font-size: 11px;
+  }
+}
+.note-more {
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  background: var(--surface);
+  animation: note-item-in var(--dur-state) var(--ease-out);
+}
+.note-more__item {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 44px;
+  padding: 0 var(--s3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-align: left;
+}
+.note-more__item:hover {
+  background: var(--surface-2);
+}
+.note-more__item--danger {
+  color: var(--danger-text);
 }

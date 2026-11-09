@@ -79,14 +79,37 @@ export function noteExcerpt(n: NoteContent): string {
   return rest.join(n.items ? ' · ' : ' ')
 }
 
-/** Texto → lista: cada línea con texto es un elemento sin marcar. */
+const DONE_MARK = '✓ '
+const INDENT_MARK = '\t'
+
+/**
+ * Texto → lista: cada línea con texto es un elemento. Lee lo que escribe
+ * itemsToLines ("✓ " = marcado, tabulación delante = sangría) para que ir y
+ * volver no pierda nada. El primero nunca queda con sangría.
+ */
 export function linesToItems(body: string): NoteItem[] {
-  return textLines(body).map((text) => ({ text, done: false }))
+  const items = body
+    .split('\n')
+    .filter((line) => line.trim() !== '')
+    .map((line): NoteItem => {
+      const indented = line.startsWith(INDENT_MARK)
+      let text = line.trim()
+      const done = text.startsWith(DONE_MARK.trim())
+      if (done) text = text.slice(DONE_MARK.trim().length).trim()
+      return indented ? { text, done, indented: true } : { text, done }
+    })
+    .filter((item) => item.text !== '')
+  const [first, ...rest] = items
+  if (!first) return []
+  return [{ text: first.text, done: first.done }, ...rest]
 }
 
-/** Lista → texto: una línea por elemento con texto. */
+/** Lista → texto: una línea por elemento con texto, con su marca y sangría. */
 export function itemsToLines(items: NoteItem[]): string {
-  return itemTexts(items).join('\n')
+  return items
+    .filter((i) => i.text.trim() !== '')
+    .map((i) => (i.indented ? INDENT_MARK : '') + (i.done ? DONE_MARK : '') + i.text.trim())
+    .join('\n')
 }
 
 /** ¿No hay nada escrito? (una nota así no se guarda al cerrar). */

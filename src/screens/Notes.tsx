@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useSession } from '@/app/session'
 import type { Goal, NicheId, Note } from '@/lib/types'
@@ -7,11 +7,12 @@ import { useOnAppReturn } from '@/hooks/useOnAppReturn'
 import { listGoals } from '@/services/goals'
 import { visibleNotes, type NoteView } from '@/domain/notes'
 import { SkeletonList } from '@/components/Skeleton'
-import { IconArchive, IconNote, IconPlus } from '@/components/icons'
+import { IconArchive, IconChecklist, IconNote, IconPlus } from '@/components/icons'
 import { NicheIcon } from '@/components/NicheGlyph'
 import { nicheAccent } from '@/lib/nicheAccent'
 import { NoteSheet } from '@/screens/notes/NoteSheet'
 import { NoteCard } from '@/screens/notes/NoteCard'
+import { useCardToggle } from '@/screens/notes/useCardToggle'
 import { noteArea, noteErrorMessage, notePlaceLabel } from '@/screens/notes/noteUi'
 import '@/styles/notes.css'
 
@@ -38,11 +39,11 @@ const EMPTY: Record<NoteView, { title: string; text: string }> = {
   },
   goals: {
     title: 'Ninguna nota en tus metas',
-    text: 'Abre una nota y elige «Mover a…» una meta. Aquí se agrupan por meta.',
+    text: 'Abre una nota y toca «Mover» para llevarla a una meta. Aquí se agrupan por meta.',
   },
   areas: {
     title: 'Ninguna nota en tus áreas',
-    text: 'Abre una nota y elige «Mover a…» un área. Aquí se agrupan por área.',
+    text: 'Abre una nota y toca «Mover» para llevarla a un área. Aquí se agrupan por área.',
   },
   ideas: {
     title: 'Sin ideas guardadas',
@@ -85,8 +86,15 @@ function readView(value: string | null): NoteView {
   return value !== null && VIEW_IDS.has(value) ? (value as NoteView) : 'inbox'
 }
 
-/** Hoja abierta: una nota existente o una nueva (null). */
-type SheetState = { note: Note | null } | null
+/** Hoja abierta: una nota existente o una nueva (null), que puede nacer como lista. */
+type SheetState = { note: Note | null; asList?: boolean } | null
+
+/** ?nueva=nota|lista: accesos directos del ícono de la app. */
+function readNew(value: string | null): SheetState {
+  if (value === 'nota') return { note: null }
+  if (value === 'lista') return { note: null, asList: true }
+  return null
+}
 
 export function Notes() {
   const { userId } = useSession()
@@ -97,6 +105,31 @@ export function Notes() {
   const [goals, setGoals] = useState<Goal[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [sheet, setSheet] = useState<SheetState>(null)
+  // La hoja abierta ahora: un "Deshacer" que llega con la hoja ya cerrada no
+  // debe marcar como recién creada una tarjeta que no lo es.
+  const sheetRef = useRef<SheetState>(null)
+  useEffect(() => {
+    sheetRef.current = sheet
+  }, [sheet])
+  /** Nota creada en la hoja abierta; al cerrarla, su tarjeta entra animada. */
+  const [createdId, setCreatedId] = useState<string | null>(null)
+  const [freshId, setFreshId] = useState<string | null>(null)
+
+  // El acceso directo abre la hoja (también con Notas ya abierta) una vez: el
+  // parámetro se quita para que volver o recargar no la abra de nuevo.
+  const requested = params.get('nueva')
+  const [handledNew, setHandledNew] = useState<string | null>(null)
+  if (requested !== handledNew) {
+    setHandledNew(requested)
+    const opened = readNew(requested)
+    if (opened) setSheet(opened)
+  }
+  useEffect(() => {
+    if (requested === null) return
+    const next = new URLSearchParams(params)
+    next.delete('nueva')
+    setParams(next, { replace: true })
+  }, [requested, params, setParams])
 
   // Al volver a la app se recarga (reload): otro dispositivo pudo cambiar las
   // notas, y abrir una versión vieja y guardarla pisaría esos cambios.
@@ -131,13 +164,20 @@ export function Notes() {
     setParams(nextParams, { replace: true })
   }
 
-  function upsert(note: Note) {
+  const upsert = useCallback((note: Note) => {
     setNotes((prev) => {
       const list = prev ?? []
       return list.some((n) => n.id === note.id)
         ? list.map((n) => (n.id === note.id ? note : n))
         : [note, ...list]
     })
+  }, [])
+  const toggleItem = useCardToggle(upsert)
+
+  function closeSheet() {
+    setFreshId(createdId)
+    setCreatedId(null)
+    setSheet(null)
   }
 
   function remove(id: string) {
@@ -156,7 +196,9 @@ export function Notes() {
             note={note}
             goals={goals}
             withPlace={withPlace}
+            fresh={note.id === freshId}
             onOpen={() => setSheet({ note })}
+            onToggleItem={(index) => toggleItem(note, index)}
           />
         </li>
       ))}
@@ -189,15 +231,28 @@ export function Notes() {
     <div className="screen">
       <header className="row row--between screen__header">
         <h1 className="screen__title">Notas</h1>
+      </header>
+
+      {/* Captura: escribir es lo primero que se hace aquí. */}
+      <div className="notes-capture">
         <button
           type="button"
-          className="btn btn--primary btn--sm screen__add"
+          className="notes-capture__write"
           aria-label="Nueva nota"
           onClick={() => setSheet({ note: null })}
         >
-          <IconPlus size={18} /> Nota
+          <IconPlus size={18} />
+          <span>Escribe una nota…</span>
         </button>
-      </header>
+        <button
+          type="button"
+          className="notes-capture__list"
+          aria-label="Nueva lista"
+          onClick={() => setSheet({ note: null, asList: true })}
+        >
+          <IconChecklist size={20} />
+        </button>
+      </div>
 
       {loadError && <div className="alert alert--warn">{loadError}</div>}
 
@@ -286,10 +341,14 @@ export function Notes() {
       {sheet && (
         <NoteSheet
           note={sheet.note}
+          startAsList={sheet.asList}
           goals={goals}
-          onChange={upsert}
+          onChange={(note) => {
+            if (sheet.note === null && sheetRef.current === sheet) setCreatedId(note.id)
+            upsert(note)
+          }}
           onRemove={remove}
-          onClose={() => setSheet(null)}
+          onClose={closeSheet}
         />
       )}
     </div>
