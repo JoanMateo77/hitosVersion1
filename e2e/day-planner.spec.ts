@@ -56,10 +56,15 @@ for (const viewport of [
     await expect(sheet.getByText('Entendí tu reunión')).toBeVisible()
 
     const draft = sheet.getByRole('region', { name: 'Borrador del día' })
-    await expect(draft.getByText('Reunión', { exact: true })).toBeVisible()
-    await expect(draft.getByText('Tesis', { exact: true })).toBeVisible()
+    // Lo nuevo va arriba, aparte de lo que ya había.
+    const changes = sheet.getByRole('region', { name: 'Lo que cambia' })
+    await expect(changes.getByText('Esto se agregará a tu día')).toBeVisible()
+    await expect(changes.getByText('Reunión', { exact: true })).toBeVisible()
+    await expect(changes.getByText('Tesis', { exact: true })).toBeVisible()
     await expect(sheet.getByText('Supuse 2 h para la tesis')).toBeVisible()
-    // Lo que ya había en el día sigue en el borrador (no se pierde).
+    // Lo que ya había sigue en el borrador, plegado (no se pierde).
+    await expect(draft.getByText('Meditar 10 minutos al día')).toBeHidden()
+    await draft.getByRole('button', { name: /Ver el resto de tu día/ }).click()
     await expect(draft.getByText('Meditar 10 minutos al día')).toBeVisible()
 
     // Pregunta del algoritmo (choque), antes que la de la IA.
@@ -70,8 +75,9 @@ for (const viewport of [
     await expect(sheet.getByText(/chocan/)).toHaveCount(0)
     await expect(draft.getByText(/A la vez con Reunión/)).toBeVisible()
 
-    await sheet.getByRole('button', { name: 'Aplicar (3 cambios)' }).click()
+    await sheet.getByRole('button', { name: 'Agregar 3 cosas a mi agenda' }).click()
     await expect(sheet.getByRole('button', { name: 'Deshacer' })).toBeVisible()
+    await expect(sheet.getByText('Agregué 3 cosas a tu día.')).toBeVisible()
     // Cada evento se guarda con el área que eligió la IA (su color en la agenda).
     expect(eventPosts.map((b) => [b.title, b.area])).toEqual(
       expect.arrayContaining([
@@ -84,8 +90,8 @@ for (const viewport of [
     await page.screenshot({ path: test.info().outputPath(`applied-${viewport.width}.png`) })
 
     await sheet.getByRole('button', { name: 'Deshacer' }).click()
-    await expect(sheet.getByRole('button', { name: 'Aplicar (3 cambios)' })).toBeVisible()
-    await sheet.getByRole('button', { name: 'Aplicar (3 cambios)' }).click()
+    await expect(sheet.getByRole('button', { name: 'Agregar 3 cosas a mi agenda' })).toBeVisible()
+    await sheet.getByRole('button', { name: 'Agregar 3 cosas a mi agenda' }).click()
     await sheet.getByRole('button', { name: 'Listo' }).click()
     await expect(sheet).toHaveCount(0)
     await expect(page.getByText('Llamada al banco').first()).toBeVisible()
@@ -181,3 +187,109 @@ test('draft items cannot be edited while the AI responds', async ({ browser }) =
   await expect(row).toBeEnabled()
   await context.close()
 })
+
+/** La IA responde esto (sin preguntas ni choques) en vez de la respuesta de siempre. */
+async function aiSays(page: Page, reply: Record<string, unknown>) {
+  await page.route('**/api/plan-meta', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(reply) }),
+  )
+}
+
+const CLEAR_REPLY = {
+  reply: 'Te propongo las pruebas de seguridad mientras desarrollas.',
+  items: [
+    { ref: 'new:1', source: 'new', title: 'Pruebas de seguridad', fixed: true, start: '12:00', durationMin: 120, window: null, mode: 'focus', goalId: null, alongside: null, untimed: false, area: 'carrera' },
+    { ref: 'new:2', source: 'new', title: 'Desarrollar funcionalidades', fixed: false, start: null, durationMin: 90, window: null, mode: 'focus', goalId: null, alongside: 'new:1', untimed: false, area: 'carrera' },
+  ],
+  questions: [],
+  assumptions: [],
+  removed: [],
+}
+
+test('auto mode applies by itself, joins tasks done together and can be undone', async ({ browser }) => {
+  const { context, page } = await openPlanner(browser, { width: 390, height: 800 })
+  await aiSays(page, CLEAR_REPLY)
+  const posts: unknown[] = []
+  page.on('request', (r) => {
+    if (r.method() === 'POST' && new URL(r.url()).pathname === '/rest/v1/events') posts.push(r.postDataJSON())
+  })
+  const sheet = page.getByRole('dialog', { name: /Organizar el/ })
+  const toggle = sheet.getByRole('switch', { name: 'Aplicar solo' })
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-checked', 'true')
+
+  await sheet.getByLabel('Cuéntame tu día').fill('Pruebas de seguridad a las 12 mientras desarrollo')
+  await sheet.getByLabel('Cuéntame tu día').press('Enter')
+  // Sin tocar ningún botón: queda guardado y se puede deshacer.
+  await expect(sheet.getByText('Agregué 2 cosas a tu día.')).toBeVisible()
+  await expect.poll(() => posts.length).toBe(2)
+  const changes = sheet.getByRole('region', { name: 'Lo que se guardó' })
+  await expect(changes.getByText(/12:00 pm – 1:30 pm/)).toBeVisible()
+  await expect(changes.getByText(/A la vez con Pruebas de seguridad/)).toBeVisible()
+  await settle(page)
+  await page.screenshot({ path: test.info().outputPath('auto-applied-390.png') })
+
+  await sheet.getByRole('button', { name: 'Deshacer' }).click()
+  await expect(sheet.getByRole('button', { name: 'Agregar 2 cosas a mi agenda' })).toBeVisible()
+
+  // El modo se recuerda al volver a abrir.
+  await sheet.locator('.iconbtn[aria-label="Cerrar"]').click()
+  await sheet.getByRole('button', { name: 'Salir', exact: true }).click()
+  await expect(sheet).toHaveCount(0)
+  await page.getByRole('button', { name: 'Organizar con IA' }).click()
+  await expect(page.getByRole('dialog', { name: /Organizar el/ }).getByRole('switch', { name: 'Aplicar solo' })).toHaveAttribute('aria-checked', 'true')
+  await context.close()
+})
+
+test('auto mode never moves what you already had without asking', async ({ browser }) => {
+  const { context, page } = await openPlanner(browser, { width: 390, height: 800 })
+  // A las 3 pm ya está el hábito "Tomar agua": el borrador lo mueve.
+  const items = CLEAR_REPLY.items.map((i) => (i.ref === 'new:1' ? { ...i, start: '15:00' } : i))
+  await aiSays(page, { ...CLEAR_REPLY, items })
+  const posts: unknown[] = []
+  page.on('request', (r) => {
+    if (r.method() === 'POST' && new URL(r.url()).pathname === '/rest/v1/events') posts.push(r)
+  })
+  const sheet = page.getByRole('dialog', { name: /Organizar el/ })
+  await sheet.getByRole('switch', { name: 'Aplicar solo' }).click()
+  await sheet.getByLabel('Cuéntame tu día').fill('Pruebas de seguridad a las 3 mientras desarrollo')
+  await sheet.getByLabel('Cuéntame tu día').press('Enter')
+  await expect(sheet.getByText('Esto mueve cosas que ya tenías: revísalo y guarda.')).toBeVisible()
+  await expect(sheet.getByRole('region', { name: 'Lo que cambia' }).getByText('Esto cambia de hora')).toBeVisible()
+  await expect(sheet.getByRole('button', { name: 'Guardar 3 cambios' })).toBeVisible()
+  await page.waitForTimeout(500)
+  expect(posts).toHaveLength(0)
+  await context.close()
+})
+
+test('auto mode waits while there are questions', async ({ browser }) => {
+  const { context, page } = await openPlanner(browser, { width: 390, height: 800 })
+  const posts: unknown[] = []
+  page.on('request', (r) => {
+    if (r.method() === 'POST' && new URL(r.url()).pathname === '/rest/v1/events') posts.push(r)
+  })
+  const sheet = page.getByRole('dialog', { name: /Organizar el/ })
+  await sheet.getByRole('switch', { name: 'Aplicar solo' }).click()
+  await sheet.getByLabel('Cuéntame tu día').fill('Reunión de 9 a 11 y llamar al banco a las 10')
+  await sheet.getByLabel('Cuéntame tu día').press('Enter')
+  await expect(sheet.getByText(/chocan/)).toBeVisible()
+  await page.waitForTimeout(500)
+  expect(posts).toHaveLength(0)
+  await expect(sheet.getByRole('button', { name: 'Agregar 3 cosas a mi agenda' })).toBeVisible()
+  await context.close()
+})
+
+test('without changes there is no apply button: examples at first, a hint after talking', async ({ browser }) => {
+  const { context, page } = await openPlanner(browser, { width: 390, height: 800 })
+  await aiSays(page, { reply: '¿Qué te gustaría hacer hoy?', items: [], questions: [], assumptions: [], removed: [] })
+  const sheet = page.getByRole('dialog', { name: /Organizar el/ })
+  await expect(sheet.getByRole('button', { name: /ordenar la casa/ })).toBeVisible()
+  await expect(sheet.getByRole('button', { name: /Agregar .* a mi agenda|Guardar/ })).toHaveCount(0)
+  await expect(sheet.getByText('Cuando la IA proponga algo, aquí lo guardas en tu agenda.')).toHaveCount(0)
+  await sheet.getByLabel('Cuéntame tu día').fill('Hola')
+  await sheet.getByLabel('Cuéntame tu día').press('Enter')
+  await expect(sheet.getByText('Cuando la IA proponga algo, aquí lo guardas en tu agenda.')).toBeVisible()
+  await expect(sheet.getByRole('button', { name: /Agregar .* a mi agenda|Guardar/ })).toHaveCount(0)
+  await context.close()
+})
+

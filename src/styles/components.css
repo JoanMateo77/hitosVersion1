@@ -3048,31 +3048,29 @@ select.input:focus {
   gap: var(--s2);
   padding-left: calc(24px + var(--s2)); /* alinea con el texto, pasado el orbe */
 }
-.dayplan-block {
-  display: flex;
-  flex-direction: column;
-  border-top: 1px solid var(--border);
+/* Lo que cambia: tarjetas con el color de su área (lo movido, en azul de acción). */
+.dayplan-changes {
+  scroll-margin: var(--s4);
 }
-.dayplan-block + .dayplan-block {
-  margin-top: var(--s1);
+.dayplan-card {
+  border-radius: var(--radius-sm);
+  border-left: 5px solid var(--niche, var(--action));
+  background: color-mix(in srgb, var(--niche, var(--action)) 14%, var(--surface));
+  /* Entran escalonadas (tope de 5) como los mensajes del coach. */
+  animation: coach-rise var(--dur-layout) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 50ms);
 }
-.dayplan-item {
-  border-left: 3px solid transparent;
-  padding-left: var(--s2);
+/* Ya guardado: más sereno que el borrador. */
+.dayplan-changes--saved .dayplan-card {
+  background: color-mix(in srgb, var(--niche, var(--action)) 8%, var(--surface));
 }
-.dayplan-item--changed {
-  border-left-color: var(--action);
-}
-.dayplan-item--area {
-  border-left-color: var(--niche);
-}
-.dayplan-item__main {
+.dayplan-card__main {
   display: grid;
-  /* Columna de horas fija: los títulos quedan alineados entre filas. */
-  grid-template-columns: 9.5em 1fr;
-  column-gap: var(--s3);
+  grid-template-columns: auto 1fr;
+  column-gap: var(--s2);
+  row-gap: 2px;
   width: 100%;
-  padding: var(--s2) 0;
+  padding: var(--s3);
   border: 0;
   background: none;
   font: inherit;
@@ -3080,28 +3078,231 @@ select.input:focus {
   color: var(--text);
   cursor: pointer;
 }
-.dayplan-item__main:disabled {
+.dayplan-card__main--static,
+.dayplan-card__main:disabled {
   cursor: default;
 }
-.dayplan-item__time {
+.dayplan-card__tag {
+  align-self: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  /* Par de superficie y tinta del área, verificado en contraste (tokens.css).
+     Sin área (lo movido): texto de acción y fondo de la hoja, ≥ 4.5:1 en ambos temas. */
+  background: var(--vivid, var(--action-text));
+  color: var(--vivid-ink, var(--bg-elev));
   font-size: var(--fs-xs);
+  font-weight: 700;
+}
+.dayplan-card__title {
+  font-weight: 700;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dayplan-card__time,
+.dayplan-card__notes {
+  grid-column: 1 / -1;
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
-  padding-top: 2px;
-  white-space: nowrap;
 }
-.dayplan-item__title {
+.dayplan-card__notes {
+  font-size: var(--fs-xs);
+  color: var(--action-text);
+  font-weight: 600;
+}
+/* El resto del día: plegado y atenuado, una línea por cosa. */
+.dayplan-rest {
+  border-top: 1px solid var(--border);
+  padding-top: var(--s2);
+}
+.dayplan-rest__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
   font-size: var(--fs-sm);
   font-weight: 600;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--action-text);
+  cursor: pointer;
 }
-.dayplan-item__tags {
-  grid-column: 2;
+.dayplan-rest__chevron {
+  transform: rotate(90deg);
+  transition: transform var(--dur-state) var(--ease-out);
+}
+.dayplan-rest__toggle[aria-expanded='true'] .dayplan-rest__chevron {
+  transform: rotate(-90deg);
+}
+/* Plegado con altura animada: grid de 0fr a 1fr. */
+.dayplan-rest__body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-layout) var(--ease-out);
+}
+.dayplan-rest__body[data-open='true'] {
+  grid-template-rows: 1fr;
+}
+.dayplan-rest__body > * {
+  overflow: hidden;
+  min-height: 0;
+}
+/* Cerrado también es invisible (no solo recortado), tras terminar de plegarse. */
+.dayplan-rest__body[data-open='false'] > * {
+  visibility: hidden;
+  transition: visibility 0s linear var(--dur-layout);
+}
+.dayplan-rest__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.dayplan-rest__list li {
+  display: grid;
+  grid-template-columns: minmax(5.5em, auto) 1fr;
+  column-gap: var(--s3);
+}
+.dayplan-rest__time {
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
-  color: var(--action);
+  padding-top: 2px;
+}
+/* Interruptor "Aplicar solo". */
+.dayplan-auto {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+.switch {
+  flex: none;
+  position: relative;
+  padding: 0;
+  width: 52px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+  cursor: pointer;
+  transition: background var(--dur-state) var(--ease-out);
+}
+.switch[aria-checked='true'] {
+  background: var(--primary);
+  box-shadow: none;
+}
+/* Área táctil de 44 px aunque se vea de 32. */
+.switch::after {
+  content: '';
+  position: absolute;
+  inset: -6px -2px;
+}
+.switch:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.switch__thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  /* Borde visible: apagado, el pulgar blanco sobre --surface-2 casi no se distingue. */
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 1px 3px rgba(0, 0, 0, 0.25);
+  transition:
+    transform var(--dur-state) var(--ease-spring),
+    width var(--dur-tap) var(--ease-out);
+}
+.switch[aria-checked='true'] .switch__thumb {
+  transform: translateX(20px);
+}
+/* Al presionar, el pulgar se estira como en iOS. */
+.switch:active:not(:disabled) .switch__thumb {
+  width: 30px;
+}
+.switch[aria-checked='true']:active:not(:disabled) .switch__thumb {
+  transform: translateX(16px);
+}
+/* Botón de guardar: pulso suave cuando cambia lo que va a guardar. */
+.dayplan-apply {
+  position: relative;
+  min-height: 52px;
+  font-size: var(--fs-md);
+}
+/* Pulso con transform/opacity (compositor), una vez por cada aumento de cambios. */
+.dayplan-apply__pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 45%, transparent);
+  pointer-events: none;
+  animation: dayplan-pulse var(--dur-focal) var(--ease-out) both;
+}
+@keyframes dayplan-pulse {
+  from {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.04, 1.18);
+  }
+}
+.dayplan-footer__hint {
+  margin: 0;
+  width: 100%;
+  text-align: center;
+}
+.dayplan-footer__note {
+  margin: 0;
+  color: var(--action-text);
+  font-weight: 600;
+}
+.dayplan-applied {
+  width: 100%;
+  animation: coach-rise var(--dur-state) var(--ease-out) both;
+}
+.dayplan-footer__status {
+  margin: 0;
+  width: 100%;
+  font-weight: 700;
+  color: var(--text);
+}
+.dayplan-footer__status:empty {
+  display: none;
+}
+/* Ayuda en línea con el texto: sin el relleno de 44 px de .btn--link. */
+.dayplan-help {
+  display: inline;
+  min-height: 0;
+  padding: 0;
+}
+/* Encabezado fijo: el título y la X no se van al bajar al borrador. */
+.dayplan-head {
+  position: sticky;
+  top: calc(-1 * (var(--s6) + 8px));
+  z-index: 1;
+  margin-top: calc(-1 * (var(--s6) + 8px));
+  padding-top: calc(var(--s6) + 8px);
+  padding-bottom: var(--s2);
+  background: var(--bg-elev);
+}
+@media (prefers-reduced-motion: reduce) {
+  .dayplan-apply__pulse {
+    animation: none;
+    opacity: 0;
+  }
 }
 .dayplan-editor {
   display: flex;
@@ -3142,6 +3343,18 @@ select.input:focus {
   margin-bottom: calc(-1 * var(--dayplan-pad));
   padding: var(--s3) 0 var(--dayplan-pad);
   background: var(--bg-elev);
+  flex-wrap: wrap;
+}
+/* Degradado sobre el contenido que pasa por debajo del pie: sin corte seco. */
+.dayplan-footer::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -16px;
+  height: 16px;
+  background: linear-gradient(transparent, var(--bg-elev));
+  pointer-events: none;
 }
 
 /* ==== Agenda: cronología del día (2026-09) =================================
@@ -3714,15 +3927,19 @@ button.ag-row:active,
 }
 .tour-spot {
   position: fixed;
+  top: 0;
+  left: 0;
   border-radius: var(--radius);
   box-shadow:
     0 0 0 3px var(--primary),
     0 0 0 9999px rgba(10, 12, 30, 0.55);
+}
+/* Solo al cambiar de paso se desliza; al seguir un scroll va pegado al elemento. */
+.tour-spot--moving {
   transition:
-    top var(--dur-state) var(--ease-out),
-    left var(--dur-state) var(--ease-out),
-    width var(--dur-state) var(--ease-out),
-    height var(--dur-state) var(--ease-out);
+    transform var(--dur-layout) var(--ease-out),
+    width var(--dur-layout) var(--ease-out),
+    height var(--dur-layout) var(--ease-out);
 }
 .tour-bubble {
   position: fixed;
@@ -3772,8 +3989,18 @@ button.ag-row:active,
     transform: translateY(6px);
   }
 }
+/* Arriba del elemento, entra bajando hacia él. */
+.tour-bubble--above {
+  animation-name: tour-in-above;
+}
+@keyframes tour-in-above {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .tour-spot {
+  .tour-spot--moving {
     transition: none;
   }
   .tour-bubble {

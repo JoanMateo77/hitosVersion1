@@ -176,12 +176,21 @@ export function planDay(input: PlanDayInput): DayPlan {
     else placed.push(slot)
   }
 
-  const flexible = [...queue, ...timed.filter((i) => !i.fixed && !i.start)].sort((a, b) => {
+  const sorted = [...queue, ...timed.filter((i) => !i.fixed && !i.start)].sort((a, b) => {
     if (Boolean(a.window) !== Boolean(b.window)) return a.window ? -1 : 1
     return b.durationMin - a.durationMin
   })
+  // Lo que se hace "a la vez" con otro flexible va después de él, para ubicarse a su lado.
+  const flexRefs = new Set(sorted.map((i) => i.ref))
+  const follows = (i: DayItem) => i.alongside !== null && flexRefs.has(i.alongside)
+  const flexible = [...sorted.filter((i) => !follows(i)), ...sorted.filter(follows)]
 
   for (const it of flexible) {
+    const together = besidePartner(it, placed, lower, dayEndMin)
+    if (together) {
+      placed.push(together)
+      continue
+    }
     const slot = placeFlexible(it, placed, { lower, dayStartMin, dayEndMin, buffer }, relocatedFrom.get(it.ref))
     if (slot.kind === 'placed') placed.push(slot.slot)
     else conflicts.push({ kind: 'no_room', ref: it.ref, freeMin: slot.freeMin })
@@ -192,6 +201,21 @@ export function planDay(input: PlanDayInput): DayPlan {
     untimed: input.items.filter(isUntimed).map((i) => i.ref),
     conflicts,
   }
+}
+
+/**
+ * Lo que la persona hace a la vez con otra cosa ya colocada empieza con ella,
+ * aunque las dos pidan concentración (lo pidió). Ignora su propia ventana a
+ * propósito: "a la vez" manda sobre "por la tarde". null si no tiene pareja
+ * colocada, si se sale del día o si choca con algo más.
+ */
+function besidePartner(it: DayItem, placed: Slot[], lower: number, dayEndMin: number): Slot | null {
+  const partner = placed.find((s) => s.item.ref === it.alongside || s.item.alongside === it.ref)
+  if (!partner) return null
+  const slot = slotAt(it, Math.max(partner.startMin, lower))
+  if (slot.endMin > dayEndMin) return null
+  const clash = placed.some((o) => o !== partner && overlaps(o, slot) && !canOverlap(o.item, it))
+  return clash ? null : slot
 }
 
 interface Bounds {
@@ -474,6 +498,13 @@ export function planToOps(plan: DayPlan, items: DayItem[], habits: DayContextHab
     if (it?.source === 'new') ops.push({ kind: 'createTask', ref, title: it.title, area: it.area ?? null })
   }
   return ops
+}
+
+const ADD_KINDS = new Set<DayOp['kind']>(['createEvent', 'createSession', 'createTask'])
+
+/** true si el borrador solo agrega cosas (no mueve nada que la persona ya tenía). */
+export function isAddOnly(ops: DayOp[]): boolean {
+  return ops.length > 0 && ops.every((op) => ADD_KINDS.has(op.kind))
 }
 
 export function countChanges(ops: DayOp[]): number {

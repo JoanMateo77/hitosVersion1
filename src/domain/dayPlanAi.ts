@@ -118,13 +118,13 @@ const RULES = [
   '- untimed=true SOLO para pendientes sueltos y cortos que la persona hará "cuando pueda" (llamar, pagar, enviar algo). Todo lo que ocupa un bloque de tiempo (gimnasio, estudio, trabajo, traslados, comidas) va con untimed=false aunque no tenga hora.',
   '- Si la persona da contexto de cuándo ("después de la reunión", "al trabajo", "antes de dormir"), tradúcelo a window (un traslado al trabajo suele ser morning).',
   '- mode: focus (pide toda la atención: reunión, estudiar, escribir, llamada), physical (ocupa el cuerpo y deja libre el oído: gimnasio, manejar, caminar, cocinar), routine (mecánica: lavar platos, ordenar), audio (solo escuchar: pódcast, audiolibro).',
-  '- No decidas qué se hace a la vez: eso lo hace la app. Usa alongside solo si la persona dijo explícitamente que hace dos cosas juntas (ref de la otra).',
+  '- No decidas por tu cuenta qué se hace a la vez: eso lo hace la app. Usa alongside (ref de la otra) cuando la persona dice que hace dos cosas juntas ("a la vez", "mientras", "al mismo tiempo", "en paralelo", "junto con"), aunque las dos pidan concentración: es su decisión. "X y Y" a secas son dos cosas seguidas, no a la vez.',
   '- area: el área de vida de cada actividad nueva, para darle color: salud (cuerpo, ejercicio, médico, comida), finanzas (pagos, banco, compras, trámites de dinero), carrera (trabajo, clientes, estudios formales, planear el trabajo), aprendizaje (idiomas, cursos, lecturas, practicar algo), relaciones (familia, amigos, pareja, llamadas), creatividad (proyectos propios, apps, música, escribir), bienestar (casa, orden, descanso, planear la vida, mantenimiento como revisar la moto). Elige la más cercana; nunca la dejes vacía.',
   '- goalId: solo si la actividad es claramente trabajo de una de <metas> (usa su id exacto).',
   '- No toques lo que ya existía salvo que la persona lo pida.',
   `- Preguntas: máximo ${DAY_MAX_QUESTIONS}, en un solo turno, cada una con 2 a ${MAX_OPTIONS} opciones cortas. Pregunta solo lo que falta y cambia el día. Pregunta SIEMPRE la duración de un bloque de trabajo profundo sin duración (tesis, estudio, proyecto). Nunca preguntes lo que la persona ya dijo.`,
   '- Si hay un supuesto razonable (duración de una comida, de un traslado), úsalo y escríbelo en "assumptions" ("Supuse 1 h para el gimnasio") en vez de preguntar.',
-  '- reply: 1 o 2 frases que resuman lo que entendiste. Sin listas ni horas inventadas. Si mencionas una hora, en formato de 12 horas ("7:00 pm").',
+  '- reply: 1 o 2 frases que resuman lo que entendiste, como propuesta ("Te propongo…", "Quedaría…"). Todavía nada está guardado: nunca digas que ya programaste, agendaste, agregaste o guardaste algo. Sin listas ni horas inventadas. Si mencionas una hora, en formato de 12 horas ("7:00 pm").',
 ]
 
 export function buildDayPrompt(ctx: DayAiContext, history: ChatTurn[], message: string): string {
@@ -145,6 +145,24 @@ export function buildDayPrompt(ctx: DayAiContext, history: ChatTurn[], message: 
 
 function readArea(v: unknown): DayArea | null {
   return DAY_AREAS.includes(v as DayArea) ? (v as DayArea) : null
+}
+
+// Verbos con los que un modelo da por hecho algo que todavía es un borrador.
+// Participios solo con "he" ("un día organizado" no afirma nada); pretéritos solos.
+// "puse/organicé/creé" solo con "ya" (sin él suelen describir el borrador).
+const CLAIM =
+  '(?:(?:ya\\s+)?(?:(?:te\\s+)?he\\s+(?:programado|agendado|guardado|agregado|añadido|organizado|puesto|creado|reservado|anotado)|programé|agendé|guardé|agregué|añadí|reservé|anoté)|ya\\s+(?:puse|organicé|creé)|quedó\\s+(?:agendad|guardad|programad|reservad)[ao]s?|quedaron\\s+(?:agendad|guardad|programad|reservad)[ao]s)'
+// \b no entiende tildes ("agendé"): los bordes de palabra se miran con \p{L}.
+const LEADING_CLAIM = new RegExp(`^(?:listo|hecho|perfecto)?[,.!]?\\s*${CLAIM}(?!\\p{L})`, 'iu')
+const ANY_CLAIM = new RegExp(`(?<!\\p{L})${CLAIM}(?!\\p{L})`, 'giu')
+
+/**
+ * Nada se guarda hasta "Aplicar": la respuesta propone, no informa lo hecho.
+ * Si el modelo dice "programé/agregué…", se reescribe como propuesta.
+ */
+export function honestReply(reply: string): string {
+  if (!new RegExp(ANY_CLAIM.source, 'iu').test(reply)) return reply
+  return reply.replace(LEADING_CLAIM, 'Te propongo').replace(ANY_CLAIM, 'propongo').replace(/^propongo/u, 'Te propongo')
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => v != null && typeof v === 'object' && !Array.isArray(v)
@@ -257,7 +275,7 @@ export function readDayItem(v: unknown): DayItem | null {
 /** null si la respuesta no sirve (la cadena prueba el siguiente modelo). */
 export function parseDayReply(raw: unknown, ctx: DayAiContext): DayAiReply | null {
   if (!isRecord(raw)) return null
-  const reply = clean(raw.reply, 400)
+  const reply = honestReply(clean(raw.reply, 400))
   if (!reply) return null
   const byRef = new Map(ctx.items.map((i) => [i.ref, i]))
   const rawItems = Array.isArray(raw.items) ? raw.items.filter(isRecord) : []

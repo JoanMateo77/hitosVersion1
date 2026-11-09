@@ -116,6 +116,58 @@ describe('planDay', () => {
     expect(placedOf(plan, call.ref)?.overlapsWith).toEqual([meeting.ref])
   })
 
+  it('puts two focus tasks the person does together at the same time', () => {
+    // Las pruebas van en la tarde; sin "a la vez", desarrollar iría temprano.
+    const tests = item({ title: 'Pruebas de seguridad', durationMin: 120, window: 'afternoon' })
+    const dev = item({ title: 'Desarrollar funcionalidades', durationMin: 90, alongside: tests.ref })
+    const meeting = item({ fixed: true, start: '06:00', durationMin: 60 })
+    const plan = planDay({ items: [dev, meeting, tests], nowMin: null })
+    expect(placedOf(plan, dev.ref)?.start).toBe(placedOf(plan, tests.ref)?.start)
+    expect(placedOf(plan, dev.ref)?.overlapsWith).toEqual([tests.ref])
+    expect(plan.conflicts).toEqual([])
+  })
+
+  it('a task done together with a fixed one goes at its time', () => {
+    const meeting = item({ fixed: true, start: '15:00', durationMin: 60, title: 'Reunión' })
+    const notes = item({ durationMin: 30, alongside: meeting.ref, title: 'Tomar notas' })
+    const plan = planDay({ items: [notes, meeting], nowMin: null })
+    expect(placedOf(plan, notes.ref)?.start).toBe('15:00')
+  })
+
+  it('falls back to a free slot when the partner time clashes with something else', () => {
+    const meeting = item({ fixed: true, start: '09:00', durationMin: 60 })
+    const call = item({ fixed: true, start: '09:00', durationMin: 30 })
+    const notes = item({ durationMin: 30, alongside: meeting.ref })
+    const plan = planDay({ items: [meeting, call, notes], nowMin: null })
+    const placed = placedOf(plan, notes.ref)
+    expect(placed?.start).not.toBe('09:00')
+  })
+
+  it('a task done together follows its partner after the partner was moved by a clash', () => {
+    const block = item({ fixed: true, start: '09:00', durationMin: 60 })
+    const study = item({ start: '09:00', durationMin: 60 }) // nuevo con hora preferida: choca y se mueve
+    const music = item({ durationMin: 30, alongside: study.ref })
+    const plan = planDay({ items: [block, study, music], nowMin: null })
+    expect(placedOf(plan, music.ref)?.start).toBe(placedOf(plan, study.ref)?.start)
+    expect(placedOf(plan, study.ref)?.start).not.toBe('09:00')
+  })
+
+  it('does not join when it would run past the end of the day', () => {
+    const late = item({ fixed: true, start: '21:45', durationMin: 15 })
+    const long = item({ durationMin: 60, alongside: late.ref })
+    const plan = planDay({ items: [late, long], nowMin: null })
+    expect(placedOf(plan, long.ref)?.start).not.toBe('21:45')
+  })
+
+  it('places a task normally when its partner did not fit', () => {
+    const allDay = item({ fixed: true, start: '06:00', durationMin: 960 }) // 06–22
+    const partner = item({ durationMin: 120 }) // no cabe
+    const other = item({ durationMin: 30, alongside: partner.ref, mode: 'audio' })
+    const plan = planDay({ items: [allDay, partner, other], nowMin: null })
+    expect(placedOf(plan, partner.ref)).toBeUndefined()
+    expect(plan.conflicts).toContainEqual(expect.objectContaining({ kind: 'no_room', ref: partner.ref }))
+  })
+
   it('reports no_room with the largest free gap', () => {
     const a = item({ fixed: true, start: '06:00', durationMin: 420 }) // 06–13
     const b = item({ fixed: true, start: '14:00', durationMin: 480 }) // 14–22
