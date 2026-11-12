@@ -65,7 +65,7 @@ export interface GoalPlanInput {
 }
 
 export const MIN_STAGES = 3
-export const MAX_STAGES = 6
+export const MAX_STAGES = 7
 export const MAX_QUESTIONS = 3
 /** Sugerencias máximas cuando la persona ya tiene etapas propias. */
 export const MAX_ADDITIONS = 4
@@ -137,15 +137,15 @@ function currentStages(input: GoalPlanInput): string[] {
 function stageRules(input: GoalPlanInput): string[] {
   if (currentStages(input).length === 0) {
     return [
-      `Diseña el camino: entre ${MIN_STAGES} y ${MAX_STAGES} etapas en orden, específicas para ESTA meta y ESTA persona.`,
+      `Diseña el camino COMPLETO: entre ${MIN_STAGES + 1} y ${MAX_STAGES} etapas en orden, específicas para ESTA meta y ESTA persona, desde el primer paso de hoy hasta tener la meta lograda. Usa las etapas que hagan falta para no dejar huecos; no te quedes en el mínimo.`,
       'insertAfter: 0 en todas (la persona aún no tiene etapas). reason: qué aporta la etapa, en una frase. notes: lista vacía.',
     ]
   }
   return [
     'La persona ya escribió etapas (en <etapas_actuales>, numeradas desde 1). Analiza ese camino con el método: qué falta, qué está fuera de orden, qué es vago.',
-    `NO repitas ni reformules ninguna etapa existente, ni una que diga casi lo mismo con otras palabras. Sugiere SOLO las que faltan: entre 0 y ${MAX_ADDITIONS}. Si el camino está completo, devuelve 0.`,
+    `NO repitas ni reformules ninguna etapa existente, ni una que diga casi lo mismo con otras palabras. Sugiere SOLO las que faltan: entre 0 y ${MAX_ADDITIONS}. Recorre el camino con la prueba del método: si con las etapas existentes más tus sugerencias todavía no se llega al resultado de la meta, falta una etapa. Si el camino está completo, devuelve 0.`,
     'insertAfter: número de la etapa existente después de la cual va la sugerencia (0 = antes de la primera). reason: por qué falta y por qué va en esa posición, en una frase.',
-    'notes: 0 a 2 observaciones breves sobre las etapas existentes (orden, vaguedad, dos que se pisan). Refiérete a ellas por su número.',
+    'notes: 0 a 2 observaciones breves sobre las etapas existentes (orden, vaguedad, dos que se pisan, una que se sale de la meta). Refiérete a ellas por su número.',
   ]
 }
 
@@ -200,7 +200,8 @@ export function buildQuestionsPrompt(input: GoalPlanInput, signalLines: string[]
 
 /** Reglas de contenido del camino: comunes a planear y pulir. */
 const PLAN_RULES = [
-  'Cada etapa: título corto (máx. 8 palabras), objetivo en una frase, semanas estimadas, 1 a 3 primeras acciones que se hagan en una sesión, y una señal de éxito observable.',
+  'Cada etapa: título corto que empieza con un verbo en infinitivo ("Cotizar…", no "Cotización…"; máx. 8 palabras), objetivo en una frase, semanas estimadas, 1 a 3 primeras acciones que se hagan en una sesión, y una señal de éxito observable.',
+  'Las primeras acciones son concretas y completas: dicen qué hacer, con qué o dónde, y qué queda hecho al terminar ("Pedir cotización en dos talleres y anotar el precio", no "Investigar opciones").',
   'Si hay <semanas_disponibles>, las semanas de las etapas suman aproximadamente ese número: el camino cubre el plazo, sin pasarse ni quedarse corto.',
   'Si la meta es una cantidad (dinero, kilos, kilómetros, páginas), calcula el ritmo necesario (por mes o por semana) con el plazo y compáralo con lo que la persona contó. Escribe montos y ritmos concretos en las acciones. Si no alcanza, dilo en summary con los números y arma el camino más cercano posible.',
   'Cada respuesta de la persona tiene que notarse en al menos una etapa o en summary; no ignores ninguna.',

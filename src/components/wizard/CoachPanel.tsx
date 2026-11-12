@@ -184,6 +184,8 @@ export function CoachPanel({
   const status = statusLabel(phase)
 
   function sendChat(text: string) {
+    // Con una pregunta abierta, lo que la persona escribe es su respuesta.
+    if (phase.kind === 'asking') return answer(text.trim())
     void chat.send(text)
     if (!inlineThread) onOpenChat()
   }

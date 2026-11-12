@@ -75,6 +75,19 @@ describe('handlePlanMeta', () => {
     expect(d.planner?.criteria).toHaveBeenCalledWith(expect.anything(), 'sin deudas', expect.any(Array))
   })
 
+  it('pasa al coach si la persona está armando el camino', async () => {
+    const d = deps()
+    await handlePlanMeta(req({ action: 'chat', title: 'Gafas', message: 'haz todo el plan', designing: true }), d)
+    expect(d.planner?.chat).toHaveBeenLastCalledWith(
+      expect.objectContaining({ designing: true }),
+      [],
+      'haz todo el plan',
+      expect.any(Array),
+    )
+    await handlePlanMeta(req({ action: 'chat', title: 'Gafas', message: 'hola', designing: 'sí' }), d)
+    expect(d.planner?.chat).toHaveBeenLastCalledWith(expect.objectContaining({ designing: false }), [], 'hola', expect.any(Array))
+  })
+
   it('sugiere el tipo de meta sin cargar la memoria de comportamiento', async () => {
     const d = deps()
     const res = await handlePlanMeta(req({ action: 'type', title: 'Comprar una moto', why: 'ir al trabajo' }), d)

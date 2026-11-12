@@ -83,6 +83,7 @@ function readChatContext(b: Record<string, unknown>, input: GoalPlanInput): Chat
     // Solo cambia el prompt y si se acepta la nota: registrar el avance lo
     // hace luego la persona con su sesión (RLS), no este servidor.
     canLogProgress: b.canLogProgress === true,
+    designing: b.designing === true,
   }
 }
 

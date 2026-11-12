@@ -93,7 +93,7 @@ export function createGoalPlanner(chain: ModelChain): GoalPlanner {
       planWithReview(buildRefinePrompt(input, plan, instruction, signals), input),
     chat: (ctx, history, message, signals) =>
       call(buildChatPrompt(ctx, history, message, signals), CHAT_RESPONSE_SCHEMA, (raw) =>
-        parseCoachReply(raw, ctx.stages, ctx.canLogProgress === true),
+        parseCoachReply(raw, ctx.stages, { canLogProgress: ctx.canLogProgress === true, designing: ctx.designing === true }),
       ),
     criteria: (ctx, hint, signals) =>
       call(buildCriteriaPrompt(ctx, hint, signals), CRITERIA_RESPONSE_SCHEMA, parseCriteria),

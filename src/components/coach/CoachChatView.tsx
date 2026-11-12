@@ -117,13 +117,23 @@ function ProposalCard({
       ) : (
         <>
           <span className="small">{proposal.summary}</span>
-          <ul className="coach-proposal__list">
-            {proposal.changes.map((c) => (
-              <li key={`${c.kind}-${c.title}`} className="small">
-                {describe(c)}
-              </li>
-            ))}
-          </ul>
+          {proposal.path ? (
+            <ol className="coach-proposal__list" aria-label="Camino propuesto">
+              {proposal.path.map((title) => (
+                <li key={title} className="small">
+                  <b>{title}</b>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <ul className="coach-proposal__list">
+              {proposal.changes.map((c) => (
+                <li key={`${c.kind}-${c.title}`} className="small">
+                  {describe(c)}
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       )}
       {applied ? (
