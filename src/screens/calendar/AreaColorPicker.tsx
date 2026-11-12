@@ -10,7 +10,8 @@ const ARROW_STEP: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowL
 /**
  * Color de un evento sin meta: el área a la que pertenece. Sin elegir (null)
  * marca el que la agenda ya le da por el título, para que lo que se ve aquí
- * sea lo que se ve en la agenda. Radiogroup con flechas, como el color de meta.
+ * sea lo que se ve en la agenda. Cada opción lleva su nombre junto al color:
+ * un círculo solo no dice qué área es. Radiogroup con flechas, como el color de meta.
  */
 export function AreaColorPicker({
   title,
@@ -33,9 +34,9 @@ export function AreaColorPicker({
   return (
     <div className="field">
       <span className="field__label" id="event-area-label">
-        Color
+        Área
       </span>
-      <div ref={groupRef} className="goal-swatches" role="radiogroup" aria-labelledby="event-area-label" onKeyDown={onKeyDown}>
+      <div ref={groupRef} className="area-chips" role="radiogroup" aria-labelledby="event-area-label" onKeyDown={onKeyDown}>
         {DAY_AREAS.map((area, i) => {
           const selected = i === selectedIndex
           const label = getNiche(area).label
@@ -45,19 +46,20 @@ export function AreaColorPicker({
               type="button"
               role="radio"
               aria-checked={selected}
-              aria-label={label}
-              title={label}
               tabIndex={selected ? 0 : -1}
-              className="goal-swatch"
+              className="area-chip"
               style={nicheAccent(area)}
               onClick={() => onChange(area)}
             >
-              {selected && <IconCheck size={18} />}
+              <span className="area-chip__dot" aria-hidden="true">
+                {selected && <IconCheck size={12} />}
+              </span>
+              {label}
             </button>
           )
         })}
       </div>
-      <span className="field__hint">El área de tu vida a la que pertenece. Le da su color en la agenda.</span>
+      <span className="field__hint">A qué parte de tu vida pertenece. Le da su color en la agenda.</span>
     </div>
   )
 }

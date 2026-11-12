@@ -583,3 +583,46 @@
 .goal-switch[aria-checked='true'] .goal-switch__knob {
   transform: translateX(20px);
 }
+
+/* Área de un evento: color + nombre, para que se sepa qué significa cada color. */
+.area-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+.area-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 44px;
+  padding: 0 var(--s3) 0 var(--s2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9375rem;
+  transition: transform var(--dur-tap) var(--ease-out), box-shadow var(--dur-tap) var(--ease-out);
+}
+.area-chip:active {
+  transform: scale(0.96);
+}
+.area-chip__dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--vivid);
+  color: var(--vivid-ink);
+}
+.area-chip[aria-checked='true'] {
+  border-color: var(--niche);
+  box-shadow: inset 0 0 0 1px var(--niche);
+  font-weight: 600;
+}
+.area-chip:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
