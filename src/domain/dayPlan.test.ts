@@ -49,6 +49,12 @@ describe('canOverlap', () => {
     expect(canOverlap({ ...a, together: 'g1' }, { ...b, together: 'g2' })).toBe(false)
   })
 
+  it('a habit shares time with anything, even a solo item', () => {
+    const habit = item({ source: 'habit', ref: 'habit:h:0' })
+    expect(canOverlap(habit, item({ mode: 'focus' }))).toBe(true)
+    expect(canOverlap(item({ solo: true }), habit)).toBe(true)
+  })
+
   it('a solo item shares time with nothing, not even audio or its group', () => {
     const solo = item({ mode: 'physical', solo: true, together: 'g1' })
     expect(canOverlap(solo, item({ mode: 'audio' }))).toBe(false)
@@ -99,6 +105,27 @@ describe('planDay', () => {
     const moved = placedOf(plan, 'session:b')
     expect(moved).toMatchObject({ status: 'moved', from: '09:30' })
     expect(moved && moved.start >= '11:00').toBe(true)
+  })
+
+  it('never moves an existing habit, even under a fixed item', () => {
+    const habits = ['06:25', '08:00'].map((t, i) =>
+      item({ ref: `habit:water:${i}`, source: 'habit', start: t, originalStart: t, durationMin: 15 }),
+    )
+    const breakfast = item({ fixed: true, start: '06:00', durationMin: 180 })
+    const plan = planDay({ items: [...habits, breakfast], nowMin: null })
+    expect(placedOf(plan, 'habit:water:0')).toMatchObject({ start: '06:25', status: 'same' })
+    expect(placedOf(plan, 'habit:water:1')).toMatchObject({ start: '08:00', status: 'same' })
+    expect(plan.conflicts).toEqual([])
+    expect(planToOps(plan, [...habits, breakfast], [{ habitId: 'water', times: ['06:25', '08:00'], hasOverride: false }])
+      .some((op) => op.kind === 'moveHabit')).toBe(false)
+  })
+
+  it('a habit does not take time away from new flexible items nor shows as "a la vez"', () => {
+    const habit = item({ ref: 'habit:h:0', source: 'habit', start: '09:00', originalStart: '09:00', durationMin: 15 })
+    const study = item({ durationMin: 60 })
+    const plan = planDay({ items: [habit, study], nowMin: 9 * 60, dayStart: '09:00' })
+    expect(placedOf(plan, study.ref)).toMatchObject({ start: '09:00', overlapsWith: [] })
+    expect(placedOf(plan, 'habit:h:0')?.overlapsWith).toEqual([])
   })
 
   it('marks an existing item as moved when the AI changed its start', () => {
