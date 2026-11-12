@@ -97,7 +97,15 @@ export const WINDOWS: Record<DayWindow, [number, number | null]> = {
 
 const LAST_MINUTE = 1439
 
+/**
+ * Un hábito es un recordatorio corto (beber agua, leer una frase) que cabe
+ * entre cualquier cosa: no ocupa tiempo ni se reubica por un choque. Solo
+ * cambia de hora si la persona lo pide.
+ */
+const isHabit = (i: DayItem) => i.source === 'habit'
+
 export function canOverlap(a: DayItem, b: DayItem): boolean {
+  if (isHabit(a) || isHabit(b)) return true
   if (a.solo || b.solo) return false
   if (a.together !== null && a.together === b.together) return true
   const pair = (x: AttentionMode, y: AttentionMode) =>
@@ -306,8 +314,9 @@ function toPlaced(s: Slot, all: Slot[]): PlacedItem {
     start,
     end: minutesToTime(s.endMin),
     status,
+    // Un hábito convive con todo: anotarlo como "a la vez" solo sería ruido.
     overlapsWith: all
-      .filter((o) => o !== s && overlaps(o, s) && canOverlap(o.item, s.item))
+      .filter((o) => o !== s && !isHabit(o.item) && !isHabit(s.item) && overlaps(o, s) && canOverlap(o.item, s.item))
       .map((o) => o.item.ref),
   }
   if (status === 'moved' && original) out.from = original
